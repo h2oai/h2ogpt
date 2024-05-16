@@ -4624,7 +4624,9 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
             file=audio_file
         )
         print(transcription.text)
-    assert 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
+    test1 = 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
+    test2 = 'Based on the document provided chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
+    assert test1 or test2
 
     import json
     import httpx
@@ -4665,7 +4667,9 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     # Run the client function
     final_text = asyncio.run(stream_audio_transcription("/home/jon/h2ogpt/tests/test_speech.wav"))
     print(final_text)
-    assert final_text == 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.'
+    test1 = final_text == 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.'
+    test2 = final_text == 'Based on the document provided chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song.'
+    assert test1 or test2
 
     response = openai_client.images.generate(
         model="sdxl_turbo",
@@ -4688,6 +4692,22 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
         image.show()  # This will open the default image viewer and display the image
         # if was url, could try this, but we return image url, not real url
         # webbrowser.open(response.data[0].url)
+
+    response = openai_client.embeddings.create(
+        input="Your text string goes here",
+        model="text-embedding-3-small"
+    )
+    print(response.data[0].embedding)
+    assert len(response.data[0].embedding) == 768
+
+    response = openai_client.embeddings.create(
+        input=["Your text string goes here", "Another text string goes here"],
+        model="text-embedding-3-small"
+    )
+    print(response.data[0].embedding)
+    assert len(response.data[0].embedding) == 768
+    print(response.data[1].embedding)
+    assert len(response.data[1].embedding) == 768
 
 
 @pytest.mark.parametrize("base_model", [

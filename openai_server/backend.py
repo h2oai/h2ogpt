@@ -8,6 +8,7 @@ import uuid
 from collections import deque
 
 import filelock
+import numpy as np
 
 from log import logger
 from openai_server.backend_utils import convert_messages_to_structure
@@ -628,3 +629,41 @@ def audio_str_to_bytes(audio_str1, format='wav'):
     output_bytes = output_stream.getvalue()
 
     return output_bytes
+
+
+def list_to_bytes(lst: list) -> str:
+    float_array = np.array(lst, dtype="float32")
+    bytes_array = float_array.tobytes()
+    encoded_bytes = base64.b64encode(bytes_array)
+    ascii_string = encoded_bytes.decode('ascii')
+    return ascii_string
+
+
+def text_to_embedding(model, text, encoding_format, **kwargs):
+    # assumes enable_stt=True set for h2oGPT
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
+        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+
+    client = get_gradio_client(kwargs.get('user'))
+    h2ogpt_key = kwargs.get('h2ogpt_key', '')
+
+    inputs = dict(text=text, h2ogpt_key=h2ogpt_key, is_list=str(isinstance(text, list)))
+    embeddings = client.predict(*tuple(list(inputs.values())), api_name='/embed_api')
+    embeddings = ast.literal_eval(embeddings)
+
+    if encoding_format == "base64":
+        data = [{"object": "embedding", "embedding": list_to_bytes(emb), "index": n} for n, emb in
+                enumerate(embeddings)]
+    else:
+        data = [{"object": "embedding", "embedding": emb.tolist(), "index": n} for n, emb in enumerate(embeddings)]
+
+    response = {
+        "object": "list",
+        "data": data,
+        "model": model,
+        "usage": {
+            "prompt_tokens": 0,
+            "total_tokens": 0,
+        }
+    }
+    return response

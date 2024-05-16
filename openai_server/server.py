@@ -477,6 +477,31 @@ async def handle_image_generation(request: Request):
         return JSONResponse(resp)
 
 
+class EmbeddingsResponse(BaseModel):
+    index: int
+    embedding: List[float]
+    object: str = "embedding"
+
+
+class EmbeddingsRequest(BaseModel):
+    input: str | List[str] | List[int] | List[List[int]]
+    model: str | None = Field(default=None, description="Unused parameter.")
+    encoding_format: str = Field(default="float", description="float or base64.")
+    user: str | None = Field(default=None, description="Unused parameter.")
+
+
+@app.post("/v1/embeddings", response_model=EmbeddingsResponse, dependencies=check_key)
+async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
+    # https://docs.portkey.ai/docs/api-reference/embeddings
+    text = request_data.input
+    model = request_data.model
+    encoding_format = request_data.encoding_format
+
+    from openai_server.backend import text_to_embedding
+    response = text_to_embedding(model, text, encoding_format)
+    return JSONResponse(response)
+
+
 def run_server(host='0.0.0.0',
                port=5000,
                ssl_certfile=None,

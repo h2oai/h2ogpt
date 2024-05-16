@@ -6729,6 +6729,36 @@ def go_gradio(**kwargs):
                      api_name='transcribe_audio_api',
                      show_progress='hidden')
 
+        def wrap_embedding_func_api(text, h2ogpt_key1, is_list1, requests_state1):
+            # check key
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'],
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1)
+            kwargs['from_ui'] = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
+            assert not kwargs['use_openai_embedding'], "Should not be using OpenAI embeddings."
+            is_list1 = ast.literal_eval(is_list1)
+            if is_list1:
+                text = ast.literal_eval(text)
+            else:
+                text = [text]
+            embedding = kwargs['hf_embedding_model']['model'].embed_documents(text)
+            return embedding
+
+        embed_api_output = gr.Textbox(value='', visible=False)
+        embed_api_input = gr.Textbox(value='', visible=False)
+        embed_api_btn = gr.Button(visible=False)
+        is_list = gr.Textbox(value='False', visible=False)
+        embed_api_btn.click(fn=wrap_embedding_func_api,
+                     inputs=[embed_api_input, h2ogpt_key, is_list, requests_state],
+                     outputs=[embed_api_output],
+                     api_name='embed_api',
+                     show_progress='hidden')
+
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
     favicon_path = kwargs['favicon_path'] or favicon_file

@@ -294,6 +294,8 @@ response.stream_to_file(speech_file_path)
 
 ### Speech to Text
 
+Requires h2oGPT loaded with `--enable_stt=True --pre_load_image_audio_models=True`.
+
 ```python
 from openai import OpenAI
 client = OpenAI(base_url='http://0.0.0.0:5000/v1')
@@ -309,6 +311,8 @@ print(transcription.text)
 ```
 
 ### Image Generation
+
+Requires h2oGPT loaded with `--enable_image=True --pre_load_image_audio_models=True --visible_image_models=['sdxl_turbo']` or some selection of such image generation models.
 
 ```python
 from openai import OpenAI
@@ -331,6 +335,30 @@ image = Image.open(io.BytesIO(image_data))
 # Save the image to a file or display it
 image.save('output_image.png')
 image.show()  # This will open the default image viewer and display the image
+```
+
+### Embedding
+
+Requires h2oGPT loaded with langchain enabled (not `--langchain_mode=Disabled`) and `--pre_load_embedding_model=True` and potentially some choice for `--hf_embedding_model` (default is used if no specified) and `--use_openai_embedding=False` to be set (default).
+
+Note `model` is ignored currently, uses single embedding in h2oGPT.
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+#client = OpenAI()
+
+response = client.embeddings.create(
+    input="Your text string goes here",
+    model="text-embedding-3-small"
+)
+print(response.data[0].embedding)
+
+response = client.embeddings.create(
+    input=["Your text string goes here", "Another text string goes here"],
+    model="text-embedding-3-small"
+)
+print(response.data[0].embedding)
+print(response.data[1].embedding)
 ```
 
 ## vLLM Inference Server-Client
