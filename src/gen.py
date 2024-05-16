@@ -512,6 +512,7 @@ def main(
         guided_regex: str = '',
         guided_choice: str = '',
         guided_grammar: str = '',
+        guided_whitespace_pattern: str = '[ \n\t]',
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
@@ -1245,6 +1246,7 @@ def main(
     :param guided_regex:
     :param guided_choice:
     :param guided_grammar:
+    :param guided_whitespace_pattern:
 
     :param asr_model: Name of model for ASR, e.g. openai/whisper-medium or openai/whisper-large-v3 or distil-whisper/distil-large-v3 or microsoft/speecht5_asr
            whisper-medium uses about 5GB during processing, while whisper-large-v3 needs about 10GB during processing
@@ -1356,6 +1358,7 @@ def main(
     assert isinstance(guided_regex, str)
     assert isinstance(guided_choice, str)
     assert isinstance(guided_grammar, str)
+    assert isinstance(guided_whitespace_pattern, str)
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -1906,6 +1909,7 @@ def main(
                             guided_regex,
                             guided_choice,
                             guided_grammar,
+                            guided_whitespace_pattern,
 
                             verbose,
                             )
@@ -3851,6 +3855,7 @@ def evaluate(
         guided_regex,
         guided_choice,
         guided_grammar,
+        guided_whitespace_pattern,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -4242,6 +4247,7 @@ def evaluate(
                 guided_json_properties = {}
         else:
             guided_json_properties = guided_json or {}
+        guided_whitespace_pattern = guided_whitespace_pattern or '[ \t\n]'
         assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
         if 'properties' in guided_json_properties:
             guided_json_properties = guided_json_properties['properties']
@@ -4548,6 +4554,7 @@ def evaluate(
                 guided_regex=guided_regex,
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
+                guided_whitespace_pattern=guided_whitespace_pattern,
 
                 json_vllm=json_vllm,
 
@@ -4664,6 +4671,7 @@ def evaluate(
                                                           guided_regex=guided_regex,
                                                           guided_choice=guided_choice,
                                                           guided_grammar=guided_grammar,
+                                                          guided_whitespace_pattern=guided_whitespace_pattern,
                                                           # repetition_penalty=repetition_penalty,  # could pass
                                                           )
                 else:
@@ -5006,6 +5014,7 @@ def evaluate(
                                          guided_regex=guided_regex,
                                          guided_choice=guided_choice,
                                          guided_grammar=guided_grammar,
+                                         guided_whitespace_pattern=guided_whitespace_pattern,
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -5572,6 +5581,7 @@ def get_generate_params(model_lower,
                         guided_regex,
                         guided_choice,
                         guided_grammar,
+                        guided_whitespace_pattern,
 
                         verbose,
                         ):
@@ -5801,6 +5811,7 @@ y = np.random.randint(0, 1, 100)
                     guided_regex,
                     guided_choice,
                     guided_grammar,
+                    guided_whitespace_pattern,
                     ]
         # adjust examples if non-chat mode
         if not chat:
