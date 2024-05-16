@@ -1,1 +1,1 @@
-__version__ = "560f93d7983c0f3f195f9ffe146bfa17c1d97724"
+__version__ = "588d8ee677e3fa908170e93dc6251ef6490c99a8"

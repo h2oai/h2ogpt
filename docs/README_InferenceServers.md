@@ -292,6 +292,21 @@ input="Today is a wonderful day to build something people love!"
 response.stream_to_file(speech_file_path)
 ```
 
+### Speech to Text
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+file = "speech.wav"
+with open(file, "rb") as f:
+    audio_file= f.read()
+transcription = client.audio.transcriptions.create(
+  model="whisper-1",
+  file=audio_file
+)
+print(transcription.text)
+```
 
 ## vLLM Inference Server-Client
 
