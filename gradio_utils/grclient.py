@@ -727,7 +727,7 @@ class GradioClient(Client):
         guided_regex: str = "",
         guided_choice: str = "",
         guided_grammar: str = "",
-        guided_whitespace_pattern: str = "[ \n\t]",
+        guided_whitespace_pattern: str = ' ',
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
         jq_schema=".[]",
