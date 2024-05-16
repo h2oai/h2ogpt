@@ -308,6 +308,31 @@ transcription = client.audio.transcriptions.create(
 print(transcription.text)
 ```
 
+### Image Generation
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+# client = OpenAI()
+
+response = client.images.generate(
+  model="sdxl_turbo",  # should be empty if do not know which model, h2oGPT will choose first if exists
+  prompt="A cute baby sea otter",
+  n=1,
+  size="1024x1024",
+  response_format='b64_json',
+)
+import base64
+image_data = base64.b64decode(response.data[0].b64_json.encode('utf-8'))
+# Convert binary data to an image
+from PIL import Image
+import io
+image = Image.open(io.BytesIO(image_data))
+# Save the image to a file or display it
+image.save('output_image.png')
+image.show()  # This will open the default image viewer and display the image
+```
+
 ## vLLM Inference Server-Client
 
 Create separate environment
