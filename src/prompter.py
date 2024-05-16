@@ -1981,6 +1981,7 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
                         guided_regex=None,
                         guided_choice=None,
                         guided_grammar=None,
+                        guided_whitespace_pattern=None,
                         ):
     stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
                       hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
@@ -2000,6 +2001,8 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
         vllm_extra_dict['extra_body'].update(guided_choice=guided_choice)
     if guided_grammar:
         vllm_extra_dict['extra_body'].update(guided_grammar=guided_grammar)
+    if guided_whitespace_pattern:
+        vllm_extra_dict['extra_body'].update(guided_whitespace_pattern=guided_whitespace_pattern)
 
     return vllm_extra_dict
 

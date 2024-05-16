@@ -103,6 +103,7 @@ eval_func_param_names = (
         "guided_regex",
         "guided_choice",
         "guided_grammar",
+        "guided_whitespace_pattern",
     ]
 )
 

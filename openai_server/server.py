@@ -139,6 +139,10 @@ class H2oGPTParams(BaseModel):
         default=None,
         description="If specified, the output will follow the context free grammar.",
     )
+    guided_whitespace_pattern: Optional[str] = Field(
+        default=None,
+        description="If specified, JSON white space will be restricted.",
+    )
 
 
 class Params(H2oGPTParams):
