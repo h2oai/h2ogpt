@@ -494,7 +494,7 @@ def main(
         enable_llava: bool = True,
         enable_transcriptions: bool = True,
 
-        pre_load_image_audio_models: bool = True,
+        pre_load_image_audio_models: bool = False,
 
         caption_gpu: bool = True,
         caption_gpu_id: Union[int, str] = 'auto',

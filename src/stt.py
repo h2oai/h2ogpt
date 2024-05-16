@@ -44,7 +44,9 @@ def audio_bytes_to_numpy(audio_bytes):
 
 def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_floor=100.0, reject_no_new_text=True,
                debug=False):
-    print("start transcribe", flush=True)
+    if debug:
+        print("start transcribe", flush=True)
+
     if audio_state1[0] is None:
         audio_state1[0] = ''
     if audio_state1[2] is None:
@@ -64,7 +66,8 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
     else:
         sr, y = new_chunk
 
-    print("post encode", flush=True)
+    if debug:
+        print("post encode", flush=True)
 
     if y.shape[0] == 0:
         avg = 0.0
@@ -88,9 +91,11 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
         stream = stream.astype(np.float32)
         max_stream = np.max(np.abs(stream) + 1E-7)
         stream /= max_stream
-        print("pre transcriber", flush=True)
+        if debug:
+            print("pre transcriber", flush=True)
         text = transcriber({"sampling_rate": sr, "raw": stream})["text"]
-        print("post transcriber", flush=True)
+        if debug:
+            print("post transcriber", flush=True)
 
         if audio_state1[2]:
             try:
@@ -101,9 +106,11 @@ def transcribe(audio_state1, new_chunk, transcriber=None, max_chunks=None, sst_f
             stream0 = stream0.astype(np.float32)
             max_stream0 = np.max(np.abs(stream0) + 1E-7)
             stream0 /= max_stream0
-            print("pre stranscriber", flush=True)
+            if debug:
+                print("pre stranscriber", flush=True)
             text_y = transcriber({"sampling_rate": sr, "raw": stream0})["text"]
-            print("post stranscriber", flush=True)
+            if debug:
+                print("post stranscriber", flush=True)
         else:
             text_y = None
 
