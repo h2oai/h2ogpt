@@ -29,10 +29,8 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
     my_db_state_done, update_langchain_mode_paths, process_audio, is_valid_key, is_from_ui, get_llm_history, prep_bot, \
     allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain
 
-from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct, fetch_user, upsert_user
+from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
-from src.utils_langchain import make_sources_file
-from src.vision.utils_vision import base64_to_img
 
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
@@ -6523,6 +6521,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
         if for_login:
+            from src.utils_langchain import make_sources_file
             sources_file = make_sources_file(langchain_mode, '')
             return sources_file, [], ''
         else:
