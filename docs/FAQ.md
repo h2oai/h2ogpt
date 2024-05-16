@@ -10,7 +10,21 @@ You can use ` --openai_port=14365` like default for ollama if desired, then avoi
 
 Then run the Open Web UI docker command
 ```bash
-docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' -e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 -e OLLAMA_BASE_URL=http://0.0.0.0 -e OLLAMA_HOST=0.0.0.0:5000 -e OPENAI_API_KEY='EMPTY' -e IMAGE_GENERATION_ENGINE='openai' -e ENABLE_LITELLM=False --network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
+-e DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct \
+-e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
+-e OPENAI_API_KEY='EMPTY' \
+-e ENABLE_IMAGE_GENERATION=True \
+-e IMAGE_GENERATION_ENGINE='openai' \
+-e IMAGES_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
+-e IMAGE_GENERATION_MODEL='sdxl_turbo' \
+-e IMAGES_OPENAI_API_KEY='EMPTY' \
+-e AUDIO_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
+-e AUDIO_OPENAI_API_KEY='EMPTY' \
+-e OLLAMA_BASE_URL=http://0.0.0.0 \
+-e OLLAMA_HOST=0.0.0.0:5000 \
+-e ENABLE_LITELLM=False \
+--network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
@@ -19,6 +33,8 @@ See for more [help](https://docs.openwebui.com/troubleshooting/).
 To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
 
 ![openwebui1.png](openwebui1.png)
+
+![openwebui2.png](openwebui2.png)
 
 ### Loading forever in UI
 
