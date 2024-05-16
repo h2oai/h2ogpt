@@ -342,9 +342,10 @@ async def handle_list_models():
 class AudiotoTextRequest(BaseModel):
     model: str = ''
     file: str
-    response_format: str = 'text'
-    stream: bool = True
-    timestamp_granularities: list = ["word"]
+    response_format: str = 'text'  # FIXME unused
+    stream: bool = True  # NOTE: No effect on OpenAI API client, would have to use direct API
+    timestamp_granularities: list = ["word"]  # FIXME unused
+    chunk: Union[str, int] = 'silence'  # or 'interval'   No effect on OpenAI API client, would have to use direct API
 
 
 @app.post('/v1/audio/transcriptions', dependencies=check_key)
@@ -354,7 +355,8 @@ async def handle_audio_transcription(request: Request):
     model = form["model"]
     stream = form.get("stream", False)
     response_format = form.get("response_format", 'text')
-    request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format)
+    chunk = form.get("chunk", 'interval')
+    request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format, chunk=chunk)
 
     if stream:
         from openai_server.backend import audio_to_text
@@ -370,9 +372,9 @@ async def handle_audio_transcription(request: Request):
 
         return EventSourceResponse(generator())
     else:
-        from openai_server.backend import audio_to_text
+        from openai_server.backend import _audio_to_text
         response = ''
-        for response1 in audio_to_text(**dict(request_data)):
+        for response1 in _audio_to_text(**dict(request_data)):
             response = response1
         return JSONResponse(response)
 

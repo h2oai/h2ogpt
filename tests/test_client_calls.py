@@ -4625,6 +4625,36 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     assert 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
 
 
+    import httpx
+    import asyncio
+
+    async def stream_audio_transcription(file_path, model="default-model"):
+        url = "http://0.0.0.0:5000/v1/audio/transcriptions"
+        headers = {"X-API-KEY": "your-api-key"}
+
+        # Read the audio file
+        with open(file_path, "rb") as f:
+            audio_file = f.read()
+
+        # Create the multipart/form-data payload
+        files = {
+            "file": ("audio.wav", audio_file, "audio/wav"),
+            "model": (None, model),
+            "stream": (None, "true"),  # Note the lowercase "true" as the server checks for this
+            "response_format": (None, "text"),
+            "chunk": (None, "silence"),
+        }
+
+        async with httpx.AsyncClient() as client:
+            async with client.stream("POST", url, headers=headers, files=files) as response:
+                async for chunk in response.aiter_text():
+                    # Process each chunk of data as it is received
+                    print(chunk)
+
+    # Run the client function
+    asyncio.run(stream_audio_transcription("/path/to/your/audio/file.wav"))
+
+
 @pytest.mark.parametrize("base_model", [
     'h2oai/h2ogpt-4096-llama2-7b-chat',
     'h2oai/h2o-danube-1.8b-chat'

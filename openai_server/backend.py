@@ -8,7 +8,6 @@ import uuid
 from collections import deque
 
 import filelock
-from pydub import AudioSegment
 
 from log import logger
 from openai_server.backend_utils import convert_messages_to_structure
@@ -456,7 +455,53 @@ def get_model_list():
     return dict(model_names=base_models)
 
 
-def audio_to_text(model, audio_file, stream, response_format, **kwargs):
+def split_audio_on_silence(audio_bytes):
+    from pydub import AudioSegment
+    from pydub.silence import split_on_silence
+
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
+    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=-40, keep_silence=200)
+
+    chunk_bytes = []
+    for chunk in chunks:
+        chunk_buffer = io.BytesIO()
+        chunk.export(chunk_buffer, format="wav")
+        chunk_bytes.append(chunk_buffer.getvalue())
+
+    return chunk_bytes
+
+
+def split_audio_fixed_intervals(audio_bytes, interval_ms=10000):
+    from pydub import AudioSegment
+
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
+    chunks = [audio[i:i + interval_ms] for i in range(0, len(audio), interval_ms)]
+
+    chunk_bytes = []
+    for chunk in chunks:
+        chunk_buffer = io.BytesIO()
+        chunk.export(chunk_buffer, format="wav")
+        chunk_bytes.append(chunk_buffer.getvalue())
+
+    return chunk_bytes
+
+
+def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+    # break-up audio file
+    if chunk == 'silence':
+        audio_files = split_audio_on_silence(audio_file)
+    else:
+        audio_files = split_audio_fixed_intervals(audio_file, interval_ms=chunk)
+    print("len split: %s" % len(audio_files))
+
+    for audio_file1 in audio_files:
+        print("audio_file1", flush=True)
+        for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
+            print('text: %s' % text)
+            yield text
+
+
+def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
     # assumes enable_stt=True set for h2oGPT
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
@@ -465,10 +510,12 @@ def audio_to_text(model, audio_file, stream, response_format, **kwargs):
     h2ogpt_key = kwargs.get('h2ogpt_key', '')
 
     # string of dict for input
-    audio_file_str = base64.b64encode(audio_file).decode('utf-8')
-    inputs = dict(audio_file=audio_file_str, stream_output=stream, h2ogpt_key=h2ogpt_key)
+    if not isinstance(audio_file, str):
+        audio_file = base64.b64encode(audio_file).decode('utf-8')
+
+    inputs = dict(audio_file=audio_file, stream_output=stream, h2ogpt_key=h2ogpt_key)
     if stream:
-        job = client.submit(*tuple(list(inputs.values())), api_name='/transcribe_audio_stream_api')
+        job = client.submit(*tuple(list(inputs.values())), api_name='/transcribe_audio_api')
 
         # ensure no immediate failure (only required for testing)
         import concurrent.futures
@@ -559,6 +606,7 @@ def audio_str_to_bytes(audio_str1, format='wav'):
     sample_width = 2  # Assuming 16-bit samples (2 bytes), adjust if necessary
 
     # Use from_raw to correctly interpret the raw audio data
+    from pydub import AudioSegment
     audio_segment = AudioSegment.from_raw(
         s,
         sample_width=sample_width,

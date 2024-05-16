@@ -6700,17 +6700,6 @@ def go_gradio(**kwargs):
                 load_event6 = load_event5.then(**get_viewable_sources_args_login)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
-
-        # STT API
-        #audio_stream_api_state0 = [None, None, None, 'off']
-        #audio_stream_api_state = gr.State(value=audio_stream_api_state0)
-        #audio_stream_api = gr.Audio(sources=['upload', 'microphone'], streaming=True, visible=False)
-        #audio_stream_api_output = gr.Textbox(value='', visible=False)
-        #audio_stream_api.stream(fn=kwargs['transcriber_func'],
-        #             inputs=[audio_stream_api_state, audio_stream_api, h2ogpt_key],
-        #             outputs=[audio_stream_api_state, audio_stream_api_output],
-        #             api_name='transcribe_audio_stream_api',
-        #             show_progress='hidden')
         def wrap_transcribe_func_api(audio_obj1, stream_output1, h2ogpt_key1, requests_state1):
             # check key
             valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
@@ -6725,17 +6714,16 @@ def go_gradio(**kwargs):
             audio_api_state0 = ['', '', None, 'on']
             state_text = kwargs['transcriber_func'](audio_api_state0, audio_obj1)
             text = state_text[1]
-            return text
+            yield text
 
         audio_api_output = gr.Textbox(value='', visible=False)
         audio_api_input = gr.Textbox(value='', visible=False)
         audio_api_btn = gr.Button(visible=False)
         audio_api_btn.click(fn=wrap_transcribe_func_api,
-                     inputs=[audio_api_input, stream_output, h2ogpt_key],
+                     inputs=[audio_api_input, stream_output, h2ogpt_key, requests_state],
                      outputs=[audio_api_output],
                      api_name='transcribe_audio_api',
                      show_progress='hidden')
-
 
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
