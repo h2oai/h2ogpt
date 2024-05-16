@@ -88,6 +88,7 @@ def run_cli(  # for local function:
         guided_regex=None,
         guided_choice=None,
         guided_grammar=None,
+        guided_whitespace_pattern=None,
 
         # for evaluate kwargs
         captions_model=None,

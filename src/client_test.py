@@ -187,6 +187,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          guided_regex=None,
                          guided_choice=None,
                          guided_grammar=None,
+                         guided_whitespace_pattern=None,
 
                          )
     diff = 0

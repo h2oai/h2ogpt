@@ -727,6 +727,7 @@ class GradioClient(Client):
         guided_regex: str = "",
         guided_choice: str = "",
         guided_grammar: str = "",
+        guided_whitespace_pattern: str = ' ',
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
         jq_schema=".[]",
@@ -873,6 +874,7 @@ class GradioClient(Client):
             :param guided_regex:
             :param guided_choice:
             :param guided_grammar:
+            :param guided_whitespace_pattern:
 
             :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
             :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)

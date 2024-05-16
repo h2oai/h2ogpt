@@ -929,6 +929,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     guided_regex: Any = None
     guided_choice: Any = None
     guided_grammar: Any = None
+    guided_whitespace_pattern: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1075,6 +1076,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              guided_regex=self.guided_regex,
                              guided_choice=self.guided_choice,
                              guided_grammar=self.guided_grammar,
+                             guided_whitespace_pattern=self.guided_whitespace_pattern,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         # let inner gradio count input tokens
@@ -2456,6 +2458,7 @@ def get_llm(use_openai_model=False,
             guided_regex=None,
             guided_choice=None,
             guided_grammar=None,
+            guided_whitespace_pattern=None,
 
             doing_grounding=False,
             json_vllm=False,
@@ -2615,6 +2618,7 @@ def get_llm(use_openai_model=False,
                                                   guided_regex=guided_regex,
                                                   guided_choice=guided_choice,
                                                   guided_grammar=guided_grammar,
+                                                  guided_whitespace_pattern=guided_whitespace_pattern,
                                                   )
         else:
             vllm_extra_dict = {}
@@ -3070,6 +3074,7 @@ def get_llm(use_openai_model=False,
                 guided_regex=guided_regex,
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
+                guided_whitespace_pattern=guided_whitespace_pattern,
 
                 doing_grounding=doing_grounding,
             )
@@ -6137,6 +6142,7 @@ def run_qa_db(**kwargs):
     kwargs['guided_regex'] = kwargs.get('guided_regex', '')
     kwargs['guided_choice'] = kwargs.get('guided_choice', '')
     kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+    kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', ' ')
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 
     kwargs['from_ui'] = kwargs.get('from_ui', True)
@@ -6308,6 +6314,7 @@ def _run_qa_db(query=None,
                guided_regex=None,
                guided_choice=None,
                guided_grammar=None,
+               guided_whitespace_pattern=None,
 
                json_vllm=False,
 
@@ -6516,6 +6523,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       guided_regex=guided_regex,
                       guided_choice=guided_choice,
                       guided_grammar=guided_grammar,
+                      guided_whitespace_pattern=guided_whitespace_pattern,
 
                       doing_grounding=doing_grounding,
                       json_vllm=json_vllm,
