@@ -1,48 +1,24 @@
-## Known issues
-
-### nginx and K8s multi-pod support
-
-Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
-
-Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
-```bash
-pip uninstall gradio gradio_client gradio_pdf -y
-pip install gradio==3.50.2
-```
-If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
-```bash
-pip uninstall gradio gradio_client gradio_pdf -y
-pip install gradio==3.50.1
-```
-
-### llama.cpp + Audio streaming (XTTS model) failure
-
-```text
-CUDA error: an illegal memory access was encountered
-```
-
-With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
-
-A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
-
-Other workarounds:
-
-* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
-
-* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
-    ```bash
-    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-    export LLAMA_CUBLAS=1
-    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
-    export FORCE_CMAKE=1
-    pip install llama_cpp_python==0.2.26 --no-cache-dir
-    ```
-    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
-
-
-
-
 ## Frequently asked questions
+
+### Open Web UI
+
+Run h2oGPT somehow with OpenAI server active (as is default).
+```bash
+python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True
+```
+You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.
+
+Then run the Open Web UI docker command
+```bash
+docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' -e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 -e OLLAMA_BASE_URL=http://0.0.0.0 -e OLLAMA_HOST=0.0.0.0:5000 -e OPENAI_API_KEY='EMPTY' -e IMAGE_GENERATION_ENGINE='openai' -e ENABLE_LITELLM=False --network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+```
+Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
+
+See for more [help](https://docs.openwebui.com/troubleshooting/).
+
+To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
+
+![openwebui1.png](openwebui1.png)
 
 ### Loading forever in UI
 
@@ -2469,3 +2445,45 @@ export FORCE_CMAKE=1
 export CMAKE_ARGS=-DLLAMA_OPENBLAS=on
 pip install llama-cpp-python --no-cache-dir
 ```
+
+
+## Known issues
+
+### nginx and K8s multi-pod support
+
+Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
+
+Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.2
+```
+If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.1
+```
+
+### llama.cpp + Audio streaming (XTTS model) failure
+
+```text
+CUDA error: an illegal memory access was encountered
+```
+
+With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
+
+Other workarounds:
+
+* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
+
+* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
+    ```bash
+    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+    export FORCE_CMAKE=1
+    pip install llama_cpp_python==0.2.26 --no-cache-dir
+    ```
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
