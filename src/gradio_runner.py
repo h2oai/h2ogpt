@@ -70,9 +70,6 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, non_hf_types, \
     get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, \
-    is_video_model, is_json_model
-from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
-    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, is_gradio_vision_model, \
     is_video_model, is_json_model, get_llm_history
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, \
