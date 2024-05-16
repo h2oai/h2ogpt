@@ -4247,7 +4247,7 @@ def evaluate(
                 guided_json_properties = {}
         else:
             guided_json_properties = guided_json or {}
-        guided_whitespace_pattern = guided_whitespace_pattern or '[ \t\n]'
+        guided_whitespace_pattern = guided_whitespace_pattern or ' '
         assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
         if 'properties' in guided_json_properties:
             guided_json_properties = guided_json_properties['properties']
