@@ -38,6 +38,9 @@ At moment, there is not a way to pass via ENV the embedding endpoint for OpenAI 
 ```
 See https://github.com/open-webui/open-webui/issues/2312.
 
+Flaws with Open Web UI:
+* Chat history is not used if any document is in the chat history.
+
 See for more [help](https://docs.openwebui.com/troubleshooting/).
 
 To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
