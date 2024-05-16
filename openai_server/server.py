@@ -311,8 +311,9 @@ async def handle_models(request: Request):
     path = request.url.path
     model_name = path[len('/v1/models/'):]
 
-    from openai_server.backend import gradio_client
-    model_dict = ast.literal_eval(gradio_client.predict(api_name='/model_names'))
+    from openai_server.backend import get_client
+    client = get_client()
+    model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
     base_models = [x['base_model'] for x in model_dict]
 
     if not model_name:

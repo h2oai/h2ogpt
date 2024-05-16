@@ -4377,7 +4377,7 @@ def go_gradio(**kwargs):
                         if isinstance(ret, dict):
                             ret_old = ret.copy()  # copy normal one first
                             ret['audio'] = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                          expect_bytes=kwargs['return_as_byte'])
+                                                          expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                             audios = []  # reset accumulation
                             yield ret
                         else:
@@ -4406,7 +4406,7 @@ def go_gradio(**kwargs):
                     ret = res_dict.copy()
                 if isinstance(ret, dict):
                     ret['audio'] = combine_audios(audios, audio=None,
-                                                  expect_bytes=kwargs['return_as_byte'])
+                                                  expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                 yield ret
 
             finally:
@@ -5083,7 +5083,7 @@ def go_gradio(**kwargs):
                         # DEBUG: print("do_yield: %s : %s %s %s %s" % (do_yield, delta_history, enough_data, beyond_min_time, enough_time), flush=True)
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                expect_bytes=kwargs['return_as_byte'])
+                                                expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
 
                         yield history, error, audio1
@@ -5100,7 +5100,7 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over
                 final_audio = combine_audios(audios, audio=no_audio,
-                                             expect_bytes=kwargs['return_as_byte'])
+                                             expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                 if error_with_str:
                     if history and history[-1] and len(history[-1]) == 2 and error_with_str:
                         if not history[-1][1]:
@@ -5310,7 +5310,7 @@ def go_gradio(**kwargs):
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                expect_bytes=kwargs['return_as_byte'])
+                                                expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
@@ -5330,7 +5330,7 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over as can happen (FIXME: Understand better)
                 final_audio = combine_audios(audios, audio=no_audio,
-                                             expect_bytes=kwargs['return_as_byte'])
+                                             expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                 # add error accordion
                 for boti, bot in enumerate(bots):
                     if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2 and exceptions_each_str[boti]:
@@ -6565,7 +6565,7 @@ def go_gradio(**kwargs):
                 if len(srs) > 0:
                     sr = srs[0]
                     audios = [x['audio'] for x in audios]
-                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'])
+                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                     yield dict(audio=audios, sr=sr)
 
         def wrap_pred_func_plain_api(*args1):

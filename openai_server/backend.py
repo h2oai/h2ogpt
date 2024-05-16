@@ -87,14 +87,16 @@ def get_gradio_client(user=None):
         auth_kwargs = dict()
     print("OpenAI user: %s" % auth_kwargs, flush=True)
 
-    if auth_kwargs is not None:
-        print("Getting gradio client at %s" % gradio_url, flush=True)
+    if auth_kwargs:
+        print("Getting gradio client at %s with auth" % gradio_url, flush=True)
         client = Client(gradio_url, **auth_kwargs)
         if concurrent_client:
             client.setup()
     else:
-        print("Can't get gradio client at %s yet, no auth" % gradio_url, flush=True)
-        client = None
+        print("Getting non-user gradio client at %s" % gradio_url, flush=True)
+        client = Client(gradio_url)
+        if concurrent_client:
+            client.setup()
     return client
 
 
@@ -104,7 +106,7 @@ gradio_client = get_gradio_client()
 def get_client(user=None):
     # concurrent gradio client
     if gradio_client is None or user is not None:
-        assert user is not None, "Need user set to username:password"
+        # assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
     elif hasattr(gradio_client, 'clone'):
         client = gradio_client.clone()
@@ -515,7 +517,7 @@ def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    client = get_gradio_client(kwargs.get('user'))
+    client = get_client(kwargs.get('user'))
     h2ogpt_key = kwargs.get('h2ogpt_key', '')
 
     # string of dict for input
@@ -558,7 +560,7 @@ def text_to_audio(model, voice, input, stream, format, **kwargs):
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    client = get_gradio_client(kwargs.get('user'))
+    client = get_client(user=kwargs.get('user'))
     h2ogpt_key = kwargs.get('h2ogpt_key')
 
     if not voice:
@@ -644,7 +646,7 @@ def text_to_embedding(model, text, encoding_format, **kwargs):
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    client = get_gradio_client(kwargs.get('user'))
+    client = get_client(kwargs.get('user'))
     h2ogpt_key = kwargs.get('h2ogpt_key', '')
 
     inputs = dict(text=text, h2ogpt_key=h2ogpt_key, is_list=str(isinstance(text, list)))
