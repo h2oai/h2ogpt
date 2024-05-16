@@ -1655,23 +1655,25 @@ def go_gradio(**kwargs):
                                                       value=kwargs['llava_prompt'],
                                                       lines=2)
                             user_prompt_for_fake_system_prompt = gr.Textbox(label="User System Prompt",
-                                                         info="user part of pre-conversation if LLM doesn't handle system prompt.",
-                                                         value=kwargs['user_prompt_for_fake_system_prompt'] or '')
+                                                                            info="user part of pre-conversation if LLM doesn't handle system prompt.",
+                                                                            value=kwargs[
+                                                                                      'user_prompt_for_fake_system_prompt'] or '')
                             json_object_prompt = gr.Textbox(label="JSON Object Prompt",
-                                                         info="prompt for getting LLM to do JSON object",
-                                                         value=kwargs['json_object_prompt'] or '')
+                                                            info="prompt for getting LLM to do JSON object",
+                                                            value=kwargs['json_object_prompt'] or '')
                             json_object_prompt_simpler = gr.Textbox(label="Simpler JSON Object Prompt",
-                                                         info="Simpler prompt for getting LLM to do JSON object (for MistralAI)",
-                                                         value=kwargs['json_object_prompt_simpler'] or '')
+                                                                    info="Simpler prompt for getting LLM to do JSON object (for MistralAI)",
+                                                                    value=kwargs['json_object_prompt_simpler'] or '')
                             json_code_prompt = gr.Textbox(label="JSON Code Prompt",
-                                                         info="prompt for getting LLm to do JSON in code block",
-                                                         value=kwargs['json_code_prompt'] or '')
+                                                          info="prompt for getting LLm to do JSON in code block",
+                                                          value=kwargs['json_code_prompt'] or '')
                             json_code_prompt_if_no_schema = gr.Textbox(label="Schema instructions Prompt",
-                                                         info="prompt for LLM to use when no schema but need schema to obey rules",
-                                                         value=kwargs['json_code_prompt_if_no_schema'] or '')
+                                                                       info="prompt for LLM to use when no schema but need schema to obey rules",
+                                                                       value=kwargs[
+                                                                                 'json_code_prompt_if_no_schema'] or '')
                             json_schema_instruction = gr.Textbox(label="JSON Schema Prompt",
-                                                         info="prompt for LLM to use schema",
-                                                         value=kwargs['json_schema_instruction'] or '')
+                                                                 info="prompt for LLM to use schema",
+                                                                 value=kwargs['json_schema_instruction'] or '')
 
                             def show_llava(x):
                                 return x
@@ -2347,7 +2349,8 @@ def go_gradio(**kwargs):
                             submit_buttons_text = gr.Textbox('on' if kwargs['visible_submit_buttons'] else 'off',
                                                              visible=False, interactive=False)
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
-                            visible_models_text = gr.Textbox('on' if kwargs['visible_visible_models'] else 'off',
+                            visible_models_text = gr.Textbox('on' if kwargs['visible_visible_models'] and \
+                                                                     visible_model_choice else 'off',
                                                              visible=False, interactive=False)
                             visible_model_btn = gr.Button("Toggle Visible Models", variant="secondary", size="sm")
 
@@ -2832,18 +2835,18 @@ def go_gradio(**kwargs):
                                value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
         get_viewable_sources1_fun_kwargs = dict(dbs=dbs, docs_state0=viewable_docs_state0,
-                                                  load_db_if_exists=load_db_if_exists,
-                                                  db_type=db_type,
-                                                  use_openai_embedding=use_openai_embedding,
-                                                  hf_embedding_model=hf_embedding_model,
-                                                  migrate_embedding_model=migrate_embedding_model,
-                                                  verbose=kwargs['verbose'],
-                                                  get_userid_auth=get_userid_auth,
-                                                  n_jobs=n_jobs,
-                                                  enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
-                                                  enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
-                                                  h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
-                                                  )
+                                                load_db_if_exists=load_db_if_exists,
+                                                db_type=db_type,
+                                                use_openai_embedding=use_openai_embedding,
+                                                hf_embedding_model=hf_embedding_model,
+                                                migrate_embedding_model=migrate_embedding_model,
+                                                verbose=kwargs['verbose'],
+                                                get_userid_auth=get_userid_auth,
+                                                n_jobs=n_jobs,
+                                                enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                                enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                                h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                                )
 
         get_viewable_sources1 = functools.partial(get_sources_gr, **get_viewable_sources1_fun_kwargs)
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
@@ -5376,14 +5379,16 @@ def go_gradio(**kwargs):
                                          text_output],
                               outputs=[text_output, chat_exception_text, speech_bot],
                               )
-        retry_user_args = dict(fn=functools.partial(user, retry=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
-                               inputs=inputs_list + [text_output],
-                               outputs=text_output,
-                               )
-        undo_user_args = dict(fn=functools.partial(user, undo=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
-                              inputs=inputs_list + [text_output],
-                              outputs=text_output,
-                              )
+        retry_user_args = dict(
+            fn=functools.partial(user, retry=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+            inputs=inputs_list + [text_output],
+            outputs=text_output,
+        )
+        undo_user_args = dict(
+            fn=functools.partial(user, undo=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+            inputs=inputs_list + [text_output],
+            outputs=text_output,
+        )
 
         # MODEL2
         user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
@@ -5567,7 +5572,7 @@ def go_gradio(**kwargs):
                                              outputs=[my_db_state, requests_state, retry_btn],
                                              queue=queue)
             submit_event3a = submit_event31.then(**retry_user_args,
-             api_name='retry' if allow_api else False)
+                                                 api_name='retry' if allow_api else False)
             # if retry, no longer the saved chat
             submit_event3a2 = submit_event3a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
             submit_event3b = submit_event3a2.then(**retry_user_args2, api_name='retry2' if allow_api else False)
@@ -6392,7 +6397,8 @@ def go_gradio(**kwargs):
                                               )
 
         def get_model_names():
-            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())
+            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(
+                kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
             if len(model_states) >= 1:
@@ -6681,12 +6687,15 @@ def go_gradio(**kwargs):
 
                 get_viewable_sources1_fun_kwargs_login = get_viewable_sources1_fun_kwargs.copy()
                 get_viewable_sources1_fun_kwargs_login['for_login'] = True
-                get_viewable_sources1_login = functools.partial(get_sources_gr, **get_viewable_sources1_fun_kwargs_login)
+                get_viewable_sources1_login = functools.partial(get_sources_gr,
+                                                                **get_viewable_sources1_fun_kwargs_login)
                 get_viewable_sources_args_login = dict(fn=get_viewable_sources1_login,
-                                                 inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
-                                                         h2ogpt_key],
-                                                 outputs=[file_source, viewable_docs_state, text_viewable_doc_count],
-                                                 queue=queue)
+                                                       inputs=[my_db_state, selection_docs_state, requests_state,
+                                                               langchain_mode,
+                                                               h2ogpt_key],
+                                                       outputs=[file_source, viewable_docs_state,
+                                                                text_viewable_doc_count],
+                                                       queue=queue)
 
                 load_event6 = load_event5.then(**get_viewable_sources_args_login)
                 load_event7 = load_event6.then(**viewable_kwargs)
@@ -7020,7 +7029,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            #content = f"```text\n{content}\n```"
+            # content = f"```text\n{content}\n```"
             content = text_to_html(content, api=api)
             return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:

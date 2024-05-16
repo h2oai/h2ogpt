@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.requests import Request
+from fastapi import Request, Form, UploadFile, File, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
@@ -336,6 +336,76 @@ async def handle_model_info():
 async def handle_list_models():
     from openai_server.backend import get_model_list
     return JSONResponse(content=[dict(id=x) for x in get_model_list()])
+
+
+@app.post('/v1/audio/transcriptions', dependencies=check_key)
+async def handle_audio_transcription(request: Request, request_data: TextRequest):
+    form = await request.form()
+    audio_file = await form["file"].read()
+
+    if request_data.stream:
+        from openai_server.backend import audio_to_text
+
+        async def generator():
+            response = audio_to_text(audio_file, **dict(request_data))
+            for resp in response:
+                disconnected = await request.is_disconnected()
+                if disconnected:
+                    break
+
+                yield {"data": json.dumps(resp)}
+
+        return EventSourceResponse(generator())
+    else:
+        from openai_server.backend import audio_to_text
+        response = ''
+        for response1 in audio_to_text(audio_file, **dict(request_data)):
+            response = response1
+        return JSONResponse(response)
+
+
+# Define your request data model
+class AudioTextRequest(BaseModel):
+    model: str = ''
+    voice: str = ''  # overrides both chatbot_role and speaker if set
+    input: str
+    stream: bool = True
+    chatbot_role: str = "Female AI Assistant"  # Coqui TTS
+    speaker: str = "SLT (female)"  # Microsoft TTS
+    format: str = 'wav'
+
+
+@app.post('/v1/audio/speech', dependencies=check_key)
+async def handle_audio_to_speech(
+    request: Request,
+):
+    request_data = await request.json()
+    audio_request = AudioTextRequest(**request_data)
+
+    if audio_request.stream:
+        from openai_server.backend import text_to_audio
+
+        async def generator():
+            response = text_to_audio(**dict(audio_request))
+            for chunk in response:
+                disconnected = await request.is_disconnected()
+                if disconnected:
+                    break
+                yield chunk
+
+        if audio_request.format == 'wav':
+            return StreamingResponse(generator(), media_type="audio/wav")
+        else:
+            return StreamingResponse(generator(), media_type="audio/%s" % audio_request.format)
+    else:
+        from openai_server.backend import text_to_audio
+        response = ''
+        for response1 in text_to_audio(**dict(audio_request)):
+            response = response1
+        if audio_request.format == 'wav':
+            return Response(content=response, media_type="audio/wav")
+        else:
+            return Response(content=response, media_type="audio/%s" % audio_request.format)
 
 
 def run_server(host='0.0.0.0',
