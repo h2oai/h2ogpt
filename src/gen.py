@@ -1346,7 +1346,8 @@ def main(
     tts_stop_phrases = str_to_list(tts_stop_phrases)
     visible_image_models = str_to_list(visible_image_models)
     image_gpu_ids = str_to_list(image_gpu_ids)
-    assert len(image_gpu_ids) == len(visible_image_models)
+    if image_gpu_ids:
+        assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
         metadata_in_context = []
     if seed is None:
@@ -4016,6 +4017,9 @@ def evaluate(
         if isinstance(visible_image_models, list):
             assert len(visible_image_models) > 0, "visible_image_models is empty"
             visible_image_models = visible_image_models[0]
+        if visible_image_models == '' and image_model_dict:
+            # choose first if nothing passed
+            visible_image_models = list(image_model_dict.keys())[0]
         image_model_dict = image_model_dict[visible_image_models]
         pipe, make_image = image_model_dict['pipe'], image_model_dict['make_image']
 

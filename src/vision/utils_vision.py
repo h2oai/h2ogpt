@@ -429,6 +429,8 @@ def get_image_model_dict(enable_image,
 
     if image_gpu_ids is None:
         image_gpu_ids = ['auto'] * len(image_models)
+    if not image_gpu_ids:
+        image_gpu_ids = ['auto'] * len(image_models)
 
     for image_model_name in valid_imagegen_models + valid_imagechange_models + valid_imagestyle_models:
         if image_model_name in image_models:

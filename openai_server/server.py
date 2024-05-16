@@ -346,7 +346,7 @@ async def handle_list_models():
 class AudiotoTextRequest(BaseModel):
     model: str = ''
     file: str
-    response_format: str = 'text'  # FIXME unused
+    response_format: str = 'text'  # FIXME unused (https://platform.openai.com/docs/api-reference/audio/createTranscription#images/create-response_format)
     stream: bool = True  # NOTE: No effect on OpenAI API client, would have to use direct API
     timestamp_granularities: list = ["word"]  # FIXME unused
     chunk: Union[str, int] = 'silence'  # or 'interval'   No effect on OpenAI API client, would have to use direct API
@@ -396,7 +396,7 @@ class AudioTextRequest(BaseModel):
 
 @app.post('/v1/audio/speech', dependencies=check_key)
 async def handle_audio_to_speech(
-    request: Request,
+        request: Request,
 ):
     request_data = await request.json()
     audio_request = AudioTextRequest(**request_data)
@@ -425,6 +425,56 @@ async def handle_audio_to_speech(
             return Response(content=response, media_type="audio/wav")
         else:
             return Response(content=response, media_type="audio/%s" % audio_request.format)
+
+
+class ImageGenerationRequest(BaseModel):
+    model: str = ''
+    prompt: str
+    size: str = '1024x1024'
+    quality: str = 'standard'
+    n: int = 1
+    response_format: str = 'url'  # FIXME: https://platform.openai.com/docs/api-reference/images/create#images/create-response_format
+    style: str = 'vivid'
+    user: str = None
+
+
+@app.post('/v1/images/generations', dependencies=check_key)
+async def handle_image_generation(request: Request):
+    try:
+        body = await request.json()
+        model = body.get('model', '')  # will choose first if nothing passed
+        prompt = body['prompt']
+        size = body.get('size', '1024x1024')
+        quality = body.get('quality', 'standard')
+        n = body.get('n', 1)  # ignore the batch limits of max 10
+        response_format = body.get('response_format', 'b64_json')  # or url
+
+        image_request = dict(model=model, prompt=prompt, size=size, quality=quality, n=n,
+                             response_format=response_format)
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing key in request body: {str(e)}")
+
+    # no streaming
+    from openai_server.backend import completions
+    body_image = dict(prompt=prompt, langchain_action='ImageGen', visible_image_models=model)
+    response = completions(body_image)
+    image = response['choices'][0]['text'][0]
+    resp = {
+        'created': int(time.time()),
+        'data': []
+    }
+    import base64
+    if os.path.isfile(image):
+        with open(image, 'rb') as f:
+            image = f.read()
+    encoded_image = base64.b64encode(image).decode('utf-8')
+    if response_format == 'b64_json':
+        resp['data'].extend([{'b64_json': encoded_image}])
+        return JSONResponse(resp)
+    else:
+        # FIXME: jpg vs. others
+        resp['data'].extend([{'url': f'data:image/jpg;base64,{encoded_image}'}])
+        return JSONResponse(resp)
 
 
 def run_server(host='0.0.0.0',

@@ -4506,6 +4506,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
          score_model=None,
          enable_tts=True,
          enable_stt=True,
+         enable_image=True,
+         visible_image_models=['sdxl_turbo'],
          )
 
     # try UserData
@@ -4664,6 +4666,28 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     final_text = asyncio.run(stream_audio_transcription("/home/jon/h2ogpt/tests/test_speech.wav"))
     print(final_text)
     assert final_text == 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.'
+
+    response = openai_client.images.generate(
+        model="sdxl_turbo",
+        prompt="A cute baby sea otter",
+        n=1,
+        size="1024x1024",
+        response_format='b64_json',
+    )
+    import base64
+    image_data = base64.b64decode(response.data[0].b64_json.encode('utf-8'))
+    # Convert binary data to an image
+    from PIL import Image
+    import io
+    image = Image.open(io.BytesIO(image_data))
+    # Save the image to a file or display it
+    image.save('output_image.png')
+
+    interactive_test = False
+    if interactive_test:
+        image.show()  # This will open the default image viewer and display the image
+        # if was url, could try this, but we return image url, not real url
+        # webbrowser.open(response.data[0].url)
 
 
 @pytest.mark.parametrize("base_model", [

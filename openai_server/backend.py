@@ -161,6 +161,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     # max_tokens=16 for text completion by default
     gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
     gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
+    gen_kwargs['top_p'] = gen_kwargs.get('top_p', 1.0)
+    gen_kwargs['top_k'] = gen_kwargs.get('top_k', 1)
+    gen_kwargs['seed'] = gen_kwargs.get('seed', 0)
 
     if gen_kwargs.get('do_sample') in [False, None]:
         # be more like OpenAI, only temperature, not do_sample, to control
@@ -352,8 +355,12 @@ def completions_action(body: dict, stream_output=False):
             total_prompt_token_count += token_count
 
             response = deque(get_response(prompt, gen_kwargs), maxlen=1).pop()
-            completion_token_count = count_tokens(response)
-            total_completion_token_count += completion_token_count
+            if isinstance(response, str):
+                completion_token_count = count_tokens(response)
+                total_completion_token_count += completion_token_count
+            else:
+                # assume image
+                total_completion_token_count = 1500
             stop_reason = "stop"
 
             res_idx = {
