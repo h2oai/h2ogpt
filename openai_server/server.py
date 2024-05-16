@@ -362,7 +362,7 @@ async def handle_audio_transcription(request: Request):
         from openai_server.backend import audio_to_text
 
         async def generator():
-            response = audio_to_text(**dict(request_data))
+            response = audio_to_text(**request_data)
             for resp in response:
                 disconnected = await request.is_disconnected()
                 if disconnected:
@@ -374,7 +374,7 @@ async def handle_audio_transcription(request: Request):
     else:
         from openai_server.backend import _audio_to_text
         response = ''
-        for response1 in _audio_to_text(**dict(request_data)):
+        for response1 in _audio_to_text(**request_data):
             response = response1
         return JSONResponse(response)
 

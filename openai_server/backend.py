@@ -487,17 +487,18 @@ def split_audio_fixed_intervals(audio_bytes, interval_ms=10000):
 
 
 def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
-    # break-up audio file
-    if chunk == 'silence':
-        audio_files = split_audio_on_silence(audio_file)
-    else:
-        audio_files = split_audio_fixed_intervals(audio_file, interval_ms=chunk)
-    print("len split: %s" % len(audio_files))
+    if chunk != 'none':
+        # break-up audio file
+        if chunk == 'silence':
+            audio_files = split_audio_on_silence(audio_file)
+        else:
+            audio_files = split_audio_fixed_intervals(audio_file, interval_ms=chunk)
 
-    for audio_file1 in audio_files:
-        print("audio_file1", flush=True)
-        for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
-            print('text: %s' % text)
+        for audio_file1 in audio_files:
+            for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
+                yield text
+    else:
+        for text in _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
             yield text
 
 

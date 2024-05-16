@@ -4624,7 +4624,7 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
         print(transcription.text)
     assert 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
 
-
+    import json
     import httpx
     import asyncio
 
@@ -4634,25 +4634,36 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
 
         # Read the audio file
         with open(file_path, "rb") as f:
-            audio_file = f.read()
 
-        # Create the multipart/form-data payload
-        files = {
-            "file": ("audio.wav", audio_file, "audio/wav"),
-            "model": (None, model),
-            "stream": (None, "true"),  # Note the lowercase "true" as the server checks for this
-            "response_format": (None, "text"),
-            "chunk": (None, "silence"),
-        }
+            # Create the multipart/form-data payload
+            files = {
+                "file": ("audio.wav", f, "audio/wav"),
+                "model": (None, model),
+                "stream": (None, "true"),  # Note the lowercase "true" as the server checks for this
+                "response_format": (None, "text"),
+                "chunk": (None, "none"),
+            }
 
-        async with httpx.AsyncClient() as client:
-            async with client.stream("POST", url, headers=headers, files=files) as response:
-                async for chunk in response.aiter_text():
-                    # Process each chunk of data as it is received
-                    print(chunk)
+            text = ''
+            async with httpx.AsyncClient() as client:
+                async with client.stream("POST", url, headers=headers, files=files, timeout=120) as response:
+                    async for line in response.aiter_lines():
+                        # Process each chunk of data as it is received
+                        if line.startswith("data:"):
+                            try:
+                                # Remove "data: " prefix and strip any newlines or trailing whitespace
+                                json_data = json.loads(line[5:].strip())
+                                # Process the parsed JSON data
+                                print('json_data: %s' % json_data)
+                                text += json_data["text"]
+                            except json.JSONDecodeError as e:
+                                print("Error decoding JSON:", e)
+            return text
 
     # Run the client function
-    asyncio.run(stream_audio_transcription("/path/to/your/audio/file.wav"))
+    final_text = asyncio.run(stream_audio_transcription("/home/jon/h2ogpt/tests/test_speech.wav"))
+    print(final_text)
+    assert final_text == 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.'
 
 
 @pytest.mark.parametrize("base_model", [
