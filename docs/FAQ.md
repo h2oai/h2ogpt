@@ -28,6 +28,16 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
+For TTS, can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  However, streaming TTS is still slow for some reason that is WIP.
+
+At moment, there is not a way to pass via ENV the embedding endpoint for OpenAI (to reach proxy), once that support is added one can include:
+```bash
+-e RAG_EMBEDDING_ENGINE='openai' \
+-e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
+-e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
+```
+See https://github.com/open-webui/open-webui/issues/2312.
+
 See for more [help](https://docs.openwebui.com/troubleshooting/).
 
 To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
