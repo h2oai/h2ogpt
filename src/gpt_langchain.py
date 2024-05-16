@@ -6142,7 +6142,7 @@ def run_qa_db(**kwargs):
     kwargs['guided_regex'] = kwargs.get('guided_regex', '')
     kwargs['guided_choice'] = kwargs.get('guided_choice', '')
     kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
-    kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', '[ \n\t]')
+    kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', ' ')
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 
     kwargs['from_ui'] = kwargs.get('from_ui', True)

@@ -512,7 +512,7 @@ def main(
         guided_regex: str = '',
         guided_choice: str = '',
         guided_grammar: str = '',
-        guided_whitespace_pattern: str = '[ \n\t]',
+        guided_whitespace_pattern: str = ' ',
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
