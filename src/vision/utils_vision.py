@@ -6,7 +6,9 @@ import uuid
 from io import BytesIO
 import numpy as np
 
-from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default
+from gradio_utils.grclient import check_job
+from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
+    llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
 from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text
 
 
@@ -157,7 +159,7 @@ def get_prompt_with_texts(texts, prompt, max_new_tokens, min_max_new_tokens, tok
     if hasattr(tokenizer, 'model_max_length'):
         model_max_length = tokenizer.model_max_length
     else:
-        model_max_length = 4096
+        model_max_length = llava16_model_max_length
 
     user_part = '\n\nReduce the above information into single correct answer to the following question: ' + prompt
     user_part_tokens = len(tokenizer.encode(user_part))
@@ -168,7 +170,8 @@ def get_prompt_with_texts(texts, prompt, max_new_tokens, min_max_new_tokens, tok
     text_tokens_trial = len(tokenizer.encode(docs_joiner_default.join(text_context_list)))
     if user_part_tokens + text_tokens_trial + max_new_tokens >= model_max_length:
         max_new_tokens = min_max_new_tokens
-    max_input_tokens = model_max_length - max_new_tokens - 50  # fudge for extra chars
+    fudge = llava16_image_fudge
+    max_input_tokens = model_max_length - max_new_tokens - fudge  # fudge for extra chars
 
     top_k_docs, one_doc_size, num_doc_tokens = \
         get_docs_tokens(tokenizer, text_context_list=text_context_list, max_input_tokens=max_input_tokens)
@@ -223,9 +226,10 @@ def get_llava_response(file=None,
     if tokenizer:
         model_max_length = tokenizer.model_max_length
     else:
-        model_max_length = 4096
-    image_tokens = 1500 if len(file_list) >= 1 and file_list[0] is not None else 0
-    hard_limit_tokens = model_max_length - max_new_tokens1 - 50 - image_tokens
+        model_max_length = llava16_model_max_length
+    image_tokens = llava16_image_tokens if len(file_list) >= 1 and file_list[0] is not None else 0
+    fudge = llava16_image_fudge
+    hard_limit_tokens = model_max_length - max_new_tokens1 - fudge - image_tokens
     prompt = get_limited_text(hard_limit_tokens, prompt, tokenizer, verbose=False)
 
     image_model, client, file_list = \
@@ -245,7 +249,6 @@ def get_llava_response(file=None,
                              top_p,
                              max_new_tokens1,
                              api_name='/textbox_api_submit')
-        res = res[-1][-1]
         reses.append(res)
 
     if len(reses) > 1:
@@ -300,9 +303,10 @@ def get_llava_stream(file, llava_model,
     if tokenizer:
         model_max_length = tokenizer.model_max_length
     else:
-        model_max_length = 4096
-    image_tokens = 1500 if len(file_list) >= 1 and file_list[0] is not None else 0
-    hard_limit_tokens = model_max_length - max_new_tokens1 - 50 - image_tokens
+        model_max_length = llava16_model_max_length
+    image_tokens = llava16_image_tokens if len(file_list) >= 1 and file_list[0] is not None else 0
+    fudge = llava16_image_fudge
+    hard_limit_tokens = model_max_length - max_new_tokens1 - fudge - image_tokens
     prompt = get_limited_text(hard_limit_tokens, prompt, tokenizer)
 
     image_model, client, file_list = \
@@ -333,6 +337,9 @@ def get_llava_stream(file, llava_model,
         for ji, job in enumerate(jobs):
             if verbose_level == 2:
                 print("Inside: %s" % llava_model, time.time() - t0, flush=True)
+            e = check_job(job, timeout=0, raise_exception=False)
+            if e is not None:
+                continue
             if max_time is not None and time.time() - t0 > max_time:
                 done_all = True
                 break
@@ -344,16 +351,19 @@ def get_llava_stream(file, llava_model,
                     print('Stream %d: %s' % (num, reses[ji]), flush=True)
                 elif verbose_level == 1:
                     print('Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-                if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
-                    texts[ji] = reses[ji][-1][-1]
+                if reses[ji]:
+                    texts[ji] = reses[ji]
                     if len(jobs) == 1:
                         yield texts[ji]
             job_outputs_nums[ji] += job_outputs_num_new
-            time.sleep(0.01)
+            time.sleep(0.005)
         if done_all or all([job.done() for job in jobs]):
             break
 
     for ji, job in enumerate(jobs):
+        e = check_job(job, timeout=0, raise_exception=False)
+        if e is not None:
+            continue
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_nums[ji]:])
         for num in range(job_outputs_num_new):
@@ -362,8 +372,8 @@ def get_llava_stream(file, llava_model,
                 print('Final Stream %d: %s' % (num, reses[ji]), flush=True)
             elif verbose_level == 1:
                 print('Final Stream %d' % (job_outputs_nums[ji] + num), flush=True)
-            if reses[ji] and reses[ji][-1] and len(reses[ji][-1][-1]) > 0:
-                texts[ji] = reses[ji][-1][-1]
+            if reses[ji]:
+                texts[ji] = reses[ji]
                 if len(jobs) == 1:
                     yield texts[ji]
         job_outputs_nums[ji] += job_outputs_num_new
@@ -418,6 +428,8 @@ def get_image_model_dict(enable_image,
         return image_dict
 
     if image_gpu_ids is None:
+        image_gpu_ids = ['auto'] * len(image_models)
+    if not image_gpu_ids:
         image_gpu_ids = ['auto'] * len(image_models)
 
     for image_model_name in valid_imagegen_models + valid_imagechange_models + valid_imagestyle_models:

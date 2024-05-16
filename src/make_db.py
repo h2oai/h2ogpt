@@ -51,7 +51,11 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
                db_type=None,
                selected_file_types=None,
 
-               is_public=False):
+               is_public=False,
+
+               hf_embedding_model=None,
+               use_openai_embedding=False,
+               ):
     assert db_type is not None
 
     loaders_and_settings = dict(
@@ -100,6 +104,9 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 
         db_type=db_type,
         is_public=is_public,
+
+        hf_embedding_model=hf_embedding_model,
+        use_openai_embedding=use_openai_embedding,
     )
     sources1 = path_to_docs(user_path,
                             url=url,
@@ -112,7 +119,6 @@ def glob_to_db(user_path, chunk=True, chunk_size=512, verbose=False,
 def make_db_main(use_openai_embedding: bool = False,
                  hf_embedding_model: str = None,
                  migrate_embedding_model=False,
-                 auto_migrate_db=False,
                  persist_directory: str = None,
                  user_path: str = 'user_path',
                  langchain_type: str = 'shared',
@@ -191,7 +197,6 @@ def make_db_main(use_openai_embedding: bool = False,
     :param use_openai_embedding: Whether to use OpenAI embedding
     :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
-    :param auto_migrate_db: whether to migrate database for chroma<0.4 -> >0.4
     :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
            If making personal database for user, set persistent_directory to users/<username>/db_dir_<collection name>
            and pass --langchain_type=personal
@@ -296,7 +301,7 @@ def make_db_main(use_openai_embedding: bool = False,
             get_existing_db(None, persist_directory, load_db_if_exists, db_type,
                             use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             verbose=False,
                             n_jobs=n_jobs)
         return db, collection_name
@@ -373,6 +378,9 @@ def make_db_main(use_openai_embedding: bool = False,
                          selected_file_types=selected_file_types,
 
                          is_public=False,
+
+                         hf_embedding_model=hf_embedding_model,
+                         use_openai_embedding=use_openai_embedding,
                          )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     print("Exceptions: %s/%s %s" % (len(exceptions), len(sources), exceptions), flush=True)
@@ -382,7 +390,7 @@ def make_db_main(use_openai_embedding: bool = False,
     db = create_or_update_db(db_type, persist_directory,
                              collection_name, user_path, langchain_type,
                              sources, use_openai_embedding, add_if_exists, verbose,
-                             hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                             hf_embedding_model, migrate_embedding_model,
                              n_jobs=n_jobs)
 
     assert db is not None or not fail_if_no_sources

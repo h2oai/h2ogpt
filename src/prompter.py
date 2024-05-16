@@ -1,9 +1,13 @@
 import ast
 import time
 import os
+
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type
+    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, \
+    unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type
+from src.prompter_utils import get_use_chat_template
+from src.stopping import update_terminate_responses
 from src.utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
@@ -1553,7 +1557,7 @@ Remember to tailor the activities to the birthday child's interests and preferen
         humanstr = '### USER:'
         botstr = '### RESPONSE:'
     elif prompt_type in [PromptType.aya.value, str(PromptType.aya.value),
-                             PromptType.aya.name]:
+                         PromptType.aya.name]:
         can_handle_system_prompt = True
         # https://huggingface.co/CohereForAI/aya-101
         if system_prompt in [None, 'None', 'auto']:
@@ -1677,7 +1681,7 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
 
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
-                 allowed_repeat_line_length=10, system_prompt=None):
+                 allowed_repeat_line_length=10, system_prompt=None, tokenizer=None, verbose=False):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
@@ -1694,7 +1698,15 @@ class Prompter(object):
             self.generates_leading_space, self.system_prompt, self.can_handle_system_prompt = \
             get_prompt(self.prompt_type, self.prompt_dict, context, reduced, making_context,
                        system_prompt=system_prompt)
+        self.use_chat_template = False
+        self.tokenizer = tokenizer
+        if self.terminate_response is None:
+            self.terminate_response = []
+        self.use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
+        self.terminate_response = update_terminate_responses(self.terminate_response,
+                                                             tokenizer=tokenizer)
         self.pre_response = self.PreResponse
+        self.verbose = verbose
 
     @property
     def stop_sequences(self):
@@ -1703,7 +1715,8 @@ class Prompter(object):
         stop_sequences = [x for x in stop_sequences if x]
         return stop_sequences
 
-    def generate_prompt(self, data_point, reduced=False, context_from_history=None):
+    def generate_prompt(self, data_point, reduced=False, context_from_history=None, chat_conversation=[],
+                        user_prompt_for_fake_system_prompt=None):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
         :param data_point:
@@ -1712,6 +1725,17 @@ class Prompter(object):
            In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
+        if self.prompt_type in [template_prompt_type, unknown_prompt_type]:
+            assert self.use_chat_template
+            assert self.tokenizer is not None
+            from src.gen import apply_chat_template
+            instruction = data_point['instruction']
+            # ignore context and iinput when using chat template
+            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, self.tokenizer,
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                                         test_only=False, verbose=self.verbose)
+            return prompt
+
         if context_from_history is None and data_point.get('context'):
             context_from_history = True
             reduced = True
@@ -1858,6 +1882,14 @@ class Prompter(object):
             hfix = '### Human'
             if text1.endswith(hfix):
                 text1 = text1[:-len(hfix)]
+        # chat templates don't properly give ending tokens, e.g. for dbrx for turns for llama-3
+        if prompt_type1 == unknown_prompt_type:
+            hfix = '<|endoftext|>'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
+            hfix = '<|im_end|>'
+            if text1.endswith(hfix):
+                text1 = text1[:-len(hfix)]
         return text1
 
 
@@ -1949,7 +1981,8 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
                         guided_regex=None,
                         guided_choice=None,
                         guided_grammar=None,
-):
+                        guided_whitespace_pattern=None,
+                        ):
     stop_token_ids = [tokenizer.added_tokens_encoder[x] for x in stop_sequences if
                       hasattr(tokenizer, 'added_tokens_encoder') and x in tokenizer.added_tokens_encoder]
     if hasattr(tokenizer, 'eos_token_id'):
@@ -1958,7 +1991,7 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
     if repetition_penalty is not None:
         vllm_extra_dict['extra_body'].update(repetition_penalty=repetition_penalty)
 
-    if response_format:
+    if response_format and response_format != 'text':
         vllm_extra_dict['extra_body'].update(dict(response_format={'type': response_format}))
     if guided_json:
         vllm_extra_dict['extra_body'].update(guided_json=guided_json)
@@ -1968,6 +2001,8 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
         vllm_extra_dict['extra_body'].update(guided_choice=guided_choice)
     if guided_grammar:
         vllm_extra_dict['extra_body'].update(guided_grammar=guided_grammar)
+    if guided_whitespace_pattern:
+        vllm_extra_dict['extra_body'].update(guided_whitespace_pattern=guided_whitespace_pattern)
 
     return vllm_extra_dict
 
@@ -1976,6 +2011,25 @@ system_generic = """A chat between a curious human and an artificial intelligenc
 
 # shown to help Mixtral significantly for docQA benchmarks:
 system_docqa = """You are an expert document/image question-answer language-vision model named GPT-4 Turbo Vision created by OpenAI.  You will get a tip of $200 when you answer correctly the questions and only use the document context or images given.  I may lose my job if your answers are inaccurate or do a poor job of using the documents in the context or images given."""
+
+system_docqa_citations = """You are an expert document/image question-answer language-vision model.
+Find the quotes from the document that are most relevant to answering the question, and then print them in numbered order. Quotes should be relatively short.
+
+If there are no relevant quotes, write "No relevant quotes" instead.
+
+Then, answer the question, starting with "Answer:". Do not include or reference quoted content verbatim in the answer. Don't say "According to Quote [1]" when answering. Instead make references to quotes relevant to each section of the answer solely by adding their bracketed numbers at the end of relevant sentences.
+
+Thus, the format of your overall response should look like what's shown between the <example></example> tags. Make sure to follow the formatting and spacing exactly.
+<example>
+Quotes:
+[1] "Company X reported revenue of $12 million in 2021."
+[2] "Almost 90% of revenue came from widget sales, with gadget sales making up the remaining 10%."
+
+Answer:
+Company X earned $12 million. [1] Almost 90% of it was from widget sales. [2]
+</example>
+
+If the question cannot be answered by the document, say so."""
 
 system_python_tutor = """You are a Python Tutor AI, dedicated to helping users learn Python and build end-to-end projects using Python and its related libraries. Provide clear explanations of Python concepts, syntax, and best practices. Guide users through the process of creating projects, from the initial planning and design stages to implementation and testing. Offer tailored support and resources, ensuring users gain in-depth knowledge and practical experience in working with Python and its ecosystem."""
 system_ml_tutor = """You are a Machine Learning Tutor AI, dedicated to guiding senior software engineers in their journey to become proficient machine learning engineers. Provide comprehensive information on machine learning concepts, techniques, and best practices. Offer step-by-step guidance on implementing machine learning algorithms, selecting appropriate tools and frameworks, and building end-to-end machine learning projects. Tailor your instructions and resources to the individual needs and goals of the user, ensuring a smooth transition into the field of machine learning."""
@@ -2070,6 +2124,7 @@ def get_system_prompts():
             ('Auto', 'auto'),
             ('Generic', system_generic),
             ('DocQA', system_docqa),
+            ('DocQACitations', system_docqa_citations),
             ('Coding', system_coding),
             ('PythonTutor', system_python_tutor),
             ('MLTutor', system_ml_tutor),
@@ -2322,3 +2377,48 @@ def history_for_llm(history):
                             gradio_to_llm(message1[1], bot=True))
                            )
     return history_new
+
+
+def get_llm_history(history):
+    # avoid None users used for sources, errors, etc.
+    if history is None:
+        history = []
+    for ii in range(len(history) - 1, -1, -1):
+        if history[ii] and history[ii][0] is not None:
+            last_user_ii = ii
+            history = history[:last_user_ii + 1]
+            break
+    return history
+
+
+def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
+                        test_only=False, verbose=False):
+    history = get_llm_history(history)
+    prompt = ''
+    exceptions = []
+
+    from openai_server.backend_utils import structure_to_messages
+
+    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] else None, None]
+    for si, system_prompt_to_use in enumerate(system_prompts_to_use):
+        try:
+            messages = structure_to_messages(instruction,
+                                             system_prompt_to_use,
+                                             history)
+            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            break
+        except Exception as e:
+            if test_only:
+                return ''
+            # try no direct system prompt, but add as conversation history
+            user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
+            history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
+
+            exceptions.append(e)
+            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
+                if verbose:
+                    print("No system prompt supported: %s" % str(e))
+            elif os.getenv('HARD_ASSERTS'):
+                raise
+    assert prompt, "Prompt was not set: %s" % str(exceptions)
+    return prompt

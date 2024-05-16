@@ -274,6 +274,93 @@ OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<d
 ```
 where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.  The entry `<deployment_name>` is required for Azure, others are optional and can be filled with None or have empty input between `:`.
 
+### Text to Speech
+
+h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True` as well as `--pre_load_image_audio_models=True`, respectively. h2oGPT's OpenAI Proxy server follows OpenAI API for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
+```python
+from openai import OpenAI
+from pathlib import Path
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+speech_file_path = Path(__file__).parent / "speech.mp3"
+response = client.audio.speech.create(
+model="tts-1",
+voice="SLT (female)", # if server has XTT with Microsoft package
+input="Today is a wonderful day to build something people love!"
+)
+
+response.stream_to_file(speech_file_path)
+```
+
+### Speech to Text
+
+Requires h2oGPT loaded with `--enable_stt=True --pre_load_image_audio_models=True`.
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+file = "speech.wav"
+with open(file, "rb") as f:
+    audio_file= f.read()
+transcription = client.audio.transcriptions.create(
+  model="whisper-1",
+  file=audio_file
+)
+print(transcription.text)
+```
+
+### Image Generation
+
+Requires h2oGPT loaded with `--enable_image=True --pre_load_image_audio_models=True --visible_image_models=['sdxl_turbo']` or some selection of such image generation models.
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+# client = OpenAI()
+
+response = client.images.generate(
+  model="sdxl_turbo",  # should be empty if do not know which model, h2oGPT will choose first if exists
+  prompt="A cute baby sea otter",
+  n=1,
+  size="1024x1024",
+  response_format='b64_json',
+)
+import base64
+image_data = base64.b64decode(response.data[0].b64_json.encode('utf-8'))
+# Convert binary data to an image
+from PIL import Image
+import io
+image = Image.open(io.BytesIO(image_data))
+# Save the image to a file or display it
+image.save('output_image.png')
+image.show()  # This will open the default image viewer and display the image
+```
+
+### Embedding
+
+Requires h2oGPT loaded with langchain enabled (not `--langchain_mode=Disabled`) and `--pre_load_embedding_model=True` and potentially some choice for `--hf_embedding_model` (default is used if no specified) and `--use_openai_embedding=False` to be set (default).
+
+Note `model` is ignored currently, uses single embedding in h2oGPT.
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+#client = OpenAI()
+
+response = client.embeddings.create(
+    input="Your text string goes here",
+    model="text-embedding-3-small"
+)
+print(response.data[0].embedding)
+
+response = client.embeddings.create(
+    input=["Your text string goes here", "Another text string goes here"],
+    model="text-embedding-3-small"
+)
+print(response.data[0].embedding)
+print(response.data[1].embedding)
+```
+
 ## vLLM Inference Server-Client
 
 Create separate environment
@@ -302,7 +389,6 @@ export HF_HUB_ENABLE_HF_TRANSFER=1
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/lib64:$HOME/extras/CUPTI/lib64
 export PATH=$PATH:$CUDA_HOME/bin
 pip install vllm
-pip install flash-attn==2.5.3
 ```
 Then can start in OpenAI compliant mode, e.g. for LLaMa 65B on 2*A100 GPUs:
 ```

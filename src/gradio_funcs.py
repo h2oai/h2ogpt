@@ -45,8 +45,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     # control kwargs1 for evaluate
     if 'answer_with_sources' not in user_kwargs:
         kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
-    if 'show_accordions' not in user_kwargs:
-        kwargs1['show_accordions'] = False
+    if 'sources_show_text_in_accordion' not in user_kwargs:
+        kwargs1['sources_show_text_in_accordion'] = False
     if 'append_sources_to_chat' not in user_kwargs:
         kwargs1['append_sources_to_chat'] = False
     if 'append_sources_to_answer' not in user_kwargs:
@@ -256,7 +256,15 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 only_stream = ['response', 'llm_answers', 'audio']
                 for key in res_dict:
                     if key not in only_stream:
-                        res_dict_yield.pop(key)
+                        if isinstance(res_dict[key], str):
+                            res_dict_yield[key] = ''
+                        elif isinstance(res_dict[key], list):
+                            res_dict_yield[key] = []
+                        elif isinstance(res_dict[key], dict):
+                            res_dict_yield[key] = {}
+                        else:
+                            print("Unhandled pop: %s" % key)
+                            res_dict_yield.pop(key)
                 ret = res_dict_yield
             elif kwargs['langchain_mode'] == 'Disabled':
                 ret = fix_text_for_gradio(res_dict['response'], fix_latex_dollars=False,
@@ -292,7 +300,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                     ret_old = ret.copy()  # copy normal one first
                     from src.tts_utils import combine_audios
                     ret['audio'] = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                  expect_bytes=kwargs['return_as_byte'])
+                                                  expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                     audios = []  # reset accumulation
                     yield ret
                 else:
@@ -349,18 +357,14 @@ def visible_models_to_model_choice(visible_models1, model_states1, api=False):
         model_active_choice1 = visible_models1
     if model_active_choice1 is not None:
         if isinstance(model_active_choice1, str):
-            base_model_list = [
-                x['base_model'] if x['base_model'] != 'llama' or not x.get("llamacpp_dict", {}).get(
-                    'model_path_llama', '') else x.get("llamacpp_dict", {})[
-                    'model_path_llama'] for x in model_states1]
-            if model_active_choice1 in base_model_list:
-                # if dups, will just be first one
-                model_active_choice1 = base_model_list.index(model_active_choice1)
+            display_model_list = [x['display_name'] for x in model_states1]
+            if model_active_choice1 in display_model_list:
+                model_active_choice1 = display_model_list.index(model_active_choice1)
             else:
                 # NOTE: Could raise, but sometimes raising in certain places fails too hard and requires UI restart
                 if api:
                     raise ValueError(
-                        "Invalid model %s, valid models are: %s" % (model_active_choice1, base_model_list))
+                        "Invalid model %s, valid models are: %s" % (model_active_choice1, display_model_list))
                 model_active_choice1 = 0
     else:
         model_active_choice1 = 0

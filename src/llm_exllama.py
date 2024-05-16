@@ -13,6 +13,7 @@ from pydantic.v1 import root_validator
 
 BROKEN_UNICODE = b'\\ufffd'.decode('unicode_escape')
 
+
 class H2OExLlamaTokenizer(ExLlamaTokenizer):
     def __call__(self, text, *args, **kwargs):
         return dict(input_ids=self.encode(text))
@@ -31,6 +32,8 @@ class Exllama(LLM):
     prompter: Any = None
     context: Any = ''
     iinput: Any = ''
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
 
     """The path to the GPTQ model folder."""
     exllama_cache: ExLlamaCache = None  #: :meta private:
@@ -40,28 +43,35 @@ class Exllama(LLM):
 
     ##Langchain parameters
     logfunc = print
-    stop_sequences: Optional[List[str]] = "" #, description="Sequences that immediately will stop the generator.")
-    streaming: Optional[bool] = True #, description="Whether to stream the results, token by token.")
+    stop_sequences: Optional[List[str]] = ""  # , description="Sequences that immediately will stop the generator.")
+    streaming: Optional[bool] = True  # , description="Whether to stream the results, token by token.")
 
     ##Generator parameters
-    disallowed_tokens: Optional[List[int]] = None # description="List of tokens to disallow during generation.")
-    temperature: Optional[float] = None # description="Temperature for sampling diversity.")
-    top_k: Optional[int] = None # description="Consider the most probable top_k samples, 0 to disable top_k sampling.")
-    top_p: Optional[float] = None # description="Consider tokens up to a cumulative probabiltiy of top_p, 0.0 to disable top_p sampling.")
-    min_p: Optional[float] = None # description="Do not consider tokens with probability less than this.")
-    typical: Optional[float] = None # description="Locally typical sampling threshold, 0.0 to disable typical sampling.")
-    token_repetition_penalty_max: Optional[float] = None # description="Repetition penalty for most recent tokens.")
-    token_repetition_penalty_sustain: Optional[int] = None # description="No. most recent tokens to repeat penalty for, -1 to apply to whole context.")
-    token_repetition_penalty_decay: Optional[int] = None # description="Gradually decrease penalty over this many tokens.")
-    beams: Optional[int] = None # description="Number of beams for beam search.")
-    beam_length: Optional[int] = None # description="Length of beams for beam search.")
+    disallowed_tokens: Optional[List[int]] = None  # description="List of tokens to disallow during generation.")
+    temperature: Optional[float] = None  # description="Temperature for sampling diversity.")
+    top_k: Optional[int] = None  # description="Consider the most probable top_k samples, 0 to disable top_k sampling.")
+    top_p: Optional[
+        float] = None  # description="Consider tokens up to a cumulative probabiltiy of top_p, 0.0 to disable top_p sampling.")
+    min_p: Optional[float] = None  # description="Do not consider tokens with probability less than this.")
+    typical: Optional[
+        float] = None  # description="Locally typical sampling threshold, 0.0 to disable typical sampling.")
+    token_repetition_penalty_max: Optional[float] = None  # description="Repetition penalty for most recent tokens.")
+    token_repetition_penalty_sustain: Optional[
+        int] = None  # description="No. most recent tokens to repeat penalty for, -1 to apply to whole context.")
+    token_repetition_penalty_decay: Optional[
+        int] = None  # description="Gradually decrease penalty over this many tokens.")
+    beams: Optional[int] = None  # description="Number of beams for beam search.")
+    beam_length: Optional[int] = None  # description="Length of beams for beam search.")
 
     ##Config overrides
-    max_seq_len: Optional[int] = 2048 # decription="Reduce to save memory. Can also be increased, ideally while also using compress_pos_emn and a compatible model/LoRA")
-    compress_pos_emb: Optional[float] = 1.0 # description="Amount of compression to apply to the positional embedding.")
-    set_auto_map: Optional[str] = None # description="Comma-separated list of VRAM (in GB) to use per GPU device for model layers, e.g. 20,7,7")
-    gpu_peer_fix: Optional[bool] = None # description="Prevent direct copies of data between GPUs")
-    alpha_value: Optional[float] = 1.0 #, description="Rope context extension alpha")
+    max_seq_len: Optional[
+        int] = 2048  # decription="Reduce to save memory. Can also be increased, ideally while also using compress_pos_emn and a compatible model/LoRA")
+    compress_pos_emb: Optional[
+        float] = 1.0  # description="Amount of compression to apply to the positional embedding.")
+    set_auto_map: Optional[
+        str] = None  # description="Comma-separated list of VRAM (in GB) to use per GPU device for model layers, e.g. 20,7,7")
+    gpu_peer_fix: Optional[bool] = None  # description="Prevent direct copies of data between GPUs")
+    alpha_value: Optional[float] = 1.0  # , description="Rope context extension alpha")
 
     ##Tuning
     matmul_recons_thd: Optional[int] = None
@@ -76,7 +86,7 @@ class Exllama(LLM):
     concurrent_streams: Optional[bool] = None
 
     ##Lora Parameters
-    lora_path: Optional[str] = None # description="Path to your lora.")
+    lora_path: Optional[str] = None  # description="Path to your lora.")
 
     @staticmethod
     def get_model_path_at(path):
@@ -234,9 +244,12 @@ class Exllama(LLM):
         from h2oai_pipeline import H2OTextGenerationPipeline
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
 
-        # NOTE: TGI server does not add prompting, so must do here
+        # NOTE: exllama does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
 
         text = ''
         for text1 in self.stream(prompt=prompt, stop=stop, run_manager=run_manager):
@@ -309,13 +322,13 @@ class Exllama(LLM):
             # Tokenize the string from the last new line, we can't just decode the last token due to how sentencepiece decodes.
             stuff = generator.tokenizer.decode(generator.sequence_actual[0][last_newline_pos:])
             cursor_tail = len(stuff)
-            has_unicode_combined = cursor_tail<cursor_head
+            has_unicode_combined = cursor_tail < cursor_head
             text_chunk = stuff[cursor_head:cursor_tail]
             if has_unicode_combined:
                 # replace the broken unicode character with combined one
-                text=text[:-2]
-                text_chunk = stuff[cursor_tail-1:cursor_tail]
-                
+                text = text[:-2]
+                text_chunk = stuff[cursor_tail - 1:cursor_tail]
+
             cursor_head = cursor_tail
 
             # Append the generated chunk to our stream buffer
@@ -335,7 +348,7 @@ class Exllama(LLM):
                 # Encountered a stop, rewind our generator to before we hit the match and end generation.
                 rewind_length = generator.tokenizer.encode(text).shape[-1]
                 generator.gen_rewind(rewind_length)
-                #gen = generator.tokenizer.decode(generator.sequence_actual[0][response_start:])
+                # gen = generator.tokenizer.decode(generator.sequence_actual[0][response_start:])
                 if beam_search:
                     generator.end_beam_search()
                 return

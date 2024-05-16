@@ -1,8 +1,8 @@
 faiss-gpu>=1.7.2
 # for unstructured
 onnxruntime-gpu==1.15.0
-auto-gptq==0.7.1
-optimum==1.18.0
+auto-gptq>=0.7.1
+optimum>=1.17.1
 # autoawq for cuda 12.1, else build from source: https://github.com/casper-hansen/AutoAWQ?tab=readme-ov-file#build-from-source
 autoawq
 autoawq-kernels

@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import contextlib
 import functools
 import gc
@@ -482,18 +483,23 @@ class ThreadException(Exception):
 class EThread(threading.Thread):
     # Function that raises the custom exception
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None):
+                 args=(), kwargs=None, *, daemon=None, streamer=None, bucket=None,
+                 async_output=False):
         self.bucket = bucket
         self.streamer = streamer
         self.exc = None
         self._return = None
+        self.async_output = async_output
         super().__init__(group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
 
     def run(self):
         # Variable that stores the exception, if raised by someFunction
         try:
             if self._target is not None:
-                self._return = self._target(*self._args, **self._kwargs)
+                if self.async_output:
+                    self._return = asyncio.run(self._target(*self._args, **self._kwargs))
+                else:
+                    self._return = self._target(*self._args, **self._kwargs)
         except BaseException as e:
             print("thread exception: %s" % str(traceback.format_exc()))
             self.bucket.put(sys.exc_info())
@@ -736,7 +742,42 @@ def get_source(x):
     return x.metadata.get('source', "UNKNOWN SOURCE")
 
 
+def markdown_to_html(content):
+    import markdown
+
+    # Create a Markdown object
+    markdowner = markdown.Markdown()
+
+    # Convert the Markdown block to HTML
+    try:
+        html = markdowner.reset().convert(content)
+    except Exception as e:
+        # FIXME:
+        print("Invalid conversion of markdown to html: %s\n\n%s" % (content, str(e)))
+        html = content
+
+    return html
+
+
+def is_markdown(string):
+    """Returns True if the string is markdown, False otherwise."""
+
+    # Check for the presence of double square brackets
+    if re.search(r'\[\[.+?\]\]', string):
+        return True
+
+    # Check for the presence of angle brackets
+    if re.search(r'<.+?>', string):
+        return False
+
+    # If neither of the above patterns are found, assume the string is markdown
+    return True
+
+
 def get_accordion_named(content, title, font_size=8):
+    # content = content.replace('\n', '<br>')
+    if is_markdown(content):
+        content = markdown_to_html(content)
     return f"""<details><summary><font size="{font_size}">{title}</font></summary><font size="{font_size}">{content}</font></details>"""
 
 
@@ -1032,11 +1073,6 @@ class _ForkDataContext(threading.local):
 
 forkdatacontext = _ForkDataContext()
 
-# Add user info
-username = getpass.getuser()
-current_working_directory = os.getcwd()
-operating_system = platform.system()
-
 
 def _traced_func(func, *args, **kwargs):
     func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
@@ -1114,13 +1150,6 @@ try:
 except (PackageNotFoundError, AssertionError):
     pass
 
-have_chromamigdb = False
-try:
-    assert distribution('chromamigdb') is not None
-    have_chromamigdb = True
-except (PackageNotFoundError, AssertionError):
-    pass
-
 have_serpapi = False
 try:
     assert distribution('google-search-results') is not None
@@ -1193,12 +1222,21 @@ def get_hf_server(inference_server):
             # i.e. just DNS or IP and no port or IP + port
             user = None
             password = None
-        elif len(inf_split) in [3, 4]:
+        elif len(inf_split) == 3:
             # i.e. just DNS or IP, no port + user + pass = 3
-            # i.e. DNS/IP + port + user + pass = 4
             user = inf_split[len(inf_split) - 2]
             password = inf_split[len(inf_split) - 1]
             ip_port_vllm = ':'.join(inf_split[:len(inf_split) - 2])
+        elif len(inf_split) == 4:
+            # i.e. DNS/IP + port + user + pass = 4
+            port = inf_split[len(inf_split) - 3]
+            user = inf_split[len(inf_split) - 2]
+            password = inf_split[len(inf_split) - 1]
+            if port not in [None, 'None']:
+                ip_port_vllm = ':'.join([inf_split[0], port])
+            else:
+                ip_port_vllm = inf_split[0]
+
         else:
             raise ValueError("Malformed inference_server=%s" % inference_server)
 
@@ -1533,7 +1571,7 @@ def set_openai(inference_server, model_name=None):
             if api_version in ['None', None]:
                 # for function tools support
                 # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-12-01-preview
-                api_version = "2023-12-01-preview"
+                api_version = "2024-04-01-preview"
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 # use this instead if exists
                 api_key = os.getenv("OPENAI_AZURE_KEY")
@@ -1655,6 +1693,12 @@ def dict_to_html(x, small=True, api=False):
             return res
 
 
+def split_into_sentences(text):
+    # Split text by specified punctuation followed by space or end of text
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    return sentences
+
+
 def text_to_html(x, api=False):
     if api:
         return x
@@ -1668,11 +1712,11 @@ def text_to_html(x, api=False):
         white-space: -o-pre-wrap;
         word-wrap: break-word;
       }
-    </style>
+</style>
 <pre>
 %s
 </pre>
-""" % x
+""" % '<br>'.join(split_into_sentences(x))
 
 
 def lg_to_gr(
@@ -1950,14 +1994,15 @@ def str_to_dict(x):
     return x
 
 
-def get_token_count(x, tokenizer, token_count_fun=None):
+def get_token_count(x, tokenizer, token_count_fun=None, add_special_tokens=True):
     # NOTE: Somewhat duplicates H2OTextGenerationPipeline.get_token_count()
     # handle ambiguity in if get dict or list
+    other_kwargs = dict(add_special_tokens=add_special_tokens) if hasattr(tokenizer, 'add_special_tokens') else {}
     if tokenizer is not None:
         if hasattr(tokenizer, 'encode'):
-            tokens = tokenizer.encode(x)
+            tokens = tokenizer.encode(x, **other_kwargs)
         else:
-            tokens = tokenizer(x)
+            tokens = tokenizer(x, **other_kwargs)
         if isinstance(tokens, dict) and 'input_ids' in tokens:
             tokens = tokens['input_ids']
         if isinstance(tokens, list):
@@ -1970,7 +2015,8 @@ def get_token_count(x, tokenizer, token_count_fun=None):
             raise RuntimeError("Cannot handle tokens: %s" % tokens)
     elif token_count_fun is not None:
         assert callable(token_count_fun)
-        n_tokens = token_count_fun(x)
+        other_kwargs = dict(add_special_tokens=add_special_tokens) if hasattr(token_count_fun, 'add_special_tokens') else {}
+        n_tokens = token_count_fun(x, **other_kwargs)
     else:
         tokenizer = FakeTokenizer()
         n_tokens = tokenizer.num_tokens_from_string(x)
@@ -2153,16 +2199,40 @@ def get_code_blocks(response):
     return pattern.findall(response)
 
 
-def get_json(response):
+def get_json(response, fixup=True):
+    is_list = isinstance(response, list)
+    if not is_list:
+        response = [response]
+    response_new = [_get_json(x, fixup=fixup) for x in response]
+    if not is_list:
+        response_new = response_new[0]
+    return response_new
+
+
+def _get_json(response, fixup=True):
     # First, try to extract code block content. If content is found (not an empty string), return None (or possibly an empty string as per updated logic)
     response0 = extract_code_block_content(response)
     if response0:
+        if fixup:
+            from json_repair import repair_json
+            try:
+                response0 = repair_json(response0)
+            except Exception as e:
+                # FIXME: best effort, don't understand if package will hae issues
+                print("repair_json exception1: %s: %s" % (str(e), response))
         return response0
     # Next, check if the response looks like JSON, return it if so
     if looks_like_json(response):
         response = response.strip()
         if response.endswith('```'):
             response = response[:-3].strip()
+        if fixup:
+            from json_repair import repair_json
+            try:
+                response = repair_json(response)
+            except Exception as e:
+                # FIXME: best effort, don't understand if package will hae issues
+                print("repair_json exception2: %s: %s" % (str(e), response))
         return response
     # If it doesn't look like JSON, return an empty string as a default case
     return invalid_json_str
@@ -2274,7 +2344,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
     assert max_input_tokens is not None, "Must set max_input_tokens"
     tokens = [get_token_count(x + docs_joiner, tokenizer) for x in text_context_list]
     tokens_cumsum = np.cumsum(tokens)
-    where_res = np.where(tokens_cumsum < max_input_tokens)[0]
+    where_res = np.where(tokens_cumsum <= max_input_tokens)[0]
     # if below condition fails, then keep top_k_docs=-1 and trigger special handling next
     if where_res.shape[0] > 0:
         top_k_docs = 1 + where_res[-1]
@@ -2335,3 +2405,25 @@ def get_limited_text(hard_limit_tokens, text, tokenizer, verbose=False):
         print("steps: %s ntokens0: %s/%s text0: %s ntokens: %s/%s text: %s" % (
             steps, ntokens0, hard_limit_tokens, len(text), ntokens, hard_limit_tokens, len(best_guess)))
     return best_guess
+
+
+def deduplicate_names(names):
+    # Dictionary to hold the counts of each name
+    name_counts = {}
+    # List to store the final results
+    deduplicated_names = []
+
+    for name in names:
+        # Check if the name already exists in the dictionary
+        if name in name_counts:
+            # Increment the count for this name
+            name_counts[name] += 1
+            # Append the new name with the count as a suffix
+            deduplicated_names.append(f"{name}_{name_counts[name]}")
+        else:
+            # Add the name to the dictionary with a count of 0
+            name_counts[name] = 0
+            # Append the name as it is the first occurrence
+            deduplicated_names.append(name)
+
+    return deduplicated_names

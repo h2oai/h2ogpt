@@ -4,7 +4,7 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 
 Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
-- **Private** offline database of any documents [(PDFs, Excel, Word, Images, Video Frames, Youtube, Audio, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
+- **Private** offline database of any documents [(PDFs, Excel, Word, Images, Video Frames, YouTube, Audio, Code, Text, MarkDown, etc.)](docs/README_LangChain.md#supported-datatypes)
   - **Persistent** database (Chroma, Weaviate, or in-memory FAISS) using accurate embeddings (instructor-large, all-MiniLM-L6-v2, etc.)
   - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
   - **Parallel** summarization and extraction, reaching an output of 80 tokens per second with the 13B LLaMa2 model
@@ -24,13 +24,16 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
   - **Authentication** in the UI by user/password via Native or Google OAuth
   - **State Preservation** in the UI by user/password
+* **Open Web UI**
+  - Supports chat completion with streaming, document Q/A, STT, TTS, and image generation
+  - For details see [Start-up Docs](docs/FAQ.md#open-web-ui) and [Open Web UI Github](https://github.com/open-webui/open-webui)
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
 - **Inference Servers** support (oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
 - **OpenAI-compliant**
   - Server Proxy API (h2oGPT acts as drop-in-replacement to OpenAI server)
-  - Python client API (to talk to Gradio server)
+  - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding OpenAI compatible endpoints.
 - **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
@@ -279,14 +282,10 @@ These are not part of normal installation instructions and are experimental.
 - To run h2oGPT tests:
     ```bash
     pip install requirements-parser pytest-instafail pytest-random-order playsound==1.3.0
-    conda install -c conda-forge gst-python
+    conda install -c conda-forge gst-python -y
     sudo apt-get install gstreamer-1.0
     pip install pygame
     pytest --instafail -s -v tests
-    # for client tests
-    make -C client setup
-    make -C client build
-    pytest --instafail -s -v client/tests
     # for openai server test on already-running local server
     pytest -s -v -n 4 openai_server/test_openai_server.py::test_openai_client
     ```

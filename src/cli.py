@@ -29,7 +29,7 @@ def run_cli(  # for local function:
         try_pdf_as_html=None,
         # for some evaluate args
         load_awq='',
-        stream_output=None, async_output=None, num_async=None,
+        stream_output=None, async_output=None, num_async=None, stream_map=None,
         prompt_type=None, prompt_dict=None, system_prompt=None,
         temperature=None, top_p=None, top_k=None, penalty_alpha=None, num_beams=None,
         max_new_tokens=None, min_new_tokens=None, early_stopping=None, max_time=None, repetition_penalty=None,
@@ -43,6 +43,14 @@ def run_cli(  # for local function:
         top_k_docs=None, chunk=None, chunk_size=None,
         pre_prompt_query=None, prompt_query=None,
         pre_prompt_summary=None, prompt_summary=None, hyde_llm_prompt=None,
+
+        user_prompt_for_fake_system_prompt=None,
+        json_object_prompt=None,
+        json_object_prompt_simpler=None,
+        json_code_prompt=None,
+        json_code_prompt_if_no_schema=None,
+        json_schema_instruction=None,
+
         image_audio_loaders=None,
         pdf_loaders=None,
         url_loaders=None,
@@ -65,6 +73,7 @@ def run_cli(  # for local function:
         hyde_template=None,
         hyde_show_only_final=None,
         hyde_show_intermediate_in_accordion=None,
+        map_reduce_show_intermediate_in_accordion=None,
         doc_json_mode=None,
         metadata_in_context=None,
         chatbot_role=None,
@@ -79,6 +88,7 @@ def run_cli(  # for local function:
         guided_regex=None,
         guided_choice=None,
         guided_grammar=None,
+        guided_whitespace_pattern=None,
 
         # for evaluate kwargs
         captions_model=None,
@@ -99,6 +109,8 @@ def run_cli(  # for local function:
         allow_chat_system_prompt=None,
         src_lang=None, tgt_lang=None, concurrency_count=None, save_dir=None, sanitize_bot_response=None,
         model_state0=None,
+        use_auth_token=None,
+        trust_remote_code=None,
         score_model_state0=None,
         max_max_new_tokens=None,
         is_public=None,
@@ -107,12 +119,12 @@ def run_cli(  # for local function:
         my_db_state0=None, selection_docs_state0=None, dbs=None, langchain_modes=None, langchain_mode_paths=None,
         detect_user_path_changes_every_query=None,
         use_openai_embedding=None, use_openai_model=None,
-        hf_embedding_model=None, migrate_embedding_model=None, auto_migrate_db=None,
+        hf_embedding_model=None, migrate_embedding_model=None,
         cut_distance=None,
         answer_with_sources=None,
         append_sources_to_answer=None,
         append_sources_to_chat=None,
-        show_accordions=None,
+        sources_show_text_in_accordion=None,
         top_k_docs_max_show=None,
         show_link_in_sources=None,
         langchain_instruct_mode=None,
@@ -152,6 +164,7 @@ def run_cli(  # for local function:
         assert len(args) == len(input_args_list)
         example1 = examples[-1]  # pick reference example
         all_generations = []
+        all_sources = []
         if not context:
             context = ''
         if chat_conversation is None:
@@ -201,9 +214,10 @@ def run_cli(  # for local function:
                         # show sources at end after model itself had streamed to std rest of response
                         print('\n\n' + str(sources), flush=True)
             all_generations.append(outr + '\n')
+            all_sources.append(sources)
             if not cli_loop:
                 break
             if add_chat_history_to_context:
                 # for CLI keep track of conversation
                 chat_conversation.extend([[instruction, outr]])
-    return all_generations
+    return all_generations, all_sources

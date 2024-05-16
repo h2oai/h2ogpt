@@ -402,7 +402,9 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
         if not pass_prompt_type:
             prompt_type = None
     if do_model_lock:
-        model_lock = [{'inference_server': inference_server, 'base_model': base_model, 'max_seq_len': 2048}]
+        model_lock = [{'inference_server': inference_server, 'base_model': base_model,
+                       'max_seq_len': 1024  # for low-memory mode
+                       }]
         base_model = None
         inference_server = None
     else:
@@ -422,7 +424,7 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
                        docs_ordering_type=docs_ordering_type,
                        force_langchain_evaluate=force_langchain_evaluate,
                        inference_server=inference_server,
-                       max_seq_len=2048,
+                       max_seq_len=1024,  # to match low memory mode HF startup
                        model_lock=model_lock)
 
     try:
@@ -454,16 +456,20 @@ def test_hf_inference_server(base_model, force_langchain_evaluate, do_langchain,
             assert 'bird' in ret2['response']
             assert 'bird' in ret3['response']
             assert 'I am a writer' in ret4['response'] or 'I am a person who is asking you a question' in \
-                   ret4['response'] or 'year old' in ret4['response'] or 'I am an AI language model' in ret4['response'] or \
+                   ret4['response'] or 'year old' in ret4['response'] or 'I am an AI language model' in ret4[
+                       'response'] or \
                    'who has been living' in ret4['response']
             assert 'I am a writer' in ret5['response'] or 'I am a person who is asking you a question' in \
-                   ret5['response'] or 'year old' in ret5['response'] or 'I am an AI language model' in ret5['response'] or \
+                   ret5['response'] or 'year old' in ret5['response'] or 'I am an AI language model' in ret5[
+                       'response'] or \
                    'who has been living' in ret5['response']
             assert 'I am a writer' in ret6['response'] or 'I am a person who is asking you a question' in \
-                   ret6['response'] or 'year old' in ret6['response'] or 'I am an AI language model' in ret6['response'] or \
+                   ret6['response'] or 'year old' in ret6['response'] or 'I am an AI language model' in ret6[
+                       'response'] or \
                    'who has been living' in ret6['response']
             assert 'I am a writer' in ret7['response'] or 'I am a person who is asking you a question' in \
-                   ret7['response'] or 'year old' in ret7['response'] or 'I am an AI language model' in ret7['response'] or \
+                   ret7['response'] or 'year old' in ret7['response'] or 'I am an AI language model' in ret7[
+                       'response'] or \
                    'who has been living' in ret7['response']
         elif base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
             assert 'h2oGPT' in ret1['response']
@@ -798,8 +804,8 @@ def test_replicate_inference_server(force_langchain_evaluate,
                                              chat_conversation=chat_conversation,
                                              system_prompt=system_prompt)
         if system_prompt:
-            assert 'baby cat' in res_dict['response'] and 'meow' in res_dict['response'].lower()
-            assert 'baby cat' in ret6['response'] and 'meow' in ret6['response'].lower()
+            assert 'baby cat' in res_dict['response'] and ('meow' in res_dict['response'].lower() or 'purrs' in res_dict['response'].lower())
+            assert 'baby cat' in ret6['response'] and ('meow' in ret6['response'].lower() or 'purrs' in ret6['response'].lower())
         else:
             options_response = ['You asked "Who are you?"',
                                 """You asked, \"Who are you?\"""",

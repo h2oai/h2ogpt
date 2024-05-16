@@ -133,7 +133,7 @@ def submit_review(review_text, text_output, text_output2, *text_outputs1, review
 
 def make_chatbots(output_label0, output_label0_model2, **kwargs):
     visible_models = kwargs['visible_models']
-    all_models = kwargs['all_possible_visible_models']
+    all_models = kwargs['all_possible_display_names']
     visible_ratings = kwargs['visible_ratings']
     reviews_file = kwargs['reviews_file'] or 'reviews.csv'
 

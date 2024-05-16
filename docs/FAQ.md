@@ -1,4 +1,95 @@
-## Known issues
+## Frequently asked questions
+
+### Open Web UI
+
+Run h2oGPT somehow with OpenAI server active (as is default).
+```bash
+python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True
+```
+You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.
+
+Then run the Open Web UI docker command
+```bash
+docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
+-e DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct \
+-e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
+-e OPENAI_API_KEY='EMPTY' \
+-e ENABLE_IMAGE_GENERATION=True \
+-e IMAGE_GENERATION_ENGINE='openai' \
+-e IMAGES_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
+-e IMAGE_GENERATION_MODEL='sdxl_turbo' \
+-e IMAGES_OPENAI_API_KEY='EMPTY' \
+-e AUDIO_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
+-e AUDIO_OPENAI_API_KEY='EMPTY' \
+-e OLLAMA_BASE_URL=http://0.0.0.0 \
+-e OLLAMA_HOST=0.0.0.0:5000 \
+-e ENABLE_LITELLM=False \
+--network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+```
+Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
+
+For TTS, can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  However, streaming TTS is still slow for some reason that is WIP.
+
+At moment, there is not a way to pass via ENV the embedding endpoint for OpenAI (to reach proxy), once that support is added one can include:
+```bash
+-e RAG_EMBEDDING_ENGINE='openai' \
+-e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
+-e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
+```
+See https://github.com/open-webui/open-webui/issues/2312.
+
+Flaws with Open Web UI:
+* Chat history is not used if any document is in the chat history.
+
+See for more [help](https://docs.openwebui.com/troubleshooting/).
+
+To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
+
+![openwebui1.png](openwebui1.png)
+
+![openwebui2.png](openwebui2.png)
+
+### Loading forever in UI
+
+Check Chrome developer console.  If you see something like:
+```text
+Failed to load resource: the server responded with a status of 404 (Not Found)
+127.0.0.1/:1 Uncaught (in promise) TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:7860/custom_component/c866d1d814ade494ac522de29fd71dcd/component/index.js
+```
+then you need to delete your Chrome cache.
+
+### LLaMa-3 or other chat template based models
+
+LLaMa-3 and other newer models use a HuggingFace chat template to ensure accurate behavior.  So to run the models, just do:
+```bash
+python generate.py --base_model=meta-llama/Meta-Llama-3-8B-Instruct
+```
+and h2oGPT will interpret this as an "unknown" prompt_type and use the chat template.
+
+To ensure accurate prompting for GGUF etc. type models, you can pass the tokenizer from HF to h2oGPT via `tokenizer_base_model` as follows:
+```bash
+python generate.py --base_model=llama --model_path_llama=https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf?download=true --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192
+```
+and you should at least pass `max_seq_len` as well.  This ensures accurate prompting using the Meta chat template.  Note that the download link just comes from selecting the model in the model card's files section and clicking the up arrow. Then, when the download file link is provided, you can right-click and copy that link.  HF keeps changing how they present the download file, so adapt as required.
+
+To use offline, then do:
+```bash
+TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=Meta-Llama-3-8B-Instruct.Q5_K_M.gguf --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192 --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
+```
+which assumes the model was downloaded to default location of `llamacpp_path`.  This works for offline if previously used the earlier command that got the tokenizer.
+
+Note the chat template is defined by the model card's [tokenizer_config.json](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct/blob/main/tokenizer_config.json#L2053).
+
+### Mixtral AWQ
+
+In our testing, most AWQ Mixtral builds are bad, e.g. `TheBloke/dolphin-2.7-mixtral-8x7b-AWQ` and `TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ`, generating repeats with RAG or no output at all.  We only found one that [works well](https://huggingface.co/casperhansen/mixtral-instruct-awq).  The vLLM options to run are:
+
+```
+... --port=5000 --host=0.0.0.0 --model casperhansen/mixtral-instruct-awq --seed 1234 --tensor-parallel-size=2 --max-num-batched-tokens=8192 --max-log-len=100 --trust-remote-code --worker-use-ray --enforce-eager --gpu-memory-utilization 0.98 --quantization awq
+```
+for 2 GPUs here, replacing ... with rest of docker or vLLM python commands.
+
+For 8x22b, we recommend https://huggingface.co/mistral-community/Mixtral-8x22B-v0.1-AWQ .
 
 ### JSON mode and other Guided Generations for vLLM >= 0.4.0
 
@@ -76,57 +167,6 @@ although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
 
 ![aya.png](aya.png)
 
-### Gradio UI Audio Streaming
-
-Gradio 4.18.0+ fails to work for streaming audio from UI.  No audio is generated.  Waiting for bug fix: https://github.com/gradio-app/gradio/issues/7497.
-
-Workaround: Use gradio 4.17.0 or lower:
-```bash
-pip uninstall gradio gradio_client -y
-pip install gradio==4.17.0
-```
-
-### nginx and K8s multi-pod support
-
-Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
-
-Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
-```bash
-pip uninstall gradio gradio_client gradio_pdf -y
-pip install gradio==3.50.2
-```
-If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
-```bash
-pip uninstall gradio gradio_client gradio_pdf -y
-pip install gradio==3.50.1
-```
-
-### llama.cpp + Audio streaming (XTTS model) failure
-
-```text
-CUDA error: an illegal memory access was encountered
-```
-
-With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
-
-A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
-
-Other workarounds:
-
-* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
-
-* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
-    ```bash
-    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-    export LLAMA_CUBLAS=1
-    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
-    export FORCE_CMAKE=1
-    pip install llama_cpp_python==0.2.26 --no-cache-dir
-    ```
-    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
-
-## Frequently asked questions
-
 ### Running oLLaMa vs. h2oGPT as inference server
 
 * Run oLLaMa as server for h2oGPT frontend.
@@ -174,7 +214,6 @@ Examples of what to put into "server" in UI or for `<server>` when using `--infe
 * oLLaMa: `vllm_chat:http://localhost:11434/v1/`
 * vLLM: `vllm:111.111.111.111:5005`
    * For llama-13b, e.g. `--model_lock="[{'inference_server':'vllm:111.11.111.111:5001', 'base_model':'h2oai/h2ogpt-4096-llama2-13b-chat'}`
-   * For groq, ensure groq API key is used,, e.g. `--model_lock="[{'inference_server':'vllm:https://api.groq.com/openai:None:/v1:<api key>', 'base_model':'mixtral-8x7b-32768', 'max_seq_len': 31744, 'prompt_type':'plain'}]"`
 * vLLM Chat API: `vllm_chat`
   * E.g. `vllm_chat:https://gpt.h2o.ai:5000/v1` (only for no auth setup)
   * E.g. `vllm_chat:https://vllm.h2o.ai:None:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD` (keyed access)
@@ -1367,6 +1406,74 @@ print(res)
 ```
 or other API endpoints.
 
+### OpenAI Auth access
+
+When auth access is enabled on a Gradio server, it is also enabled for OpenAI proxy server.  In that case, if access is closed (`--auth_access=closed`), then you must set the env `H2OGPT_OPENAI_USER` before launching h2oGPT so that it can know which user and password to use.  For open access, a guest or random uuid is used.  The `H2OGPT_OPENAI_USER` should be a string with `user:password` form, similar to what is required when accessing the OpenAI proxy server with OpenAI client.
+
+For OpenAI client access, one uses the `user` parameter and fills it with the `user:password` string for the user and password that is valid for h2oGPT server access. The following is an example client call for guided json call with authentication:
+```python
+from openai import OpenAI
+
+base_url = 'http://127.0.0.1:5000/v1'
+api_key = '<fill me if API access set for client calls in h2oGPT server>'
+
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+TEST_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "age": {
+            "type": "integer"
+        },
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "maxLength": 10
+            },
+            "minItems": 3
+        },
+        "workhistory": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "company": {
+                        "type": "string"
+                    },
+                    "duration": {
+                        "type": "string"
+                    },
+                    "position": {
+                        "type": "string"
+                    }
+                },
+                "required": ["company", "position"]
+            }
+        }
+    },
+    "required": ["name", "age", "skills", "workhistory"]
+}
+
+prompt = "Give an example employee profile."
+
+messages = [{'role': 'user', 'content': prompt}]
+stream = False
+client_kwargs = dict(model='mistralai/Mixtral-8x7B-Instruct-v0.1',
+                     max_tokens=2048, stream=stream, messages=messages,
+                     response_format=dict(type='json_object'),
+                     extra_body=dict(guided_json=TEST_SCHEMA))
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```
+
 ### Google Auth Access
 
 * Go to [Google Console](https://console.cloud.google.com/) and make a project, e.g. h2ogpt
@@ -1518,29 +1625,6 @@ python generate.py --rope_scaling="{'type':'linear','factor':4}" --base_model=lm
 ````
 
 If the model is Hugging Face-based and already has a `config.json` entry with `rope_scaling` in it, we will use that if you do not pass `--rope_scaling`.
-
-### Migration from Chroma < 0.4 to > 0.4
-
-#### Option 1: Use old Chroma for old DBs
-
-No action is required from the user. By default, h2oGPT will not migrate for old databases. This is managed internally through requirements added in `requirements_optional_langchain.txt`, which adds special wheels for old versions of `chromadb` and `hnswlib`. This ensures smooth migration handling better than `chromadb` itself.
-
-#### Option 2: Automatically Migrate
-
-By default, h2oGPT does not migrate automatically with `--auto_migrate_db=False` for `generate.py`. You can set this to `True` for auto-migration, which may take some time for larger databases.  This will occur on-demand when accessing a database.  This takes about 0.03s per chunk.
-
-#### Option 3: Manually Migrate
-
-You can set `--auto_migrate_db=False` and manually migrate databases by doing the following.
-
-* Install and run migration tool
-  ```
-  pip install chroma-migrate
-  chroma-migrate
-  ```
-* Choose DuckDB
-* Choose "Files I can use ..."
-* Choose your collection path, e.g. `db_dir_UserData` for collection name `UserData`
 
 ### Model Usage Notes
 
@@ -1765,6 +1849,24 @@ If there is a similar prompt or one wants to see how a model prompt template loo
     You can start by changing each thing that appears in the model card that tells about the prompting.  You can always ask for help in a GitHub issue or Discord.
 
 In either case, if the model card doesn't have that information, you'll need to ask around. In some cases, prompt information is included in their pipeline file or in a GitHub repository associated with the model with training of inference code. It may also be the case that the model builds upon another, and you should look at the original model card.  You can also  ask in the community section on Hugging Face for that model card.
+
+### Migrate chroma < 0.4 to new >= 0.4
+
+* Setup env
+```bash
+pip uninstall pydantic chromadb -y
+pip install pydantic==1.10.15 chromadb==0.4.3 chroma-migrate --upgrade
+```
+* Run tool
+```bash
+chroma-migrate
+```
+Pick duckdb, pick from persistent directory, then choose the directory like `db_dir_UserData`, then choose new name of `db_dir_UserData_mig` and let migration complete
+* Copy the `db_dir_UserData/embed_info` to new directory.
+* Remove or move away old directory (`db_dir_UserData`).
+* Use `mv db_dir_UserData_mig db_dir_UserData`
+* Run h2oGPT as before
+
 
 ### Add new Embedding Model
 
@@ -2372,3 +2474,45 @@ export FORCE_CMAKE=1
 export CMAKE_ARGS=-DLLAMA_OPENBLAS=on
 pip install llama-cpp-python --no-cache-dir
 ```
+
+
+## Known issues
+
+### nginx and K8s multi-pod support
+
+Gradio 4.x.y fails to support K8s multi-pod use. Specifically, the Gradio client on one pod can't reach a Gradio server on a nearby pod. For more information, see https://github.com/gradio-app/gradio/issues/6920 and https://github.com/gradio-app/gradio/issues/7317.
+
+Workaround: Use gradio 3.50.2 and `gradio_client` 0.6.1 by commenting in or out relevant lines in `requirements.txt` and `reqs_optional/reqs_constraints.txt`, and comment out `gradio_pdf` in `reqs_optional/requirements_optional_langchain.txt`, i.e.
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.2
+```
+If you experience spontaneous crashes via OS killer, then use gradio 3.50.1 instead:
+```bash
+pip uninstall gradio gradio_client gradio_pdf -y
+pip install gradio==3.50.1
+```
+
+### llama.cpp + Audio streaming (XTTS model) failure
+
+```text
+CUDA error: an illegal memory access was encountered
+```
+
+With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+
+A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
+
+Other workarounds:
+
+* Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
+
+* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
+    ```bash
+    pip uninstall llama_cpp_python llama_cpp_python_cuda -y
+    export LLAMA_CUBLAS=1
+    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+    export FORCE_CMAKE=1
+    pip install llama_cpp_python==0.2.26 --no-cache-dir
+    ```
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.

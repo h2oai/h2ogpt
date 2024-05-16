@@ -1,5 +1,3 @@
-import contextlib
-import logging
 import os
 import sys
 import ast
@@ -9,9 +7,9 @@ from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import  FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.requests import Request
+from fastapi import Request, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
@@ -70,6 +68,14 @@ class H2oGPTParams(BaseModel):
     pre_prompt_summary: str | None = None
     prompt_summary: str | None = None
     hyde_llm_prompt: str | None = None
+
+    user_prompt_for_fake_system_prompt: str | None = None
+    json_object_prompt: str | None = None
+    json_object_prompt_simpler: str | None = None
+    json_code_prompt: str | None = None
+    json_code_prompt_if_no_schema: str | None = None
+    json_schema_instruction: str | None = None
+
     system_prompt: str | None = 'auto'
 
     image_audio_loaders: List | None = None
@@ -126,6 +132,10 @@ class H2oGPTParams(BaseModel):
     guided_grammar: Optional[str] = Field(
         default=None,
         description="If specified, the output will follow the context free grammar.",
+    )
+    guided_whitespace_pattern: Optional[str] = Field(
+        default=None,
+        description="If specified, JSON white space will be restricted.",
     )
 
 
@@ -295,8 +305,9 @@ async def handle_models(request: Request):
     path = request.url.path
     model_name = path[len('/v1/models/'):]
 
-    from openai_server.backend import gradio_client
-    model_dict = ast.literal_eval(gradio_client.predict(api_name='/model_names'))
+    from openai_server.backend import get_client
+    client = get_client()
+    model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
     base_models = [x['base_model'] for x in model_dict]
 
     if not model_name:
@@ -324,3 +335,163 @@ async def handle_model_info():
 async def handle_list_models():
     from openai_server.backend import get_model_list
     return JSONResponse(content=[dict(id=x) for x in get_model_list()])
+
+
+# Define your request data model
+class AudiotoTextRequest(BaseModel):
+    model: str = ''
+    file: str
+    response_format: str = 'text'  # FIXME unused (https://platform.openai.com/docs/api-reference/audio/createTranscription#images/create-response_format)
+    stream: bool = True  # NOTE: No effect on OpenAI API client, would have to use direct API
+    timestamp_granularities: list = ["word"]  # FIXME unused
+    chunk: Union[str, int] = 'silence'  # or 'interval'   No effect on OpenAI API client, would have to use direct API
+
+
+@app.post('/v1/audio/transcriptions', dependencies=check_key)
+async def handle_audio_transcription(request: Request):
+    form = await request.form()
+    audio_file = await form["file"].read()
+    model = form["model"]
+    stream = form.get("stream", False)
+    response_format = form.get("response_format", 'text')
+    chunk = form.get("chunk", 'interval')
+    request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format, chunk=chunk)
+
+    if stream:
+        from openai_server.backend import audio_to_text
+
+        async def generator():
+            response = audio_to_text(**request_data)
+            for resp in response:
+                disconnected = await request.is_disconnected()
+                if disconnected:
+                    break
+
+                yield {"data": json.dumps(resp)}
+
+        return EventSourceResponse(generator())
+    else:
+        from openai_server.backend import _audio_to_text
+        response = ''
+        for response1 in _audio_to_text(**request_data):
+            response = response1
+        return JSONResponse(response)
+
+
+# Define your request data model
+class AudioTextRequest(BaseModel):
+    model: str = ''
+    voice: str = ''  # overrides both chatbot_role and speaker if set
+    input: str
+    stream: bool = True
+    chatbot_role: str = "Female AI Assistant"  # Coqui TTS
+    speaker: str = "SLT (female)"  # Microsoft TTS
+    format: str = 'wav'
+
+
+@app.post('/v1/audio/speech', dependencies=check_key)
+async def handle_audio_to_speech(
+        request: Request,
+):
+    request_data = await request.json()
+    audio_request = AudioTextRequest(**request_data)
+
+    if audio_request.stream:
+        from openai_server.backend import text_to_audio
+
+        async def generator():
+            response = text_to_audio(**dict(audio_request))
+            for chunk in response:
+                disconnected = await request.is_disconnected()
+                if disconnected:
+                    break
+                yield chunk
+
+        if audio_request.format == 'wav':
+            return StreamingResponse(generator(), media_type="audio/wav")
+        else:
+            return StreamingResponse(generator(), media_type="audio/%s" % audio_request.format)
+    else:
+        from openai_server.backend import text_to_audio
+        response = ''
+        for response1 in text_to_audio(**dict(audio_request)):
+            response = response1
+        if audio_request.format == 'wav':
+            return Response(content=response, media_type="audio/wav")
+        else:
+            return Response(content=response, media_type="audio/%s" % audio_request.format)
+
+
+class ImageGenerationRequest(BaseModel):
+    model: str = ''
+    prompt: str
+    size: str = '1024x1024'
+    quality: str = 'standard'
+    n: int = 1
+    response_format: str = 'url'  # FIXME: https://platform.openai.com/docs/api-reference/images/create#images/create-response_format
+    style: str = 'vivid'
+    user: str = None
+
+
+@app.post('/v1/images/generations', dependencies=check_key)
+async def handle_image_generation(request: Request):
+    try:
+        body = await request.json()
+        model = body.get('model', '')  # will choose first if nothing passed
+        prompt = body['prompt']
+        size = body.get('size', '1024x1024')
+        quality = body.get('quality', 'standard')
+        n = body.get('n', 1)  # ignore the batch limits of max 10
+        response_format = body.get('response_format', 'b64_json')  # or url
+
+        image_request = dict(model=model, prompt=prompt, size=size, quality=quality, n=n,
+                             response_format=response_format)
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Missing key in request body: {str(e)}")
+
+    # no streaming
+    from openai_server.backend import completions
+    body_image = dict(prompt=prompt, langchain_action='ImageGen', visible_image_models=model)
+    response = completions(body_image)
+    image = response['choices'][0]['text'][0]
+    resp = {
+        'created': int(time.time()),
+        'data': []
+    }
+    import base64
+    if os.path.isfile(image):
+        with open(image, 'rb') as f:
+            image = f.read()
+    encoded_image = base64.b64encode(image).decode('utf-8')
+    if response_format == 'b64_json':
+        resp['data'].extend([{'b64_json': encoded_image}])
+        return JSONResponse(resp)
+    else:
+        # FIXME: jpg vs. others
+        resp['data'].extend([{'url': f'data:image/jpg;base64,{encoded_image}'}])
+        return JSONResponse(resp)
+
+
+class EmbeddingsResponse(BaseModel):
+    index: int
+    embedding: List[float]
+    object: str = "embedding"
+
+
+class EmbeddingsRequest(BaseModel):
+    input: str | List[str] | List[int] | List[List[int]]
+    model: str | None = Field(default=None, description="Unused parameter.")
+    encoding_format: str = Field(default="float", description="float or base64.")
+    user: str | None = Field(default=None, description="Unused parameter.")
+
+
+@app.post("/v1/embeddings", response_model=EmbeddingsResponse, dependencies=check_key)
+async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
+    # https://docs.portkey.ai/docs/api-reference/embeddings
+    text = request_data.input
+    model = request_data.model
+    encoding_format = request_data.encoding_format
+
+    from openai_server.backend import text_to_embedding
+    response = text_to_embedding(model, text, encoding_format)
+    return JSONResponse(response)

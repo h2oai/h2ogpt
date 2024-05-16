@@ -76,38 +76,6 @@ spec:
       {{- with .Values.h2ogpt.extraAffinity }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-{{- if and (.Values.tgi.enabled) (not .Values.h2ogpt.stack.enabled ) }}
-      initContainers:
-        - name: tgi-check
-          securityContext:
-            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
-          image: "{{ .Values.h2ogpt.initImage.repository | default "busybox" }}:{{ .Values.h2ogpt.initImage.tag | default "1.36" }}"
-          imagePullPolicy: {{ .Values.h2ogpt.initImage.pullPolicy | default "IfNotPresent"}}
-          command: ["/bin/sh", "-c"]
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}/ >/dev/null 2>&1;
-              do
-                echo "Waiting for inference service to become ready...";
-                sleep 5;
-              done
-{{- end }}
-{{- if and (.Values.vllm.enabled) (not .Values.h2ogpt.stack.enabled ) }}
-      initContainers:
-        - name: vllm-check
-          securityContext:
-            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
-          image: "{{ .Values.h2ogpt.initImage.repository | default "busybox" }}:{{ .Values.h2ogpt.initImage.tag | default "1.36" }}"
-          imagePullPolicy: {{ .Values.h2ogpt.initImage.pullPolicy | default "IfNotPresent"}}
-          command: ["/bin/sh", "-c"]
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}/v1/models >/dev/null 2>&1;
-              do
-                echo "Waiting for inference service to become ready...";
-                sleep 5;
-              done
-{{- end }}
       {{- with .Values.h2ogpt.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -190,9 +158,33 @@ spec:
             python3 /workspace/generate.py
           {{- end }}
           {{- if not .Values.h2ogpt.stack.enabled }}
+          {{- if and .Values.vllm.enabled (not .Values.h2ogpt.externalLLM.modelLock) }}
+          args:
+          - >
+            until wget -O- http://{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}/v1/models >/dev/null 2>&1;
+              do
+                echo "Waiting for inference service to become ready...";
+                sleep 5;
+              done
+              
+            python3 /workspace/generate.py
+          {{- end }}
+          {{- if and .Values.tgi.enabled (not .Values.h2ogpt.externalLLM.modelLock) }}
+          args:
+          - >
+            until wget -O- http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}/ >/dev/null 2>&1;
+              do
+                echo "Waiting for inference service to become ready...";
+                sleep 5;
+              done
+              
+            python3 /workspace/generate.py
+          {{- end }}
+          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled)) }}
           args:
           - >
             python3 /workspace/generate.py
+          {{- end }}
           {{- end }}
           ports:
             - name: http

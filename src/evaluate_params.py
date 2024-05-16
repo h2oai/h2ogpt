@@ -50,17 +50,27 @@ eval_func_param_names = (
         "top_k_docs",
         "chunk",
         "chunk_size",
+
         "document_subset",
         "document_choice",
         "document_source_substrings",
         "document_source_substrings_op",
         "document_content_substrings",
         "document_content_substrings_op",
+
         "pre_prompt_query",
         "prompt_query",
         "pre_prompt_summary",
         "prompt_summary",
         "hyde_llm_prompt",
+
+        "user_prompt_for_fake_system_prompt",
+        "json_object_prompt",
+        "json_object_prompt_simpler",
+        "json_code_prompt",
+        "json_code_prompt_if_no_schema",
+        "json_schema_instruction",
+
         "system_prompt",
     ]
     + reader_names
@@ -93,6 +103,7 @@ eval_func_param_names = (
         "guided_regex",
         "guided_choice",
         "guided_grammar",
+        "guided_whitespace_pattern",
     ]
 )
 

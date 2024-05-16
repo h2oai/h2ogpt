@@ -13,6 +13,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  sanitize_bot_response=False,
                  use_prompter=True, prompter=None,
                  context='', iinput='',
+                 chat_conversation=[],
+                 user_prompt_for_fake_system_prompt=None,
                  prompt_type=None, prompt_dict=None,
                  max_input_tokens=2048 - 256,
                  base_model=None,
@@ -45,13 +47,15 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.prompter = prompter
         self.context = context
         self.iinput = iinput
+        self.chat_conversation = chat_conversation
+        self.user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt
         self.debug = debug
         if self.use_prompter:
             if self.prompter is not None:
                 assert self.prompter.prompt_type is not None
             else:
                 self.prompter = Prompter(self.prompt_type, self.prompt_dict, debug=debug,
-                                         stream_output=stream_output)
+                                         stream_output=stream_output, tokenizer=self.tokenizer)
             self.human = self.prompter.humanstr
             self.bot = self.prompter.botstr
             self.can_stop = True
@@ -146,7 +150,10 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
         data_point = dict(context=self.context, instruction=prompt_text, input=self.iinput)
         if self.prompter is not None:
-            prompt_text = self.prompter.generate_prompt(data_point)
+            prompt_text = self.prompter.generate_prompt(data_point,
+                chat_conversation=self.chat_conversation,
+                user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+            )
         self.prompt_text = prompt_text
         self.prompts.append(prompt_text)
         if handle_long_generation is None:

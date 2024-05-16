@@ -33,21 +33,25 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain_core.callbacks import streaming_stdout
+from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler, BaseCallbackManager
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
 from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.llms.huggingface_pipeline import VALID_TASKS
-from langchain.llms.utils import enforce_stop_tokens
+from langchain_community.llms.utils import enforce_stop_tokens
 from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
+from langchain_core.globals import get_llm_cache
+from langchain_core.language_models.llms import aget_prompts, aupdate_cache
+from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
+from langchain_core.outputs import ChatResult, RunInfo
 from langchain_experimental.tools import PythonREPLTool
 from langchain.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_mistralai import ChatMistralAI
+# from langchain_mistralai import ChatMistralAI
+from src.langchain_mistralai.chat_models import ChatMistralAI
 from langchain_groq import ChatGroq
 from pydantic.v1 import root_validator
 from tqdm import tqdm
@@ -61,18 +65,19 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
     get_list_or_str, have_pillow, only_selenium, only_playwright, only_unstructured_urls, get_short_name, \
-    get_accordion, have_jq, get_doc, get_source, have_chromamigdb, get_token_count, reverse_ucurve_list, get_size, \
+    get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
     docs_ordering_types_default, langchain_modes_non_db, does_support_functiontools, doc_json_mode_system_prompt, \
     auto_choices, max_docs_public, max_chunks_per_doc_public, max_docs_public_api, max_chunks_per_doc_public_api, \
-    user_prompt_for_fake_system_prompt, does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
+    does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
-    noop_prompt_type, unknown_prompt_type, template_prompt_type
+    noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
+    gpt4_image_tokens, user_prompt_for_fake_system_prompt0
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -80,7 +85,8 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
     is_vision_model, is_gradio_vision_model, is_json_model
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
-    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings
+    load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
+    split_merge_docs
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -107,7 +113,6 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline
 from langchain_community.vectorstores import Chroma
-from chromamig import ChromaMig
 
 
 def get_context_cast():
@@ -124,7 +129,6 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
            collection_name=None,
            hf_embedding_model=None,
            migrate_embedding_model=False,
-           auto_migrate_db=False,
            n_jobs=-1,
            verbose=False):
     if not sources:
@@ -173,7 +177,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                                        location=":memory:")
 
     elif db_type in ['chroma', 'chroma_old']:
-        assert persist_directory is not None
+        assert persist_directory, "persist_directory not filled"
         # use_base already handled when making persist_directory, unless was passed into get_db()
         makedirs(persist_directory, exist_ok=True)
 
@@ -182,7 +186,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
             get_existing_db(None, persist_directory, load_db_if_exists, db_type,
                             use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             verbose=False,
                             n_jobs=n_jobs)
         if db is None:
@@ -192,8 +196,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                 from chromadb.config import Settings
                 settings_extra_kwargs = dict(is_persistent=True)
             else:
-                from chromamigdb.config import Settings
-                settings_extra_kwargs = dict(chroma_db_impl="duckdb+parquet")
+                raise RuntimeError("Migration no longer supported")
             client_settings = Settings(anonymized_telemetry=False,
                                        persist_directory=persist_directory,
                                        **settings_extra_kwargs)
@@ -223,7 +226,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
                     db.persist()
             else:
-                db = ChromaMig.from_documents(documents=sources, **from_kwargs)
+                raise RuntimeError("Migration no longer supported")
             clear_embedding(db)
             save_embed(db, use_openai_embedding, hf_embedding_model)
         else:
@@ -403,7 +406,7 @@ def add_to_db(db, sources, db_type='faiss',
 def create_or_update_db(db_type, persist_directory, collection_name,
                         user_path, langchain_type,
                         sources, use_openai_embedding, add_if_exists, verbose,
-                        hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                        hf_embedding_model, migrate_embedding_model,
                         n_jobs=-1):
     if not os.path.isdir(persist_directory) or not add_if_exists:
         if os.path.isdir(persist_directory):
@@ -461,7 +464,6 @@ def create_or_update_db(db_type, persist_directory, collection_name,
                 langchain_mode_types={collection_name: langchain_type},
                 hf_embedding_model=hf_embedding_model,
                 migrate_embedding_model=migrate_embedding_model,
-                auto_migrate_db=auto_migrate_db,
                 n_jobs=n_jobs,
                 verbose=verbose,
                 )
@@ -606,7 +608,275 @@ class H2Oagenerate:
                 await self._acall(prompt, stop=stop, **kwargs)
 
 
-class GradioInference(H2Oagenerate, LLM):
+class AGenerateStreamFirst:
+    # from:
+    # langchain_core/language_models/llms.py
+    async def agenerate(
+            self,
+            prompts: List[str],
+            stop: Optional[List[str]] = None,
+            callbacks: Optional[typing.Union[Callbacks, List[Callbacks]]] = None,
+            *,
+            tags: Optional[typing.Union[List[str], List[List[str]]]] = None,
+            metadata: Optional[typing.Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+            run_name: Optional[typing.Union[str, List[str]]] = None,
+            run_id: Optional[typing.Union[uuid.UUID, List[Optional[uuid.UUID]]]] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False) or \
+                               kwargs.get('streaming', False) or \
+                               hasattr(self, 'streaming') and self.streaming or \
+                               hasattr(self, 'stream') and isinstance(self.stream, bool) and self.stream or \
+                               hasattr(self, 'stream_output') and self.stream_output
+
+        # Create callback managers
+        if isinstance(callbacks, list) and (
+                isinstance(callbacks[0], (list, BaseCallbackManager))
+                or callbacks[0] is None
+        ):
+            # We've received a list of callbacks args to apply to each input
+            assert len(callbacks) == len(prompts)
+            assert tags is None or (
+                    isinstance(tags, list) and len(tags) == len(prompts)
+            )
+            assert metadata is None or (
+                    isinstance(metadata, list) and len(metadata) == len(prompts)
+            )
+            assert run_name is None or (
+                    isinstance(run_name, list) and len(run_name) == len(prompts)
+            )
+            callbacks = typing.cast(List[Callbacks], callbacks)
+            tags_list = typing.cast(List[Optional[List[str]]], tags or ([None] * len(prompts)))
+            metadata_list = typing.cast(
+                List[Optional[Dict[str, Any]]], metadata or ([{}] * len(prompts))
+            )
+            run_name_list = run_name or typing.cast(
+                List[Optional[str]], ([None] * len(prompts))
+            )
+            callback_managers = [
+                AsyncCallbackManager.configure(
+                    callback,
+                    self.callbacks,
+                    self.verbose,
+                    tag,
+                    self.tags,
+                    meta,
+                    self.metadata,
+                )
+                for callback, tag, meta in zip(callbacks, tags_list, metadata_list)
+            ]
+        else:
+            # We've received a single callbacks arg to apply to all inputs
+            callback_managers = [
+                                    AsyncCallbackManager.configure(
+                                        typing.cast(Callbacks, callbacks),
+                                        self.callbacks,
+                                        self.verbose,
+                                        typing.cast(List[str], tags),
+                                        self.tags,
+                                        typing.cast(Dict[str, Any], metadata),
+                                        self.metadata,
+                                    )
+                                ] * len(prompts)
+            run_name_list = [typing.cast(Optional[str], run_name)] * len(prompts)
+        run_ids_list = self._get_run_ids_list(run_id, prompts)
+        params = self.dict()
+        params["stop"] = stop
+        options = {"stop": stop}
+        (
+            existing_prompts,
+            llm_string,
+            missing_prompt_idxs,
+            missing_prompts,
+        ) = await aget_prompts(params, prompts, self.cache)
+
+        # Verify whether the cache is set, and if the cache is set,
+        # verify whether the cache is available.
+        new_arg_supported = inspect.signature(self._agenerate).parameters.get(
+            "run_manager"
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(callback_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+        if (self.cache is None and get_llm_cache() is None) or self.cache is False:
+            run_managers = await asyncio.gather(
+                *[
+                    callback_manager.on_llm_start(
+                        dumpd(self),
+                        [prompt],
+                        invocation_params=params,
+                        options=options,
+                        name=run_name,
+                        batch_size=len(prompts),
+                        run_id=run_id_,
+                    )
+                    for callback_manager, prompt, run_name, run_id_ in zip(
+                        callback_managers, prompts, run_name_list, run_ids_list
+                    )
+                ]
+            )
+            run_managers = [r[0] for r in run_managers]  # type: ignore[misc]
+            output = await self._agenerate_helper(
+                prompts,
+                stop,
+                run_managers,  # type: ignore[arg-type]
+                bool(new_arg_supported),
+                **kwargs,  # type: ignore[arg-type]
+            )
+            return output
+        if len(missing_prompts) > 0:
+            run_managers = await asyncio.gather(
+                *[
+                    callback_managers[idx].on_llm_start(
+                        dumpd(self),
+                        [prompts[idx]],
+                        invocation_params=params,
+                        options=options,
+                        name=run_name_list[idx],
+                        batch_size=len(missing_prompts),
+                    )
+                    for idx in missing_prompt_idxs
+                ]
+            )
+            run_managers = [r[0] for r in run_managers]  # type: ignore[misc]
+            new_results = await self._agenerate_helper(
+                missing_prompts,
+                stop,
+                run_managers,  # type: ignore[arg-type]
+                bool(new_arg_supported),
+                **kwargs,  # type: ignore[arg-type]
+            )
+            llm_output = await aupdate_cache(
+                self.cache,
+                existing_prompts,
+                llm_string,
+                missing_prompt_idxs,
+                new_results,
+                prompts,
+            )
+            run_info = (
+                [RunInfo(run_id=run_manager.run_id) for run_manager in run_managers]  # type: ignore[attr-defined]
+                if run_managers
+                else None
+            )
+        else:
+            llm_output = {}
+            run_info = None
+        generations = [existing_prompts[i] for i in range(len(prompts))]
+        return LLMResult(generations=generations, llm_output=llm_output, run=run_info)
+
+
+class ChatAGenerateStreamFirst:
+    # from
+    # langchain_core/language_models/chat_models.py
+    async def agenerate(
+            self,
+            messages: List[List[BaseMessage]],
+            stop: Optional[List[str]] = None,
+            callbacks: Callbacks = None,
+            *,
+            tags: Optional[List[str]] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+            run_name: Optional[str] = None,
+            run_id: Optional[uuid.UUID] = None,
+            **kwargs: Any,
+    ) -> LLMResult:
+        # NOTE: overwrite of base class so can specify which messages will have callbacks
+        callbacks_only_first = kwargs.get('stream', False) or \
+                               kwargs.get('streaming', False) or \
+                               hasattr(self, 'streaming') and self.streaming or \
+                               hasattr(self, 'stream') and isinstance(self.stream, bool) and self.stream or \
+                               hasattr(self, 'stream_output') and self.stream_output
+        if self.verbose:
+            print("messages: %s" % len(messages))
+
+        params = self._get_invocation_params(stop=stop, **kwargs)
+        options = {"stop": stop}
+
+        callback_manager = AsyncCallbackManager.configure(
+            callbacks,
+            self.callbacks,
+            self.verbose,
+            tags,
+            self.tags,
+            metadata,
+            self.metadata,
+        )
+
+        run_managers = await callback_manager.on_chat_model_start(
+            dumpd(self),
+            messages,
+            invocation_params=params,
+            options=options,
+            name=run_name,
+            batch_size=len(messages),
+            run_id=run_id,
+        )
+        if callbacks_only_first:
+            for ii, run_manager in enumerate(run_managers):
+                if ii > 0:
+                    run_manager.handlers = []
+
+        results = await asyncio.gather(
+            *[
+                self._agenerate_with_cache(
+                    m,
+                    stop=stop,
+                    run_manager=run_managers[i] if run_managers else None,
+                    **kwargs,
+                )
+                for i, m in enumerate(messages)
+            ],
+            return_exceptions=True,
+        )
+        exceptions = []
+        for i, res in enumerate(results):
+            if isinstance(res, BaseException):
+                if run_managers:
+                    await run_managers[i].on_llm_error(
+                        res, response=LLMResult(generations=[])
+                    )
+                exceptions.append(res)
+        if exceptions:
+            if run_managers:
+                await asyncio.gather(
+                    *[
+                        run_manager.on_llm_end(
+                            LLMResult(
+                                generations=[res.generations],  # type: ignore[list-item, union-attr]
+                                llm_output=res.llm_output,  # type: ignore[list-item, union-attr]
+                            )
+                        )
+                        for run_manager, res in zip(run_managers, results)
+                        if not isinstance(res, Exception)
+                    ]
+                )
+            raise exceptions[0]
+        flattened_outputs = [
+            LLMResult(generations=[res.generations], llm_output=res.llm_output)  # type: ignore[list-item, union-attr]
+            for res in results
+        ]
+        llm_output = self._combine_llm_outputs([res.llm_output for res in results])  # type: ignore[union-attr]
+        generations = [res.generations for res in results]  # type: ignore[union-attr]
+        output = LLMResult(generations=generations, llm_output=llm_output)  # type: ignore[arg-type]
+        await asyncio.gather(
+            *[
+                run_manager.on_llm_end(flattened_output)
+                for run_manager, flattened_output in zip(
+                    run_managers, flattened_outputs
+                )
+            ]
+        )
+        if run_managers:
+            output.run = [
+                RunInfo(run_id=run_manager.run_id) for run_manager in run_managers
+            ]
+        return output
+
+
+class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     """
     Gradio generation inference API.
     """
@@ -638,8 +908,14 @@ class GradioInference(H2Oagenerate, LLM):
     client: Any = None
     tokenizer: Any = None
 
-    chat_conversation: Any = []
     add_chat_history_to_context: bool = True
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
+    json_object_prompt: Any = None
+    json_object_prompt_simpler: Any = None
+    json_code_prompt: Any = None
+    json_code_prompt_if_no_schema: Any = None
+    json_schema_instruction: Any = None
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -653,6 +929,7 @@ class GradioInference(H2Oagenerate, LLM):
     guided_regex: Any = None
     guided_choice: Any = None
     guided_grammar: Any = None
+    guided_whitespace_pattern: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -756,11 +1033,17 @@ class GradioInference(H2Oagenerate, LLM):
                              document_source_substrings_op='and',
                              document_content_substrings=[],
                              document_content_substrings_op='and',
-                             pre_prompt_query=None,
-                             prompt_query=None,
-                             pre_prompt_summary=None,
-                             prompt_summary=None,
-                             hyde_llm_prompt=None,
+                             pre_prompt_query=None,  # no further langchain query
+                             prompt_query=None,  # no further langchain query
+                             pre_prompt_summary=None,  # no further langchain summary
+                             prompt_summary=None,  # no further langchain summary
+                             hyde_llm_prompt=None,  # no further HYDE
+                             user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                             json_object_prompt=self.json_object_prompt,
+                             json_object_prompt_simpler=self.json_object_prompt_simpler,
+                             json_code_prompt=self.json_code_prompt,
+                             json_code_prompt_if_no_schema=self.json_code_prompt_if_no_schema,
+                             json_schema_instruction=self.json_schema_instruction,
                              system_prompt=self.system_prompt,
                              image_audio_loaders=None,  # don't need to further do doc specific things
                              pdf_loaders=None,  # don't need to further do doc specific things
@@ -793,6 +1076,7 @@ class GradioInference(H2Oagenerate, LLM):
                              guided_regex=self.guided_regex,
                              guided_choice=self.guided_choice,
                              guided_grammar=self.guided_grammar,
+                             guided_whitespace_pattern=self.guided_whitespace_pattern,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         # let inner gradio count input tokens
@@ -877,7 +1161,7 @@ class GradioInference(H2Oagenerate, LLM):
                     if text_callback:
                         text_callback(text_chunk)
 
-                time.sleep(0.01)
+                time.sleep(0.005)
 
             # ensure get last output to avoid race
             res_all = job.outputs().copy()
@@ -1128,7 +1412,7 @@ class GradioLLaVaInference(GradioInference):
                 text0 = text
                 if text_callback:
                     text_callback(text_chunk)
-                time.sleep(0.01)
+                time.sleep(0.005)
 
                 if self.max_time is not None and time.time() - t_start > self.max_time:
                     if self.verbose:
@@ -1188,7 +1472,7 @@ class GradioLLaVaInference(GradioInference):
         return text
 
 
-class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
+class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, HuggingFaceTextGenInference):
     max_new_tokens: int = 512
     do_sample: bool = False
     seed: int = 0
@@ -1210,6 +1494,8 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     async_sem: Any = None
     count_input_tokens: Any = 0
     prompts: Any = []
@@ -1237,7 +1523,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
 
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
 
@@ -1325,7 +1614,10 @@ class H2OHuggingFaceTextGenInference(H2Oagenerate, HuggingFaceTextGenInference):
 
         # NOTE: TGI server does not add prompting, so must do here
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
 
         gen_text = await super()._acall(prompt, stop=stop, run_manager=run_manager, **kwargs)
 
@@ -1350,29 +1642,10 @@ from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
 from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2
 from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
+from langchain_together import ChatTogether
 
 
-class H2OOpenAI(OpenAI):
-    """
-    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
-    Handles prompting that OpenAI doesn't need, stopping as well
-
-    assume stop is used to keep out trailing text, and only generate new text,
-    so don't use self.prompter.get_response as becomes too complex
-    """
-    stop_sequences: Any = None
-    sanitize_bot_response: bool = False
-    prompter: Any = None
-    context: Any = ''
-    iinput: Any = ''
-    tokenizer: Any = None
-    async_sem: Any = None
-    count_input_tokens: Any = 0
-    prompts: Any = []
-    count_output_tokens: Any = 0
-    max_new_tokens0: Any = None
-    count_llm_calls: Any = 0
-
+class H2OTextGenOpenAI:
     def update_prompts_and_stops(self, prompts, stop, **kwargs):
         stop_tmp = self.stop_sequences if not stop else self.stop_sequences + stop
         stop = []
@@ -1385,7 +1658,10 @@ class H2OOpenAI(OpenAI):
             prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
             # NOTE: OpenAI/vLLM server does not add prompting, so must do here
             data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-            prompt = self.prompter.generate_prompt(data_point)
+            prompt = self.prompter.generate_prompt(data_point,
+                                                   chat_conversation=self.chat_conversation,
+                                                   user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                                   )
             prompts[prompti] = prompt
 
         kwargs = self.update_kwargs(prompts, kwargs)
@@ -1431,6 +1707,8 @@ class H2OOpenAI(OpenAI):
 
         llm_output = {"token_usage": token_usage, "model_name": self.model_name}
         self.count_output_tokens += token_usage.get('completion_tokens', 0)
+        if self.count_output_tokens == 0:
+            self.count_output_tokens += sum([self.get_num_tokens(x[0].text) for x in generations if len(x) > 0])
         return LLMResult(generations=generations, llm_output=llm_output)
 
     def _generate(
@@ -1490,7 +1768,8 @@ class H2OOpenAI(OpenAI):
             **kwargs: Any,
     ) -> typing.AsyncIterator[GenerationChunk]:
         kwargs = self.update_kwargs([prompt], kwargs)
-        return await super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs)
+        async for chunk in super()._astream(prompt, stop=stop, run_manager=run_manager, **kwargs):
+            yield chunk
 
     async def _agenerate(
             self,
@@ -1502,7 +1781,18 @@ class H2OOpenAI(OpenAI):
         prompts, stop, kwargs = self.update_prompts_and_stops(prompts, stop, **kwargs)
         self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
         self.count_llm_calls += len(prompts)
-        if self.batch_size > 1 or self.streaming:
+
+        if self.streaming:
+            self.prompts.extend(prompts)
+            run_managers = [run_manager] * len(prompts)
+            # only stream first if doing async
+            run_managers = [x if i == 0 else None for i, x in enumerate(run_managers)]
+            tasks = [
+                asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager1, **kwargs))
+                for run_manager1, prompt in zip(run_managers, prompts)]
+            llm_results = await asyncio.gather(*tasks)
+            return self.collect_llm_results(llm_results)
+        elif self.batch_size > 1:
             rets = await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
             self.count_out_tokens(rets)
             return rets
@@ -1526,7 +1816,7 @@ class H2OOpenAI(OpenAI):
             prompts = [prompt]
             # update for each async call
             kwargs = self.update_kwargs(prompts, kwargs)
-            return await super(H2OOpenAI, self)._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
+            return await super()._agenerate(prompts, stop=stop, run_manager=run_manager, **kwargs)
 
     def get_token_ids(self, text: str) -> List[int]:
         if self.tokenizer is not None:
@@ -1536,6 +1826,30 @@ class H2OOpenAI(OpenAI):
             return super().get_token_ids(text)
 
 
+class H2OOpenAI(H2OTextGenOpenAI, OpenAI):
+    """
+    New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
+    Handles prompting that OpenAI doesn't need, stopping as well
+
+    assume stop is used to keep out trailing text, and only generate new text,
+    so don't use self.prompter.get_response as becomes too complex
+    """
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    tokenizer: Any = None
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
+
+
 class H2OReplicate(Replicate):
     stop_sequences: Any = None
     sanitize_bot_response: bool = False
@@ -1543,6 +1857,8 @@ class H2OReplicate(Replicate):
     context: Any = ''
     iinput: Any = ''
     tokenizer: Any = None
+    chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
 
     def _call(
@@ -1563,24 +1879,32 @@ class H2OReplicate(Replicate):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
         # Note Replicate handles the prompting of the specific model, but not if history, so just do it all on our side
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point)
+        prompt = self.prompter.generate_prompt(data_point,
+                                               chat_conversation=self.chat_conversation,
+                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               )
 
         response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
         return response
 
-    def get_token_ids(self, text: str) -> List[int]:
-        return self.tokenizer.encode(text)
-        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
-        # return _get_token_ids_default_method(text)
-
 
 class ExtraChat:
+    def get_token_ids(self, text: str) -> List[int]:
+        if self.tokenizer is not None:
+            if isinstance(self.tokenizer, FakeTokenizer):
+                return self.tokenizer.encode(text)['input_ids']
+            else:
+                return self.tokenizer.encode(text)
+        else:
+            return FakeTokenizer().encode(text)['input_ids']
+
     def get_messages(self, prompts):
         from langchain.schema import AIMessage, SystemMessage, HumanMessage
         messages = []
         count_input_tokens_start = self.count_input_tokens
         if self.system_prompt:
             if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys):
+                user_prompt_for_fake_system_prompt = self.user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
             else:
@@ -1649,16 +1973,16 @@ class ExtraChat:
                         if img_tag in [claude3imagetag]:
                             # https://docs.anthropic.com/claude/docs/vision#image-costs
                             # for roughly 1kx1k image
-                            self.count_input_tokens += 1334
+                            self.count_input_tokens += claude3_image_tokens
                         if img_tag in [geminiimagetag]:
                             # https://cloud.google.com/vertex-ai/generative-ai/pricing
                             # gemini gives $ cost per image, not by tokens, just estimate
                             # $0.0025 per image and $0.000125/1k tokens, 4 chars/token, so image like 20k chars or 5k tokens
-                            self.count_input_tokens += 5000
+                            self.count_input_tokens += gemini_image_tokens
                         if img_tag in [gpt4imagetag]:
                             # https://openai.com/pricing
                             # for 1kx1k costs $0.00765 while $10/M tokens, so image is like 765 tokens
-                            self.count_input_tokens += 1000
+                            self.count_input_tokens += gpt4_image_tokens
 
                         num_images += 1
                         if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
@@ -1739,13 +2063,29 @@ class GenerateStream:
 
     def tool_string_return(self, ret, have_tool):
         if have_tool and isinstance(ret.generations[0].text, list):
+            # prior beta
             # overwrite
-            # -1 is last, to skip first thinking step for opus/sonnet
-            # bug in claude with sonnet:
-            result = ret.generations[0].text[-1]['input']
-            if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
-                result = result['properties']
-            ret.generations[0].text = json.dumps(result)
+            if not ret.generations[0].text:
+                ret.generations[0].text = json.dumps({})
+            else:
+                # -1 is last, to skip first thinking step for opus/sonnet
+                # bug in claude with sonnet:
+                result = ret.generations[0].text[-1]['input']
+                if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
+                    result = result['properties']
+                ret.generations[0].text = json.dumps(result)
+        elif have_tool and isinstance(ret.generations[0].message.content, list):
+            # new beta
+            # overwrite
+            if not ret.generations[0].message.content:
+                ret.generations[0].text = json.dumps({})
+            else:
+                # -1 is last, to skip first thinking step for opus/sonnet
+                # bug in claude with sonnet:
+                result = ret.generations[0].message.content[-1]['input']
+                if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
+                    result = result['properties']
+                ret.generations[0].text = json.dumps(result)
         return ret
 
     async def _agenerate(
@@ -1813,7 +2153,7 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
-        if self.response_format:
+        if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
         try:
             return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
@@ -1838,7 +2178,7 @@ class GenerateStream2:
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
-        if self.response_format:
+        if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
         try:
             return await self.agenerate(
@@ -1856,10 +2196,11 @@ class GenerateStream2:
                 raise
 
 
-class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
+class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpenAI):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
@@ -1874,19 +2215,29 @@ class H2OChatOpenAI(GenerateStream, ExtraChat, ChatOpenAI):
             return super().get_token_ids(text)
 
 
-class H2OAzureChatOpenAI(GenerateNormal, ExtraChat, AzureChatOpenAI):
+class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, AzureChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
+    def get_token_ids(self, text: str) -> List[int]:
+        """Get the tokens present in the text with tiktoken package."""
+        # tiktoken NOT supported for Python 3.7 or below
+        if sys.version_info[1] <= 7:
+            return super().get_token_ids(text)
+        _, encoding_model = self._get_encoding_model()
+        return encoding_model.encode(text)
+
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
 
-class H2OChatAnthropic2(GenerateNormal, ExtraChat, ChatAnthropic2):
+class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, ChatAnthropic2):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = True
     count_input_tokens: Any = 0
@@ -1900,9 +2251,10 @@ class H2OChatAnthropic2Sys(H2OChatAnthropic2):
     pass
 
 
-class H2OChatAnthropic3(GenerateStream, ExtraChat, ChatAnthropic3):
+class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatAnthropic3):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = True
     count_input_tokens: Any = 0
@@ -1924,26 +2276,20 @@ from langchain_core.language_models.chat_models import (
 )
 
 
-class H2OChatGoogle(GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
+class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoogleGenerativeAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = False
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
 
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
-
-
-class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
+class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     stream_output: bool = True
     tokenizer: Any = None
@@ -1953,16 +2299,11 @@ class H2OChatMistralAI(GenerateStream2, ExtraChat, ChatMistralAI):
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
 
-
-class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
+class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq):
     system_prompt: Any = None
     chat_conversation: Any = []
+    user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     tokenizer: Any = None
     stream_output: bool = True
@@ -1970,17 +2311,20 @@ class H2OChatGroq(GenerateStream2, ExtraChat, ChatGroq):
     count_output_tokens: Any = 0
     response_format: Any = None
 
-    # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
-    def get_token_ids(self, text: str) -> List[int]:
-        if self.tokenizer is not None:
-            return self.tokenizer.encode(text)
-        else:
-            return FakeTokenizer().encode(text)['input_ids']
-
-
-class H2OAzureOpenAI(AzureOpenAI):
-    max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+class H2OAzureOpenAI(H2OTextGenOpenAI, AzureOpenAI):
+    stop_sequences: Any = None
+    sanitize_bot_response: bool = False
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    tokenizer: Any = None
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+    max_new_tokens0: Any = None
+    count_llm_calls: Any = 0
 
 
 class H2OHuggingFacePipeline(HuggingFacePipeline):
@@ -2077,6 +2421,14 @@ def get_llm(use_openai_model=False,
             chat_conversation=None,
             add_chat_history_to_context=True,
             sanitize_bot_response=False,
+
+            user_prompt_for_fake_system_prompt=None,
+            json_object_prompt=None,
+            json_object_prompt_simpler=None,
+            json_code_prompt=None,
+            json_code_prompt_if_no_schema=None,
+            json_schema_instruction=None,
+
             system_prompt='',
             allow_chat_system_prompt=True,
             visible_models=0,
@@ -2106,9 +2458,14 @@ def get_llm(use_openai_model=False,
             guided_regex=None,
             guided_choice=None,
             guided_grammar=None,
+            guided_whitespace_pattern=None,
 
             doing_grounding=False,
             json_vllm=False,
+
+            query_action=True,
+            summarize_action=False,
+            stream_map=False,
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2140,12 +2497,17 @@ def get_llm(use_openai_model=False,
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
 
+    streaming_callback = StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose,
+                                                        raise_stop=not stream_map or query_action)
+
     if n_jobs in [None, -1]:
         n_jobs = int(os.getenv('OMP_NUM_THREADS', str(os.cpu_count() // 2)))
     n_gpus = n_gpus_global
     if inference_server is None:
         inference_server = ''
+
     if inference_server.startswith('replicate'):
+        async_output = False  # no real async
         model_string = ':'.join(inference_server.split(':')[1:])
         if 'meta/llama' in model_string:
             temperature = max(0.01, temperature if do_sample else 0)
@@ -2168,7 +2530,7 @@ def get_llm(use_openai_model=False,
 
         # replicate handles prompting if no conversation, but in general has no chat API, so do all handling of prompting in h2oGPT
         if stream_output:
-            callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+            callbacks = [streaming_callback]
             streamer = callbacks[0] if stream_output else None
             llm = H2OReplicate(
                 streaming=True,
@@ -2182,6 +2544,8 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 verbose=verbose,
             )
         else:
@@ -2196,6 +2560,8 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 verbose=verbose,
             )
     elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
@@ -2243,18 +2609,24 @@ def get_llm(use_openai_model=False,
 
         kwargs_extra = {}
 
-        vllm_extra_dict = get_vllm_extra_dict(tokenizer,
-                                              stop_sequences=prompter.stop_sequences if prompter else [],
-                                              # repetition_penalty=repetition_penalty,  # could pass
-                                              response_format=response_format if guided_json else 'text',
-                                              guided_json=guided_json,
-                                              guided_regex=guided_regex,
-                                              guided_choice=guided_choice,
-                                              guided_grammar=guided_grammar,
-                                              )
+        if json_vllm:
+            vllm_extra_dict = get_vllm_extra_dict(tokenizer,
+                                                  stop_sequences=prompter.stop_sequences if prompter else [],
+                                                  # repetition_penalty=repetition_penalty,  # could pass
+                                                  response_format='json_object' if guided_json else 'text',
+                                                  guided_json=guided_json,
+                                                  guided_regex=guided_regex,
+                                                  guided_choice=guided_choice,
+                                                  guided_grammar=guided_grammar,
+                                                  guided_whitespace_pattern=guided_whitespace_pattern,
+                                                  )
+        else:
+            vllm_extra_dict = {}
 
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
-            kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+            kwargs_extra.update(dict(system_prompt=system_prompt,
+                                     chat_conversation=chat_conversation,
+                                     user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
             cls = H2OChatOpenAI
             # FIXME: Support context, iinput
             if inf_type == 'vllm_chat':
@@ -2285,6 +2657,7 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(
                 dict(system_prompt=system_prompt,
                      chat_conversation=chat_conversation,
+                     user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                      **azure_kwargs,
                      ))
             # FIXME: Support context, iinput
@@ -2306,6 +2679,8 @@ def get_llm(use_openai_model=False,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
+                                         chat_conversation=chat_conversation,
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          openai_api_base=base_url,
                                          openai_api_key=api_key,
                                          batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
@@ -2325,7 +2700,7 @@ def get_llm(use_openai_model=False,
             if img_file:
                 chat_conversation.append((img_file, gpt4imagetag))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         model_kwargs.update(dict(seed=seed))
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.0,
@@ -2378,12 +2753,13 @@ def get_llm(use_openai_model=False,
         else:
             model_kwargs = {}
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             # FIXME: _AnthropicCommon ignores these and makes no client anyways
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
                   max_tokens=max_new_tokens,
@@ -2410,7 +2786,8 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
@@ -2424,7 +2801,7 @@ def get_llm(use_openai_model=False,
                 if '-vision' in model_name:
                     model_name = model_name.replace('-vision', '')
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
                   top_p=top_p if do_sample else 1.0,
@@ -2449,11 +2826,12 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         # https://mistral.ai/news/mistral-large/
 
         if is_json_model(model_name, inference_server) and response_format == 'json_object':
@@ -2494,11 +2872,12 @@ def get_llm(use_openai_model=False,
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
         kwargs_extra = {}
-        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation))
+        kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   groq_api_key=groq_api_key,
                   temperature=temperature if do_sample else 0,
@@ -2519,8 +2898,10 @@ def get_llm(use_openai_model=False,
         streamer = callbacks[0] if stream_output else None
         prompt_type = inference_server
     elif inference_server and inference_server.startswith('sagemaker'):
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]  # FIXME
+        async_output = False  # no real async
+        callbacks = [streaming_callback]  # FIXME
         streamer = None
+        async_output = False  # no real async
 
         endpoint_name = ':'.join(inference_server.split(':')[1:2])
         region_name = ':'.join(inference_server.split(':')[2:])
@@ -2584,7 +2965,7 @@ def get_llm(use_openai_model=False,
 
         # quick sanity check to avoid long timeouts, just see if can reach server
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
 
         async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
 
@@ -2619,6 +3000,7 @@ def get_llm(use_openai_model=False,
                 tokenizer=tokenizer,
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 add_chat_history_to_context=add_chat_history_to_context,
                 # visible_models=visible_models,
                 visible_models=model_name,
@@ -2665,6 +3047,14 @@ def get_llm(use_openai_model=False,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
                 tokenizer=tokenizer,
+
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                json_object_prompt=json_object_prompt,
+                json_object_prompt_simpler=json_object_prompt_simpler,
+                json_code_prompt=json_code_prompt,
+                json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
+                json_schema_instruction=json_schema_instruction,
+
                 system_prompt=system_prompt,
                 chat_conversation=chat_conversation,
                 add_chat_history_to_context=add_chat_history_to_context,
@@ -2684,6 +3074,7 @@ def get_llm(use_openai_model=False,
                 guided_regex=guided_regex,
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
+                guided_whitespace_pattern=guided_whitespace_pattern,
 
                 doing_grounding=doing_grounding,
             )
@@ -2709,6 +3100,8 @@ def get_llm(use_openai_model=False,
                 context=context,
                 iinput=iinput,
                 tokenizer=tokenizer,
+                chat_conversation=chat_conversation,
+                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 timeout=max_time,
                 sanitize_bot_response=sanitize_bot_response,
                 async_sem=async_sem,
@@ -2718,10 +3111,10 @@ def get_llm(use_openai_model=False,
             raise RuntimeError("No defined client")
         streamer = callbacks[0] if stream_output else None
     elif model_name in non_hf_types:
-        async_output = False  # FIXME: not implemented yet
+        async_output = False  # FIXME: not implemented yet, and wouldn't make much sense as won't be faster
         assert langchain_only_model
         if model_name == 'llama':
-            callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+            callbacks = [streaming_callback]
             streamer = callbacks[0] if stream_output else None
         else:
             # stream_output = False
@@ -2731,7 +3124,8 @@ def get_llm(use_openai_model=False,
         if prompter:
             prompt_type = prompter.prompt_type
         else:
-            prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output)
+            prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
+                                tokenizer=tokenizer)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name=model_name,
@@ -2749,6 +3143,9 @@ def get_llm(use_openai_model=False,
                               prompter=prompter,
                               context=context,
                               iinput=iinput,
+                              tokenizer=tokenizer,
+                              chat_conversation=chat_conversation,
+                              user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                               max_seq_len=model_max_length,
                               llamacpp_path=llamacpp_path,
                               llamacpp_dict=llamacpp_dict,
@@ -2758,7 +3155,7 @@ def get_llm(use_openai_model=False,
     elif hasattr(model, 'is_exlama') and model.is_exlama():
         async_output = False  # FIXME: not implemented yet
         assert langchain_only_model
-        callbacks = [StreamingGradioCallbackHandler(max_time=max_time, verbose=verbose)]
+        callbacks = [streaming_callback]
         streamer = callbacks[0] if stream_output else None
 
         if exllama_dict is None:
@@ -2788,6 +3185,8 @@ def get_llm(use_openai_model=False,
                       prompter=prompter,
                       context=context,
                       iinput=iinput,
+                      chat_conversation=chat_conversation,
+                      user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                       )
     else:
         async_output = False  # FIXME: not implemented yet
@@ -2851,6 +3250,8 @@ def get_llm(use_openai_model=False,
                                          prompter=prompter,
                                          context=context,
                                          iinput=iinput,
+                                         chat_conversation=chat_conversation,
+                                         user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          prompt_type=prompt_type,
                                          prompt_dict=prompt_dict,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -3177,6 +3578,208 @@ class Crawler:
         return self.final_urls
 
 
+def get_youtube_urls():
+    # https://www.netify.ai/resources/applications/youtube
+    base = ['googlevideo.com',
+            'video.google.com',
+            'video.l.google.com',
+            'wide-youtube.l.google.com',
+            'youtu.be',
+            'youtube.ae',
+            'youtube.al',
+            'youtube.am',
+            'youtube.at',
+            'youtube.az',
+            'youtube.ba',
+            'youtube.be',
+            'youtube.bg',
+            'youtube.bh',
+            'youtube.bo',
+            'youtube.by',
+            'youtube.ca',
+            'youtube.cat',
+            'youtube.ch',
+            'youtube.cl',
+            'youtube.co',
+            'youtube.co.ae',
+            'youtube.co.at',
+            'youtube.co.cr',
+            'youtube.co.hu',
+            'youtube.co.id',
+            'youtube.co.il',
+            'youtube.co.in',
+            'youtube.co.jp',
+            'youtube.co.ke',
+            'youtube.co.kr',
+            'youtube.com',
+            'youtube.co.ma',
+            'youtube.com.ar',
+            'youtube.com.au',
+            'youtube.com.az',
+            'youtube.com.bd',
+            'youtube.com.bh',
+            'youtube.com.bo',
+            'youtube.com.br',
+            'youtube.com.by',
+            'youtube.com.co',
+            'youtube.com.do',
+            'youtube.com.ec',
+            'youtube.com.ee',
+            'youtube.com.eg',
+            'youtube.com.es',
+            'youtube.com.gh',
+            'youtube.com.gr',
+            'youtube.com.gt',
+            'youtube.com.hk',
+            'youtube.com.hn',
+            'youtube.com.hr',
+            'youtube.com.jm',
+            'youtube.com.jo',
+            'youtube.com.kw',
+            'youtube.com.lb',
+            'youtube.com.lv',
+            'youtube.com.ly',
+            'youtube.com.mk',
+            'youtube.com.mt',
+            'youtube.com.mx',
+            'youtube.com.my',
+            'youtube.com.ng',
+            'youtube.com.ni',
+            'youtube.com.om',
+            'youtube.com.pa',
+            'youtube.com.pe',
+            'youtube.com.ph',
+            'youtube.com.pk',
+            'youtube.com.pt',
+            'youtube.com.py',
+            'youtube.com.qa',
+            'youtube.com.ro',
+            'youtube.com.sa',
+            'youtube.com.sg',
+            'youtube.com.sv',
+            'youtube.com.tn',
+            'youtube.com.tr',
+            'youtube.com.tw',
+            'youtube.com.ua',
+            'youtube.com.uy',
+            'youtube.com.ve',
+            'youtube.co.nz',
+            'youtube.co.th',
+            'youtube.co.tz',
+            'youtube.co.ug',
+            'youtube.co.uk',
+            'youtube.co.ve',
+            'youtube.co.za',
+            'youtube.co.zw',
+            'youtube.cr',
+            'youtube.cz',
+            'youtube.de',
+            'youtube.dk',
+            'youtubeeducation.com',
+            'youtube.ee',
+            'youtubeembeddedplayer.googleapis.com',
+            'youtube.es',
+            'youtube.fi',
+            'youtube.fr',
+            'youtube.ge',
+            'youtube.googleapis.com',
+            'youtube.gr',
+            'youtube.gt',
+            'youtube.hk',
+            'youtube.hr',
+            'youtube.hu',
+            'youtube.ie',
+            'youtubei.googleapis.com',
+            'youtube.in',
+            'youtube.iq',
+            'youtube.is',
+            'youtube.it',
+            'youtube.jo',
+            'youtube.jp',
+            'youtubekids.com',
+            'youtube.kr',
+            'youtube.kz',
+            'youtube.la',
+            'youtube.lk',
+            'youtube.lt',
+            'youtube.lu',
+            'youtube.lv',
+            'youtube.ly',
+            'youtube.ma',
+            'youtube.md',
+            'youtube.me',
+            'youtube.mk',
+            'youtube.mn',
+            'youtube.mx',
+            'youtube.my',
+            'youtube.ng',
+            'youtube.ni',
+            'youtube.nl',
+            'youtube.no',
+            'youtube-nocookie.com',
+            'youtube.pa',
+            'youtube.pe',
+            'youtube.ph',
+            'youtube.pk',
+            'youtube.pl',
+            'youtube.pr',
+            'youtube.pt',
+            'youtube.qa',
+            'youtube.ro',
+            'youtube.rs',
+            'youtube.ru',
+            'youtube.sa',
+            'youtube.se',
+            'youtube.sg',
+            'youtube.si',
+            'youtube.sk',
+            'youtube.sn',
+            'youtube.soy',
+            'youtube.sv',
+            'youtube.tn',
+            'youtube.tv',
+            'youtube.ua',
+            'youtube.ug',
+            'youtube-ui.l.google.com',
+            'youtube.uy',
+            'youtube.vn',
+            'yt3.ggpht.com',
+            'yt.be',
+            'ytimg.com',
+            'ytimg.l.google.com',
+            'ytkids.app.goo.gl',
+            'yt-video-upload.l.google.com']
+
+    url_prefixes_youtube1 = []
+    for x in base:
+         url_prefixes_youtube1.extend([
+            'https://%s/watch?v=' % x,
+            'http://www.%s/watch?v=' % x,
+            'www.%s/watch?v=' % x,
+            '%s/watch?v=' % x,
+            'https://%s/watch?v=' % x,
+            'http://%s/watch?v=' % x,
+
+            'https://%s' % x,
+            'http://www.%s' % x,
+            'www.%s' % x,
+            '%s' % x,
+            'https://%s' % x,
+            'http://%s' % x,
+
+            'https://www.%s/shorts/' % x,
+            'http://www.%s/shorts/' % x,
+            'https://%s/shorts/' % x,
+            'http://%s/shorts/' % x,
+            'www.%s/shorts/' % x,
+            '%s/shorts/' % x,
+        ])
+    return set(url_prefixes_youtube1)
+
+
+url_prefixes_youtube = get_youtube_urls()
+
+
 def file_to_doc(file,
                 filei=0,
                 base_path=None, verbose=False, fail_any_exception=False,
@@ -3224,6 +3827,9 @@ def file_to_doc(file,
 
                 is_public=False,
                 from_ui=True,
+
+                hf_embedding_model=None,
+                use_openai_embedding=False,
                 ):
     # SOME AUTODETECTION LOGIC FOR URL VS TEXT
 
@@ -3236,21 +3842,6 @@ def file_to_doc(file,
     case3_arxiv = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
     case4_arxiv = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
 
-    url_prefixes_youtube = [
-        'https://www.youtube.com/watch?v=',
-        'http://www.youtube.com/watch?v=',
-        'www.youtube.com/watch?v=',
-        'youtube.com/watch?v=',
-        'https://youtube.com/watch?v=',
-        'http://youtube.com/watch?v=',
-
-        'https://www.youtube.com/shorts/',
-        'http://www.youtube.com/shorts/',
-        'https://youtube.com/shorts/',
-        'http://youtube.com/shorts/',
-        'www.youtube.com/shorts/',
-        'youtube.com/shorts/'
-    ]
 
     is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
     is_youtube = any(
@@ -3280,7 +3871,9 @@ def file_to_doc(file,
         set_audio_types1 = set_audio_types
 
     assert db_type is not None
-    chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
+    chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type,
+                                      hf_embedding_model=hf_embedding_model, use_openai_embedding=use_openai_embedding,
+                                      verbose=verbose)
     add_meta = functools.partial(_add_meta, headsize=headsize, filei=filei)
     # FIXME: if zip, file index order will not be correct if other files involved
     path_to_docs_func = functools.partial(path_to_docs,
@@ -3334,6 +3927,9 @@ def file_to_doc(file,
 
                                           is_public=is_public,
                                           from_ui=from_ui,
+
+                                          hf_embedding_model=hf_embedding_model,
+                                          use_openai_embedding=use_openai_embedding,
                                           )
 
     if file is None:
@@ -4230,6 +4826,9 @@ def path_to_doc1(file,
 
                  is_public=False,
                  from_ui=True,
+
+                 hf_embedding_model=None,
+                 use_openai_embedding=False,
                  ):
     assert db_type is not None
     if verbose:
@@ -4292,6 +4891,9 @@ def path_to_doc1(file,
                           selected_file_types=selected_file_types,
                           is_public=is_public,
                           from_ui=from_ui,
+
+                          hf_embedding_model=hf_embedding_model,
+                          use_openai_embedding=use_openai_embedding,
                           )
     except BaseException as e:
         print("Failed to ingest %s due to %s" % (file, traceback.format_exc()))
@@ -4375,6 +4977,9 @@ def path_to_docs(path_or_paths,
                  selected_file_types=None,
 
                  from_ui=True,
+
+                 use_openai_embedding=False,
+                 hf_embedding_model=None,
                  ):
     if verbose:
         print("BEGIN Consuming path_or_paths=%s url=%s text=%s" % (path_or_paths, url, text), flush=True)
@@ -4517,6 +5122,9 @@ def path_to_docs(path_or_paths,
 
                   is_public=is_public,
                   from_ui=from_ui,
+
+                  hf_embedding_model=hf_embedding_model,
+                  use_openai_embedding=use_openai_embedding,
                   )
 
     if is_public:
@@ -4534,6 +5142,7 @@ def path_to_docs(path_or_paths,
     filei0 = filei
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
+        kwargs['hf_embedding_model'] = None  # can't fork and use CUDA
         # avoid nesting, e.g. upload 1 zip and then inside many files
         # harder to handle if upload many zips with many files, inner parallel one will be disabled by joblib
         documents = ProgressParallel(n_jobs=n_jobs, verbose=10 if verbose else 0, backend='multiprocessing')(
@@ -4591,7 +5200,6 @@ def prep_langchain(persist_directory,
                    langchain_mode, langchain_mode_paths, langchain_mode_types,
                    hf_embedding_model,
                    migrate_embedding_model,
-                   auto_migrate_db,
                    n_jobs=-1, embedding_gpu_id=0,
                    kwargs_make_db={},
                    verbose=False):
@@ -4616,7 +5224,7 @@ def prep_langchain(persist_directory,
             get_existing_db(None, persist_directory, load_db_if_exists,
                             db_type, use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             n_jobs=n_jobs, embedding_gpu_id=embedding_gpu_id)
     else:
         if db_dir_exists and user_path is not None:
@@ -4679,7 +5287,7 @@ def get_hf_embedding_model_name(hf_embedding_model):
 def check_update_chroma_embedding(db,
                                   db_type,
                                   use_openai_embedding,
-                                  hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                                  hf_embedding_model, migrate_embedding_model,
                                   langchain_mode, langchain_mode_paths, langchain_mode_types,
                                   n_jobs=-1,
                                   verbose=False):
@@ -4710,7 +5318,6 @@ def check_update_chroma_embedding(db,
                     collection_name=None,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     n_jobs=n_jobs,
                     verbose=verbose,
                     )
@@ -4761,7 +5368,6 @@ def get_existing_db(db, persist_directory,
                     langchain_mode, langchain_mode_paths, langchain_mode_types,
                     hf_embedding_model,
                     migrate_embedding_model,
-                    auto_migrate_db=False,
                     verbose=False, check_embedding=True, migrate_meta=True,
                     n_jobs=-1,
                     embedding_gpu_id=0):
@@ -4769,28 +5375,14 @@ def get_existing_db(db, persist_directory,
         if os.path.isfile(os.path.join(persist_directory, 'chroma.sqlite3')):
             must_migrate = False
         elif os.path.isdir(os.path.join(persist_directory, 'index')):
-            must_migrate = True
+            raise RuntimeError("Migration no longer supported")
         else:
             return db, use_openai_embedding, hf_embedding_model
         chroma_settings = dict(is_persistent=True)
         use_chromamigdb = False
         if must_migrate:
-            if auto_migrate_db:
-                print("Detected chromadb<0.4 database, require migration, doing now....", flush=True)
-                from chroma_migrate.import_duckdb import migrate_from_duckdb
-                import chromadb
-                api = chromadb.PersistentClient(path=persist_directory)
-                did_migration = migrate_from_duckdb(api, persist_directory)
-                assert did_migration, "Failed to migrate chroma collection at %s, see https://docs.trychroma.com/migration for CLI tool" % persist_directory
-            elif have_chromamigdb:
-                print(
-                    "Detected chroma<0.4 database but --auto_migrate_db=False, but detected chromamigdb package, so using old database that still requires duckdb",
-                    flush=True)
-                chroma_settings = dict(chroma_db_impl="duckdb+parquet")
-                use_chromamigdb = True
-            else:
-                raise ValueError(
-                    "Detected chromadb<0.4 database, require migration, but did not detect chromamigdb package or did not choose auto_migrate_db=False (see FAQ.md)")
+            raise ValueError(
+                "Detected chromadb<0.4 database, not supported")
 
         if db is None:
             if verbose:
@@ -4814,9 +5406,7 @@ def get_existing_db(db, persist_directory,
             import logging
             logging.getLogger("chromadb").setLevel(logging.ERROR)
             if use_chromamigdb:
-                from chromamigdb.config import Settings
-                chroma_class = ChromaMig
-                api_kwargs = {}
+                raise RuntimeError("Migration no longer supported")
             else:
                 from chromadb.config import Settings
                 chroma_class = Chroma
@@ -4869,7 +5459,6 @@ def get_existing_db(db, persist_directory,
                                                                  use_openai_embedding,
                                                                  hf_embedding_model,
                                                                  migrate_embedding_model,
-                                                                 auto_migrate_db,
                                                                  langchain_mode,
                                                                  langchain_mode_paths,
                                                                  langchain_mode_types,
@@ -5087,7 +5676,6 @@ def check_persist_directory(persist_directory):
 def _make_db(use_openai_embedding=False,
              hf_embedding_model=None,
              migrate_embedding_model=False,
-             auto_migrate_db=False,
              first_para=False, text_limit=None,
              chunk=True, chunk_size=512,
 
@@ -5145,14 +5733,16 @@ def _make_db(use_openai_embedding=False,
         get_existing_db(db, persist_directory, load_db_if_exists, db_type,
                         use_openai_embedding,
                         langchain_mode, langchain_mode_paths, langchain_mode_types,
-                        hf_embedding_model, migrate_embedding_model, auto_migrate_db, verbose=verbose,
+                        hf_embedding_model, migrate_embedding_model, verbose=verbose,
                         n_jobs=n_jobs)
     if db_trial is not None:
         db = db_trial
 
     sources = []
-    if not db:
-        chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type)
+    if db is None:
+        chunk_sources = functools.partial(_chunk_sources, chunk=chunk, chunk_size=chunk_size, db_type=db_type,
+                                          hf_embedding_model=hf_embedding_model,
+                                          use_openai_embedding=use_openai_embedding, verbose=verbose)
         if langchain_mode in ['wiki_full']:
             from read_wiki_full import get_all_documents
             small_test = None
@@ -5234,6 +5824,9 @@ def _make_db(use_openai_embedding=False,
 
                                 is_public=False,
                                 from_ui=True,
+
+                                hf_embedding_model=hf_embedding_model,
+                                use_openai_embedding=use_openai_embedding,
                                 )
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
@@ -5264,7 +5857,7 @@ def _make_db(use_openai_embedding=False,
                 print("Generating db", flush=True)
             else:
                 print("Adding to db", flush=True)
-    if not db:
+    if db is None:
         if sources:
             db = get_db(sources, use_openai_embedding=use_openai_embedding, db_type=db_type,
                         persist_directory=persist_directory,
@@ -5273,7 +5866,6 @@ def _make_db(use_openai_embedding=False,
                         langchain_mode_types=langchain_mode_types,
                         hf_embedding_model=hf_embedding_model,
                         migrate_embedding_model=migrate_embedding_model,
-                        auto_migrate_db=auto_migrate_db,
                         n_jobs=n_jobs,
                         verbose=verbose)
             if verbose:
@@ -5295,17 +5887,14 @@ def _make_db(use_openai_embedding=False,
 
 
 def is_chroma_db(db):
-    return isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db)
+    return isinstance(db, Chroma)
 
 
 def is_new_chroma_db(db):
     if isinstance(db, Chroma):
         return True
-    if isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
-        return False
-    if os.getenv('HARD_ASSERTS'):
-        raise RuntimeError("Shouldn't reach here, unknown db: %s" % str(db))
-    return False
+    else:
+        raise RuntimeError("Migration no longer supported")
 
 
 def sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None, chunk_id_filter=None,
@@ -5439,7 +6028,7 @@ def _get_documents(db):
     if isinstance(db, FAISS):
         documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
-    elif isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
+    elif isinstance(db, Chroma):
         documents = db.get()
         if documents is None:
             documents = dict(documents=[], metadatas=[], ids=[])
@@ -5487,7 +6076,7 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None,
         db_metadatas += [x.metadata if hasattr(x, 'metadata') else {} for x in text_context_list]
 
     from langchain_community.vectorstores import FAISS
-    if isinstance(db, Chroma) or isinstance(db, ChromaMig) or ChromaMig.__name__ in str(db):
+    if isinstance(db, Chroma):
         if top_k_docs == -1:
             limit = k_max
         else:
@@ -5532,8 +6121,9 @@ def run_qa_db(**kwargs):
     # hard-coded defaults
     kwargs['answer_with_sources'] = kwargs.get('answer_with_sources', True)
     kwargs['show_rank'] = kwargs.get('show_rank', False)
-    kwargs['show_accordions'] = kwargs.get('show_accordions', True)
+    kwargs['sources_show_text_in_accordion'] = kwargs.get('sources_show_text_in_accordion', True)
     kwargs['hyde_show_intermediate_in_accordion'] = kwargs.get('hyde_show_intermediate_in_accordion', True)
+    kwargs['map_reduce_show_intermediate_in_accordion'] = kwargs.get('map_reduce_show_intermediate_in_accordion', True)
     kwargs['show_link_in_sources'] = kwargs.get('show_link_in_sources', True)
     kwargs['top_k_docs_max_show'] = kwargs.get('top_k_docs_max_show', 10)
     kwargs['llamacpp_dict'] = {}  # shouldn't be required unless from test using _run_qa_db
@@ -5552,7 +6142,11 @@ def run_qa_db(**kwargs):
     kwargs['guided_regex'] = kwargs.get('guided_regex', '')
     kwargs['guided_choice'] = kwargs.get('guided_choice', '')
     kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+    kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', ' ')
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
+
+    kwargs['from_ui'] = kwargs.get('from_ui', True)
+    kwargs['stream_map'] = kwargs.get('stream_map', False)
 
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -5616,7 +6210,6 @@ def _run_qa_db(query=None,
                load_awq='',
                hf_embedding_model=None,
                migrate_embedding_model=False,
-               auto_migrate_db=False,
                stream_output0=False,
                stream_output=False,
                async_output=True,
@@ -5637,8 +6230,9 @@ def _run_qa_db(query=None,
                allow_chat_system_prompt=True,
                sanitize_bot_response=False,
                show_rank=False,
-               show_accordions=True,
+               sources_show_text_in_accordion=True,
                hyde_show_intermediate_in_accordion=True,
+               map_reduce_show_intermediate_in_accordion=True,
                show_link_in_sources=True,
                top_k_docs_max_show=10,
                use_llm_if_no_docs=True,
@@ -5678,6 +6272,14 @@ def _run_qa_db(query=None,
                hyde_llm_prompt=None,
                text_context_list=None,
                chat_conversation=None,
+
+               user_prompt_for_fake_system_prompt=None,
+               json_object_prompt=None,
+               json_object_prompt_simpler=None,
+               json_code_prompt=None,
+               json_code_prompt_if_no_schema=None,
+               json_schema_instruction=None,
+
                visible_models=None,
                h2ogpt_key=None,
                docs_ordering_type=docs_ordering_types_default,
@@ -5712,8 +6314,12 @@ def _run_qa_db(query=None,
                guided_regex=None,
                guided_choice=None,
                guided_grammar=None,
+               guided_whitespace_pattern=None,
 
                json_vllm=False,
+
+               from_ui=True,
+               stream_map=False,
                ):
     """
 
@@ -5750,10 +6356,19 @@ def _run_qa_db(query=None,
     else:
         if stream_output0:
             # threads and asyncio don't mix
-            async_output = False
+            # but if do asyncio inside thread, all fine
+            # async_output = True
+            pass
         else:
             # go back to not streaming for summarization/extraction to be parallel
             stream_output = stream_output0
+
+    # avoid source stuff in response if not textual, e.g. json
+    # also doesn't make much sense to get accordion stuff from API
+    if response_format != 'text' or not from_ui:
+        append_sources_to_answer = False
+        hyde_show_intermediate_in_accordion = False
+        map_reduce_show_intermediate_in_accordion = False
 
     # in case doing summarization/extraction, and docs originally limit, relax if each document or reduced response is smaller than max document size
     max_new_tokens0 = max_new_tokens
@@ -5872,6 +6487,14 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       context=context,
                       iinput=iinput,
                       sanitize_bot_response=sanitize_bot_response,
+
+                      user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                      json_object_prompt=json_object_prompt,
+                      json_object_prompt_simpler=json_object_prompt_simpler,
+                      json_code_prompt=json_code_prompt,
+                      json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
+                      json_schema_instruction=json_schema_instruction,
+
                       system_prompt=system_prompt,
                       chat_conversation=chat_conversation,
                       add_chat_history_to_context=add_chat_history_to_context,
@@ -5900,9 +6523,14 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       guided_regex=guided_regex,
                       guided_choice=guided_choice,
                       guided_grammar=guided_grammar,
+                      guided_whitespace_pattern=guided_whitespace_pattern,
 
                       doing_grounding=doing_grounding,
                       json_vllm=json_vllm,
+
+                      query_action=query_action,
+                      summarize_action=summarize_action,
+                      stream_map=stream_map,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -5926,7 +6554,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         # get prompter
         chat = True  # FIXME?
         prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
-                            system_prompt=system_prompt)
+                            system_prompt=system_prompt, tokenizer=tokenizer)
 
     scores = []
     chain = None
@@ -5935,10 +6563,13 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         # avoid gradio_runner injection of user lead to query being filled
         query = ''
     if inference_server and \
-        inference_server.startswith('anthropic') and \
+            inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
-        query += '\n\nUse the `JSON` tool.\n'
+        extra = '\n\nUse the `JSON` tool.  Do not respond with thinking, just use the tool right away.\n'
+        if query_action:
+            query += extra
+        prompt_summary += extra
 
     # basic version of prompt without docs etc.
     data_point = dict(context=context, instruction=query, input=iinput)
@@ -5955,8 +6586,9 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
     if isinstance(document_content_substrings, str):
         document_content_substrings = [document_content_substrings]
 
-    get_answer_kwargs = dict(show_accordions=show_accordions,
+    get_answer_kwargs = dict(sources_show_text_in_accordion=sources_show_text_in_accordion,
                              hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
+                             map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                              show_link_in_sources=show_link_in_sources,
                              top_k_docs_max_show=top_k_docs_max_show,
                              verbose=verbose,
@@ -5967,21 +6599,30 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                                         stream_output=stream_output,
                                         lora_weights=lora_weights, max_time=max_time,
                                         sanitize_bot_response=sanitize_bot_response,
-                                        verbose=verbose)
+                                        from_ui=from_ui,
+                                        verbose=verbose,
+                                        langchain_action=langchain_action,
+                                        query_action=query_action,
+                                        )
 
     run_target_func_hyde = functools.partial(run_target,
                                              stream_output=stream_output,
                                              lora_weights=lora_weights, max_time=max_time,
                                              sanitize_bot_response=sanitize_bot_response,
                                              allow_response_no_refs=False,
-                                             verbose=verbose)
+                                             from_ui=from_ui,
+                                             verbose=verbose,
+                                             langchain_action=langchain_action,
+                                             query_action=query_action,
+                                             for_hyde=True,
+                                             )
 
     func_names = list(inspect.signature(get_chain).parameters)
     sim_kwargs = {k: v for k, v in locals().items() if k in func_names}
     missing_kwargs = [x for x in func_names if x not in sim_kwargs]
     assert not missing_kwargs, "Missing: %s" % missing_kwargs
 
-    llm_answers = {}
+    llm_answers = dict(response_raw='')
     if hyde_level is not None and hyde_level > 0 and query_action and document_subset not in non_query_commands:
         query_embedding, llm_answers = yield from run_hyde(**locals().copy())
         sim_kwargs['query_embedding'] = query_embedding
@@ -6129,8 +6770,11 @@ def run_target(query='',
                llm=None,
                streamer=None,
                prompter=None,
-               llm_answers={},
+               llm_answers=dict(responses_raw=''),
                llm_answers_key='llm_answer_final',
+               query_action=True,
+               langchain_action=None,
+               for_hyde=False,
                async_output=False,
                only_new_text=True,
                # things below are fixed for entire _run_qa_db() call once hit get_llm() and so on
@@ -6139,7 +6783,14 @@ def run_target(query='',
                max_time=0,
                sanitize_bot_response=False,
                allow_response_no_refs=True,
+               from_ui=True,
                verbose=False):
+    if not for_hyde and not query_action:
+        if langchain_action == LangChainAction.EXTRACT.value:
+            llm_answers_key = 'map_'
+        else:
+            llm_answers_key = 'map_reduce_'
+
     # context stuff similar to used in evaluate()
     import torch
     device, torch_dtype, context_class = get_device_dtype()
@@ -6153,12 +6804,16 @@ def run_target(query='',
             context_class_cast = NullContext
         with context_class_cast(device):
             if stream_output and streamer:
+                count_map_reduces = 0
                 answer = None
                 import queue
                 bucket = queue.Queue()
-                thread = EThread(target=chain, streamer=streamer, bucket=bucket)
+                thread = EThread(target=chain, streamer=streamer, bucket=bucket, async_output=async_output)
                 thread.start()
-                outputs = ""
+                if not for_hyde and not query_action:
+                    outputs = ""
+                else:
+                    outputs = ""
                 output1_old = ''
                 res_dict = dict(prompt=query, response='', sources='', num_prompt_tokens=0, llm_answers=llm_answers,
                                 response_no_refs='', sources_str='', prompt_raw=query)
@@ -6168,40 +6823,60 @@ def run_target(query='',
                         # print("new_text: %s" % new_text, flush=True)
                         if bucket.qsize() > 0 or thread.exc:
                             thread.join()
-                        outputs += new_text
-                        if prompter:  # and False:  # FIXME: pipeline can already use prompter
-                            if conditional_type:
-                                if prompter.botstr:
-                                    prompt = prompter.botstr
-                                    output_with_prompt = prompt + outputs
-                                    only_new_text = False  # override llm return
+                        if new_text is not None:
+                            if new_text:
+                                outputs += new_text
+                                if prompter:  # and False:  # FIXME: pipeline can already use prompter
+                                    if conditional_type:
+                                        if prompter.botstr:
+                                            prompt = prompter.botstr
+                                            output_with_prompt = prompt + outputs
+                                            only_new_text = False  # override llm return
+                                        else:
+                                            prompt = None
+                                            output_with_prompt = outputs
+                                            only_new_text = True  # override llm return
+                                    else:
+                                        prompt = None  # FIXME
+                                        output_with_prompt = outputs
+                                        # don't specify only_new_text here, use get_llm() value
+                                    output1 = prompter.get_response(output_with_prompt, prompt=prompt,
+                                                                    only_new_text=only_new_text,
+                                                                    sanitize_bot_response=sanitize_bot_response)
                                 else:
-                                    prompt = None
-                                    output_with_prompt = outputs
-                                    only_new_text = True  # override llm return
-                            else:
-                                prompt = None  # FIXME
-                                output_with_prompt = outputs
-                                # don't specify only_new_text here, use get_llm() value
-                            output1 = prompter.get_response(output_with_prompt, prompt=prompt,
-                                                            only_new_text=only_new_text,
-                                                            sanitize_bot_response=sanitize_bot_response)
+                                    output1 = outputs
+                                # in-place change to this key so exposed outside this generator
+                                if llm_answers_key in ['map_reduce_', 'map_']:
+                                    llm_answers[llm_answers_key + '%s' % (1 + count_map_reduces)] = output1
+                                    if not from_ui:
+                                        response_prefix = ''
+                                    elif llm_answers_key == 'map_reduce_':
+                                        response_prefix = "Computing Summarization Step %d:\n------------------\n" % (
+                                                1 + count_map_reduces)
+                                    else:
+                                        response_prefix = "Computing Extraction Step %d:\n------------------\n" % (
+                                                1 + count_map_reduces)
+                                else:
+                                    response_prefix = ''
+                                    llm_answers[llm_answers_key] = output1
+                                res_dict = dict(prompt=query, response=response_prefix + output1,
+                                                sources='', num_prompt_tokens=0,
+                                                llm_answers=llm_answers,
+                                                response_no_refs=output1 if allow_response_no_refs else '',
+                                                sources_str='',
+                                                prompt_raw=query)
+                                if output1 != output1_old:
+                                    yield res_dict
+                                    output1_old = output1
+                                if time.time() - tgen0 > max_time:
+                                    if verbose:
+                                        print("Took too long EThread for %s" % (time.time() - tgen0), flush=True)
+                                    break
                         else:
-                            output1 = outputs
-                        # in-place change to this key so exposed outside this generator
-                        llm_answers[llm_answers_key] = output1
-                        res_dict = dict(prompt=query, response=output1, sources='', num_prompt_tokens=0,
-                                        llm_answers=llm_answers,
-                                        response_no_refs=output1 if allow_response_no_refs else '',
-                                        sources_str='',
-                                        prompt_raw=query)
-                        if output1 != output1_old:
-                            yield res_dict
-                            output1_old = output1
-                        if time.time() - tgen0 > max_time:
-                            if verbose:
-                                print("Took too long EThread for %s" % (time.time() - tgen0), flush=True)
-                            break
+                            # start fresh
+                            outputs = ''
+                            output1_old = ''
+                            count_map_reduces += 1
                     # yield if anything left over as can happen (FIXME: Understand better)
                     yield res_dict
                 except BaseException:
@@ -6332,110 +7007,6 @@ def _get_docs_with_score(query, k_db,
     return docs_with_score
 
 
-def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
-    if top_k_docs > 0:
-        docs_with_score = docs_with_score[:top_k_docs]
-    elif one_doc_size is not None:
-        docs_with_score = [(docs_with_score[0][:one_doc_size], docs_with_score[0][1])]
-    else:
-        # do nothing
-        pass
-    return docs_with_score
-
-
-class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
-    @classmethod
-    def from_huggingface_tokenizer(cls, tokenizer: Any, **kwargs: Any) -> TextSplitter:
-        def _huggingface_tokenizer_length(text: str) -> int:
-            return get_token_count(text, tokenizer)
-
-        return cls(length_function=_huggingface_tokenizer_length, **kwargs)
-
-
-def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, docs_token_handling=None,
-                     joiner=docs_joiner_default,
-                     non_doc_prompt='',
-                     do_split=True,
-                     verbose=False):
-    # NOTE: Could use joiner=\n\n, but if PDF and continues, might want just  full continue with joiner=''
-    # NOTE: assume max_input_tokens already processed if was -1 and accounts for model_max_len and is per-llm call
-    if max_input_tokens is not None:
-        max_input_tokens -= get_token_count(non_doc_prompt, tokenizer)
-
-    if docs_token_handling in ['chunk']:
-        return docs_with_score, 0
-    elif docs_token_handling in [None, 'split_or_merge']:
-        assert tokenizer
-        tokens_before_split = [get_token_count(x + joiner, tokenizer) for x in
-                               [x[0].page_content for x in docs_with_score]]
-        # skip split if not necessary, since expensive for some reason
-        do_split &= any([x > max_input_tokens for x in tokens_before_split])
-        if do_split:
-
-            if verbose:
-                print('tokens_before_split=%s' % tokens_before_split, flush=True)
-
-            # see if need to split
-            # account for joiner tokens
-            joiner_tokens = get_token_count(joiner, tokenizer)
-            doc_chunk_size = max(64, min(max_input_tokens,
-                                         max(64, max_input_tokens - joiner_tokens * len(docs_with_score))))
-            text_splitter = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-                tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0
-            )
-            [x[0].metadata.update(dict(docscore=x[1], doci=doci, ntokens=tokens_before_split[doci])) for doci, x in
-             enumerate(docs_with_score)]
-            docs = [x[0] for x in docs_with_score]
-            # only split those that need to be split, else recursive splitter goes too nuts and takes too long
-            docs_to_split = [x for x in docs if x.metadata['ntokens'] > doc_chunk_size]
-            docs_to_not_split = [x for x in docs if x.metadata['ntokens'] <= doc_chunk_size]
-            docs_split_new = flatten_list([text_splitter.split_documents([x]) for x in docs_to_split])
-            docs_new = docs_to_not_split + docs_split_new
-            doci_new = [x.metadata['doci'] for x in docs_new]
-            # order back by doci
-            docs_new = [x for _, x in sorted(zip(doci_new, docs_new), key=lambda pair: pair[0])]
-            docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
-
-            tokens_after_split = [get_token_count(x + joiner, tokenizer) for x in
-                                  [x[0].page_content for x in docs_with_score]]
-            if verbose:
-                print('tokens_after_split=%s' % tokens_after_split, flush=True)
-
-        docs_with_score_new = []
-        k = 0
-        while k < len(docs_with_score):
-            # means use max_input_tokens to ensure model gets no more than max_input_tokens each map
-            top_k_docs, one_doc_size, num_doc_tokens = \
-                get_docs_tokens(tokenizer,
-                                text_context_list=[x[0].page_content for x in docs_with_score[k:]],
-                                max_input_tokens=max_input_tokens)
-            docs_with_score1 = select_docs_with_score(docs_with_score[k:], top_k_docs, one_doc_size)
-            new_score = docs_with_score1[0][1]
-            new_page_content = joiner.join([x[0].page_content for x in docs_with_score1])
-            new_metadata = docs_with_score1[0][0].metadata.copy()
-            new_metadata['source'] = joiner.join(set([x[0].metadata['source'] for x in docs_with_score1]))
-            doc1 = Document(page_content=new_page_content, metadata=new_metadata)
-            docs_with_score_new.append((doc1, new_score))
-
-            if do_split:
-                assert one_doc_size is None, "Split failed: %s" % one_doc_size
-            elif one_doc_size is not None:
-                # chopped
-                assert top_k_docs == 1
-            assert top_k_docs >= 1
-            k += top_k_docs
-
-        tokens_after_merge = [get_token_count(x + joiner, tokenizer) for x in
-                              [x[0].page_content for x in docs_with_score_new]]
-        if verbose:
-            print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
-
-        max_tokens_after_merge = max(tokens_after_merge) if tokens_after_merge else 0
-        return docs_with_score_new, max_tokens_after_merge
-    else:
-        raise ValueError("No such docs_token_handling=%s" % docs_token_handling)
-
-
 def get_single_document(document_choice, db, extension=None):
     if isinstance(document_choice, str):
         document_choice = [document_choice]
@@ -6491,6 +7062,7 @@ def run_hyde(*args, **kwargs):
     append_sources_to_chat = kwargs['append_sources_to_chat']
     prompt_basic = kwargs['prompt_basic']
     docs_joiner = kwargs['docs_joiner']
+    from_ui = kwargs['from_ui']
 
     # get llm answer
     auto_hyde = """%s {query}""" % escape_braces(hyde_llm_prompt)
@@ -6528,8 +7100,11 @@ def run_hyde(*args, **kwargs):
         # get answer, updates llm_answers internally too
         llm_answers_key = 'llm_answers_hyde_level_%d' % hyde_level1
         # for LLM, query remains same each time
-        response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
-            if hyde_level1 < hyde_level else ''
+        if from_ui:
+            response_prefix = "Computing HYDE %d/%d response:\n------------------\n" % (1 + hyde_level1, hyde_level) \
+                if hyde_level1 < hyde_level else ''
+        else:
+            response_prefix = ''
         answer = ''
         for ret in run_target_func(query=query,
                                    chain=chain,
@@ -6542,8 +7117,13 @@ def run_hyde(*args, **kwargs):
                                    only_new_text=only_new_text):
             response = response_prefix + ret['response']
             if not hyde_show_only_final:
-                pre_answer = get_hyde_acc(answer, llm_answers, get_answer_kwargs['hyde_show_intermediate_in_accordion'])
-                response = pre_answer + response
+                ret['response'], pre_answer = get_hyde_acc(ret['response'], llm_answers,
+                                                           get_answer_kwargs['hyde_show_intermediate_in_accordion'],
+                                                           get_answer_kwargs[
+                                                               'map_reduce_show_intermediate_in_accordion'],
+                                                           )
+                if pre_answer:
+                    response = pre_answer + response
                 yield dict(prompt_raw=ret['prompt'], response=response, sources=ret['sources'],
                            num_prompt_tokens=ret['num_prompt_tokens'],
                            llm_answers=ret['llm_answers'],
@@ -6640,7 +7220,6 @@ def get_chain(query=None,
               langchain_only_model=False,
               hf_embedding_model=None,
               migrate_embedding_model=False,
-              auto_migrate_db=False,
               prompter=None,
               prompt_type=None,
               prompt_dict=None,
@@ -6673,6 +7252,7 @@ def get_chain(query=None,
               hyde_llm_prompt=None,
               text_context_list=None,
               chat_conversation=None,
+              user_prompt_for_fake_system_prompt=None,
 
               n_jobs=-1,
               # beyond run_db_query:
@@ -7131,7 +7711,6 @@ def get_chain(query=None,
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=use_openai_embedding,
                                                         hf_embedding_model=hf_embedding_model,
                                                         migrate_embedding_model=migrate_embedding_model,
-                                                        auto_migrate_db=auto_migrate_db,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk, chunk_size=chunk_size,
 
@@ -7344,8 +7923,6 @@ def get_chain(query=None,
                                                            text_context_list=text_context_list,
                                                            chunk_id_filter=chunk_id_filter)
 
-        if top_k_docs == -1:
-            top_k_docs = len(db_documents)
         # similar to langchain's chroma's _results_to_docs_and_scores
         docs_with_score = [(Document(page_content=result[0], metadata=result[1] or {}), 0)
                            for result in zip(db_documents, db_metadatas)]
@@ -7378,7 +7955,8 @@ def get_chain(query=None,
                                     ]
         docs_with_score = docs_with_score2
 
-        docs_with_score = docs_with_score[:top_k_docs]
+        top_k_docs_sample = len(db_documents) if top_k_docs == -1 else top_k_docs
+        docs_with_score = docs_with_score[:top_k_docs_sample]
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
     else:
@@ -7441,6 +8019,7 @@ def get_chain(query=None,
                                                 allow_chat_system_prompt=allow_chat_system_prompt,
                                                 context=context,
                                                 chat_conversation=chat_conversation,
+                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 model_max_length=model_max_length,
@@ -7498,23 +8077,24 @@ def get_chain(query=None,
                           context=context,
                           iinput=iinput,
                           system_prompt=system_prompt)
-        if external_handle_chat_conversation:
+        if external_handle_chat_conversation or prompter.prompt_type in [template_prompt_type, unknown_prompt_type]:
             # should already have attribute, checking sanity
-            assert hasattr(llm, 'chat_conversation')
+            assert hasattr(llm, 'chat_conversation') or isinstance(llm, H2OHuggingFacePipeline)
             llm_kwargs.update(chat_conversation=history_to_use_final)
         llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
             get_llm(**llm_kwargs)
 
         # avoid craziness
+        top_k_docs_sample = len(docs_with_score) if top_k_docs == -1 else top_k_docs
         if 0 < top_k_docs_trial < max_chunks:
             # avoid craziness
             if top_k_docs == -1:
-                top_k_docs = top_k_docs_trial
+                top_k_docs_sample = top_k_docs_trial
             else:
-                top_k_docs = min(top_k_docs, top_k_docs_trial)
+                top_k_docs_sample = min(top_k_docs, top_k_docs_trial)
         elif top_k_docs_trial >= max_chunks:
-            top_k_docs = max_chunks
-        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
+            top_k_docs_sample = max_chunks
+        docs_with_score = select_docs_with_score(docs_with_score, top_k_docs_sample, one_doc_size)
     else:
         # don't reduce, except listen to top_k_docs and max_total_input_tokens
         one_doc_size = None
@@ -7548,13 +8128,13 @@ def get_chain(query=None,
                                            # nothing, just getting base amount for each call
                                            )
 
-        # group docs if desired/can to fill context to avoid multiple LLM calls or too large chunks
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,
                                                            max_input_tokens=max_input_tokens,
                                                            docs_token_handling=docs_token_handling,
                                                            joiner=docs_joiner if not doing_grounding else "Document xx",
                                                            non_doc_prompt=estimated_full_prompt,
+                                                           hf_embedding_model=hf_embedding_model,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
         if top_k_docs > 0:
@@ -7570,7 +8150,10 @@ def get_chain(query=None,
         else:
             estimated_prompt_no_docs = query
         data_point = dict(context=context, instruction=estimated_prompt_no_docs or ' ', input=iinput)
-        prompt_basic = prompter.generate_prompt(data_point)
+        prompt_basic = prompter.generate_prompt(data_point,
+                                                chat_conversation=chat_conversation,
+                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+                                                )
         num_prompt_basic_tokens = get_token_count(prompt_basic, tokenizer)
 
         if truncation_generation:
@@ -7931,8 +8514,6 @@ def get_template(query, iinput,
                     template_if_no_docs = """{context}{question}"""
     elif langchain_action in [LangChainAction.SUMMARIZE_ALL.value, LangChainAction.SUMMARIZE_MAP.value,
                               LangChainAction.EXTRACT.value]:
-        none = ['', '\n', None]
-
         # modify prompt_summary if user passes query or iinput
         if query not in none and iinput not in none:
             prompt_summary = "Focusing on %s, %s, %s" % (query_esc, iinput, prompt_summary)
@@ -7956,12 +8537,20 @@ def get_template(query, iinput,
     return template, template_if_no_docs, auto_reduce_chunks, query
 
 
-def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
+def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion):
+    if not isinstance(answer, str):
+        return answer, None
     pre_answer = ''
     count = 0
     all_count = len(llm_answers)
-    if llm_answers and hyde_show_intermediate_in_accordion:
+    do_acc = hyde_show_intermediate_in_accordion and 'llm_answers_hyde_level_' in str(list(llm_answers.keys()))
+    do_acc |= map_reduce_show_intermediate_in_accordion and 'map_reduce_' in str(list(llm_answers.keys()))
+    do_acc |= map_reduce_show_intermediate_in_accordion and 'map_' in str(list(llm_answers.keys()))
+    if llm_answers and do_acc:
         for title, content in llm_answers.items():
+            if title == 'response_raw':
+                count += 1
+                continue
             if count + 1 == all_count:
                 # skip one just generating or just generated.  Either not ready yet or final answer not in accordion
                 count += 1
@@ -7977,10 +8566,17 @@ def get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion):
                 title = hyde_titles(3)
             elif 'llm_answers_hyde_level_4' == title:
                 title = hyde_titles(4)
+            elif 'map_reduce_' in title:
+                title = 'Summarize Step %s' % title.split('map_reduce_')[1]
+            elif 'map_' in title:
+                title = 'Extraction Step %s' % title.split('map_')[1]
             pre_answer += get_accordion_named(content, title, font_size=3)
             count += 1
 
-    return pre_answer
+    if pre_answer and is_markdown(answer):
+        answer = markdown_to_html(answer)
+
+    return answer, pre_answer
 
 
 def get_sources_answer(query, docs, answer,
@@ -7989,8 +8585,9 @@ def get_sources_answer(query, docs, answer,
                        answer_with_sources,
                        append_sources_to_answer,
                        append_sources_to_chat,
-                       show_accordions=True,
+                       sources_show_text_in_accordion=True,
                        hyde_show_intermediate_in_accordion=True,
+                       map_reduce_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
                        top_k_docs_max_show=10,
                        verbose=False,
@@ -8000,7 +8597,8 @@ def get_sources_answer(query, docs, answer,
         print("query: %s" % query, flush=True)
         print("answer: %s" % answer, flush=True)
 
-    pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion)
+    answer, pre_answer = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion,
+                                      map_reduce_show_intermediate_in_accordion)
     if pre_answer:
         pre_answer = pre_answer + '<br>'
         answer_with_acc = pre_answer + answer
@@ -8029,7 +8627,7 @@ def get_sources_answer(query, docs, answer,
                        get_url(doc, font_size=font_size),
                        get_accordion(doc, font_size=font_size, head_acc=head_acc)) for score, doc in
                       zip(scores, docs)]
-    if not show_accordions:
+    if not sources_show_text_in_accordion:
         answer_sources_dict = defaultdict(list)
         [answer_sources_dict[url].append((score, accordion)) for score, url, accordion in answer_sources]
         answers_dict = {}
@@ -8046,7 +8644,7 @@ def get_sources_answer(query, docs, answer,
         answer_sources = answer_sources[:top_k_docs_max_show]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
-        if show_accordions:
+        if sources_show_text_in_accordion:
             if show_link_in_sources:
                 answer_sources = ['<font size="%s"><li>%.2g | %s</li>%s</font>' % (font_size, score, url, accordion)
                                   for score, url, accordion in answer_sources]
@@ -8061,18 +8659,18 @@ def get_sources_answer(query, docs, answer,
                 answer_sources = ['<font size="%s"><li>%.2g</li></font>' % (font_size, score)
                                   for score, url, accordion in answer_sources]
         answer_sources = answer_sources[:top_k_docs_max_show]
-        if show_accordions:
+        if sources_show_text_in_accordion:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
         else:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<p><ul></font>" + "<p>".join(
                 answer_sources)
         if verbose or True:
             if t_run is not None and int(t_run) > 0:
-                sorted_sources_urls += 'Total Time: %d [s]<p>' % t_run
+                sorted_sources_urls += 'Total Time: %d [s]<br>' % t_run
             if count_input_tokens and count_output_tokens:
-                sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<p>' % (
+                sorted_sources_urls += 'Input Tokens: %s | Output Tokens: %d<br>' % (
                     count_input_tokens, count_output_tokens)
-        sorted_sources_urls += "Total document chunks used: %s<p>" % len(docs)
+        sorted_sources_urls += "Total document chunks used: %s<br>" % len(docs)
         sorted_sources_urls += f"<font size=\"{font_size}\"></ul></p>{source_postfix}</font>"
         title_overall = "Sources"
         sorted_sources_urls = f"""<details><summary><font size="{font_size}">{title_overall}</font></summary><font size="{font_size}">{sorted_sources_urls}</font></details>"""
@@ -8101,7 +8699,7 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
                dbs=None,
                load_db_if_exists=None, db_type=None,
                use_openai_embedding=None,
-               hf_embedding_model=None, migrate_embedding_model=None, auto_migrate_db=None,
+               hf_embedding_model=None, migrate_embedding_model=None,
                for_sources_list=False,
                verbose=False,
                n_jobs=-1,
@@ -8129,7 +8727,7 @@ def get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
             get_existing_db(db, persist_directory, load_db_if_exists, db_type,
                             use_openai_embedding,
                             langchain_mode, langchain_mode_paths, langchain_mode_types,
-                            hf_embedding_model, migrate_embedding_model, auto_migrate_db,
+                            hf_embedding_model, migrate_embedding_model,
                             verbose=verbose, n_jobs=n_jobs)
         if db is not None:
             # if found db, then stuff into state, so don't have to reload again that takes time
@@ -8152,30 +8750,12 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                 use_openai_embedding=None,
                 hf_embedding_model=None,
                 migrate_embedding_model=None,
-                auto_migrate_db=None,
                 verbose=False,
                 get_userid_auth=None,
                 n_jobs=-1,
                 ):
-    for k in db1s:
-        set_dbid(db1s[k])
-    langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
-    langchain_mode_types = selection_docs_state1['langchain_mode_types']
-    set_userid(db1s, requests_state1, get_userid_auth)
-    db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
-                    dbs=dbs,
-                    load_db_if_exists=load_db_if_exists,
-                    db_type=db_type,
-                    use_openai_embedding=use_openai_embedding,
-                    hf_embedding_model=hf_embedding_model,
-                    migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
-                    for_sources_list=True,
-                    verbose=verbose,
-                    n_jobs=n_jobs,
-                    )
-
-    if langchain_mode in ['LLM'] or db is None:
+    db = None
+    if langchain_mode in ['LLM', 'Disabled']:
         source_files_added = "NA"
         source_list = []
         num_chunks = 0
@@ -8186,31 +8766,44 @@ def get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
         source_list = []
         num_chunks = 0
         num_sources_str = str(0)
-    elif db is not None:
-        metadatas = get_metadatas(db, full_required=False)
-        metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
-        exception_metadatas_sources = [x['source'] for x in metadatas if x.get('exception', '')]
-        source_list = sorted(set(metadatas_sources))
-        source_files_added = '\n'.join(source_list)
-        num_chunks = len(metadatas_sources)
-        num_sources_str = ">=%d" % len(source_list)
-        if is_chroma_db(db):
-            num_chunks_real = db._collection.count()  # includes exceptions
-            num_chunks_real -= len(exception_metadatas_sources)  # exclude exceptions
-            if num_chunks_real == num_chunks:
-                num_sources_str = "=%d" % len(source_list)
-            else:
-                num_chunks = num_chunks_real
     else:
-        source_list = []
-        source_files_added = "None"
-        num_chunks = 0
-        num_sources_str = str(0)
-    sources_dir = "sources_dir"
-    sources_dir = makedirs(sources_dir, exist_ok=True, tmp_ok=True, use_base=True)
-    sources_file = os.path.join(sources_dir, 'sources_%s_%s' % (langchain_mode, str(uuid.uuid4())))
-    with open(sources_file, "wt", encoding="utf-8") as f:
-        f.write(source_files_added)
+        for k in db1s:
+            set_dbid(db1s[k])
+        langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
+        langchain_mode_types = selection_docs_state1['langchain_mode_types']
+        set_userid(db1s, requests_state1, get_userid_auth)
+        db = get_any_db(db1s, langchain_mode, langchain_mode_paths, langchain_mode_types,
+                        dbs=dbs,
+                        load_db_if_exists=load_db_if_exists,
+                        db_type=db_type,
+                        use_openai_embedding=use_openai_embedding,
+                        hf_embedding_model=hf_embedding_model,
+                        migrate_embedding_model=migrate_embedding_model,
+                        for_sources_list=True,
+                        verbose=verbose,
+                        n_jobs=n_jobs,
+                        )
+        if db is not None:
+            metadatas = get_metadatas(db, full_required=False)
+            metadatas_sources = [x['source'] for x in metadatas if not x.get('exception', '')]
+            exception_metadatas_sources = [x['source'] for x in metadatas if x.get('exception', '')]
+            source_list = sorted(set(metadatas_sources))
+            source_files_added = '\n'.join(source_list)
+            num_chunks = len(metadatas_sources)
+            num_sources_str = ">=%d" % len(source_list)
+            if is_chroma_db(db):
+                num_chunks_real = db._collection.count()  # includes exceptions
+                num_chunks_real -= len(exception_metadatas_sources)  # exclude exceptions
+                if num_chunks_real == num_chunks:
+                    num_sources_str = "=%d" % len(source_list)
+                else:
+                    num_chunks = num_chunks_real
+        else:
+            source_list = []
+            source_files_added = "None"
+            num_chunks = 0
+            num_sources_str = str(0)
+    sources_file = make_sources_file(langchain_mode, source_files_added)
     source_list = docs_state0 + source_list
     if DocumentChoice.ALL.value in source_list:
         source_list.remove(DocumentChoice.ALL.value)
@@ -8221,11 +8814,15 @@ def update_user_db(file, db1s, selection_docs_state1, requests_state1,
                    langchain_mode=None,
                    get_userid_auth=None,
                    **kwargs):
-    kwargs.update(selection_docs_state1)
-    set_userid(db1s, requests_state1, get_userid_auth)
-
     if file is None:
         raise RuntimeError("Don't use change, use input")
+
+    # can't do below, langchain_mode can change, e.g. LLM -> MyData and UI will reflect
+    # if langchain_mode in ['LLM', 'Disabled']:
+    #    return None, langchain_mode, "", "", None, None
+
+    kwargs.update(selection_docs_state1)
+    set_userid(db1s, requests_state1, get_userid_auth)
 
     try:
         return _update_user_db(file, db1s=db1s,
@@ -8314,7 +8911,6 @@ def _update_user_db(file,
                     use_openai_embedding=None,
                     hf_embedding_model=None,
                     migrate_embedding_model=None,
-                    auto_migrate_db=None,
                     verbose=None,
                     n_jobs=-1,
                     is_url=None, is_txt=None,
@@ -8332,7 +8928,6 @@ def _update_user_db(file,
     assert use_openai_embedding is not None
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
-    assert auto_migrate_db is not None
     assert caption_loader is not None
     assert asr_loader is not None
     assert doctr_loader is not None
@@ -8481,6 +9076,9 @@ def _update_user_db(file,
 
                            is_public=is_public,
                            from_ui=from_ui,
+
+                           use_openai_embedding=use_openai_embedding,
+                           hf_embedding_model=hf_embedding_model,
                            )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
@@ -8522,7 +9120,6 @@ def _update_user_db(file,
                             langchain_mode_types=langchain_mode_types,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model,
-                            auto_migrate_db=auto_migrate_db,
                             n_jobs=n_jobs,
                             verbose=verbose)
             if db is not None:
@@ -8541,7 +9138,9 @@ def _update_user_db(file,
             persist_directory, langchain_type = get_persist_directory(langchain_mode, db1s=db1s, dbs=dbs,
                                                                       langchain_type=langchain_type)
             langchain_mode_types[langchain_mode] = langchain_type
-            if langchain_mode in dbs and dbs[langchain_mode] is not None:
+            if not persist_directory:
+                raise ValueError("Switch to valid Collection, not %s" % langchain_mode)
+            elif langchain_mode in dbs and dbs[langchain_mode] is not None:
                 # then add
                 db, num_new_sources, new_sources_metadata = add_to_db(dbs[langchain_mode], sources, db_type=db_type,
                                                                       use_openai_embedding=use_openai_embedding,
@@ -8557,7 +9156,6 @@ def _update_user_db(file,
                             langchain_mode_types=langchain_mode_types,
                             hf_embedding_model=hf_embedding_model,
                             migrate_embedding_model=migrate_embedding_model,
-                            auto_migrate_db=auto_migrate_db,
                             n_jobs=n_jobs,
                             verbose=verbose)
             dbs[langchain_mode] = db
@@ -8597,11 +9195,13 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                                           use_openai_embedding=None,
                                           hf_embedding_model=None,
                                           migrate_embedding_model=None,
-                                          auto_migrate_db=None,
                                           verbose=False,
                                           get_userid_auth=None,
                                           delete_sources=False,
                                           n_jobs=-1):
+    if langchain_mode in ['LLM', 'Disabled']:
+        return "Sources: N/A"
+
     langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
     langchain_mode_types = selection_docs_state1['langchain_mode_types']
     set_userid(db1s, requests_state1, get_userid_auth)
@@ -8612,7 +9212,6 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -8620,7 +9219,7 @@ def get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_
     if delete_sources:
         del_from_db(db, document_choice1, db_type=db_type)
 
-    if langchain_mode in ['LLM'] or db is None:
+    if db is None:
         return "Sources: N/A"
     return get_source_files(db=db, exceptions=None)
 
@@ -8770,14 +9369,15 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                                                      hf_embedding_model=None,
                                                      use_openai_embedding=None,
                                                      migrate_embedding_model=None,
-                                                     auto_migrate_db=None,
                                                      text_limit=None,
                                                      db_type=None, load_db_if_exists=None,
                                                      n_jobs=None, verbose=None, get_userid_auth=None):
+    if langchain_mode in ['LLM', 'Disabled']:
+        return get_source_files(db=None, exceptions=None, metadatas=None)
+
     set_userid(db1s, requests_state, get_userid_auth)
     assert hf_embedding_model is not None
     assert migrate_embedding_model is not None
-    assert auto_migrate_db is not None
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
     langchain_mode_types = selection_docs_state['langchain_mode_types']
     has_path = {k: v for k, v in langchain_mode_paths.items() if v}
@@ -8794,7 +9394,6 @@ def update_and_get_source_files_given_langchain_mode(db1s,
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     for_sources_list=True,
                     verbose=verbose,
                     n_jobs=n_jobs,
@@ -8806,7 +9405,6 @@ def update_and_get_source_files_given_langchain_mode(db1s,
     db, num_new_sources, new_sources_metadata = make_db(use_openai_embedding=False,
                                                         hf_embedding_model=hf_embedding_model,
                                                         migrate_embedding_model=migrate_embedding_model,
-                                                        auto_migrate_db=auto_migrate_db,
                                                         first_para=first_para, text_limit=text_limit,
                                                         chunk=chunk,
                                                         chunk_size=chunk_size,
@@ -8925,8 +9523,8 @@ def get_some_dbs_from_hf(dest='.', db_zips=None):
         assert os.path.isfile(path_to_zip_file), "Missing zip in %s" % path_to_zip_file
         if dir_expected:
             assert os.path.isdir(os.path.join(dest, dir_expected)), "Missing path for %s" % dir_expected
-            assert os.path.isdir(
-                os.path.join(dest, dir_expected, 'index')), "Missing index in %s" % dir_expected
+            assert os.path.isfile(
+                os.path.join(dest, dir_expected, 'chroma.sqlite3')), "Missing db in %s" % dir_expected
 
 
 def _create_local_weaviate_client():

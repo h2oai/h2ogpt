@@ -334,7 +334,7 @@ def predict_from_text(response, chatbot_role, language, roles_map, tts_speed,
         audio1, sentence, sentence_state = generate_speech_func(response, is_final=False)
         if sentence is not None:
             if return_prefix_every_yield and include_audio0:
-                audio_out = combine_audios([audio0], audio=audio1, channels=1, sample_width=2, sr=sr, expect_bytes=return_as_byte)
+                audio_out = combine_audios([audio0], audio=audio1, channels=1, sample_width=2, sr=sr, expect_bytes=return_as_byte, verbose=verbose)
             else:
                 audio_out = audio1
             if not return_dict:
@@ -346,7 +346,7 @@ def predict_from_text(response, chatbot_role, language, roles_map, tts_speed,
 
     audio1, sentence, sentence_state = generate_speech_func(response, is_final=True)
     if return_prefix_every_yield and include_audio0:
-        audio_out = combine_audios([audio0], audio=audio1, channels=1, sample_width=2, sr=sr, expect_bytes=return_as_byte)
+        audio_out = combine_audios([audio0], audio=audio1, channels=1, sample_width=2, sr=sr, expect_bytes=return_as_byte, verbose=verbose)
     else:
         audio_out = audio1
     if not return_dict:

@@ -6,6 +6,7 @@ import inspect
 import itertools
 import json
 import os
+import platform
 import pprint
 import random
 import shutil
@@ -17,15 +18,22 @@ import filelock
 import numpy as np
 import pandas as pd
 import requests
+import ujson
+
 from iterators import TimeoutIterator
 
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
-from src.db_utils import set_userid, get_username_direct, get_userid_direct
+
 from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, fix_text_for_gradio, get_response, \
     my_db_state_done, update_langchain_mode_paths, process_audio, is_valid_key, is_from_ui, get_llm_history, prep_bot, \
     allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain
+
+from src.db_utils import set_userid, get_username_direct, length_db1, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
+from src.utils_langchain import make_sources_file
+from src.vision.utils_vision import base64_to_img
+
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -65,6 +73,9 @@ from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, 
 from prompter import prompt_type_to_model_name, prompt_types_strings, non_hf_types, \
     get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, \
     is_video_model, is_json_model
+from prompter import prompt_type_to_model_name, prompt_types_strings, inv_prompt_type_to_model_lower, non_hf_types, \
+    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, is_gradio_vision_model, \
+    is_video_model, is_json_model, get_llm_history
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
@@ -283,7 +294,6 @@ def go_gradio(**kwargs):
     hf_embedding_model = kwargs['hf_embedding_model']
     load_db_if_exists = kwargs['load_db_if_exists']
     migrate_embedding_model = kwargs['migrate_embedding_model']
-    auto_migrate_db = kwargs['auto_migrate_db']
     captions_model = kwargs['captions_model']
     caption_loader = kwargs['caption_loader']
     doctr_loader = kwargs['doctr_loader']
@@ -477,13 +487,16 @@ def go_gradio(**kwargs):
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
-                try:
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    print("Auth exception: %s" % str(e), flush=True)
-                    shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
-                    auth_dict = {}
+                if auth_filename.endswith('.db'):
+                    auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                else:
+                    try:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = json.load(f)
+                    except json.decoder.JSONDecodeError as e:
+                        print("Auth exception: %s" % str(e), flush=True)
+                        shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
+                        auth_dict = {}
         return auth_dict.get(username1, {}).get('password')
 
     def auth_func(username1, password1, auth_pairs=None, auth_filename=None,
@@ -500,26 +513,34 @@ def go_gradio(**kwargs):
         assert selection_docs_state1 is not None
         assert auth_filename and isinstance(auth_filename, str), "Auth file must be a non-empty string, got: %s" % str(
             auth_filename)
-        if auth_access == 'open' and username1.startswith(guest_name):
+        if auth_access == 'open' and guest_name and username1.startswith(guest_name):
             return True
         if username1 == '':
             # some issue with login
             return False
+        if guest_name and username1.startswith(guest_name):
+            # for random access with persistent password in auth case
+            # username1 here only for auth check, rest of time full guest name used
+            username1 = guest_name
         with filelock.FileLock(auth_filename + '.lock'):
             auth_dict = {}
             if os.path.isfile(auth_filename):
-                try:
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    print("Auth exception: %s" % str(e), flush=True)
-                    shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
-                    auth_dict = {}
+                print("Auth access: %s" % username1)
+                if auth_filename.endswith('.db'):
+                    auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                else:
+                    try:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = json.load(f)
+                    except json.decoder.JSONDecodeError as e:
+                        print("Auth exception: %s" % str(e), flush=True)
+                        shutil.move(auth_filename, auth_filename + '.bak' + str(uuid.uuid4()))
+                        auth_dict = {}
             if username1 in auth_dict and username1 in auth_pairs:
                 if password1 == auth_dict[username1]['password'] and password1 == auth_pairs[username1]:
                     auth_user = auth_dict[username1]
                     update_auth_selection(auth_user, selection_docs_state1)
-                    save_auth_dict(auth_dict, auth_filename)
+                    save_auth_dict(auth_dict, auth_filename, username1)
                     return True
                 else:
                     return False
@@ -527,7 +548,7 @@ def go_gradio(**kwargs):
                 if password1 == auth_dict[username1]['password']:
                     auth_user = auth_dict[username1]
                     update_auth_selection(auth_user, selection_docs_state1)
-                    save_auth_dict(auth_dict, auth_filename)
+                    save_auth_dict(auth_dict, auth_filename, username1)
                     return True
                 else:
                     return False
@@ -536,7 +557,7 @@ def go_gradio(**kwargs):
                 auth_dict[username1] = dict(password=auth_pairs[username1], userid=id0 or str(uuid.uuid4()))
                 auth_user = auth_dict[username1]
                 update_auth_selection(auth_user, selection_docs_state1)
-                save_auth_dict(auth_dict, auth_filename)
+                save_auth_dict(auth_dict, auth_filename, username1)
                 return True
             else:
                 if auth_access == 'closed':
@@ -545,7 +566,7 @@ def go_gradio(**kwargs):
                 auth_dict[username1] = dict(password=password1, userid=id0 or str(uuid.uuid4()))
                 auth_user = auth_dict[username1]
                 update_auth_selection(auth_user, selection_docs_state1)
-                save_auth_dict(auth_dict, auth_filename)
+                save_auth_dict(auth_dict, auth_filename, username1)
                 if auth_access == 'open':
                     return True
                 else:
@@ -569,8 +590,11 @@ def go_gradio(**kwargs):
                     return str(uuid.uuid4())
                 with filelock.FileLock(auth_filename + '.lock'):
                     if os.path.isfile(auth_filename):
-                        with open(auth_filename, 'rt') as f:
-                            auth_dict = json.load(f)
+                        if auth_filename.endswith('.db'):
+                            auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                        else:
+                            with open(auth_filename, 'rt') as f:
+                                auth_dict = json.load(f)
                         if username1 in auth_dict:
                             return auth_dict[username1]['userid']
         # if here, then not persistently associated with username1,
@@ -691,10 +715,9 @@ def go_gradio(**kwargs):
         mic_sources_kwargs = dict(source='microphone')
 
     if kwargs['model_lock']:
-        have_vision_models = any([x.get('inference_server', '').startswith('http') and \
-                                  is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
+        have_vision_models = any([is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
     else:
-        have_vision_models = kwargs['inference_server'].startswith('http') and is_vision_model(kwargs['base_model'])
+        have_vision_models = is_vision_model(kwargs['base_model'])
 
     is_gradio_h2oai = get_is_gradio_h2oai()
 
@@ -730,6 +753,7 @@ def go_gradio(**kwargs):
         model_state = gr.State(
             value=dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
                        base_model=kwargs['base_model'],
+                       display_name=kwargs['base_model'],
                        tokenizer_base_model=kwargs['tokenizer_base_model'],
                        lora_weights=kwargs['lora_weights'],
                        inference_server=kwargs['inference_server'],
@@ -1129,7 +1153,7 @@ def go_gradio(**kwargs):
                                                    len(model_states) > 1 and \
                                                    kwargs['visible_visible_models']
                             with gr.Row(visible=not kwargs['actions_in_sidebar'] or visible_model_choice):
-                                visible_models = gr.Dropdown(kwargs['all_possible_visible_models'],
+                                visible_models = gr.Dropdown(kwargs['all_possible_display_names'],
                                                              label="Visible Models",
                                                              value=visible_models_state0,
                                                              interactive=True,
@@ -1137,7 +1161,7 @@ def go_gradio(**kwargs):
                                                              visible=visible_model_choice,
                                                              elem_id="multi-selection-models" if kwargs[
                                                                                                      'max_visible_models'] is None or is_gradio_h2oai else None,
-                                                             filterable=len(kwargs['all_possible_visible_models']) > 5,
+                                                             filterable=len(kwargs['all_possible_display_names']) > 5,
                                                              max_choices=kwargs['max_visible_models'],
                                                              )
                                 if not image_tab_visible:
@@ -1466,6 +1490,26 @@ def go_gradio(**kwargs):
                                                       info="LLaVa prompt",
                                                       value=kwargs['llava_prompt'],
                                                       lines=2)
+                            user_prompt_for_fake_system_prompt = gr.Textbox(label="User System Prompt",
+                                                                            info="user part of pre-conversation if LLM doesn't handle system prompt.",
+                                                                            value=kwargs[
+                                                                                      'user_prompt_for_fake_system_prompt'] or '')
+                            json_object_prompt = gr.Textbox(label="JSON Object Prompt",
+                                                            info="prompt for getting LLM to do JSON object",
+                                                            value=kwargs['json_object_prompt'] or '')
+                            json_object_prompt_simpler = gr.Textbox(label="Simpler JSON Object Prompt",
+                                                                    info="Simpler prompt for getting LLM to do JSON object (for MistralAI)",
+                                                                    value=kwargs['json_object_prompt_simpler'] or '')
+                            json_code_prompt = gr.Textbox(label="JSON Code Prompt",
+                                                          info="prompt for getting LLm to do JSON in code block",
+                                                          value=kwargs['json_code_prompt'] or '')
+                            json_code_prompt_if_no_schema = gr.Textbox(label="Schema instructions Prompt",
+                                                                       info="prompt for LLM to use when no schema but need schema to obey rules",
+                                                                       value=kwargs[
+                                                                                 'json_code_prompt_if_no_schema'] or '')
+                            json_schema_instruction = gr.Textbox(label="JSON Schema Prompt",
+                                                                 info="prompt for LLM to use schema",
+                                                                 value=kwargs['json_schema_instruction'] or '')
 
                             def show_llava(x):
                                 return x
@@ -1673,6 +1717,10 @@ def go_gradio(**kwargs):
                         guided_grammar = gr.components.Textbox(value=kwargs['guided_grammar'],
                                                                label="guided_grammar",
                                                                info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
+                                                               visible=True)
+                        guided_whitespace_pattern = gr.components.Textbox(value=kwargs['guided_whitespace_pattern'],
+                                                               label="guided_whitespace_pattern",
+                                                               info="https://github.com/vllm-project/vllm/pull/4305/files",
                                                                visible=True)
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
@@ -2130,7 +2178,8 @@ def go_gradio(**kwargs):
                             submit_buttons_text = gr.Textbox('on' if kwargs['visible_submit_buttons'] else 'off',
                                                              visible=False, interactive=False)
                             submit_buttons_btn = gr.Button("Toggle Submit Buttons", variant="secondary", size="sm")
-                            visible_models_text = gr.Textbox('on' if kwargs['visible_visible_models'] else 'off',
+                            visible_models_text = gr.Textbox('on' if kwargs['visible_visible_models'] and \
+                                                                     visible_model_choice else 'off',
                                                              visible=False, interactive=False)
                             visible_model_btn = gr.Button("Toggle Visible Models", variant="secondary", size="sm")
 
@@ -2267,7 +2316,7 @@ def go_gradio(**kwargs):
                                                                                              'auth_access'] == 'open' else "Login (closed access)"
                     login_btn = gr.Button(value=login_msg)
                     num_lock_button = gr.Button(visible=False)
-                    num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False)
+                    num_model_lock_value_output = gr.Number(value=len(text_outputs), visible=False, precision=0)
                     login_result_text = gr.Text(label="Login Result", interactive=False)
                     # WIP
                     if (kwargs['auth'] or kwargs['google_auth']) and is_gradio_h2oai:
@@ -2340,7 +2389,6 @@ def go_gradio(**kwargs):
                                            use_openai_embedding=use_openai_embedding,
                                            hf_embedding_model=hf_embedding_model,
                                            migrate_embedding_model=migrate_embedding_model,
-                                           auto_migrate_db=auto_migrate_db,
                                            captions_model=captions_model,
                                            caption_loader=caption_loader,
                                            doctr_loader=doctr_loader,
@@ -2498,20 +2546,21 @@ def go_gradio(**kwargs):
                      eventdb3a, eventdb3]
         db_events.extend([event_attach1, event_attach2])
 
-        get_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=docs_state0,
-                                         load_db_if_exists=load_db_if_exists,
-                                         db_type=db_type,
-                                         use_openai_embedding=use_openai_embedding,
-                                         hf_embedding_model=hf_embedding_model,
-                                         migrate_embedding_model=migrate_embedding_model,
-                                         auto_migrate_db=auto_migrate_db,
-                                         verbose=verbose,
-                                         get_userid_auth=get_userid_auth,
-                                         n_jobs=n_jobs,
-                                         enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
-                                         enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
-                                         h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
-                                         )
+        get_sources_fun_kwargs = dict(dbs=dbs, docs_state0=docs_state0,
+                                      load_db_if_exists=load_db_if_exists,
+                                      db_type=db_type,
+                                      use_openai_embedding=use_openai_embedding,
+                                      hf_embedding_model=hf_embedding_model,
+                                      migrate_embedding_model=migrate_embedding_model,
+                                      verbose=verbose,
+                                      get_userid_auth=get_userid_auth,
+                                      n_jobs=n_jobs,
+                                      enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                      enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                      h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                      )
+
+        get_sources1 = functools.partial(get_sources_gr, **get_sources_fun_kwargs)
 
         # if change collection source, must clear doc selections from it to avoid inconsistency
         def clear_doc_choice(langchain_mode1):
@@ -2582,20 +2631,21 @@ def go_gradio(**kwargs):
 
         # show button, else only show when add.
         # Could add to above get_sources for download/dropdown, but bit much maybe
+        show_sources1_fun_kwargs = dict(dbs=dbs,
+                                        load_db_if_exists=load_db_if_exists,
+                                        db_type=db_type,
+                                        use_openai_embedding=use_openai_embedding,
+                                        hf_embedding_model=hf_embedding_model,
+                                        migrate_embedding_model=migrate_embedding_model,
+                                        verbose=verbose,
+                                        get_userid_auth=get_userid_auth,
+                                        n_jobs=n_jobs,
+                                        enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                        enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                        h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                        )
         show_sources1 = functools.partial(get_source_files_given_langchain_mode_gr,
-                                          dbs=dbs,
-                                          load_db_if_exists=load_db_if_exists,
-                                          db_type=db_type,
-                                          use_openai_embedding=use_openai_embedding,
-                                          hf_embedding_model=hf_embedding_model,
-                                          migrate_embedding_model=migrate_embedding_model,
-                                          auto_migrate_db=auto_migrate_db,
-                                          verbose=verbose,
-                                          get_userid_auth=get_userid_auth,
-                                          n_jobs=n_jobs,
-                                          enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
-                                          enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
-                                          h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                          **show_sources1_fun_kwargs,
                                           )
         eventdb8a = show_sources_btn.click(user_state_setup,
                                            inputs=[my_db_state, requests_state, guest_name, show_sources_btn,
@@ -2613,20 +2663,21 @@ def go_gradio(**kwargs):
             return gr.Dropdown(choices=x,
                                value=viewable_docs_state0[0] if len(viewable_docs_state0) > 0 else None)
 
-        get_viewable_sources1 = functools.partial(get_sources_gr, dbs=dbs, docs_state0=viewable_docs_state0,
-                                                  load_db_if_exists=load_db_if_exists,
-                                                  db_type=db_type,
-                                                  use_openai_embedding=use_openai_embedding,
-                                                  hf_embedding_model=hf_embedding_model,
-                                                  migrate_embedding_model=migrate_embedding_model,
-                                                  auto_migrate_db=auto_migrate_db,
-                                                  verbose=kwargs['verbose'],
-                                                  get_userid_auth=get_userid_auth,
-                                                  n_jobs=n_jobs,
-                                                  enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
-                                                  enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
-                                                  h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
-                                                  )
+        get_viewable_sources1_fun_kwargs = dict(dbs=dbs, docs_state0=viewable_docs_state0,
+                                                load_db_if_exists=load_db_if_exists,
+                                                db_type=db_type,
+                                                use_openai_embedding=use_openai_embedding,
+                                                hf_embedding_model=hf_embedding_model,
+                                                migrate_embedding_model=migrate_embedding_model,
+                                                verbose=kwargs['verbose'],
+                                                get_userid_auth=get_userid_auth,
+                                                n_jobs=n_jobs,
+                                                enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                                enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                                h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                                )
+
+        get_viewable_sources1 = functools.partial(get_sources_gr, **get_viewable_sources1_fun_kwargs)
         get_viewable_sources_args = dict(fn=get_viewable_sources1,
                                          inputs=[my_db_state, selection_docs_state, requests_state, langchain_mode,
                                                  h2ogpt_key],
@@ -2655,7 +2706,6 @@ def go_gradio(**kwargs):
                                           use_openai_embedding1=use_openai_embedding,
                                           hf_embedding_model1=hf_embedding_model,
                                           migrate_embedding_model_or_db1=migrate_embedding_model,
-                                          auto_migrate_db1=auto_migrate_db,
                                           verbose1=verbose,
                                           get_userid_auth1=get_userid_auth,
                                           max_raw_chunks=kwargs['max_raw_chunks'],
@@ -2703,7 +2753,6 @@ def go_gradio(**kwargs):
                                              hf_embedding_model=hf_embedding_model,
                                              use_openai_embedding=use_openai_embedding,
                                              migrate_embedding_model=migrate_embedding_model,
-                                             auto_migrate_db=auto_migrate_db,
                                              text_limit=kwargs['text_limit'],
                                              db_type=db_type,
                                              load_db_if_exists=load_db_if_exists,
@@ -2749,7 +2798,6 @@ def go_gradio(**kwargs):
                                             use_openai_embedding=use_openai_embedding,
                                             hf_embedding_model=hf_embedding_model,
                                             migrate_embedding_model=migrate_embedding_model,
-                                            auto_migrate_db=auto_migrate_db,
                                             verbose=verbose,
                                             get_userid_auth=get_userid_auth,
                                             n_jobs=n_jobs,
@@ -2903,7 +2951,7 @@ def go_gradio(**kwargs):
                                             num_model_lock=len(text_outputs),
                                             pre_authorized=True,
                                             )
-        # get_client() in openai server backend.py needs updating if login_inputs changes
+        # FIXME: get_client() in openai server backend.py needs updating if login_inputs changes
         login_inputs = [my_db_state, selection_docs_state, requests_state, roles_state,
                         model_options_state, lora_options_state, server_options_state,
                         chat_state, langchain_mode,
@@ -2977,97 +3025,100 @@ def go_gradio(**kwargs):
             success1 = False
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
-                        if username1 in auth_dict:
-                            auth_user = auth_dict[username1]
-                            if password_to_check:
-                                if auth_user['password'] != password_to_check:
-                                    return False, "Invalid password for user %s" % username1, \
-                                        text_output1, text_output21, text_outputs1, \
-                                        langchain_mode1, h2ogpt_key2, visible_models1, \
-                                        side_bar_text1, doc_count_text1, submit_buttons_text1, visible_models_text1, \
-                                        chat_tab_text1, doc_selection_tab_text1, doc_view_tab_text1, chat_history_tab_text1, \
-                                        expert_tab_text1, models_tab_text1, system_tab_text1, tos_tab_text1, \
-                                        login_tab_text1, hosts_tab_text1
-                            if username_override:
-                                # then use original user id
-                                set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
-                            if 'selection_docs_state' in auth_user:
-                                update_auth_selection(auth_user, selection_docs_state1)
-                            if 'roles_state' in auth_user:
-                                roles_state1.update(auth_user['roles_state'])
-                            if 'model_options_state' in auth_user and \
-                                    model_options_state1 and \
-                                    auth_user['model_options_state']:
-                                model_options_state1[0].extend(auth_user['model_options_state'][0])
-                                model_options_state1[0] = [x for x in model_options_state1[0] if
-                                                           x != no_model_str and x]
-                                model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
-                            if 'lora_options_state' in auth_user and \
-                                    lora_options_state1 and \
-                                    auth_user['lora_options_state']:
-                                lora_options_state1[0].extend(auth_user['lora_options_state'][0])
-                                lora_options_state1[0] = [x for x in lora_options_state1[0] if x != no_lora_str and x]
-                                lora_options_state1[0] = [no_lora_str] + sorted(set(lora_options_state1[0]))
-                            if 'server_options_state' in auth_user and \
-                                    server_options_state1 and \
-                                    auth_user['server_options_state']:
-                                server_options_state1[0].extend(auth_user['server_options_state'][0])
-                                server_options_state1[0] = [x for x in server_options_state1[0] if
-                                                            x != no_server_str and x]
-                                server_options_state1[0] = [no_server_str] + sorted(set(server_options_state1[0]))
-                            if 'chat_state' in auth_user:
-                                chat_state1.update(auth_user['chat_state'])
-                            if 'text_output' in auth_user:
-                                text_output1 = auth_user['text_output']
-                            if 'text_output2' in auth_user:
-                                text_output21 = auth_user['text_output2']
-                            if 'text_outputs' in auth_user:
-                                text_outputs1 = auth_user['text_outputs']
-                            if 'langchain_mode' in auth_user:
-                                langchain_mode1 = auth_user['langchain_mode']
-                            if 'h2ogpt_key' in auth_user:
-                                h2ogpt_key2 = auth_user['h2ogpt_key']
-                            if 'visible_models' in auth_user:
-                                visible_models1 = auth_user['visible_models']
+                    if auth_filename.endswith('.db'):
+                        auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                    else:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = ujson.load(f)
+                    if username1 in auth_dict:
+                        auth_user = auth_dict[username1]
+                        if password_to_check:
+                            if auth_user['password'] != password_to_check:
+                                return False, "Invalid password for user %s" % username1, \
+                                    text_output1, text_output21, text_outputs1, \
+                                    langchain_mode1, h2ogpt_key2, visible_models1, \
+                                    side_bar_text1, doc_count_text1, submit_buttons_text1, visible_models_text1, \
+                                    chat_tab_text1, doc_selection_tab_text1, doc_view_tab_text1, chat_history_tab_text1, \
+                                    expert_tab_text1, models_tab_text1, system_tab_text1, tos_tab_text1, \
+                                    login_tab_text1, hosts_tab_text1
+                        if username_override:
+                            # then use original user id
+                            set_userid_direct_gr(db1s, auth_dict[username1]['userid'], username1)
+                        if 'selection_docs_state' in auth_user:
+                            update_auth_selection(auth_user, selection_docs_state1)
+                        if 'roles_state' in auth_user:
+                            roles_state1.update(auth_user['roles_state'])
+                        if 'model_options_state' in auth_user and \
+                                model_options_state1 and \
+                                auth_user['model_options_state']:
+                            model_options_state1[0].extend(auth_user['model_options_state'][0])
+                            model_options_state1[0] = [x for x in model_options_state1[0] if
+                                                       x != no_model_str and x]
+                            model_options_state1[0] = [no_model_str] + sorted(set(model_options_state1[0]))
+                        if 'lora_options_state' in auth_user and \
+                                lora_options_state1 and \
+                                auth_user['lora_options_state']:
+                            lora_options_state1[0].extend(auth_user['lora_options_state'][0])
+                            lora_options_state1[0] = [x for x in lora_options_state1[0] if x != no_lora_str and x]
+                            lora_options_state1[0] = [no_lora_str] + sorted(set(lora_options_state1[0]))
+                        if 'server_options_state' in auth_user and \
+                                server_options_state1 and \
+                                auth_user['server_options_state']:
+                            server_options_state1[0].extend(auth_user['server_options_state'][0])
+                            server_options_state1[0] = [x for x in server_options_state1[0] if
+                                                        x != no_server_str and x]
+                            server_options_state1[0] = [no_server_str] + sorted(set(server_options_state1[0]))
+                        if 'chat_state' in auth_user:
+                            chat_state1.update(auth_user['chat_state'])
+                        if 'text_output' in auth_user:
+                            text_output1 = auth_user['text_output']
+                        if 'text_output2' in auth_user:
+                            text_output21 = auth_user['text_output2']
+                        if 'text_outputs' in auth_user:
+                            text_outputs1 = auth_user['text_outputs']
+                        if 'langchain_mode' in auth_user:
+                            langchain_mode1 = auth_user['langchain_mode']
+                        if 'h2ogpt_key' in auth_user:
+                            h2ogpt_key2 = auth_user['h2ogpt_key']
+                        if 'visible_models' in auth_user:
+                            visible_models1 = auth_user['visible_models']
 
-                            # other toggles
-                            if 'side_bar_text' in auth_user:
-                                side_bar_text1 = auth_user['side_bar_text']
-                            if 'doc_count_text' in auth_user:
-                                doc_count_text1 = auth_user['doc_count_text']
-                            if 'submit_buttons_text' in auth_user:
-                                submit_buttons_text1 = auth_user['submit_buttons_text']
-                            if 'visible_models_text' in auth_user:
-                                visible_models_text1 = auth_user['visible_models_text']
+                        # other toggles
+                        if 'side_bar_text' in auth_user:
+                            side_bar_text1 = auth_user['side_bar_text']
+                        if 'doc_count_text' in auth_user:
+                            doc_count_text1 = auth_user['doc_count_text']
+                        if 'submit_buttons_text' in auth_user:
+                            submit_buttons_text1 = auth_user['submit_buttons_text']
+                        if 'visible_models_text' in auth_user:
+                            visible_models_text1 = auth_user['visible_models_text']
 
-                            # gr.TabItem(s)
-                            if 'chat_tab_text' in auth_user:
-                                chat_tab_text1 = auth_user['chat_tab_text']
-                            if 'doc_selection_tab_text' in auth_user:
-                                doc_selection_tab_text1 = auth_user['doc_selection_tab_text']
-                            if 'doc_view_tab_text' in auth_user:
-                                doc_view_tab_text1 = auth_user['doc_view_tab_text']
-                            if 'chat_history_tab_text' in auth_user:
-                                chat_history_tab_text1 = auth_user['chat_history_tab_text']
-                            if 'expert_tab_text' in auth_user:
-                                expert_tab_text1 = auth_user['expert_tab_text']
-                            if 'models_tab_text' in auth_user:
-                                models_tab_text1 = auth_user['models_tab_text']
-                            if 'system_tab_text' in auth_user:
-                                system_tab_text1 = auth_user['system_tab_text']
-                            if 'tos_tab_text' in auth_user:
-                                tos_tab_text1 = auth_user['tos_tab_text']
-                            if 'login_tab_text' in auth_user:
-                                login_tab_text1 = auth_user['login_tab_text']
-                            if 'hosts_tab_text' in auth_user:
-                                hosts_tab_text1 = auth_user['hosts_tab_text']
+                        # gr.TabItem(s)
+                        if 'chat_tab_text' in auth_user:
+                            chat_tab_text1 = auth_user['chat_tab_text']
+                        if 'doc_selection_tab_text' in auth_user:
+                            doc_selection_tab_text1 = auth_user['doc_selection_tab_text']
+                        if 'doc_view_tab_text' in auth_user:
+                            doc_view_tab_text1 = auth_user['doc_view_tab_text']
+                        if 'chat_history_tab_text' in auth_user:
+                            chat_history_tab_text1 = auth_user['chat_history_tab_text']
+                        if 'expert_tab_text' in auth_user:
+                            expert_tab_text1 = auth_user['expert_tab_text']
+                        if 'models_tab_text' in auth_user:
+                            models_tab_text1 = auth_user['models_tab_text']
+                        if 'system_tab_text' in auth_user:
+                            system_tab_text1 = auth_user['system_tab_text']
+                        if 'tos_tab_text' in auth_user:
+                            tos_tab_text1 = auth_user['tos_tab_text']
+                        if 'login_tab_text' in auth_user:
+                            login_tab_text1 = auth_user['login_tab_text']
+                        if 'hosts_tab_text' in auth_user:
+                            hosts_tab_text1 = auth_user['hosts_tab_text']
 
-                            text_result = "Successful login for %s" % get_show_username(username1)
-                            success1 = True
-                        else:
-                            text_result = "No user %s" % get_show_username(username1)
+                        text_result = "Successful login for %s" % get_show_username(username1)
+                        success1 = True
+                    else:
+                        text_result = "No user %s" % get_show_username(username1)
                 else:
                     text_result = "No auth file"
             if num_model_lock is not None:
@@ -3098,21 +3149,24 @@ def go_gradio(**kwargs):
                 expert_tab_text1, models_tab_text1, system_tab_text1, tos_tab_text1, \
                 login_tab_text1, hosts_tab_text1
 
-        def save_auth_dict(auth_dict, auth_filename):
-            backup_file = auth_filename + '.bak' + str(uuid.uuid4())
-            if os.path.isfile(auth_filename):
-                shutil.copy(auth_filename, backup_file)
-            try:
-                with open(auth_filename, 'wt') as f:
-                    f.write(json.dumps(auth_dict, indent=2))
-                remove(backup_file)
-            except BaseException as e:
-                print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
-                      flush=True)
-                shutil.copy(backup_file, auth_dict)
-                if os.getenv('HARD_ASSERTS'):
-                    # unexpected in testing or normally
-                    raise
+        def save_auth_dict(auth_dict, auth_filename, username1):
+            if auth_filename.endswith('.db'):
+                upsert_user(auth_filename, username1, auth_dict[username1], verbose=verbose)
+            else:
+                backup_file = auth_filename + '.bak' + str(uuid.uuid4())
+                if os.path.isfile(auth_filename):
+                    shutil.copy(auth_filename, backup_file)
+                try:
+                    with open(auth_filename, 'wt') as f:
+                        f.write(ujson.dumps(auth_dict, indent=2))
+                    remove(backup_file)
+                except BaseException as e:
+                    print("Failure to save auth %s, restored backup: %s: %s" % (auth_filename, backup_file, str(e)),
+                          flush=True)
+                    shutil.copy(backup_file, auth_dict)
+                    if os.getenv('HARD_ASSERTS'):
+                        # unexpected in testing or normally
+                        raise
 
         def save_auth(selection_docs_state1, requests_state1, roles_state1,
                       model_options_state1, lora_options_state1, server_options_state1,
@@ -3136,8 +3190,11 @@ def go_gradio(**kwargs):
             username1 = get_username(requests_state1)
             with filelock.FileLock(auth_filename + '.lock'):
                 if os.path.isfile(auth_filename):
-                    with open(auth_filename, 'rt') as f:
-                        auth_dict = json.load(f)
+                    if auth_filename.endswith('.db'):
+                        auth_dict = fetch_user(auth_filename, username1, verbose=verbose)
+                    else:
+                        with open(auth_filename, 'rt') as f:
+                            auth_dict = ujson.load(f)
                     if username1 in auth_dict:
                         auth_user = auth_dict[username1]
                         if selection_docs_state1:
@@ -3202,7 +3259,7 @@ def go_gradio(**kwargs):
                         if hosts_tab_text1:
                             auth_user['hosts_tab_text'] = hosts_tab_text1
 
-                        save_auth_dict(auth_dict, auth_filename)
+                        save_auth_dict(auth_dict, auth_filename, username1)
 
         def save_auth_wrap(*args, **kwargs):
             save_auth(args[0], args[1], args[2],
@@ -3248,9 +3305,9 @@ def go_gradio(**kwargs):
         h2ogpt_key.blur(**save_auth_kwargs)
         h2ogpt_key.submit(**save_auth_kwargs)
 
-        def get_model_lock_visible_list(visible_models1, all_possible_visible_models):
+        def get_model_lock_visible_list(visible_models1, all_possible_display_names):
             visible_list = []
-            for modeli, model in enumerate(all_possible_visible_models):
+            for modeli, model in enumerate(all_possible_display_names):
                 if visible_models1 is None or \
                         isinstance(model, str) and model in visible_models1 or \
                         isinstance(modeli, int) and modeli in visible_models1:
@@ -3260,7 +3317,7 @@ def go_gradio(**kwargs):
             return visible_list
 
         def set_visible_models(visible_models1, compare_checkbox1, visible_models_text1, num_model_lock=0,
-                               all_possible_visible_models=None):
+                               all_possible_display_names=None):
             if num_model_lock == 0:
                 num_model_lock = 3  # 2 + 1 (which is dup of first)
                 ret_list = [gr.update(visible=True)] * num_model_lock
@@ -3269,10 +3326,10 @@ def go_gradio(**kwargs):
                 # in case switched from lock to not
                 visible_models_text1 = 'off'
             else:
-                assert isinstance(all_possible_visible_models, list)
-                assert num_model_lock == len(all_possible_visible_models)
+                assert isinstance(all_possible_display_names, list)
+                assert num_model_lock == len(all_possible_display_names)
                 visible_list = [False, False] + get_model_lock_visible_list(visible_models1,
-                                                                            all_possible_visible_models)
+                                                                            all_possible_display_names)
                 ret_list = [gr.update(visible=x) for x in visible_list]
             ret_list.insert(0, visible_models_text1)
             ret_list.insert(0, gr.update(visible=visible_models_text1 == 'on'))
@@ -3280,7 +3337,7 @@ def go_gradio(**kwargs):
 
         visible_models_func = functools.partial(set_visible_models,
                                                 num_model_lock=len(text_outputs),
-                                                all_possible_visible_models=kwargs['all_possible_visible_models'])
+                                                all_possible_display_names=kwargs['all_possible_display_names'])
         visible_models.change(fn=visible_models_func,
                               inputs=[visible_models, compare_checkbox, visible_models_text],
                               outputs=[visible_models, visible_models_text, text_output, text_output2] + text_outputs,
@@ -3461,7 +3518,6 @@ def go_gradio(**kwargs):
                                     use_openai_embedding=use_openai_embedding,
                                     hf_embedding_model=hf_embedding_model,
                                     migrate_embedding_model=migrate_embedding_model,
-                                    auto_migrate_db=auto_migrate_db,
                                     verbose=verbose,
                                     get_userid_auth=get_userid_auth,
                                     n_jobs=n_jobs)
@@ -3675,7 +3731,7 @@ def go_gradio(**kwargs):
 
             def update_chatbots(*args,
                                 num_model_lock=0,
-                                all_possible_visible_models=None,
+                                all_possible_display_names=None,
                                 for_errors=False,
                                 gradio_errors_to_chatbot=False):
                 args_list = list(args)
@@ -3699,12 +3755,12 @@ def go_gradio(**kwargs):
                 if num_model_lock > 0:
                     visible_models1 = args_list[3]
                     assert isinstance(visible_models1, list)
-                    assert isinstance(all_possible_visible_models, list)
-                    visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+                    assert isinstance(all_possible_display_names, list)
+                    visible_list = get_model_lock_visible_list(visible_models1, all_possible_display_names)
                     visible_list = [False, False] + visible_list
 
                     history_list = args_list[-num_model_lock - 2:]
-                    assert len(all_possible_visible_models) + 2 == len(history_list)
+                    assert len(all_possible_display_names) + 2 == len(history_list)
                 else:
                     visible_list = [True, compare_checkbox1]
                     history_list = args_list[-num_model_lock - 2:]
@@ -3723,7 +3779,7 @@ def go_gradio(**kwargs):
 
             update_chatbots_func = functools.partial(update_chatbots,
                                                      num_model_lock=len(text_outputs),
-                                                     all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                     all_possible_display_names=kwargs['all_possible_display_names']
                                                      )
             update_chatbots_kwargs = dict(fn=update_chatbots_func,
                                           inputs=[gradio_upload_to_chatbot,
@@ -3736,8 +3792,8 @@ def go_gradio(**kwargs):
 
             update_chatbots_errors_func = functools.partial(update_chatbots,
                                                             num_model_lock=len(text_outputs),
-                                                            all_possible_visible_models=kwargs[
-                                                                'all_possible_visible_models'],
+                                                            all_possible_display_names=kwargs[
+                                                                'all_possible_display_names'],
                                                             for_errors=True,
                                                             gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'],
                                                             )
@@ -4169,15 +4225,15 @@ def go_gradio(**kwargs):
             return update_history(*args, undo=undo, retry=retry, sanitize_user_prompt=sanitize_user_prompt)
 
         def all_user(*args, undo=False, retry=False, sanitize_user_prompt=False, num_model_lock=0,
-                     all_possible_visible_models=None):
+                     all_possible_display_names=None):
             args_list = list(args)
 
             visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-            assert isinstance(all_possible_visible_models, list)
-            visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+            assert isinstance(all_possible_display_names, list)
+            visible_list = get_model_lock_visible_list(visible_models1, all_possible_display_names)
 
             history_list = args_list[-num_model_lock:]
-            assert len(all_possible_visible_models) == len(history_list)
+            assert len(all_possible_display_names) == len(history_list)
             assert len(history_list) > 0, "Bad history list: %s" % history_list
             for hi, history in enumerate(history_list):
                 if not visible_list[hi]:
@@ -4260,7 +4316,7 @@ def go_gradio(**kwargs):
                         # DEBUG: print("do_yield: %s : %s %s %s %s" % (do_yield, delta_history, enough_data, beyond_min_time, enough_time), flush=True)
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                expect_bytes=kwargs['return_as_byte'])
+                                                expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
 
                         yield history, error, audio1
@@ -4277,7 +4333,7 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over
                 final_audio = combine_audios(audios, audio=no_audio,
-                                             expect_bytes=kwargs['return_as_byte'])
+                                             expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                 if error_with_str:
                     if history and history[-1] and len(history[-1]) == 2 and error_with_str:
                         if not history[-1][1]:
@@ -4311,7 +4367,7 @@ def go_gradio(**kwargs):
             save_dict['save_dir'] = kwargs['save_dir']
             save_generate_output(**save_dict)
 
-        def all_bot(*args, retry=False, model_states1=None, all_possible_visible_models=None):
+        def all_bot(*args, retry=False, model_states1=None, all_possible_display_names=None):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
             args_list0 = args_list[:-len(model_states1)]  # same for all models
@@ -4321,9 +4377,9 @@ def go_gradio(**kwargs):
             langchain_mode1 = args_list[eval_func_param_names.index('langchain_mode')]
 
             visible_models1 = args_list[eval_func_param_names.index('visible_models')]
-            assert isinstance(all_possible_visible_models, list)
-            assert len(all_possible_visible_models) == len(model_states1)
-            visible_list = get_model_lock_visible_list(visible_models1, all_possible_visible_models)
+            assert isinstance(all_possible_display_names, list)
+            assert len(all_possible_display_names) == len(model_states1)
+            visible_list = get_model_lock_visible_list(visible_models1, all_possible_display_names)
 
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
 
@@ -4489,7 +4545,7 @@ def go_gradio(**kwargs):
                     # yield back to gradio only is bots + exceptions, rest are consumed locally
                     if stream_output1 and do_yield:
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                expect_bytes=kwargs['return_as_byte'])
+                                                expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
@@ -4509,7 +4565,7 @@ def go_gradio(**kwargs):
 
                 # yield if anything left over as can happen (FIXME: Understand better)
                 final_audio = combine_audios(audios, audio=no_audio,
-                                             expect_bytes=kwargs['return_as_byte'])
+                                             expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                 # add error accordion
                 for boti, bot in enumerate(bots):
                     if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2 and exceptions_each_str[boti]:
@@ -4530,7 +4586,7 @@ def go_gradio(**kwargs):
 
             # save
             for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts,
-                                                             all_possible_visible_models):
+                                                             all_possible_display_names):
                 if 'extra_dict' not in save_dict:
                     save_dict['extra_dict'] = {}
                 if requests_state1:
@@ -4562,14 +4618,16 @@ def go_gradio(**kwargs):
                                          text_output],
                               outputs=[text_output, chat_exception_text, speech_bot],
                               )
-        retry_user_args = dict(fn=functools.partial(user, retry=True),
-                               inputs=inputs_list + [text_output],
-                               outputs=text_output,
-                               )
-        undo_user_args = dict(fn=functools.partial(user, undo=True),
-                              inputs=inputs_list + [text_output],
-                              outputs=text_output,
-                              )
+        retry_user_args = dict(
+            fn=functools.partial(user, retry=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+            inputs=inputs_list + [text_output],
+            outputs=text_output,
+        )
+        undo_user_args = dict(
+            fn=functools.partial(user, undo=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
+            inputs=inputs_list + [text_output],
+            outputs=text_output,
+        )
 
         # MODEL2
         user_args2 = dict(fn=functools.partial(user, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
@@ -4601,20 +4659,20 @@ def go_gradio(**kwargs):
         all_user_args = dict(fn=functools.partial(all_user,
                                                   sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                   num_model_lock=len(text_outputs),
-                                                  all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                  all_possible_display_names=kwargs['all_possible_display_names']
                                                   ),
                              inputs=inputs_list + text_outputs,
                              outputs=text_outputs,
                              )
         all_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
-                                                 all_possible_visible_models=kwargs['all_possible_visible_models']),
+                                                 all_possible_display_names=kwargs['all_possible_display_names']),
                             inputs=inputs_list + [my_db_state, selection_docs_state, requests_state, roles_state] +
                                    text_outputs,
                             outputs=text_outputs + [chat_exception_text, speech_bot],
                             )
         all_retry_bot_args = dict(fn=functools.partial(all_bot, model_states1=model_states,
-                                                       all_possible_visible_models=kwargs[
-                                                           'all_possible_visible_models'],
+                                                       all_possible_display_names=kwargs[
+                                                           'all_possible_display_names'],
                                                        retry=True),
                                   inputs=inputs_list + [my_db_state, selection_docs_state, requests_state,
                                                         roles_state] +
@@ -4624,8 +4682,8 @@ def go_gradio(**kwargs):
         all_retry_user_args = dict(fn=functools.partial(all_user, retry=True,
                                                         sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                         num_model_lock=len(text_outputs),
-                                                        all_possible_visible_models=kwargs[
-                                                            'all_possible_visible_models']
+                                                        all_possible_display_names=kwargs[
+                                                            'all_possible_display_names']
                                                         ),
                                    inputs=inputs_list + text_outputs,
                                    outputs=text_outputs,
@@ -4633,7 +4691,7 @@ def go_gradio(**kwargs):
         all_undo_user_args = dict(fn=functools.partial(all_user, undo=True,
                                                        sanitize_user_prompt=kwargs['sanitize_user_prompt'],
                                                        num_model_lock=len(text_outputs),
-                                                       all_possible_visible_models=kwargs['all_possible_visible_models']
+                                                       all_possible_display_names=kwargs['all_possible_display_names']
                                                        ),
                                   inputs=inputs_list + text_outputs,
                                   outputs=text_outputs,
@@ -4752,10 +4810,11 @@ def go_gradio(**kwargs):
                                              inputs=[my_db_state, requests_state, guest_name, retry_btn, retry_btn],
                                              outputs=[my_db_state, requests_state, retry_btn],
                                              queue=queue)
-            submit_event3a = submit_event31.then(**user_args, api_name='retry' if allow_api else False)
+            submit_event3a = submit_event31.then(**retry_user_args,
+                                                 api_name='retry' if allow_api else False)
             # if retry, no longer the saved chat
             submit_event3a2 = submit_event3a.then(deselect_radio_chats, inputs=None, outputs=radio_chats, queue=queue)
-            submit_event3b = submit_event3a2.then(**user_args2, api_name='retry2' if allow_api else False)
+            submit_event3b = submit_event3a2.then(**retry_user_args2, api_name='retry2' if allow_api else False)
             submit_event3c = submit_event3b.then(clear_instruct, None, instruction) \
                 .then(clear_instruct, None, iinput)
             submit_event3d = submit_event3c.then(**retry_bot_args, api_name='retry_bot' if allow_api else False,
@@ -5212,6 +5271,8 @@ def go_gradio(**kwargs):
             # reasonable default for easy UI/UX even if not optimal
             if 'llama2' in model_name and max_seq_len1 in [-1, None]:
                 max_seq_len1 = 4096
+            elif 'llama3' in model_name and max_seq_len1 in [-1, None]:
+                max_seq_len1 = 8192
             elif 'mistral' in model_name and max_seq_len1 in [-1, None]:
                 max_seq_len1 = 4096
             else:
@@ -5252,7 +5313,9 @@ def go_gradio(**kwargs):
                                               context='', reduced=False, making_context=False,
                                               return_dict=True, system_prompt=system_prompt1)
             model_state_new = dict(model=model1, tokenizer=tokenizer1, device=device1,
-                                   base_model=model_name, tokenizer_base_model=tokenizer_base_model,
+                                   base_model=model_name,
+                                   display_name=model_name,
+                                   tokenizer_base_model=tokenizer_base_model,
                                    lora_weights=lora_weights, inference_server=server_name,
                                    prompt_type=prompt_type1, prompt_dict=prompt_dict1,
                                    # FIXME: not typically required, unless want to expose adding h2ogpt endpoint in UI
@@ -5573,7 +5636,8 @@ def go_gradio(**kwargs):
                                               )
 
         def get_model_names():
-            key_list = ['base_model', 'prompt_type', 'prompt_dict'] + list(kwargs['other_model_state_defaults'].keys())
+            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(
+                kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
             if len(model_states) >= 1:
@@ -5736,7 +5800,7 @@ def go_gradio(**kwargs):
                 if len(srs) > 0:
                     sr = srs[0]
                     audios = [x['audio'] for x in audios]
-                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'])
+                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                     yield dict(audio=audios, sr=sr)
 
         def wrap_pred_func_plain_api(*args1):
@@ -5837,11 +5901,98 @@ def go_gradio(**kwargs):
                                           outputs=login_outputs)
         if load_func and auth:
             if not kwargs['large_file_count_mode']:
-                load_event3 = load_event2.then(**get_sources_kwargs)
+                get_sources_fun_kwargs_login = get_sources_fun_kwargs.copy()
+                get_sources_fun_kwargs_login['for_login'] = True
+                get_sources1_login = functools.partial(get_sources_gr, **get_sources_fun_kwargs_login)
+                get_sources_kwargs_login = dict(fn=get_sources1_login,
+                                                inputs=[my_db_state, selection_docs_state, requests_state,
+                                                        langchain_mode,
+                                                        h2ogpt_key],
+                                                outputs=[file_source, docs_state, text_doc_count],
+                                                queue=queue)
+                load_event3 = load_event2.then(**get_sources_kwargs_login)
                 load_event4 = load_event3.then(fn=update_dropdown, inputs=docs_state, outputs=document_choice)
-                load_event5 = load_event4.then(**show_sources_kwargs)
-                load_event6 = load_event5.then(**get_viewable_sources_args)
+                show_sources1_fun_kwargs_login = show_sources1_fun_kwargs.copy()
+                show_sources1_fun_kwargs_login['for_login'] = True
+                show_sources1_login = functools.partial(get_source_files_given_langchain_mode_gr,
+                                                        **show_sources1_fun_kwargs_login,
+                                                        )
+                show_sources_kwargs_login = dict(fn=show_sources1_login,
+                                                 inputs=[my_db_state, selection_docs_state, requests_state,
+                                                         langchain_mode,
+                                                         h2ogpt_key],
+                                                 outputs=sources_text)
+                load_event5 = load_event4.then(**show_sources_kwargs_login)
+
+                get_viewable_sources1_fun_kwargs_login = get_viewable_sources1_fun_kwargs.copy()
+                get_viewable_sources1_fun_kwargs_login['for_login'] = True
+                get_viewable_sources1_login = functools.partial(get_sources_gr,
+                                                                **get_viewable_sources1_fun_kwargs_login)
+                get_viewable_sources_args_login = dict(fn=get_viewable_sources1_login,
+                                                       inputs=[my_db_state, selection_docs_state, requests_state,
+                                                               langchain_mode,
+                                                               h2ogpt_key],
+                                                       outputs=[file_source, viewable_docs_state,
+                                                                text_viewable_doc_count],
+                                                       queue=queue)
+
+                load_event6 = load_event5.then(**get_viewable_sources_args_login)
                 load_event7 = load_event6.then(**viewable_kwargs)
+
+        def wrap_transcribe_func_api(audio_obj1, stream_output1, h2ogpt_key1, requests_state1):
+            # check key
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'],
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1)
+            kwargs['from_ui'] = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
+            audio_api_state0 = ['', '', None, 'on']
+            state_text = kwargs['transcriber_func'](audio_api_state0, audio_obj1)
+            text = state_text[1]
+            yield text
+
+        audio_api_output = gr.Textbox(value='', visible=False)
+        audio_api_input = gr.Textbox(value='', visible=False)
+        audio_api_btn = gr.Button(visible=False)
+        audio_api_btn.click(fn=wrap_transcribe_func_api,
+                     inputs=[audio_api_input, stream_output, h2ogpt_key, requests_state],
+                     outputs=[audio_api_output],
+                     api_name='transcribe_audio_api',
+                     show_progress='hidden')
+
+        def wrap_embedding_func_api(text, h2ogpt_key1, is_list1, requests_state1):
+            # check key
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'],
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1)
+            kwargs['from_ui'] = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
+            assert not kwargs['use_openai_embedding'], "Should not be using OpenAI embeddings."
+            is_list1 = ast.literal_eval(is_list1)
+            if is_list1:
+                text = ast.literal_eval(text)
+            else:
+                text = [text]
+            embedding = kwargs['hf_embedding_model']['model'].embed_documents(text)
+            return embedding
+
+        embed_api_output = gr.Textbox(value='', visible=False)
+        embed_api_input = gr.Textbox(value='', visible=False)
+        embed_api_btn = gr.Button(visible=False)
+        is_list = gr.Textbox(value='False', visible=False)
+        embed_api_btn.click(fn=wrap_embedding_func_api,
+                     inputs=[embed_api_input, h2ogpt_key, is_list, requests_state],
+                     outputs=[embed_api_output],
+                     api_name='embed_api',
+                     show_progress='hidden')
 
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
@@ -5980,7 +6131,13 @@ def go_gradio(**kwargs):
             gradio_port = ':'.join(url_split[1:]).split('/')[0]
         h2ogpt_key1 = get_one_key(kwargs['h2ogpt_api_keys'], kwargs['enforce_h2ogpt_api_key'])
         # ensure can reach out
-        openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
+        if platform.system() in ['Darwin', 'Windows']:
+            openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
+        else:
+            if gradio_host in ['localhost', '127.0.0.1']:
+                openai_host = gradio_host = '0.0.0.0'
+            else:
+                openai_host = gradio_host
         run(wait=False,
             host=openai_host,
             port=kwargs['openai_port'],
@@ -6012,7 +6169,6 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
              use_openai_embedding1=None,
              hf_embedding_model1=None,
              migrate_embedding_model_or_db1=None,
-             auto_migrate_db1=None,
              verbose1=False,
              get_userid_auth1=None,
              max_raw_chunks=1000000,
@@ -6050,7 +6206,6 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
                         use_openai_embedding=use_openai_embedding1,
                         hf_embedding_model=hf_embedding_model1,
                         migrate_embedding_model=migrate_embedding_model_or_db1,
-                        auto_migrate_db=auto_migrate_db1,
                         for_sources_list=True,
                         verbose=verbose1,
                         n_jobs=n_jobs,
@@ -6171,7 +6326,8 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         try:
             with open(file, 'rt') as f:
                 content = f.read()
-            content = f"```text\n{content}\n```"
+            # content = f"```text\n{content}\n```"
+            content = text_to_html(content, api=api)
             return dummy1, dummy1, dummy1, gr.update(visible=True, value=content), dummy1, dummy1, dummy1, dummy1
         except:
             return dummy_ret
@@ -6349,7 +6505,6 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    use_openai_embedding=None,
                    hf_embedding_model=None,
                    migrate_embedding_model=None,
-                   auto_migrate_db=None,
                    verbose=False,
                    get_userid_auth=None,
                    api=False,
@@ -6357,6 +6512,7 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                    enforce_h2ogpt_api_key=True,
                    enforce_h2ogpt_ui_key=True,
                    h2ogpt_api_keys=[],
+                   for_login=False,
                    ):
     valid_key = is_valid_key(enforce_h2ogpt_api_key,
                              enforce_h2ogpt_ui_key,
@@ -6366,7 +6522,11 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                              )
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
-        raise ValueError(invalid_key_msg)
+        if for_login:
+            sources_file = make_sources_file(langchain_mode, '')
+            return sources_file, [], ''
+        else:
+            raise ValueError(invalid_key_msg)
 
     from src.gpt_langchain import get_sources
     sources_file, source_list, num_chunks, num_sources_str, db = \
@@ -6377,7 +6537,6 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     use_openai_embedding=use_openai_embedding,
                     hf_embedding_model=hf_embedding_model,
                     migrate_embedding_model=migrate_embedding_model,
-                    auto_migrate_db=auto_migrate_db,
                     verbose=verbose,
                     get_userid_auth=get_userid_auth,
                     n_jobs=n_jobs,
@@ -6400,13 +6559,13 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              use_openai_embedding=None,
                                              hf_embedding_model=None,
                                              migrate_embedding_model=None,
-                                             auto_migrate_db=None,
                                              verbose=False,
                                              get_userid_auth=None,
                                              n_jobs=-1,
                                              enforce_h2ogpt_api_key=True,
                                              enforce_h2ogpt_ui_key=True,
                                              h2ogpt_api_keys=[],
+                                             for_login=False,
                                              ):
     valid_key = is_valid_key(enforce_h2ogpt_api_key,
                              enforce_h2ogpt_ui_key,
@@ -6416,7 +6575,10 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                              )
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
-        raise ValueError(invalid_key_msg)
+        if for_login:
+            return "Sources: N/A"
+        else:
+            raise ValueError(invalid_key_msg)
 
     from src.gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, None,
@@ -6427,7 +6589,6 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  use_openai_embedding=use_openai_embedding,
                                                  hf_embedding_model=hf_embedding_model,
                                                  migrate_embedding_model=migrate_embedding_model,
-                                                 auto_migrate_db=auto_migrate_db,
                                                  verbose=verbose,
                                                  get_userid_auth=get_userid_auth,
                                                  delete_sources=False,
@@ -6443,7 +6604,6 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                              use_openai_embedding=None,
                                              hf_embedding_model=None,
                                              migrate_embedding_model=None,
-                                             auto_migrate_db=None,
                                              verbose=False,
                                              get_userid_auth=None,
                                              n_jobs=-1,
@@ -6470,7 +6630,6 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
                                                  use_openai_embedding=use_openai_embedding,
                                                  hf_embedding_model=hf_embedding_model,
                                                  migrate_embedding_model=migrate_embedding_model,
-                                                 auto_migrate_db=auto_migrate_db,
                                                  verbose=verbose,
                                                  get_userid_auth=get_userid_auth,
                                                  delete_sources=True,
@@ -6502,7 +6661,6 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                         hf_embedding_model=None,
                                                         use_openai_embedding=None,
                                                         migrate_embedding_model=None,
-                                                        auto_migrate_db=None,
                                                         text_limit=None,
                                                         db_type=None, load_db_if_exists=None,
                                                         n_jobs=None, verbose=None, get_userid_auth=None,
@@ -6568,7 +6726,6 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
                                                             hf_embedding_model=hf_embedding_model,
                                                             use_openai_embedding=use_openai_embedding,
                                                             migrate_embedding_model=migrate_embedding_model,
-                                                            auto_migrate_db=auto_migrate_db,
                                                             text_limit=text_limit,
                                                             db_type=db_type, load_db_if_exists=load_db_if_exists,
                                                             n_jobs=n_jobs, verbose=verbose,

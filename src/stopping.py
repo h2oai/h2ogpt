@@ -1,9 +1,43 @@
+import os
 import time
 
 import torch
-from transformers import StoppingCriteria, StoppingCriteriaList
+from transformers import StoppingCriteria, StoppingCriteriaList, GenerationConfig
 
 from enums import PromptType, t5_type
+from src.prompter_utils import get_use_chat_template
+
+
+def update_terminate_responses(terminate_response, tokenizer=None, trust_remote_code=True):
+    # FIXME: make trust_remote_code passed in from above, but generation config should be relatively safe
+    if terminate_response is None:
+        terminate_response = []
+    if tokenizer is not None:
+        # e.g. for dbrx
+        if hasattr(tokenizer, 'added_tokens_encoder') and '<|im_end|>' in tokenizer.added_tokens_encoder:
+            terminate_response.extend(['<|im_end|>'])
+        if hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
+            if isinstance(tokenizer.eos_token, str):
+                terminate_response.extend([tokenizer.eos_token])
+            elif isinstance(tokenizer.eos_token, list):
+                terminate_response.extend(tokenizer.eos_token)
+
+        if hasattr(tokenizer, 'name_or_path') and hasattr(tokenizer, 'vocab'):
+            reverse_vocab = {v: k for k, v in tokenizer.vocab.items()}
+            generate_eos_token_id = GenerationConfig.from_pretrained(tokenizer.name_or_path,
+                                                                     token=os.getenv('HUGGING_FACE_HUB_TOKEN'),
+                                                                     trust_remote_code=trust_remote_code,
+
+                                                                     ).eos_token_id
+            if isinstance(generate_eos_token_id, list):
+                for eos_token_id in generate_eos_token_id:
+                    terminate_response.extend([reverse_vocab[eos_token_id]])
+            else:
+                terminate_response.extend([reverse_vocab[generate_eos_token_id]])
+        terminate_response_tmp = terminate_response.copy()
+        terminate_response.clear()
+        [terminate_response.append(x) for x in terminate_response_tmp if x not in terminate_response]
+    return terminate_response
 
 
 class StoppingCriteriaSub(StoppingCriteria):
@@ -51,9 +85,11 @@ class StoppingCriteriaSub(StoppingCriteria):
         if self.truncation_generation and (
                 self.model_max_length is not None and input_ids[0].shape[0] >= self.model_max_length):
             # critical limit
+            # print("Stopped 2", flush=True)
             return True
-        # print("Tokens: %s" % input_ids[0].cpu().numpy(), flush=True)
+        # print("Tokens: %s: %s" % (len(input_ids[0].cpu().numpy()), input_ids[0].cpu().numpy()), flush=True)
         # print("Stop Tokens: %s" % [x.cpu().numpy() for x in self.stops], flush=True)
+        # print("Not stopping", flush=True)
         return False
 
 
@@ -132,6 +168,8 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
         encounters += [1] * len(stop)
         handle_newlines += [False] * len(stop)
 
+    stop_words = update_terminate_responses(stop_words, tokenizer=tokenizer)
+
     # get stop tokens
     stop_words_ids = [
         tokenizer(stop_word, return_tensors='pt')['input_ids'].squeeze() for stop_word in stop_words]
@@ -149,7 +187,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
     if tokenizer._bos_token:  # use hidden variable to avoid annoying properly logger bug
         stop_words_ids = [x[1:] if x[0] == tokenizer.bos_token_id and len(x) > 1 else x for x in stop_words_ids]
         stop_words_ids = [x[:-1] if x[-1] == tokenizer.bos_token_id and len(x) > 1 else x for x in stop_words_ids]
-    if base_model and t5_type(base_model):
+    if base_model and t5_type(base_model) and hasattr(tokenizer, 'vocab'):
         # T5 encoder converts internal double space to space+new line, so fix
         for stopi, stop_word_id in enumerate(stop_words_ids):
             start = stop_word_id[0:1]

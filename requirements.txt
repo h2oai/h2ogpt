@@ -1,10 +1,13 @@
-# for generate (gradio server) and finetune
-datasets==2.16.1
-sentencepiece==0.2.0
 # no websockets, more cloud friendly
 # able to make gradio clean-up states
-gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.25.0-py3-none-any.whl
-gradio_client @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_client-0.15.0-py3-none-any.whl
+
+# gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.25.0-py3-none-any.whl
+# gradio_client @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_client-0.15.0-py3-none-any.whl
+#gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.20.1-py3-none-any.whl
+#gradio_client==0.11.0
+gradio @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio-4.26.0-py3-none-any.whl
+gradio_client @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_client-0.15.1-py3-none-any.whl
+
 sse_starlette==1.8.2
 # consrained by tokenizers etc.:
 huggingface_hub>=0.12.4
@@ -23,14 +26,20 @@ scikit-learn>=1.2.2
 numpy>=1.23.4,<2.0
 pandas>=2.0.2
 matplotlib>=3.7.1
-loralib>=0.1.1
-bitsandbytes>=0.41.0
-accelerate>=0.28.0
+
+# transformers
+loralib>=0.1.2
+bitsandbytes>=0.43.1
+accelerate>=0.29.3
 peft>=0.7.0
-transformers>=4.39.2
-tokenizers>=0.15.2
-APScheduler>=3.10.1
+transformers>=4.40.0
+tokenizers>=0.19.0
 hf_transfer>=0.1.6
+optimum>=1.17.1
+datasets>=2.18.0
+sentencepiece>=0.2.0
+
+APScheduler>=3.10.1
 
 # optional for generate
 pynvml>=11.5.0
@@ -61,12 +70,15 @@ instructorembedding>=1.0.1
 # for gpt4all .env file, but avoid worrying about imports
 python-dotenv>=1.0.0
 
+json_repair>=0.13.0
+
 text-generation>=0.7.0
+
 # for tokenization when don't have HF tokenizer
 tiktoken>=0.5.2
 
 # optional: for OpenAI endpoint
-openai>=1.12.0
+openai>=1.27.0
 
 requests>=2.31.0
 httpx>=0.24.1
