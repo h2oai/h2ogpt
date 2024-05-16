@@ -6704,6 +6704,31 @@ def go_gradio(**kwargs):
                 load_event6 = load_event5.then(**get_viewable_sources_args_login)
                 load_event7 = load_event6.then(**viewable_kwargs)
 
+        def wrap_transcribe_func_api(audio_obj1, stream_output1, h2ogpt_key1, requests_state1):
+            # check key
+            valid_key = is_valid_key(kwargs['enforce_h2ogpt_api_key'],
+                                     kwargs['enforce_h2ogpt_ui_key'],
+                                     kwargs['h2ogpt_api_keys'],
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1)
+            kwargs['from_ui'] = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+
+            audio_api_state0 = ['', '', None, 'on']
+            state_text = kwargs['transcriber_func'](audio_api_state0, audio_obj1)
+            text = state_text[1]
+            yield text
+
+        audio_api_output = gr.Textbox(value='', visible=False)
+        audio_api_input = gr.Textbox(value='', visible=False)
+        audio_api_btn = gr.Button(visible=False)
+        audio_api_btn.click(fn=wrap_transcribe_func_api,
+                     inputs=[audio_api_input, stream_output, h2ogpt_key, requests_state],
+                     outputs=[audio_api_output],
+                     api_name='transcribe_audio_api',
+                     show_progress='hidden')
+
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
     favicon_path = kwargs['favicon_path'] or favicon_file

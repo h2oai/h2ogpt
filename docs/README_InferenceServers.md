@@ -276,7 +276,7 @@ where `<key>` should be replaced by your OpenAI key that probably starts with `s
 
 ### Text to Speech
 
-h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True`, respecitively. h2oGPT's OpenAI Proxy server follows OpenAI API for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
+h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True` as well as `--pre_load_image_audio_models=True`, respectively. h2oGPT's OpenAI Proxy server follows OpenAI API for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
 ```python
 from openai import OpenAI
 from pathlib import Path
