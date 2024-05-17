@@ -1,4 +1,5 @@
 import ast
+import copy
 import functools
 import json
 import os
@@ -17,14 +18,39 @@ from src.evaluate_params import input_args_list, eval_func_param_names, key_over
 
 
 def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, kwargs={},
-                    my_db_state1=my_db_state0,
-                    selection_docs_state1=selection_docs_state0,
-                    requests_state1=requests_state0,
-                    roles_state1=roles_state0,
+                    my_db_state1=None,
+                    selection_docs_state1=None,
+                    requests_state1=None,
+                    roles_state1=None,
                     model_states=[],
                     is_public=False,
                     verbose=False,
                     **kwargs1):
+    if my_db_state1 is None:
+        if 'my_db_state0' in kwargs1 and kwargs1['my_db_state0'] is not None:
+            my_db_state1 = kwargs1['my_db_state0']
+        else:
+            my_db_state1 = copy.deepcopy(my_db_state0)
+    if selection_docs_state1 is None:
+        if 'selection_docs_state0' in kwargs1 and kwargs1['selection_docs_state0'] is not None:
+            selection_docs_state1 = kwargs1['selection_docs_state0']
+        else:
+            selection_docs_state1 = copy.deepcopy(selection_docs_state0)
+    if requests_state1 is None:
+        if 'requests_state0' in kwargs1 and kwargs1['requests_state0'] is not None:
+            requests_state1 = kwargs1['requests_state0']
+        else:
+            requests_state1 = copy.deepcopy(requests_state0)
+    if roles_state1 is None:
+        if 'roles_state0' in kwargs1 and kwargs1['roles_state0'] is not None:
+            roles_state1 = kwargs1['roles_state0']
+        else:
+            roles_state1 = copy.deepcopy(roles_state0)
+    kwargs_eval_pop_keys = ['selection_docs_state0', 'requests_state0', 'roles_state0']
+    for k in kwargs_eval_pop_keys:
+        if k in kwargs1:
+            kwargs1.pop(k)
+
     image_files_to_delete = []
     args_list = list(args1)
     if str_api:
