@@ -1549,8 +1549,8 @@ Microsoft  Word developed RTF for document transportability and gives a user acc
             assert db is not None
             docs = db.similarity_search("How was this document created?")
             assert len(docs) >= 1
-            assert 'Microsoft' in docs[1].page_content
-            assert os.path.normpath(docs[1].metadata['source']) == os.path.normpath(test_file1)
+            assert 'Microsoft' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(test_file1)
     kill_weaviate(db_type)
 
 
