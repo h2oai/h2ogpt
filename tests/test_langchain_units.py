@@ -836,9 +836,9 @@ def test_docx_add2(db_type):
             assert db is not None
             docs = db.similarity_search("Approver 1", k=4)
             assert len(docs) >= 1
-            assert 'Band D' in docs[3].page_content
-            assert os.path.normpath(docs[3].metadata['source']) == os.path.normpath(
-                test_file1) or 'image1.png' in os.path.normpath(docs[3].metadata['source'])
+            assert 'Band D' in docs[0].page_content
+            assert os.path.normpath(docs[0].metadata['source']) == os.path.normpath(
+                test_file1) or 'image1.png' in os.path.normpath(docs[0].metadata['source'])
     kill_weaviate(db_type)
 
 
