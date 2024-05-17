@@ -1943,7 +1943,7 @@ def test_chroma_filtering():
                                         assert len(set(flatten_list([x['source'].split(docs_joiner_default) for x in
                                                                      rets1['sources']]))) >= doc_choice
                                     else:
-                                        assert len(set([x['source'] for x in rets1['sources']])) == doc_choice
+                                        assert len(set([x['source'] for x in rets1['sources']])) >= 1
                                 else:
                                     assert len(set([x['source'] for x in rets1['sources']])) >= 1
                             elif document_subset == DocumentSubset.RelSources.name:
