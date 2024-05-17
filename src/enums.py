@@ -604,3 +604,5 @@ selection_docs_state0 = dict(langchain_modes=langchain_modes0,
 requests_state0 = dict(headers='', host='', username='')
 roles_state0 = dict()
 none = ['', '\n', None]
+nonelist = [None, '', 'None']
+noneset = set(nonelist)

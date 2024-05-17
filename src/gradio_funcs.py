@@ -8,7 +8,8 @@ import uuid
 import filelock
 
 from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
-    DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0
+    DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset
+from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
     get_accordion_named
 from src.db_utils import length_db1
@@ -372,13 +373,14 @@ def visible_models_to_model_choice(visible_models1, model_states1, api=False):
     return model_active_choice1
 
 
-def clear_embeddings(langchain_mode1, db_type, db1s, dbs):
+def clear_embeddings(langchain_mode1, db_type, db1s, dbs=None):
     # clear any use of embedding that sits on GPU, else keeps accumulating GPU usage even if clear torch cache
     if db_type in ['chroma', 'chroma_old'] and langchain_mode1 not in ['LLM', 'Disabled', None, '']:
         from gpt_langchain import clear_embedding, length_db1
-        db = dbs.get('langchain_mode1')
-        if db is not None and not isinstance(db, str):
-            clear_embedding(db)
+        if dbs is not None:
+            db = dbs.get(langchain_mode1)
+            if db is not None and not isinstance(db, str):
+                clear_embedding(db)
         if db1s is not None and langchain_mode1 in db1s:
             db1 = db1s[langchain_mode1]
             if len(db1) == length_db1():
@@ -694,7 +696,7 @@ def choose_exc(x, is_public=True):
         return x
 
 
-def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, verbose=False):
+def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, db_type=None, dbs=None, verbose=False):
     history, fun1, langchain_mode1, db1, requests_state1, \
         valid_key, h2ogpt_key1, \
         max_time1, stream_output1, \

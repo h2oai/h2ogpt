@@ -64,7 +64,7 @@ fix_pydantic_duplicate_validators_error()
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
     LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
-    summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0
+    summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0, noneset
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -4245,9 +4245,6 @@ def go_gradio(**kwargs):
             else:
                 return history_list[0]
 
-        nonelist = [None, '', 'None']
-        noneset = set(nonelist)
-
         def all_bot(*args, retry=False, model_states1=None, all_possible_display_names=None):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
@@ -4487,13 +4484,13 @@ def go_gradio(**kwargs):
                          inputs=inputs_list + [text_output],
                          outputs=text_output,
                          )
-        bot_args = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
+        bot_args = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
                         inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
                                               roles_state] + [
                                    text_output],
                         outputs=[text_output, chat_exception_text, speech_bot],
                         )
-        retry_bot_args = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
+        retry_bot_args = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
                               inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
                                                     roles_state] + [
                                          text_output],
@@ -4515,13 +4512,13 @@ def go_gradio(**kwargs):
                           inputs=inputs_list2 + [text_output2],
                           outputs=text_output2,
                           )
-        bot_args2 = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
+        bot_args2 = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
                          inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state,
                                                 roles_state] + [
                                     text_output2],
                          outputs=[text_output2, chat_exception_text, speech_bot2],
                          )
-        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
+        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
                                inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
                                                       requests_state, roles_state] + [
                                           text_output2],
