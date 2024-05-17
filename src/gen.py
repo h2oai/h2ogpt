@@ -78,7 +78,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     langchain_modes0, langchain_mode_types0, langchain_mode_paths0, \
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
-    json_schema_instruction0, json_code_prompt_if_no_schema0
+    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -2346,18 +2346,21 @@ def main(
             hasattr(model_state0['tokenizer'], 'model_max_length'):
         max_seq_len = model_state0['tokenizer'].model_max_length
 
+    local_kwargs = locals().copy()
+    local_kwargs['my_db_state0'] = my_db_state0
+
     # run
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, **locals().copy()))
+        return run_cli(**get_kwargs(run_cli, **local_kwargs))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, **locals().copy()))
+        return run_eval(**get_kwargs(run_eval, **local_kwargs))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
         # assume gradio needs everything
-        go_gradio(**locals().copy())
+        go_gradio(**local_kwargs)
 
 
 def get_config(base_model,
