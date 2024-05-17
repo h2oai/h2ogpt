@@ -2714,13 +2714,16 @@ def test_client_curated_base_models(base_model, stream_output):
 
     stream_output = True
     from src.gen import main
-    main(base_model=base_model,
+    main_kwargs = dict(base_model=base_model,
          inference_server='' if base_model not in openai_gpts else 'openai_chat',
          chat=True,
          stream_output=stream_output,
          gradio=True, num_beams=1, block_gradio_exit=False,
          score_model='',
          verbose=True)
+    if 'resolve' in base_model:
+        main_kwargs['prompt_type'] = 'llama2'
+    main(**main_kwargs)
 
     from src.client_test import get_client
     # serialize=False would lead to returning dict for some objects or files for get_sources
@@ -4931,7 +4934,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     base_models = get_inf_models(inference_server)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
     model_lock = []
-    model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2'))
+    model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
     for base_model in base_models:
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
