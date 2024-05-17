@@ -398,7 +398,7 @@ def modify_wav_header(wav_bytes):
 
     # Get current size (which we will fake)
     original_size = int.from_bytes(wav_bytes[4:8], byteorder='little')
-    print("Original size:", original_size)
+    # print("Original size:", original_size)
 
     # Calculate fake size (Maximum value for 32-bit unsigned int minus 8)
     fake_size = (2**30 - 1) - 8
