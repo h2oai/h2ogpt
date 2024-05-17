@@ -400,8 +400,7 @@ async def handle_audio_to_speech(
         from openai_server.backend import text_to_audio
 
         async def generator():
-            response = text_to_audio(**dict(audio_request))
-            for chunk in response:
+            for chunk in text_to_audio(**dict(audio_request)):
                 disconnected = await request.is_disconnected()
                 if disconnected:
                     break

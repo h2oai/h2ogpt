@@ -79,7 +79,7 @@ def run(wait=True, **kwargs):
 
         process = subprocess.Popen(command, stdout=subprocess.PIPE)
         for c in iter(lambda: process.stdout.read(1), b''):
-            sys.stdout.write(c.decode('utf-8'))  # Ensure decoding from bytes to str
+            sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
     elif wait:
         print("Single-worker OpenAI Proxy uvicorn in this thread: %s" % kwargs['workers'])
         run_server(**kwargs)
