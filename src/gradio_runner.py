@@ -27,7 +27,7 @@ from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 
 from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, fix_text_for_gradio, get_response, \
     my_db_state_done, update_langchain_mode_paths, process_audio, is_valid_key, is_from_ui, get_llm_history, prep_bot, \
-    allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain
+    allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain, bot, choose_exc
 
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
@@ -4248,120 +4248,6 @@ def go_gradio(**kwargs):
         nonelist = [None, '', 'None']
         noneset = set(nonelist)
 
-        def choose_exc(x):
-            # don't expose ports etc. to exceptions window
-            if is_public:
-                return "Endpoint unavailable or failed"
-            else:
-                return x
-
-        def bot(*args, retry=False):
-            history, fun1, langchain_mode1, db1, requests_state1, \
-                valid_key, h2ogpt_key1, \
-                max_time1, stream_output1, \
-                chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
-                langchain_action1 = prep_bot(*args, retry=retry, kwargs_eval=kwargs_evaluate, kwargs=kwargs, verbose=verbose)
-            save_dict = dict()
-            error = ''
-            error_with_str = ''
-            sources = []
-            history_str_old = ''
-            error_old = ''
-            sources_str = None
-            from src.tts_utils import get_no_audio
-            no_audio = get_no_audio()
-            audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
-            last_yield = None
-            try:
-                tgen0 = time.time()
-                for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
-                                        tts_speed1,
-                                        langchain_action1,
-                                        kwargs=kwargs,
-                                        api=False,
-                                        verbose=verbose,
-                                        ):
-                    do_yield = False
-                    history, error, sources, sources_str, prompt_raw, llm_answers, save_dict, audio1 = res
-                    error_with_str = get_accordion_named(choose_exc(error), "Generate Error",
-                                                         font_size=2) if error not in ['', None, 'None'] else ''
-
-                    # pass back to gradio only these, rest are consumed in this function
-                    history_str = str(history)
-                    could_yield = (
-                            history_str != history_str_old or
-                            error != error_old and
-                            (error not in noneset or
-                             error_old not in noneset))
-                    if kwargs['gradio_ui_stream_chunk_size'] <= 0:
-                        do_yield |= could_yield
-                    else:
-                        delta_history = abs(len(history_str) - len(history_str_old))
-                        # even if enough data, don't yield if has been less than min_seconds
-                        enough_data = delta_history > kwargs['gradio_ui_stream_chunk_size'] or (error != error_old)
-                        beyond_min_time = last_yield is None or \
-                                          last_yield is not None and \
-                                          (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_min_seconds']
-                        do_yield |= enough_data and beyond_min_time
-                        # yield even if new data not enough if been long enough and have at least something to yield
-                        enough_time = last_yield is None or \
-                                      last_yield is not None and \
-                                      (time.time() - last_yield) > kwargs['gradio_ui_stream_chunk_seconds']
-                        do_yield |= enough_time and could_yield
-                        # DEBUG: print("do_yield: %s : %s %s %s %s" % (do_yield, delta_history, enough_data, beyond_min_time, enough_time), flush=True)
-                    if stream_output1 and do_yield:
-                        audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
-                                                expect_bytes=kwargs['return_as_byte'], verbose=verbose)
-                        audios = []  # reset accumulation
-
-                        yield history, error, audio1
-                        history_str_old = history_str
-                        error_old = error
-                        last_yield = time.time()
-                    else:
-                        audios.append(audio1)
-
-                    if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
-                        if verbose:
-                            print("Took too long bot: %s" % (time.time() - tgen0), flush=True)
-                        break
-
-                # yield if anything left over
-                final_audio = combine_audios(audios, audio=no_audio,
-                                             expect_bytes=kwargs['return_as_byte'], verbose=verbose)
-                if error_with_str:
-                    if history and history[-1] and len(history[-1]) == 2 and error_with_str:
-                        if not history[-1][1]:
-                            history[-1][1] = error_with_str
-                        else:
-                            # separate bot if already text present
-                            history.append((None, error_with_str))
-                if kwargs['append_sources_to_chat'] and sources_str:
-                    history.append((None, sources_str))
-
-                yield history, error, final_audio
-            except BaseException as e:
-                print("evaluate_nochat exception: %s: %s" % (str(e), str(args)), flush=True)
-                raise
-            finally:
-                clear_torch_cache(allow_skip=True)
-                clear_embeddings(langchain_mode1, db_type, db1, dbs)
-
-            # save
-            if 'extra_dict' not in save_dict:
-                save_dict['extra_dict'] = {}
-            save_dict['valid_key'] = valid_key
-            save_dict['h2ogpt_key'] = h2ogpt_key1
-            if requests_state1:
-                save_dict['extra_dict'].update(requests_state1)
-            else:
-                save_dict['extra_dict'].update(dict(username='NO_REQUEST'))
-            save_dict['error'] = error
-            save_dict['sources'] = sources
-            save_dict['which_api'] = 'bot'
-            save_dict['save_dir'] = kwargs['save_dir']
-            save_generate_output(**save_dict)
-
         def all_bot(*args, retry=False, model_states1=None, all_possible_display_names=None):
             args_list = list(args).copy()
             chatbots = args_list[-len(model_states1):]
@@ -4562,7 +4448,7 @@ def go_gradio(**kwargs):
                 final_audio = combine_audios(audios, audio=no_audio,
                                              expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                 # add error accordion
-                for boti, bot in enumerate(bots):
+                for boti, bot1 in enumerate(bots):
                     if bots[boti] and bots[boti][-1] and len(bots[boti][-1]) == 2 and exceptions_each_str[boti]:
                         if not bots[boti][-1][1]:
                             bots[boti][-1][1] = exceptions_each_str[boti]
@@ -4601,13 +4487,13 @@ def go_gradio(**kwargs):
                          inputs=inputs_list + [text_output],
                          outputs=text_output,
                          )
-        bot_args = dict(fn=bot,
+        bot_args = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
                         inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
                                               roles_state] + [
                                    text_output],
                         outputs=[text_output, chat_exception_text, speech_bot],
                         )
-        retry_bot_args = dict(fn=functools.partial(bot, retry=True),
+        retry_bot_args = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
                               inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
                                                     roles_state] + [
                                          text_output],
@@ -4629,13 +4515,13 @@ def go_gradio(**kwargs):
                           inputs=inputs_list2 + [text_output2],
                           outputs=text_output2,
                           )
-        bot_args2 = dict(fn=bot,
+        bot_args2 = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
                          inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state,
                                                 roles_state] + [
                                     text_output2],
                          outputs=[text_output2, chat_exception_text, speech_bot2],
                          )
-        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True),
+        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, verbose=verbose),
                                inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
                                                       requests_state, roles_state] + [
                                           text_output2],
