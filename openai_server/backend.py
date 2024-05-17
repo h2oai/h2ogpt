@@ -555,7 +555,7 @@ def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
         yield dict(text=text.strip())
 
 
-def text_to_audio(model, voice, input, stream, format, **kwargs):
+def text_to_audio(model, voice, input, stream, response_format, **kwargs):
     # tts_model = 'microsoft/speecht5_tts'
     # tts_model = 'tts_models/multilingual/multi-dataset/xtts_v2'
     # assumes enable_tts=True set for h2oGPT
@@ -591,20 +591,20 @@ def text_to_audio(model, voice, input, stream, format, **kwargs):
 
         n = 0
         for audio_str in job:
-            yield audio_str_to_bytes(audio_str, format=format)
+            yield audio_str_to_bytes(audio_str, response_format=response_format)
             n += 1
 
         # get rest after job done
         outputs = job.outputs().copy()
         for audio_str in outputs[n:]:
-            yield audio_str_to_bytes(audio_str, format=format)
+            yield audio_str_to_bytes(audio_str, response_format=response_format)
             n += 1
     else:
         audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')
-        yield audio_str_to_bytes(audio_str, format=format)
+        yield audio_str_to_bytes(audio_str, response_format=response_format)
 
 
-def audio_str_to_bytes(audio_str1, format='wav'):
+def audio_str_to_bytes(audio_str1, response_format='wav'):
     # Parse the input string to a dictionary
     audio_dict = ast.literal_eval(audio_str1)
 
@@ -630,7 +630,7 @@ def audio_str_to_bytes(audio_str1, format='wav'):
 
     # Export the AudioSegment to a BytesIO object as WAV
     output_stream = io.BytesIO()
-    audio_segment.export(output_stream, format=format)
+    audio_segment.export(output_stream, format=response_format)
     output_bytes = output_stream.getvalue()
 
     return output_bytes

@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 import ast
@@ -383,10 +384,42 @@ class AudioTextRequest(BaseModel):
     model: str = ''
     voice: str = ''  # overrides both chatbot_role and speaker if set
     input: str
+    response_format: str = 'wav'  # "mp3", "opus", "aac", "flac", "wav", "pcm"
     stream: bool = True
+    stream_strip: bool = True
     chatbot_role: str = "Female AI Assistant"  # Coqui TTS
     speaker: str = "SLT (female)"  # Microsoft TTS
-    format: str = 'wav'
+
+
+def modify_wav_header(wav_bytes):
+    # Ensure the bytes start with the 'RIFF' identifier
+    if wav_bytes[:4] != b'RIFF':
+        raise ValueError("This is not a valid WAV file.")
+
+    # Get current size (which we will fake)
+    original_size = int.from_bytes(wav_bytes[4:8], byteorder='little')
+    print("Original size:", original_size)
+
+    # Calculate fake size (Maximum value for 32-bit unsigned int minus 8)
+    fake_size = (2**30 - 1) - 8
+    modified_size_bytes = fake_size.to_bytes(4, byteorder='little')
+
+    # Replace the original size with the fake size in the RIFF header
+    modified_wav_bytes = wav_bytes[:4] + modified_size_bytes + wav_bytes[8:]
+
+    # Find the 'data' chunk and modify its size too
+    data_chunk_pos = modified_wav_bytes.find(b'data')
+    if data_chunk_pos == -1:
+        raise ValueError("Data chunk not found in WAV file.")
+
+    # Set a large fake size for the data chunk as well
+    modified_wav_bytes = (
+        modified_wav_bytes[:data_chunk_pos + 4] +  # 'data' text
+        modified_size_bytes +  # fake size for data chunk
+        modified_wav_bytes[data_chunk_pos + 8:]  # rest of data
+    )
+
+    return modified_wav_bytes
 
 
 @app.post('/v1/audio/speech', dependencies=check_key)
@@ -405,39 +438,24 @@ async def handle_audio_to_speech(
                 disconnected = await request.is_disconnected()
                 if disconnected:
                     break
-                print("yield: %s" % chunk[:10], flush=True)
 
+                if chunki == 0 and audio_request.response_format == 'wav':
+                    # pretend longer than is, like OpenAI does
+                    chunk = modify_wav_header(chunk)
                 # h2oGPT sends each chunk as full object, we need rest to be raw data without header for real streaming
-                if chunki > 0:
+                if chunki > 0 and audio_request.stream_strip:
                     from pydub import AudioSegment
-                    import io
-                    if audio_request.format == 'wav':
-                        func = AudioSegment.from_wav
-                    elif audio_request.format == 'ogg':
-                        func = AudioSegment.from_ogg
-                    elif audio_request.format == 'flv':
-                        func = AudioSegment.from_flv
-                    elif audio_request.format == 'mp3':
-                        func = AudioSegment.from_mp3
-                    else:
-                        raise NotImplementedError(f"Unsupported audio format: {audio_request.format}")
-                    chunk = func(io.BytesIO(chunk))
-                    chunk = chunk.raw_data
+                    chunk = AudioSegment.from_file(io.BytesIO(chunk), format=audio_request.response_format).raw_data
+
                 yield chunk
                 chunki += 1
-        if audio_request.format == 'wav':
-            return StreamingResponse(generator(), media_type="audio/wav")
-        else:
-            return StreamingResponse(generator(), media_type="audio/%s" % audio_request.format)
+        return StreamingResponse(generator(), media_type="audio/%s" % audio_request.response_format)
     else:
         from openai_server.backend import text_to_audio
         response = ''
         for response1 in text_to_audio(**dict(audio_request)):
             response = response1
-        if audio_request.format == 'wav':
-            return Response(content=response, media_type="audio/wav")
-        else:
-            return Response(content=response, media_type="audio/%s" % audio_request.format)
+        return Response(content=response, media_type="audio/%s" % audio_request.response_format)
 
 
 class ImageGenerationRequest(BaseModel):

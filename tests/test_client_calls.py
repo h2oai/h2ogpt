@@ -4607,16 +4607,13 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     print(text)
     assert 'Chirpy' in text
 
-    from pathlib import Path
-    speech_file_path = Path(__file__).parent / "test_speech.wav"
-    response = openai_client.audio.speech.create(
-        model="tts-1",
-        voice="SLT (female)",
-        input=text,
-    )
+    speech_file_path = run_sound_test0(openai_client, text)
 
-    response.stream_to_file(speech_file_path)
-    playsound_wav(speech_file_path)
+    run_sound_test1(openai_client)
+
+    run_sound_test2(openai_client)
+
+    run_sound_test3(openai_client)
 
     with open(speech_file_path, "rb") as audio_file:
         transcription = openai_client.audio.transcriptions.create(
@@ -4708,6 +4705,126 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     assert len(response.data[0].embedding) == 768
     print(response.data[1].embedding)
     assert len(response.data[1].embedding) == 768
+
+
+def run_sound_test0(client, text):
+    speech_file_path = "test_speech.wav"
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="SLT (female)",
+        input=text,
+    )
+    response.stream_to_file(speech_file_path)
+    playsound_wav(speech_file_path)
+    return speech_file_path
+
+
+def run_sound_test1(client):
+    with client.audio.speech.with_streaming_response.create(
+            model="tts-1",
+            voice="",
+            extra_body=dict(stream=True,
+                            chatbot_role="Female AI Assistant",
+                            speaker="SLT (female)",
+                            stream_strip=True,
+                            ),
+            response_format='wav',
+            input="Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+    ) as response:
+        response.stream_to_file("speech_local.wav")
+    playsound_wav("speech_local.wav")
+
+
+def run_sound_test2(client):
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="",
+        extra_body=dict(stream=False,
+                        chatbot_role="Female AI Assistant",
+                        speaker="SLT (female)",
+                        format='wav',
+                        ),
+        input="Today is a wonderful day to build something people love! " * 10,
+    )
+    # as warnings say, below doesn't actually stream
+    response.stream_to_file("speech_local2.wav")
+    playsound_wav("speech_local2.wav")
+
+
+def run_sound_test3(client):
+    import httpx
+    import pygame
+
+    import pygame.mixer
+
+    pygame.mixer.init(frequency=16000, size=-16, channels=1)
+
+    sound_queue = []
+
+    def play_audio(audio):
+        import io
+        from pydub import AudioSegment
+
+        sr = 16000
+        s = io.BytesIO(audio)
+        channels = 1
+        sample_width = 2
+
+        audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+        sound = pygame.mixer.Sound(io.BytesIO(audio.raw_data))
+        sound_queue.append(sound)
+        sound.play()
+
+        # Wait for the audio to finish playing
+        duration_ms = sound.get_length() * 1000  # Convert seconds to milliseconds
+        pygame.time.wait(int(duration_ms))
+
+    # Ensure to clear the queue when done to free memory and resources
+    def clear_queue():
+        global sound_queue
+        for sound in sound_queue:
+            sound.stop()
+        sound_queue = []
+
+    # Initialize OpenAI
+    # api_key = 'EMPTY'
+    # import openai
+    # client = openai.OpenAI(api_key=api_key)
+
+    # Set up the request headers and parameters
+    headers = {
+        "Authorization": f"Bearer {client.api_key}",
+        "Content-Type": "application/json",
+    }
+    data = {
+        "model": "tts-1",
+        "voice": "SLT (female)",
+        "input": "Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+        "stream": "true",
+        "stream_strip": "false",
+    }
+
+    # base_url = "https://api.openai.com/v1"
+    base_url = "http://localhost:5000/v1/audio/speech"
+
+    # Start the HTTP session and stream the audio
+    with httpx.Client(timeout=None) as http_client:
+        # Initiate a POST request and stream the response
+        with http_client.stream("POST", base_url, headers=headers, json=data) as response:
+            chunk_riff = b''
+            for chunk in response.iter_bytes():
+                if chunk.startswith(b'RIFF'):
+                    if chunk_riff:
+                        play_audio(chunk_riff)
+                    chunk_riff = chunk
+                else:
+                    chunk_riff += chunk
+            # Play the last accumulated chunk
+            if chunk_riff:
+                play_audio(chunk_riff)
+    # done
+    clear_queue()
+    pygame.quit()
 
 
 @pytest.mark.parametrize("base_model", [
