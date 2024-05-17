@@ -46,8 +46,6 @@ def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, exp
     no_audio = get_no_audio(sr=sr)
     have_audio = any(x not in [no_audio, None, ''] for x in audios) or audio not in [no_audio, None, '']
     if not have_audio:
-        if verbose:
-            print("end0 combine audios")
         return no_audio
 
     if audio or audios:

@@ -69,7 +69,7 @@ def run_server(host: str = '0.0.0.0',
 def run(wait=True, **kwargs):
     print(kwargs)
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
-        print("Multi-worker uvicorn: %s" % kwargs['workers'])
+        print("Multi-worker OpenAI Proxy uvicorn: %s" % kwargs['workers'])
         # avoid CUDA forking
         command = ['python', 'openai_server/server_start.py']
         # Convert the kwargs to command line arguments
@@ -81,8 +81,10 @@ def run(wait=True, **kwargs):
         for c in iter(lambda: process.stdout.read(1), b''):
             sys.stdout.write(c.decode('utf-8'))  # Ensure decoding from bytes to str
     elif wait:
+        print("Single-worker OpenAI Proxy uvicorn in this thread: %s" % kwargs['workers'])
         run_server(**kwargs)
     else:
+        print("Single-worker OpenAI Proxy uvicorn in new thread: %s" % kwargs['workers'])
         Thread(target=run_server, kwargs=kwargs, daemon=True).start()
 
 
