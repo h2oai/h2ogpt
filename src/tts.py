@@ -148,8 +148,8 @@ def generate_speech(response, speaker,
         if verbose:
             print("end _predict_from_text")
     else:
-        if verbose:
-            print("no audio")
+        #if verbose:
+        #    print("no audio")
         no_audio = get_no_audio(sr=sr, return_as_byte=return_as_byte)
         if return_gradio:
             import gradio as gr
