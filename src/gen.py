@@ -2016,7 +2016,8 @@ def main(
                                                        processor=processor_tts,
                                                        model=model_tts,
                                                        return_as_byte=return_as_byte,
-                                                       vocoder=vocoder_tts)
+                                                       vocoder=vocoder_tts,
+                                                       verbose=verbose)
             generate_speech_func = functools.partial(generate_speech,
                                                      processor=processor_tts,
                                                      model=model_tts,
