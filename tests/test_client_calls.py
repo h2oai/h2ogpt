@@ -4780,11 +4780,9 @@ def run_sound_test3(client):
         pygame.time.wait(int(duration_ms))
 
     # Ensure to clear the queue when done to free memory and resources
-    def clear_queue():
-        global sound_queue
+    def clear_queue(sound_queue):
         for sound in sound_queue:
             sound.stop()
-        sound_queue = []
 
     # Initialize OpenAI
     # api_key = 'EMPTY'
@@ -4823,7 +4821,7 @@ def run_sound_test3(client):
             if chunk_riff:
                 play_audio(chunk_riff)
     # done
-    clear_queue()
+    clear_queue(sound_queue)
     pygame.quit()
 
 
