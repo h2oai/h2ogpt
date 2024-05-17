@@ -400,12 +400,31 @@ async def handle_audio_to_speech(
         from openai_server.backend import text_to_audio
 
         async def generator():
+            chunki = 0
             for chunk in text_to_audio(**dict(audio_request)):
                 disconnected = await request.is_disconnected()
                 if disconnected:
                     break
-                yield chunk
+                print("yield: %s" % chunk[:10], flush=True)
 
+                # h2oGPT sends each chunk as full object, we need rest to be raw data without header for real streaming
+                if chunki > 0:
+                    from pydub import AudioSegment
+                    import io
+                    if audio_request.format == 'wav':
+                        func = AudioSegment.from_wav
+                    elif audio_request.format == 'ogg':
+                        func = AudioSegment.from_ogg
+                    elif audio_request.format == 'flv':
+                        func = AudioSegment.from_flv
+                    elif audio_request.format == 'mp3':
+                        func = AudioSegment.from_mp3
+                    else:
+                        raise NotImplementedError(f"Unsupported audio format: {audio_request.format}")
+                    chunk = func(io.BytesIO(chunk))
+                    chunk = chunk.raw_data
+                yield chunk
+                chunki += 1
         if audio_request.format == 'wav':
             return StreamingResponse(generator(), media_type="audio/wav")
         else:
