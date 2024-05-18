@@ -350,11 +350,9 @@ def play_audio(audio):
 
 
 # Ensure to clear the queue when done to free memory and resources
-def clear_queue():
-    global sound_queue
+def clear_queue(sound_queue):
     for sound in sound_queue:
         sound.stop()
-    sound_queue = []
 
 
 api_key = 'EMPTY'
@@ -394,7 +392,7 @@ with httpx.Client(timeout=None) as http_client:
         if chunk_riff:
             play_audio(chunk_riff)
 # done
-clear_queue()
+clear_queue(sound_queue)
 pygame.quit()
 ```
 
