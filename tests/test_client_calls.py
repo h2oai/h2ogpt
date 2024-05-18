@@ -5375,6 +5375,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                   h2ogpt_key=h2ogpt_key,
                   response_format=response_format,
                   guided_json=guided_json,
+                  guided_whitespace_pattern=None,
                   )
     res_dict = {}
     if stream_output:
