@@ -434,7 +434,7 @@ prompt_orion1 = "<s>Human: Go to the market?\n\nAssistant: </s>"
                              ('orion', '', prompt_orion1),
                              ('gemma', '', get_prompt_from_messages(messages_no_context, model='google/gemma-7b-it')),
                              # then baked in system prompt
-                             ('qwen', 'You are a helpful assistant', get_prompt_from_messages(messages_no_context, model='Qwen/Qwen1.5-72B-Chat')),
+                             ('qwen', 'You are a helpful assistant.', get_prompt_from_messages(messages_no_context, model='Qwen/Qwen1.5-72B-Chat')),
                          ]
                          )
 @wrap_test_forked

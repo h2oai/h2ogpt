@@ -3,8 +3,6 @@ import os
 import sqlite3
 import uuid
 
-import filelock
-
 from src.enums import LangChainMode
 
 

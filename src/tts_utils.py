@@ -40,13 +40,15 @@ def get_no_audio(return_as_byte=True, return_nonbyte_as_file=False, sr=None):
             return sr, np.array([]).astype(np.int16)
 
 
-def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, expect_bytes=True):
+def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, expect_bytes=True, verbose=False):
     no_audio = get_no_audio(sr=sr)
     have_audio = any(x not in [no_audio, None, ''] for x in audios) or audio not in [no_audio, None, '']
     if not have_audio:
         return no_audio
 
     if audio or audios:
+        if verbose:
+            print("begin combine audios")
         is_bytes = expect_bytes  # force default as bytes no matter input if know should have been bytes
         if audios:
             is_bytes |= isinstance(audios[0], (bytes, bytearray))
@@ -64,8 +66,12 @@ def combine_audios(audios, audio=None, channels=1, sample_width=2, sr=24000, exp
             combined_wav += AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
         if is_bytes:
             combined_wav = combined_wav.export(format='raw').read()
+        if verbose:
+            print("end1 combine audios")
         return combined_wav
     # audio just empty stream, but not None, else would nuke audio
+    if verbose:
+        print("end2 combine audios")
     return audio
 
 

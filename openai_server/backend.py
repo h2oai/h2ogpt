@@ -8,7 +8,7 @@ import uuid
 from collections import deque
 
 import filelock
-from pydub import AudioSegment
+import numpy as np
 
 from log import logger
 from openai_server.backend_utils import convert_messages_to_structure
@@ -87,14 +87,16 @@ def get_gradio_client(user=None):
         auth_kwargs = dict()
     print("OpenAI user: %s" % auth_kwargs, flush=True)
 
-    if auth_kwargs is not None:
-        print("Getting gradio client at %s" % gradio_url, flush=True)
+    if auth_kwargs:
+        print("Getting gradio client at %s with auth" % gradio_url, flush=True)
         client = Client(gradio_url, **auth_kwargs)
         if concurrent_client:
             client.setup()
     else:
-        print("Can't get gradio client at %s yet, no auth" % gradio_url, flush=True)
-        client = None
+        print("Getting non-user gradio client at %s" % gradio_url, flush=True)
+        client = Client(gradio_url)
+        if concurrent_client:
+            client.setup()
     return client
 
 
@@ -104,7 +106,7 @@ gradio_client = get_gradio_client()
 def get_client(user=None):
     # concurrent gradio client
     if gradio_client is None or user is not None:
-        assert user is not None, "Need user set to username:password"
+        # assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
     elif hasattr(gradio_client, 'clone'):
         client = gradio_client.clone()
@@ -162,6 +164,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     # max_tokens=16 for text completion by default
     gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
     gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
+    gen_kwargs['top_p'] = gen_kwargs.get('top_p', 1.0)
+    gen_kwargs['top_k'] = gen_kwargs.get('top_k', 1)
+    gen_kwargs['seed'] = gen_kwargs.get('seed', 0)
 
     if gen_kwargs.get('do_sample') in [False, None]:
         # be more like OpenAI, only temperature, not do_sample, to control
@@ -193,6 +198,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         gen_kwargs['response_format'] = gen_kwargs.get('response_format').type
 
     kwargs.update(**gen_kwargs)
+
+    if gen_kwargs.get('skip_gradio'):
+        fun_with_dict_str_plain
 
     # concurrent gradio client
     client = get_client(user=gen_kwargs.get('user'))
@@ -353,8 +361,12 @@ def completions_action(body: dict, stream_output=False):
             total_prompt_token_count += token_count
 
             response = deque(get_response(prompt, gen_kwargs), maxlen=1).pop()
-            completion_token_count = count_tokens(response)
-            total_completion_token_count += completion_token_count
+            if isinstance(response, str):
+                completion_token_count = count_tokens(response)
+                total_completion_token_count += completion_token_count
+            else:
+                # assume image
+                total_completion_token_count = 1500
             stop_reason = "stop"
 
             res_idx = {
@@ -456,7 +468,94 @@ def get_model_list():
     return dict(model_names=base_models)
 
 
-def text_to_audio(model, voice, input, stream, format, **kwargs):
+def split_audio_on_silence(audio_bytes):
+    from pydub import AudioSegment
+    from pydub.silence import split_on_silence
+
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
+    chunks = split_on_silence(audio, min_silence_len=500, silence_thresh=-40, keep_silence=200)
+
+    chunk_bytes = []
+    for chunk in chunks:
+        chunk_buffer = io.BytesIO()
+        chunk.export(chunk_buffer, format="wav")
+        chunk_bytes.append(chunk_buffer.getvalue())
+
+    return chunk_bytes
+
+
+def split_audio_fixed_intervals(audio_bytes, interval_ms=10000):
+    from pydub import AudioSegment
+
+    audio = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
+    chunks = [audio[i:i + interval_ms] for i in range(0, len(audio), interval_ms)]
+
+    chunk_bytes = []
+    for chunk in chunks:
+        chunk_buffer = io.BytesIO()
+        chunk.export(chunk_buffer, format="wav")
+        chunk_bytes.append(chunk_buffer.getvalue())
+
+    return chunk_bytes
+
+
+def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+    if chunk != 'none':
+        # break-up audio file
+        if chunk == 'silence':
+            audio_files = split_audio_on_silence(audio_file)
+        else:
+            audio_files = split_audio_fixed_intervals(audio_file, interval_ms=chunk)
+
+        for audio_file1 in audio_files:
+            for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
+                yield text
+    else:
+        for text in _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+            yield text
+
+
+def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+    # assumes enable_stt=True set for h2oGPT
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
+        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+
+    client = get_client(kwargs.get('user'))
+    h2ogpt_key = kwargs.get('h2ogpt_key', '')
+
+    # string of dict for input
+    if not isinstance(audio_file, str):
+        audio_file = base64.b64encode(audio_file).decode('utf-8')
+
+    inputs = dict(audio_file=audio_file, stream_output=stream, h2ogpt_key=h2ogpt_key)
+    if stream:
+        job = client.submit(*tuple(list(inputs.values())), api_name='/transcribe_audio_api')
+
+        # ensure no immediate failure (only required for testing)
+        import concurrent.futures
+        try:
+            e = job.exception(timeout=0.2)
+            if e is not None:
+                raise RuntimeError(e)
+        except concurrent.futures.TimeoutError:
+            pass
+
+        n = 0
+        for text in job:
+            yield dict(text=text.strip())
+            n += 1
+
+        # get rest after job done
+        outputs = job.outputs().copy()
+        for text in outputs[n:]:
+            yield dict(text=text.strip())
+            n += 1
+    else:
+        text = client.predict(*tuple(list(inputs.values())), api_name='/transcribe_audio_api')
+        yield dict(text=text.strip())
+
+
+def text_to_audio(model, voice, input, stream, response_format, **kwargs):
     # tts_model = 'microsoft/speecht5_tts'
     # tts_model = 'tts_models/multilingual/multi-dataset/xtts_v2'
     # assumes enable_tts=True set for h2oGPT
@@ -464,7 +563,7 @@ def text_to_audio(model, voice, input, stream, format, **kwargs):
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    client = get_gradio_client(kwargs.get('user'))
+    client = get_client(user=kwargs.get('user'))
     h2ogpt_key = kwargs.get('h2ogpt_key')
 
     if not voice:
@@ -492,20 +591,20 @@ def text_to_audio(model, voice, input, stream, format, **kwargs):
 
         n = 0
         for audio_str in job:
-            yield audio_str_to_bytes(audio_str, format=format)
+            yield audio_str_to_bytes(audio_str, response_format=response_format)
             n += 1
 
         # get rest after job done
         outputs = job.outputs().copy()
         for audio_str in outputs[n:]:
-            yield audio_str_to_bytes(audio_str, format=format)
+            yield audio_str_to_bytes(audio_str, response_format=response_format)
             n += 1
     else:
         audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')
-        yield audio_str_to_bytes(audio_str, format=format)
+        yield audio_str_to_bytes(audio_str, response_format=response_format)
 
 
-def audio_str_to_bytes(audio_str1, format='wav'):
+def audio_str_to_bytes(audio_str1, response_format='wav'):
     # Parse the input string to a dictionary
     audio_dict = ast.literal_eval(audio_str1)
 
@@ -521,6 +620,7 @@ def audio_str_to_bytes(audio_str1, format='wav'):
     sample_width = 2  # Assuming 16-bit samples (2 bytes), adjust if necessary
 
     # Use from_raw to correctly interpret the raw audio data
+    from pydub import AudioSegment
     audio_segment = AudioSegment.from_raw(
         s,
         sample_width=sample_width,
@@ -530,7 +630,45 @@ def audio_str_to_bytes(audio_str1, format='wav'):
 
     # Export the AudioSegment to a BytesIO object as WAV
     output_stream = io.BytesIO()
-    audio_segment.export(output_stream, format=format)
+    audio_segment.export(output_stream, format=response_format)
     output_bytes = output_stream.getvalue()
 
     return output_bytes
+
+
+def list_to_bytes(lst: list) -> str:
+    float_array = np.array(lst, dtype="float32")
+    bytes_array = float_array.tobytes()
+    encoded_bytes = base64.b64encode(bytes_array)
+    ascii_string = encoded_bytes.decode('ascii')
+    return ascii_string
+
+
+def text_to_embedding(model, text, encoding_format, **kwargs):
+    # assumes enable_stt=True set for h2oGPT
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
+        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+
+    client = get_client(kwargs.get('user'))
+    h2ogpt_key = kwargs.get('h2ogpt_key', '')
+
+    inputs = dict(text=text, h2ogpt_key=h2ogpt_key, is_list=str(isinstance(text, list)))
+    embeddings = client.predict(*tuple(list(inputs.values())), api_name='/embed_api')
+    embeddings = ast.literal_eval(embeddings)
+
+    if encoding_format == "base64":
+        data = [{"object": "embedding", "embedding": list_to_bytes(emb), "index": n} for n, emb in
+                enumerate(embeddings)]
+    else:
+        data = [{"object": "embedding", "embedding": emb.tolist(), "index": n} for n, emb in enumerate(embeddings)]
+
+    response = {
+        "object": "list",
+        "data": data,
+        "model": model,
+        "usage": {
+            "prompt_tokens": 0,
+            "total_tokens": 0,
+        }
+    }
+    return response

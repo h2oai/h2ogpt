@@ -23,6 +23,7 @@ from urllib3.exceptions import ConnectTimeoutError, MaxRetryError, ConnectionErr
 from requests.exceptions import ConnectionError as ConnectionError2
 from requests.exceptions import ReadTimeout as ReadTimeout2
 
+from src.gradio_funcs import merge_chat_conversation_history
 from src.db_utils import fetch_user
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
@@ -74,9 +75,11 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     base_langchain_actions, google_mapping, google_mapping_outputs, generic_prefix, \
     generic_postfix, mistralai_mapping, mistralai_mapping_outputs, langchain_modes_intrinsic, valid_imagechange_models, \
     valid_imagegen_models, valid_imagestyle_models, groq_mapping, \
+    langchain_modes0, langchain_mode_types0, langchain_mode_paths0, \
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
-    json_schema_instruction0, json_code_prompt_if_no_schema0
+    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0
+
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, FakeTokenizer, \
@@ -259,6 +262,8 @@ def main(
         gradio: bool = True,
         openai_server: bool = True,
         openai_port: int = 5001 if sys.platform == "darwin" else 5000,
+        openai_workers: int = 1,
+
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
         share: bool = False,
@@ -386,10 +391,9 @@ def main(
 
         langchain_mode: str = None,
         user_path: str = None,
-        langchain_modes: list = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value,
-                                 LangChainMode.DISABLED.value],
-        langchain_mode_paths: dict = {LangChainMode.USER_DATA.value: None},
-        langchain_mode_types: dict = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value},
+        langchain_modes: list = langchain_modes0,
+        langchain_mode_paths: dict = langchain_mode_paths0,
+        langchain_mode_types: dict = langchain_mode_types0,
         detect_user_path_changes_every_query: bool = False,
         update_selection_state_from_cli: bool = True,
 
@@ -512,7 +516,7 @@ def main(
         guided_regex: str = '',
         guided_choice: str = '',
         guided_grammar: str = '',
-        guided_whitespace_pattern: str = ' ',
+        guided_whitespace_pattern: str = None,
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
@@ -793,6 +797,7 @@ def main(
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
            Disabled if API is disabled or --auth=closed
     :param openai_port: port for OpenAI proxy server
+    :param openai_workers: number of workers for OpenAI (1 means 1 worker, 0 means all physical cores, else choose)
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.
@@ -1346,7 +1351,8 @@ def main(
     tts_stop_phrases = str_to_list(tts_stop_phrases)
     visible_image_models = str_to_list(visible_image_models)
     image_gpu_ids = str_to_list(image_gpu_ids)
-    assert len(image_gpu_ids) == len(visible_image_models)
+    if image_gpu_ids:
+        assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
         metadata_in_context = []
     if seed is None:
@@ -1358,7 +1364,7 @@ def main(
     assert isinstance(guided_regex, str)
     assert isinstance(guided_choice, str)
     assert isinstance(guided_grammar, str)
-    assert isinstance(guided_whitespace_pattern, str)
+    assert isinstance(guided_whitespace_pattern, (type(None), str))
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -2010,7 +2016,8 @@ def main(
                                                        processor=processor_tts,
                                                        model=model_tts,
                                                        return_as_byte=return_as_byte,
-                                                       vocoder=vocoder_tts)
+                                                       vocoder=vocoder_tts,
+                                                       verbose=verbose)
             generate_speech_func = functools.partial(generate_speech,
                                                      processor=processor_tts,
                                                      model=model_tts,
@@ -2131,7 +2138,6 @@ def main(
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
-    my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)
@@ -2340,18 +2346,21 @@ def main(
             hasattr(model_state0['tokenizer'], 'model_max_length'):
         max_seq_len = model_state0['tokenizer'].model_max_length
 
+    local_kwargs = locals().copy()
+    local_kwargs['my_db_state0'] = my_db_state0
+
     # run
     if cli:
         from cli import run_cli
-        return run_cli(**get_kwargs(run_cli, **locals().copy()))
+        return run_cli(**get_kwargs(run_cli, **local_kwargs))
     elif not gradio:
         from eval import run_eval
-        return run_eval(**get_kwargs(run_eval, **locals().copy()))
+        return run_eval(**get_kwargs(run_eval, **local_kwargs))
     elif gradio or prepare_offline_level > 0:
         # imported here so don't require gradio to run generate
         from gradio_runner import go_gradio
         # assume gradio needs everything
-        go_gradio(**locals().copy())
+        go_gradio(**local_kwargs)
 
 
 def get_config(base_model,
@@ -3750,7 +3759,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources=[], save_dict=dict(extra_dict=dict(base_model='')),
+    yield dict(response=invalid_key_msg, sources=[], save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
                llm_answers=dict(response_raw=invalid_key_msg), response_no_refs=invalid_key_msg,
                sources_str='', audio=None, prompt_raw='INVALID')
     return
@@ -3984,6 +3993,9 @@ def evaluate(
         extract_frames = extract_frames0
     if seed is None:
         seed = 0
+    if guided_whitespace_pattern == '':
+        # translate empty string to None
+        guided_whitespace_pattern = None
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)
@@ -4016,6 +4028,9 @@ def evaluate(
         if isinstance(visible_image_models, list):
             assert len(visible_image_models) > 0, "visible_image_models is empty"
             visible_image_models = visible_image_models[0]
+        if visible_image_models == '' and image_model_dict:
+            # choose first if nothing passed
+            visible_image_models = list(image_model_dict.keys())[0]
         image_model_dict = image_model_dict[visible_image_models]
         pipe, make_image = image_model_dict['pipe'], image_model_dict['make_image']
 
@@ -4247,7 +4262,6 @@ def evaluate(
                 guided_json_properties = {}
         else:
             guided_json_properties = guided_json or {}
-        guided_whitespace_pattern = guided_whitespace_pattern or ' '
         assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
         if 'properties' in guided_json_properties:
             guided_json_properties = guided_json_properties['properties']
@@ -4665,8 +4679,9 @@ def evaluate(
                                      )
             try:
                 if inf_type in ['vllm', 'vllm_chat'] and chosen_model_state['json_vllm']:
+                    response_format_real = response_format if guided_json and response_format == 'json_object' else 'text'
                     vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                          response_format='json_object' if guided_json else 'text',
+                                                          response_format=response_format_real,
                                                           guided_json=guided_json,
                                                           guided_regex=guided_regex,
                                                           guided_choice=guided_choice,
@@ -5981,26 +5996,6 @@ def get_minmax_top_k_docs(is_public, from_ui):
         max_top_k_docs = 1000
         label_top_k_docs = label_top_k_docs + " (-1 = auto fill model context, all pages/docs for summarize)"
     return min_top_k_docs, max_top_k_docs, label_top_k_docs
-
-
-def merge_chat_conversation_history(chat_conversation1, history):
-    # chat_conversation and history ordered so largest index of list is most recent
-    if chat_conversation1:
-        chat_conversation1 = str_to_list(chat_conversation1)
-        for conv1 in chat_conversation1:
-            assert isinstance(conv1, (list, tuple))
-            assert len(conv1) == 2
-
-    if isinstance(history, list):
-        # make copy so only local change
-        if chat_conversation1:
-            # so priority will be newest that comes from actual chat history from UI, then chat_conversation
-            history = chat_conversation1 + history.copy()
-    elif chat_conversation1:
-        history = chat_conversation1
-    else:
-        history = []
-    return history
 
 
 def remove_refs(text, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot):
