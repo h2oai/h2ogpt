@@ -4677,8 +4677,9 @@ def evaluate(
                                      )
             try:
                 if inf_type in ['vllm', 'vllm_chat'] and chosen_model_state['json_vllm']:
+                    response_format_real = response_format if guided_json and response_format == 'json_object' else 'text'
                     vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
-                                                          response_format='json_object' if guided_json else 'text',
+                                                          response_format=response_format_real,
                                                           guided_json=guided_json,
                                                           guided_regex=guided_regex,
                                                           guided_choice=guided_choice,

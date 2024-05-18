@@ -2610,10 +2610,11 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
 
         if json_vllm:
+            response_format_real = response_format if guided_json and response_format == 'json_object' else 'text'
             vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                                   stop_sequences=prompter.stop_sequences if prompter else [],
                                                   # repetition_penalty=repetition_penalty,  # could pass
-                                                  response_format='json_object' if guided_json else 'text',
+                                                  response_format=response_format_real,
                                                   guided_json=guided_json,
                                                   guided_regex=guided_regex,
                                                   guided_choice=guided_choice,
@@ -2646,12 +2647,14 @@ def get_llm(use_openai_model=False,
                 model_kwargs.update(vllm_extra_dict)
             else:
                 if is_json_model(model_name, inference_server) and response_format == 'json_object':
+                    # Not vllm, guided_json not required
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             if 'response_format' not in azure_kwargs and \
                     response_format == 'json_object' and \
                     is_json_model(model_name, inference_server):
+                # NOTE: not vllm, guided_json not required for json_object
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2838,6 +2841,7 @@ def get_llm(use_openai_model=False,
             # https://docs.mistral.ai/platform/client/#json-mode
             # odd outputs for mistral-medium and mistral-tiny as of 04/02/2024
             # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
+            # Not vllm, guided_json not required
             kwargs_extra.update(dict(response_format=dict(type=response_format)))
 
         llm = cls(model=model_name,
