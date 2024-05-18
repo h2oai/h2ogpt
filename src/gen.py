@@ -3759,7 +3759,7 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources=[], save_dict=dict(extra_dict=dict(base_model='')),
+    yield dict(response=invalid_key_msg, sources=[], save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
                llm_answers=dict(response_raw=invalid_key_msg), response_no_refs=invalid_key_msg,
                sources_str='', audio=None, prompt_raw='INVALID')
     return
