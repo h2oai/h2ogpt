@@ -4945,6 +4945,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             inference_server=inference_server,
             base_model=base_model,
             visible_models=base_model,
+            max_seq_len=4096,
         ))
 
     if temperature < 0:
