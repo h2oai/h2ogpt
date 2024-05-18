@@ -8,7 +8,7 @@ from tests.utils import wrap_test_forked
 
 
 def launch_openai_server():
-    from openai_server.server import run
+    from openai_server.server_start import run
     run()
 
 
@@ -38,18 +38,20 @@ def test_openai_client_test2(stream_output, chat, local_server):
 
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
-@pytest.mark.parametrize("local_server", [True])
+@pytest.mark.parametrize("local_server", [True])  # choose False if start local server
+@pytest.mark.parametrize("openai_workers", [1, 0])  # choose 0 to test multi-worker case
 @pytest.mark.parametrize("prompt", ["Who are you?", "Tell a very long kid's story about birds."])
 @pytest.mark.parametrize("api_key", [None, "EMPTY", os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @pytest.mark.parametrize("repeat", list(range(0, repeat0)))
 @wrap_test_forked
-def test_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat):
-    run_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat)
+def test_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat):
+    run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat)
 
 
-def run_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat):
+def run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat):
     base_model = 'openchat/openchat-3.5-1210'
+    # base_model = 'gemini-pro'
 
     if local_server:
         from src.gen import main
@@ -62,6 +64,7 @@ def run_openai_client(stream_output, chat, local_server, prompt, api_key, enforc
              enforce_h2ogpt_api_key=enforce_h2ogpt_api_key,
              # or use file with h2ogpt_api_keys=h2ogpt_api_keys.json
              h2ogpt_api_keys=[api_key] if api_key else None,
+             openai_workers=openai_workers,
              )
         time.sleep(10)
     else:
@@ -91,22 +94,24 @@ def run_openai_client(stream_output, chat, local_server, prompt, api_key, enforc
 
     try:
         test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
-                  prompt, client_kwargs, stream_output, verbose)
-    except AssertionError:
+                  prompt, client_kwargs, stream_output, verbose, base_model)
+    except AssertionError as e:
         if enforce_h2ogpt_api_key and api_key is None:
             print("Expected to fail since no key but enforcing.")
         else:
-            raise
+            raise AssertionError(str(e))
+    except Exception as e:
+            raise RuntimeError(str(e))
 
     # MODELS
     model_info = openai_client.models.retrieve(base_model)
     assert model_info.base_model == base_model
     model_list = openai_client.models.list()
-    assert model_list.data[0] == base_model
+    assert model_list.data[0].id == base_model
 
 
 def test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
-              prompt, client_kwargs, stream_output, verbose):
+              prompt, client_kwargs, stream_output, verbose, base_model):
     # COMPLETION
 
     if chat:
@@ -154,10 +159,16 @@ def test_chat(chat, openai_client, async_client, system_prompt, chat_conversatio
                 print('delta: %s' % delta)
         print(text)
 
-    if "Who" in prompt:
-        assert 'OpenAI' in text or 'chatbot' in text
+    if base_model == 'gemini-pro':
+        if "Who" in prompt:
+            assert 'Google' in text or 'model' in text
+        else:
+            assert 'birds' in text
     else:
-        assert 'birds' in text
+        if "Who" in prompt:
+            assert 'OpenAI' in text or 'chatbot' in text or 'model' in text
+        else:
+            assert 'birds' in text
 
 
 if __name__ == '__main__':

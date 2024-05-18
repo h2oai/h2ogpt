@@ -138,6 +138,14 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'pre_prompt_summary': None,
                  'prompt_summary': None,
                  'hyde_llm_prompt': None,
+
+                 "user_prompt_for_fake_system_prompt": None,
+                 "json_object_prompt": None,
+                 "json_object_prompt_simpler": None,
+                 "json_code_prompt": None,
+                 "json_code_prompt_if_no_schema": None,
+                 "json_schema_instruction": None,
+
                  'system_prompt': 'auto',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),
                  'url_loaders': np.array(['Unstructured'], dtype=object),
@@ -150,7 +158,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'text_context_list': None,
                  'docs_ordering_type': 'best_near_prompt',
                  'min_max_new_tokens': 512,
-                 'max_input_tokens': -1,
+                 'max_input_tokens': 3100 if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b' else -1,
                  'llava_prompt': 'auto',
                  'max_total_input_tokens': -1,
                  'docs_token_handling': 'split_or_merge',
@@ -171,7 +179,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'guided_regex': '',
                  'guided_choice': '',
                  'guided_grammar': '',
-                 'guided_whitespace_pattern': ' ',
+                 'guided_whitespace_pattern': None,
                  }
     if cpu and bits == 32:
         expected1.update({'image_audio_loaders': np.array([], dtype=object)})

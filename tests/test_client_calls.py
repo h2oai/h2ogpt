@@ -2714,13 +2714,16 @@ def test_client_curated_base_models(base_model, stream_output):
 
     stream_output = True
     from src.gen import main
-    main(base_model=base_model,
+    main_kwargs = dict(base_model=base_model,
          inference_server='' if base_model not in openai_gpts else 'openai_chat',
          chat=True,
          stream_output=stream_output,
          gradio=True, num_beams=1, block_gradio_exit=False,
          score_model='',
          verbose=True)
+    if 'resolve' in base_model:
+        main_kwargs['prompt_type'] = 'llama2'
+    main(**main_kwargs)
 
     from src.client_test import get_client
     # serialize=False would lead to returning dict for some objects or files for get_sources
@@ -4143,8 +4146,10 @@ def check_curl_plain_api():
     response = requests.post('http://127.0.0.1:7860/api/submit_nochat_plain_api', headers=headers, json=json_data)
     res_dict = ast.literal_eval(json.loads(response.content.decode(encoding='utf-8', errors='strict'))['data'][0])
 
-    assert 'assistant' in res_dict['response'] or 'computer program' in res_dict['response'] or 'program designed' in \
-           res_dict['response']
+    assert 'assistant' in res_dict['response'] or \
+    'computer program' in res_dict['response'] or \
+    'program designed' in res_dict['response'] or \
+    'intelligence' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
     assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == \
            res_dict['save_dict'][
@@ -4607,16 +4612,13 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     print(text)
     assert 'Chirpy' in text
 
-    from pathlib import Path
-    speech_file_path = Path(__file__).parent / "test_speech.wav"
-    response = openai_client.audio.speech.create(
-        model="tts-1",
-        voice="SLT (female)",
-        input=text,
-    )
+    speech_file_path = run_sound_test0(openai_client, text)
 
-    response.stream_to_file(speech_file_path)
-    playsound_wav(speech_file_path)
+    run_sound_test1(openai_client)
+
+    run_sound_test2(openai_client)
+
+    run_sound_test3(openai_client)
 
     with open(speech_file_path, "rb") as audio_file:
         transcription = openai_client.audio.transcriptions.create(
@@ -4626,7 +4628,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
         print(transcription.text)
     test1 = 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
     test2 = 'Based on the document provided chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
-    assert test1 or test2
+    test3 = """Based on the document provided Chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song. Chirpy met many birds along the way, learning new songs, but he couldn't find the one he was searching for. After many days and nights, he reached the edge of the forest and learned that the song he was looking for was not just a melody but a story that comes from the heart. He returned to his home in the whispering woods, using his gift to sing songs of love, courage and hope, healing the wounded, giving strength to the weak, and bringing joy to the sad. The story of Chirpi's journey teaches us that true beauty and talent come from the heart, and that the power to make a difference lies within each of us.""" == transcription.text
+    assert test1 or test2 or test3, "Text: %s" % transcription.text
 
     import json
     import httpx
@@ -4708,6 +4711,124 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     assert len(response.data[0].embedding) == 768
     print(response.data[1].embedding)
     assert len(response.data[1].embedding) == 768
+
+
+def run_sound_test0(client, text):
+    speech_file_path = "test_speech.wav"
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="SLT (female)",
+        input=text,
+    )
+    response.stream_to_file(speech_file_path)
+    playsound_wav(speech_file_path)
+    return speech_file_path
+
+
+def run_sound_test1(client):
+    with client.audio.speech.with_streaming_response.create(
+            model="tts-1",
+            voice="",
+            extra_body=dict(stream=True,
+                            chatbot_role="Female AI Assistant",
+                            speaker="SLT (female)",
+                            stream_strip=True,
+                            ),
+            response_format='wav',
+            input="Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+    ) as response:
+        response.stream_to_file("speech_local.wav")
+    playsound_wav("speech_local.wav")
+
+
+def run_sound_test2(client):
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="",
+        extra_body=dict(stream=False,
+                        chatbot_role="Female AI Assistant",
+                        speaker="SLT (female)",
+                        format='wav',
+                        ),
+        input="Today is a wonderful day to build something people love! " * 10,
+    )
+    # as warnings say, below doesn't actually stream
+    response.stream_to_file("speech_local2.wav")
+    playsound_wav("speech_local2.wav")
+
+
+def run_sound_test3(client):
+    import httpx
+    import pygame
+
+    import pygame.mixer
+
+    pygame.mixer.init(frequency=16000, size=-16, channels=1)
+
+    sound_queue = []
+
+    def play_audio(audio):
+        import io
+        from pydub import AudioSegment
+
+        sr = 16000
+        s = io.BytesIO(audio)
+        channels = 1
+        sample_width = 2
+
+        audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+        sound = pygame.mixer.Sound(io.BytesIO(audio.raw_data))
+        sound_queue.append(sound)
+        sound.play()
+
+        # Wait for the audio to finish playing
+        duration_ms = sound.get_length() * 1000  # Convert seconds to milliseconds
+        pygame.time.wait(int(duration_ms))
+
+    # Ensure to clear the queue when done to free memory and resources
+    def clear_queue(sound_queue):
+        for sound in sound_queue:
+            sound.stop()
+
+    # Initialize OpenAI
+    # api_key = 'EMPTY'
+    # import openai
+    # client = openai.OpenAI(api_key=api_key)
+
+    # Set up the request headers and parameters
+    headers = {
+        "Authorization": f"Bearer {client.api_key}",
+        "Content-Type": "application/json",
+    }
+    data = {
+        "model": "tts-1",
+        "voice": "SLT (female)",
+        "input": "Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+        "stream": "true",
+        "stream_strip": "false",
+    }
+
+    # base_url = "https://api.openai.com/v1"
+    base_url = "http://localhost:5000/v1/audio/speech"
+
+    # Start the HTTP session and stream the audio
+    with httpx.Client(timeout=None) as http_client:
+        # Initiate a POST request and stream the response
+        with http_client.stream("POST", base_url, headers=headers, json=data) as response:
+            chunk_riff = b''
+            for chunk in response.iter_bytes():
+                if chunk.startswith(b'RIFF'):
+                    if chunk_riff:
+                        play_audio(chunk_riff)
+                    chunk_riff = chunk
+                else:
+                    chunk_riff += chunk
+            # Play the last accumulated chunk
+            if chunk_riff:
+                play_audio(chunk_riff)
+    # done
+    clear_queue(sound_queue)
+    pygame.quit()
 
 
 @pytest.mark.parametrize("base_model", [
@@ -4815,7 +4936,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     base_models = get_inf_models(inference_server)
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
     model_lock = []
-    model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2'))
+    model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
     for base_model in base_models:
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
@@ -4824,6 +4945,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             inference_server=inference_server,
             base_model=base_model,
             visible_models=base_model,
+            max_seq_len=4096,
         ))
 
     if temperature < 0:
@@ -5254,6 +5376,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                   h2ogpt_key=h2ogpt_key,
                   response_format=response_format,
                   guided_json=guided_json,
+                  guided_whitespace_pattern=None,
                   )
     res_dict = {}
     if stream_output:

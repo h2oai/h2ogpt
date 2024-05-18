@@ -1,24 +1,19 @@
-import contextlib
-import logging
+import io
 import os
 import sys
 import ast
 import json
-from threading import Thread
 import time
 from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
-import uvicorn
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import  FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Request, Form, UploadFile, File, Depends
+from fastapi import Request, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
-
-from openai_server.log import logger
 
 sys.path.append('openai_server')
 
@@ -389,10 +384,42 @@ class AudioTextRequest(BaseModel):
     model: str = ''
     voice: str = ''  # overrides both chatbot_role and speaker if set
     input: str
+    response_format: str = 'wav'  # "mp3", "opus", "aac", "flac", "wav", "pcm"
     stream: bool = True
+    stream_strip: bool = True
     chatbot_role: str = "Female AI Assistant"  # Coqui TTS
     speaker: str = "SLT (female)"  # Microsoft TTS
-    format: str = 'wav'
+
+
+def modify_wav_header(wav_bytes):
+    # Ensure the bytes start with the 'RIFF' identifier
+    if wav_bytes[:4] != b'RIFF':
+        raise ValueError("This is not a valid WAV file.")
+
+    # Get current size (which we will fake)
+    original_size = int.from_bytes(wav_bytes[4:8], byteorder='little')
+    # print("Original size:", original_size)
+
+    # Calculate fake size (Maximum value for 32-bit unsigned int minus 8)
+    fake_size = (2**30 - 1) - 8
+    modified_size_bytes = fake_size.to_bytes(4, byteorder='little')
+
+    # Replace the original size with the fake size in the RIFF header
+    modified_wav_bytes = wav_bytes[:4] + modified_size_bytes + wav_bytes[8:]
+
+    # Find the 'data' chunk and modify its size too
+    data_chunk_pos = modified_wav_bytes.find(b'data')
+    if data_chunk_pos == -1:
+        raise ValueError("Data chunk not found in WAV file.")
+
+    # Set a large fake size for the data chunk as well
+    modified_wav_bytes = (
+        modified_wav_bytes[:data_chunk_pos + 4] +  # 'data' text
+        modified_size_bytes +  # fake size for data chunk
+        modified_wav_bytes[data_chunk_pos + 8:]  # rest of data
+    )
+
+    return modified_wav_bytes
 
 
 @app.post('/v1/audio/speech', dependencies=check_key)
@@ -406,26 +433,29 @@ async def handle_audio_to_speech(
         from openai_server.backend import text_to_audio
 
         async def generator():
-            response = text_to_audio(**dict(audio_request))
-            for chunk in response:
+            chunki = 0
+            for chunk in text_to_audio(**dict(audio_request)):
                 disconnected = await request.is_disconnected()
                 if disconnected:
                     break
-                yield chunk
 
-        if audio_request.format == 'wav':
-            return StreamingResponse(generator(), media_type="audio/wav")
-        else:
-            return StreamingResponse(generator(), media_type="audio/%s" % audio_request.format)
+                if chunki == 0 and audio_request.response_format == 'wav':
+                    # pretend longer than is, like OpenAI does
+                    chunk = modify_wav_header(chunk)
+                # h2oGPT sends each chunk as full object, we need rest to be raw data without header for real streaming
+                if chunki > 0 and audio_request.stream_strip:
+                    from pydub import AudioSegment
+                    chunk = AudioSegment.from_file(io.BytesIO(chunk), format=audio_request.response_format).raw_data
+
+                yield chunk
+                chunki += 1
+        return StreamingResponse(generator(), media_type="audio/%s" % audio_request.response_format)
     else:
         from openai_server.backend import text_to_audio
         response = ''
         for response1 in text_to_audio(**dict(audio_request)):
             response = response1
-        if audio_request.format == 'wav':
-            return Response(content=response, media_type="audio/wav")
-        else:
-            return Response(content=response, media_type="audio/%s" % audio_request.format)
+        return Response(content=response, media_type="audio/%s" % audio_request.response_format)
 
 
 class ImageGenerationRequest(BaseModel):
@@ -501,47 +531,3 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
     from openai_server.backend import text_to_embedding
     response = text_to_embedding(model, text, encoding_format)
     return JSONResponse(response)
-
-
-def run_server(host='0.0.0.0',
-               port=5000,
-               ssl_certfile=None,
-               ssl_keyfile=None,
-               gradio_prefix=None,
-               gradio_host=None,
-               gradio_port=None,
-               h2ogpt_key=None,
-               auth=None,
-               auth_access='open',
-               guest_name='',
-               ):
-    os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
-    os.environ['GRADIO_SERVER_HOST'] = gradio_host or '127.0.0.1'
-    os.environ['GRADIO_SERVER_PORT'] = gradio_port or '7860'
-    os.environ['GRADIO_H2OGPT_H2OGPT_KEY'] = h2ogpt_key or ''  # don't use H2OGPT_H2OGPT_KEY, mixes things up
-    # use h2ogpt_key if no server api key, so OpenAI inherits key by default if any keys set and enforced via API for h2oGPT
-    # but OpenAI key cannot be '', so dummy value is EMPTY and if EMPTY we ignore the key in authorization
-    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', os.environ['GRADIO_H2OGPT_H2OGPT_KEY']) or 'EMPTY'
-    os.environ['H2OGPT_OPENAI_API_KEY'] = server_api_key
-
-    os.environ['GRADIO_AUTH'] = str(auth)
-    os.environ['GRADIO_AUTH_ACCESS'] = auth_access
-    os.environ['GRADIO_GUEST_NAME'] = guest_name
-
-    port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
-    ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
-    ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
-
-    prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
-    logger.info(f'OpenAI API URL: {prefix}://{host}:{port}')
-    logger.info(f'OpenAI API key: {server_api_key}')
-
-    logging.getLogger("uvicorn.error").propagate = False
-    uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile)
-
-
-def run(wait=True, **kwargs):
-    if wait:
-        run_server(**kwargs)
-    else:
-        Thread(target=run_server, kwargs=kwargs, daemon=True).start()

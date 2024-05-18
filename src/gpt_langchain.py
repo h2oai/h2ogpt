@@ -2610,10 +2610,11 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
 
         if json_vllm:
+            response_format_real = response_format if guided_json and response_format == 'json_object' else 'text'
             vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                                   stop_sequences=prompter.stop_sequences if prompter else [],
                                                   # repetition_penalty=repetition_penalty,  # could pass
-                                                  response_format='json_object' if guided_json else 'text',
+                                                  response_format=response_format_real,
                                                   guided_json=guided_json,
                                                   guided_regex=guided_regex,
                                                   guided_choice=guided_choice,
@@ -2646,12 +2647,14 @@ def get_llm(use_openai_model=False,
                 model_kwargs.update(vllm_extra_dict)
             else:
                 if is_json_model(model_name, inference_server) and response_format == 'json_object':
+                    # Not vllm, guided_json not required
                     kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             if 'response_format' not in azure_kwargs and \
                     response_format == 'json_object' and \
                     is_json_model(model_name, inference_server):
+                # NOTE: not vllm, guided_json not required for json_object
                 # overrides doc_json_mode if set
                 azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -2838,6 +2841,7 @@ def get_llm(use_openai_model=False,
             # https://docs.mistral.ai/platform/client/#json-mode
             # odd outputs for mistral-medium and mistral-tiny as of 04/02/2024
             # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
+            # Not vllm, guided_json not required
             kwargs_extra.update(dict(response_format=dict(type=response_format)))
 
         llm = cls(model=model_name,
@@ -3753,26 +3757,9 @@ def get_youtube_urls():
     url_prefixes_youtube1 = []
     for x in base:
          url_prefixes_youtube1.extend([
-            'https://%s/watch?v=' % x,
-            'http://www.%s/watch?v=' % x,
-            'www.%s/watch?v=' % x,
-            '%s/watch?v=' % x,
-            'https://%s/watch?v=' % x,
-            'http://%s/watch?v=' % x,
-
-            'https://%s' % x,
-            'http://www.%s' % x,
-            'www.%s' % x,
+            # '%s/watch?v=' % x,
             '%s' % x,
-            'https://%s' % x,
-            'http://%s' % x,
-
-            'https://www.%s/shorts/' % x,
-            'http://www.%s/shorts/' % x,
-            'https://%s/shorts/' % x,
-            'http://%s/shorts/' % x,
-            'www.%s/shorts/' % x,
-            '%s/shorts/' % x,
+            # '%s/shorts/' % x,
         ])
     return set(url_prefixes_youtube1)
 
@@ -3844,8 +3831,7 @@ def file_to_doc(file,
 
 
     is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
-    is_youtube = any(
-        file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
+    is_youtube = any(file_lower.replace('http://', '').replace('https://', '').replace('www.', '').startswith(prefix) for prefix in url_prefixes_youtube)
 
     if is_url and is_txt:
         # decide which
@@ -6142,7 +6128,7 @@ def run_qa_db(**kwargs):
     kwargs['guided_regex'] = kwargs.get('guided_regex', '')
     kwargs['guided_choice'] = kwargs.get('guided_choice', '')
     kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
-    kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', ' ')
+    kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', None)
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 
     kwargs['from_ui'] = kwargs.get('from_ui', True)

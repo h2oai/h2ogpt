@@ -276,21 +276,127 @@ where `<key>` should be replaced by your OpenAI key that probably starts with `s
 
 ### Text to Speech
 
-h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True` as well as `--pre_load_image_audio_models=True`, respectively. h2oGPT's OpenAI Proxy server follows OpenAI API for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
+h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True` as well
+as `--pre_load_image_audio_models=True`, respectively. h2oGPT's OpenAI Proxy server follows OpenAI API
+for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
+
 ```python
 from openai import OpenAI
-from pathlib import Path
 client = OpenAI(base_url='http://0.0.0.0:5000/v1')
 
-speech_file_path = Path(__file__).parent / "speech.mp3"
-response = client.audio.speech.create(
-model="tts-1",
-voice="SLT (female)", # if server has XTT with Microsoft package
-input="Today is a wonderful day to build something people love!"
-)
-
-response.stream_to_file(speech_file_path)
+with client.audio.speech.with_streaming_response.create(
+        model="tts-1",
+        voice="",
+        extra_body=dict(stream=True,
+                        chatbot_role="Female AI Assistant",
+                        speaker="SLT (female)",
+                        stream_strip=True,
+                        ),
+        response_format='wav',
+        input="Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+) as response:
+    response.stream_to_file("speech_local.wav")
 ```
+
+Set `stream=False` to avoid streaming, e.g.:
+```python
+    from openai import OpenAI
+
+    client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+    response = client.audio.speech.create(
+            model="tts-1",
+            voice="",
+            extra_body=dict(stream=False,
+                            chatbot_role="Female AI Assistant",
+                            speaker="SLT (female)",
+                            format='wav',
+                            ),
+            input="Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! ",
+    )
+    response.stream_to_file("speech_local2.wav")
+```
+
+To stream the audio and play during streaming, one can use httpx and pygame:
+```python
+import openai
+import httpx
+import pygame
+
+import pygame.mixer
+
+pygame.mixer.init(frequency=16000, size=-16, channels=1)
+
+sound_queue = []
+
+
+def play_audio(audio):
+    import io
+    from pydub import AudioSegment
+
+    sr = 16000
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+    sound = pygame.mixer.Sound(io.BytesIO(audio.raw_data))
+    sound_queue.append(sound)
+    sound.play()
+
+    # Wait for the audio to finish playing
+    duration_ms = sound.get_length() * 1000  # Convert seconds to milliseconds
+    pygame.time.wait(int(duration_ms))
+
+
+# Ensure to clear the queue when done to free memory and resources
+def clear_queue(sound_queue):
+    for sound in sound_queue:
+        sound.stop()
+
+
+api_key = 'EMPTY'
+
+# Initialize OpenAI and Pygame
+client = openai.OpenAI(api_key=api_key)
+
+# Set up the request headers and parameters
+headers = {
+    "Authorization": f"Bearer {client.api_key}",
+    "Content-Type": "application/json",
+}
+data = {
+    "model": "tts-1",
+    "voice": "SLT (female)",
+    "input": "Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+    "stream": "true",
+    "stream_strip": "false",
+}
+
+# base_url = "https://api.openai.com/v1"
+base_url = "http://localhost:5000/v1/audio/speech"
+
+# Start the HTTP session and stream the audio
+with httpx.Client(timeout=None) as http_client:
+    # Initiate a POST request and stream the response
+    with http_client.stream("POST", base_url, headers=headers, json=data) as response:
+        chunk_riff = b''
+        for chunk in response.iter_bytes():
+            if chunk.startswith(b'RIFF'):
+                if chunk_riff:
+                    play_audio(chunk_riff)
+                chunk_riff = chunk
+            else:
+                chunk_riff += chunk
+        # Play the last accumulated chunk
+        if chunk_riff:
+            play_audio(chunk_riff)
+# done
+clear_queue(sound_queue)
+pygame.quit()
+```
+
+The streaming case writes the file (which could be to some buffer) each chunk (sentence) at a time, while non-streaming case does entire file at once and client waits till end to write the file.  For the streaming case, if it is a wave file, like OpenAI, the server artificially inflates the estimated duration of the audio so player will play through end of the audio.
 
 ### Speech to Text
 
@@ -369,11 +475,25 @@ conda create -n vllm -y
 conda activate vllm
 conda install python=3.10 -y
 ```
+Install required NCCL:
+```bash
+sudo apt update
+sudo apt install libnccl2 libnccl-dev
+```
+Ensure cuda 12.1 installed, and can choose to avoid overwriting original link if want.  E.g. for Ubuntu:
+```bash
+# https://developer.nvidia.com/cuda-12-1-0-download-archive?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local
+ wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
+sudo sh cuda_12.1.0_530.30.02_linux.run
+sudo chmod -R a+rwx /usr/local/
+```
 Assuming torch was installed with CUDA 12.1, and you have installed cuda locally in `/usr/local/cuda-12.1`:
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
-pip install flash-attn==2.5.4
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/lib64:$HOME/extras/CUPTI/lib64
+export PATH=$PATH:$CUDA_HOME/bin
 pip install vllm
 ```
 Then can start in OpenAI compliant mode, e.g. for LLaMa 65B on 2*A100 GPUs:

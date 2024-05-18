@@ -574,7 +574,7 @@ json_object_prompt0 = 'Ensure your entire response is outputted as a single piec
 json_object_prompt_simpler0 = 'Ensure your response is strictly valid JSON text.'
 json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JSON text inside a Markdown code block with the json language identifier.'
 json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
-json_schema_instruction0 = 'Ensure you follow this JSON schema, with the exact key names given:\n```json\n{properties_schema}\n```'
+json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to use the same key names as the schema:\n```json\n{properties_schema}\n```'
 
 coqui_lock_name = 'coqui'
 
@@ -593,4 +593,16 @@ template_prompt_type = 'template'  # for only chat template but not other specia
 
 git_hash_unset = "GET_GITHASH_UNSET"
 
+my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
+langchain_modes0 = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value,
+                                 LangChainMode.DISABLED.value]
+langchain_mode_paths0 = {LangChainMode.USER_DATA.value: None}
+langchain_mode_types0 = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value}
+selection_docs_state0 = dict(langchain_modes=langchain_modes0,
+                             langchain_mode_paths=langchain_mode_paths0,
+                             langchain_mode_types=langchain_mode_types0)
+requests_state0 = dict(headers='', host='', username='')
+roles_state0 = dict()
 none = ['', '\n', None]
+nonelist = [None, '', 'None']
+noneset = set(nonelist)

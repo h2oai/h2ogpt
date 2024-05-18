@@ -1726,7 +1726,7 @@ class Prompter(object):
         :return:
         """
         if self.prompt_type in [template_prompt_type, unknown_prompt_type]:
-            assert self.use_chat_template
+            assert self.use_chat_template, "Please specify prompt_type or pass tokenizer_base_model with chat template"
             assert self.tokenizer is not None
             from src.gen import apply_chat_template
             instruction = data_point['instruction']
