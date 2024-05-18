@@ -797,7 +797,7 @@ def main(
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
            Disabled if API is disabled or --auth=closed
     :param openai_port: port for OpenAI proxy server
-    :param openai_workers: number of workers for OpenAI (1 means
+    :param openai_workers: number of workers for OpenAI (1 means 1 worker, 0 means all physical cores, else choose)
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.
