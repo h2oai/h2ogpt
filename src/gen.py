@@ -516,7 +516,7 @@ def main(
         guided_regex: str = '',
         guided_choice: str = '',
         guided_grammar: str = '',
-        guided_whitespace_pattern: str = ' ',
+        guided_whitespace_pattern: str = None,
 
         asr_model: str = "openai/whisper-medium",
         asr_gpu: bool = True,
@@ -1364,7 +1364,7 @@ def main(
     assert isinstance(guided_regex, str)
     assert isinstance(guided_choice, str)
     assert isinstance(guided_grammar, str)
-    assert isinstance(guided_whitespace_pattern, str)
+    assert isinstance(guided_whitespace_pattern, (type(None), str))
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
     # NOTE: avoid defaults for model_lock, require to be specified
@@ -3993,6 +3993,9 @@ def evaluate(
         extract_frames = extract_frames0
     if seed is None:
         seed = 0
+    if guided_whitespace_pattern == '':
+        # translate empty string to None
+        guided_whitespace_pattern = None
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)
@@ -4259,7 +4262,6 @@ def evaluate(
                 guided_json_properties = {}
         else:
             guided_json_properties = guided_json or {}
-        guided_whitespace_pattern = guided_whitespace_pattern or ' '
         assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
         if 'properties' in guided_json_properties:
             guided_json_properties = guided_json_properties['properties']

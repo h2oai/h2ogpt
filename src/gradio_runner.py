@@ -1713,8 +1713,8 @@ def go_gradio(**kwargs):
                                                                label="guided_grammar",
                                                                info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
                                                                visible=True)
-                        guided_whitespace_pattern = gr.components.Textbox(value=kwargs['guided_whitespace_pattern'],
-                                                               label="guided_whitespace_pattern",
+                        guided_whitespace_pattern = gr.components.Textbox(value=kwargs['guided_whitespace_pattern'] or '',
+                                                               label="guided_whitespace_pattern, emptry string means None",
                                                                info="https://github.com/vllm-project/vllm/pull/4305/files",
                                                                visible=True)
 
