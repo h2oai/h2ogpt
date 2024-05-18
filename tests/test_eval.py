@@ -158,7 +158,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'text_context_list': None,
                  'docs_ordering_type': 'best_near_prompt',
                  'min_max_new_tokens': 512,
-                 'max_input_tokens': -1,
+                 'max_input_tokens': 3100 if base_model == 'h2oai/h2ogpt-oig-oasst1-512-6_9b' else -1,
                  'llava_prompt': 'auto',
                  'max_total_input_tokens': -1,
                  'docs_token_handling': 'split_or_merge',
