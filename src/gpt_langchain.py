@@ -3757,26 +3757,9 @@ def get_youtube_urls():
     url_prefixes_youtube1 = []
     for x in base:
          url_prefixes_youtube1.extend([
-            'https://%s/watch?v=' % x,
-            'http://www.%s/watch?v=' % x,
-            'www.%s/watch?v=' % x,
-            '%s/watch?v=' % x,
-            'https://%s/watch?v=' % x,
-            'http://%s/watch?v=' % x,
-
-            'https://%s' % x,
-            'http://www.%s' % x,
-            'www.%s' % x,
+            # '%s/watch?v=' % x,
             '%s' % x,
-            'https://%s' % x,
-            'http://%s' % x,
-
-            'https://www.%s/shorts/' % x,
-            'http://www.%s/shorts/' % x,
-            'https://%s/shorts/' % x,
-            'http://%s/shorts/' % x,
-            'www.%s/shorts/' % x,
-            '%s/shorts/' % x,
+            # '%s/shorts/' % x,
         ])
     return set(url_prefixes_youtube1)
 
@@ -3848,8 +3831,7 @@ def file_to_doc(file,
 
 
     is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
-    is_youtube = any(
-        file_lower.startswith(prefix) and len(file_lower.split(prefix)) == 2 for prefix in url_prefixes_youtube)
+    is_youtube = any(file_lower.replace('http://', '').replace('https://', '').replace('www.', '').startswith(prefix) for prefix in url_prefixes_youtube)
 
     if is_url and is_txt:
         # decide which
