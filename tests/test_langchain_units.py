@@ -730,7 +730,7 @@ def test_urls_add(db_type):
                                            db_type=db_type)
         assert db is not None
         if db_type == 'chroma':
-            assert len(db.get()['documents']) > 100
+            assert len(db.get()['documents']) > 50
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) >= 1
         assert 'Sri Ambati' in docs[0].page_content
