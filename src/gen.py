@@ -2941,7 +2941,7 @@ def get_model(
             set_model_max_len(max_seq_len, tokenizer, verbose=False)
             # if using fake tokenizer, not really accurate when lots of numbers, give a bit of buffer, else get:
             # Generation Failed: Input validation error: `inputs` must have less than 2048 tokens. Given: 2233
-            tokenizer.model_max_length = int(tokenizer.model_max_length - 50)
+            tokenizer.model_max_length = int(tokenizer.model_max_length - 70)
     else:
         tokenizer = None
 
