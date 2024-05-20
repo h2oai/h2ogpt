@@ -39,7 +39,7 @@ If one wants to choose a specific model, that is not currently possible through 
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
 ```
 
-For TTS, can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  Once envs are added like the below, this won't be required.
+For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, one can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but they would be like:
 ```bash
 -e AUDIO_GENERATION_ENGINE='openai' \
 -e AUDIO_GENERATION_VOICE='SLT (female)' \
