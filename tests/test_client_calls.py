@@ -5414,10 +5414,10 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
             import jsonschema
             jsonschema.validate(mydict, schema=guided_json)
 
-    test_guided_json_chat(client, base_model, kwargs)
+    openai_guided_json(client, base_model, kwargs)
 
 
-def test_guided_json_chat(gradio_client, base_model, kwargs):
+def openai_guided_json(gradio_client, base_model, kwargs):
     import jsonschema
 
     base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
