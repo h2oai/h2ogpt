@@ -24,9 +24,6 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
   - **Authentication** in the UI by user/password via Native or Google OAuth
   - **State Preservation** in the UI by user/password
-* **Open Web UI**
-  - Supports chat completion with streaming, document Q/A, STT, TTS, and image generation
-  - For details see [Start-up Docs](docs/FAQ.md#open-web-ui) and [Open Web UI Github](https://github.com/open-webui/open-webui)
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
@@ -37,6 +34,8 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
+- **Open Web UI** with h2oGPT as backend via OpenAI Proxy
+  - Supports chat completion with streaming, document Q/A, STT, TTS, and image generation.  See [Start-up Docs](docs/FAQ.md#open-web-ui).
 - **Evaluate** performance using reward models
 - **Quality** maintained with over 1000 unit and integration tests taking over 4 GPU-hours
 
