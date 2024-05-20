@@ -162,7 +162,7 @@ guided_choice = [
 ]
 ```
 
-See [Client Test Code](../tests/test_client_calls.py) and code `test_guided_json` for example use.
+See [Client Test Code](../tests/test_client_calls.py) and code `test_guided_json` for example use for both Gradio and OpenAI client APIs.
 
 ### T5 Conditional or Sequence to Sequence models
 
