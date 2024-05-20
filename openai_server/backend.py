@@ -567,15 +567,17 @@ def text_to_audio(model, voice, input, stream, response_format, **kwargs):
     client = get_client(user=kwargs.get('user'))
     h2ogpt_key = kwargs.get('h2ogpt_key')
 
-    if not voice:
-        voice = "SLT (female)"
+    if not voice or voice in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']:
+        # ignore OpenAI voices
+        speaker = "SLT (female)"
         chatbot_role = "Female AI Assistant"
     else:
         # don't know which model used
+        speaker = voice
         chatbot_role = voice
 
     # string of dict for input
-    inputs = dict(chatbot_role=chatbot_role, speaker=voice, tts_language='autodetect', tts_speed=1.0,
+    inputs = dict(chatbot_role=chatbot_role, speaker=speaker, tts_language='autodetect', tts_speed=1.0,
                   prompt=input, stream_output=stream,
                   h2ogpt_key=h2ogpt_key)
     if stream:
