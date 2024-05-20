@@ -195,12 +195,6 @@ Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, St
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
 
-### Inference Benchmarks for Summarization & Generation
-
-* [Benchmark results for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md)
-* [pytest to create benchmark results](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
-* [Raw benchmark results (JSON)](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.json)
-
 ### Resources
 - [Discord](https://discord.gg/WKhYMWcVbq)
 - [Models (LLaMa-2, Falcon 40, etc.) at 🤗](https://huggingface.co/h2oai/)
@@ -297,6 +291,12 @@ These are not part of normal installation instructions and are experimental.
 - [README for LangChain](docs/README_LangChain.md)
 
 - Useful [links](docs/LINKS.md) for additional context and information on competitors, models, and datasets
+
+### Inference Benchmarks for Summarization & Generation
+
+* [Benchmark results for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md)
+* [pytest to create benchmark results](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
+* [Raw benchmark results (JSON)](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.json)
 
 ### Acknowledgements
 
