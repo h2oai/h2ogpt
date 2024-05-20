@@ -153,6 +153,8 @@ guided_choice = [
 ]
 ```
 
+See [Client Test Code](../tests/test_client_calls.py) and code `test_guided_json` for example use.
+
 ### T5 Conditional or Sequence to Sequence models
 
 These can be supported by passing (or setting in the UI):

@@ -30,10 +30,10 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
-- **Inference Servers** support (oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
+- **Inference Servers** [support](docs/README_InferenceServers.md) for oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, Together.ai, OpenAI, Azure OpenAI, Anthropic
 - **OpenAI-compliant**
-  - Server Proxy API (h2oGPT acts as drop-in-replacement to OpenAI server)
-  - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding OpenAI compatible endpoints.
+  - Server Proxy [API](docs/README_CLIENT.md) (h2oGPT acts as drop-in-replacement to OpenAI server)
+  - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding
 - **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
