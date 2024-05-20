@@ -161,7 +161,7 @@ docker run --gpus all \
  --max_new_tokens=1024 \
  --visible_visible_models=False \
  --openai_port=$OPENAI_SERVER_PORT \
- --gradio_offline_level=2 --gradio_offline_level=2
+ --gradio_offline_level=2
 ```
 Depending upon if use links, may require more specific mappings to direct location not linked location that cannot be used, e.g.
 ```bash
