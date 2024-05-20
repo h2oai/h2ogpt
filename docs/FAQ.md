@@ -24,6 +24,8 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e IMAGES_OPENAI_API_KEY='EMPTY' \
 -e AUDIO_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
 -e AUDIO_OPENAI_API_KEY='EMPTY' \
+-e RAG_EMBEDDING_ENGINE='openai' \
+-e RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1' \
 -e OLLAMA_BASE_URL=http://0.0.0.0 \
 -e OLLAMA_HOST=0.0.0.0:5000 \
 -e ENABLE_LITELLM=False \
@@ -31,13 +33,14 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
-For TTS, can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).
-
-At moment, there is not a way to pass via ENV the embedding endpoint for OpenAI (to reach proxy), once that support is added one can include:
+If one wants to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
 ```bash
--e RAG_EMBEDDING_ENGINE='openai' \
 -e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
+```
+
+For TTS, can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  Once envs are added like the below, this won't be required.
+```bash
 -e AUDIO_GENERATION_ENGINE='openai' \
 -e AUDIO_GENERATION_VOICE='SLT (female)' \
 -e OPENAI_API_USER='user:password' \

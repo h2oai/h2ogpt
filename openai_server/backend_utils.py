@@ -19,6 +19,9 @@ def convert_messages_to_structure(messages):
     if not messages:
         return structure['instruction'], structure['system_message'], structure['history']
 
+    # remove empty messages
+    messages = [x for x in messages if x.get("content")]
+
     last_user_message = None
     for message in messages:
         role = message.get("role")

@@ -660,6 +660,8 @@ def text_to_embedding(model, text, encoding_format, **kwargs):
     if encoding_format == "base64":
         data = [{"object": "embedding", "embedding": list_to_bytes(emb), "index": n} for n, emb in
                 enumerate(embeddings)]
+    elif encoding_format == "float":
+        data = [{"object": "embedding", "embedding": emb, "index": n} for n, emb in enumerate(embeddings)]
     else:
         data = [{"object": "embedding", "embedding": emb.tolist(), "index": n} for n, emb in enumerate(embeddings)]
 
