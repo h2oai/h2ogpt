@@ -28,3 +28,5 @@ sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends
 
 # https://github.com/gradio-app/gradio/issues/7086
 sed -i 's/while True:/while True:\n            time.sleep(0.001)\n/g' $sp/gradio_client/client.py
+
+patch $sp/transformers/modeling_utils.py docs/trans.patch

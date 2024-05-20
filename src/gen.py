@@ -2555,7 +2555,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
     elif load_awq:
         allowed_dict = dict(max_new_tokens=None,
                             trust_remote_code=True, fuse_layers=True,
-                            batch_size=1, safetensors=False,
+                            batch_size=1, use_safetensors=False,
                             max_memory=None, offload_folder=None)
         for k in model_kwargs.copy():
             if k not in allowed_dict:
@@ -2566,7 +2566,7 @@ def get_non_lora_model(base_model, model_loader, load_half,
             args = tuple([base_model])
         model = model_loader(
             *args,
-            safetensors=use_safetensors,
+            use_safetensors=use_safetensors,
             **model_kwargs,
         )
     elif load_in_8bit or load_in_4bit or not load_half:
@@ -3545,7 +3545,7 @@ def get_hf_model(load_8bit: bool = False,
                         elif load_awq:
                             allowed_dict = dict(max_new_tokens=None,
                                                 trust_remote_code=True, fuse_layers=True,
-                                                batch_size=1, safetensors=False,
+                                                batch_size=1, use_safetensors=False,
                                                 max_memory=None, offload_folder=None)
                             for k in model_kwargs.copy():
                                 if k not in allowed_dict:
@@ -3556,7 +3556,7 @@ def get_hf_model(load_8bit: bool = False,
                                 args = tuple([base_model])
                             model = model_loader(
                                 *args,
-                                safetensors=use_safetensors,
+                                use_safetensors=use_safetensors,
                                 **model_kwargs,
                             )
                         else:
