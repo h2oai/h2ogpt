@@ -187,7 +187,7 @@ def main(
         use_autogptq: bool = False,
         load_awq: str = '',
         load_exllama: bool = False,
-        use_safetensors: bool = False,
+        use_safetensors: bool = True,
         revision: str = None,
         use_gpu_id: bool = True,
         base_model: str = '',
@@ -2661,7 +2661,7 @@ def get_model_retry(**kwargs):
                     'Could not a find model' in stre or \
                     'safetensors' in stre or \
                     'not appear to have a file named pytorch_model.bin' in stre:
-                kwargs['use_safetensors'] = True
+                kwargs['use_safetensors'] = not kwargs.get('use_safetensors', True)
             if 'current architecture does not support Flash Attention 2' in stre:
                 kwargs['use_flash_attention_2'] = False
             clear_torch_cache()
