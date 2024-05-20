@@ -244,6 +244,48 @@ transcription = client.audio.transcriptions.create(
 print(transcription.text)
 ```
 
+Streaming STT is not natively supported by OpenAI client, but it can still be done via httpx:
+```python
+import json
+import httpx
+import asyncio
+
+async def stream_audio_transcription(file_path, model="default-model"):
+    url = "http://0.0.0.0:5000/v1/audio/transcriptions"
+    headers = {"X-API-KEY": "your-api-key"}
+
+    # Read the audio file
+    with open(file_path, "rb") as f:
+
+        # Create the multipart/form-data payload
+        files = {
+            "file": ("audio.wav", f, "audio/wav"),
+            "model": (None, model),
+            "stream": (None, "true"),  # Note the lowercase "true" as the server checks for this
+            "response_format": (None, "text"),
+            "chunk": (None, "none"),
+        }
+
+        text = ''
+        async with httpx.AsyncClient() as client:
+            async with client.stream("POST", url, headers=headers, files=files, timeout=120) as response:
+                async for line in response.aiter_lines():
+                    # Process each chunk of data as it is received
+                    if line.startswith("data:"):
+                        try:
+                            # Remove "data: " prefix and strip any newlines or trailing whitespace
+                            json_data = json.loads(line[5:].strip())
+                            # Process the parsed JSON data
+                            print('json_data: %s' % json_data)
+                            text += json_data["text"]
+                        except json.JSONDecodeError as e:
+                            print("Error decoding JSON:", e)
+        return text
+# Run the client function
+final_text = asyncio.run(stream_audio_transcription("/home/jon/h2ogpt/tests/test_speech.wav"))
+print(final_text)
+```
+
 ### Image Generation
 
 Requires h2oGPT loaded with `--enable_image=True --pre_load_image_audio_models=True --visible_image_models=['sdxl_turbo']` or some selection of such image generation models.
