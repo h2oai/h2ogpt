@@ -188,6 +188,8 @@ gpt_token_mapping = {
     "gpt-4-vision-preview": 128000,  # 4096 output
     "gpt-4-1106-vision-preview": 128000,  # 4096 output
     "gpt-4-turbo-2024-04-09":  128000,  # 4096 output
+    "gpt-4o": 128000,  # 4096 output
+    "gpt-4o-2024-05-13": 128000,  # 4096 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -300,10 +302,15 @@ mistralai_mapping_outputs = {
     'mistral-medium-latest': 32768,
 }
 
+# https://platform.openai.com/docs/guides/function-calling
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
-                                 "gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09"]
+                                 "gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
+                                 "gpt-4o", "gpt-4o-2024-05-13",
+]
 
-openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09"]
+openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
+"gpt-4o", "gpt-4o-2024-05-13",
+]
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
@@ -312,6 +319,8 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
                                     "gpt-4-vision-preview": 4096,
                                     "gpt-4-1106-vision-preview": 4096,
                                     "gpt-4-turbo-2024-04-09":  4096,
+                                    "gpt-4o": 4096,
+                                    "gpt-4o-2024-05-13": 4096,
                                     }
                                    )
 
