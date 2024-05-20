@@ -36,6 +36,8 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
+Note:  The first time you login to Open Web UI, that user will be admin user who can set defaults for various admin things, have admin panel to control user behavior and settings, etc.  Additional users will take the role the admin sets (by default, pending, which can be changed to user for anyone to login).
+
 If one wants to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
 ```bash
 -e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
