@@ -199,8 +199,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
 
     kwargs.update(**gen_kwargs)
 
-    if gen_kwargs.get('skip_gradio'):
-        fun_with_dict_str_plain
+    # WIP:
+    #if gen_kwargs.get('skip_gradio'):
+    #    fun_with_dict_str_plain
 
     # concurrent gradio client
     client = get_client(user=gen_kwargs.get('user'))

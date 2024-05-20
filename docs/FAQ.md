@@ -38,8 +38,11 @@ At moment, there is not a way to pass via ENV the embedding endpoint for OpenAI 
 -e RAG_EMBEDDING_ENGINE='openai' \
 -e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
+-e AUDIO_GENERATION_ENGINE='openai' \
+-e AUDIO_GENERATION_VOICE='SLT (female)' \
+-e OPENAI_API_USER='user:password' \
 ```
-See https://github.com/open-webui/open-webui/issues/2312.
+See https://github.com/open-webui/open-webui/issues/2312.  The `OPENAI_API_USER` is not currently required since not using user-specific files at moment, but would be required if the Gradio server had authentication setup if h2oGPT was allowing access to files by Open Web UI.
 
 Flaws with Open Web UI:
 * Chat history is not used if any document is in the chat history.
