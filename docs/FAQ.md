@@ -6,7 +6,10 @@ Run h2oGPT somehow with OpenAI server active (as is default).
 ```bash
 python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True
 ```
-You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.
+You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.  One can choose any other [image generation models](#image-generation) or [TTS models](#speech-to-text-stt-and-text-to_speech-tts) as well.
+
+Then run the Open Web UI docker command
+```bash
 
 Then run the Open Web UI docker command
 ```bash
@@ -982,15 +985,17 @@ for example image `models/llava.png`.
 
 To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
 
-For basic STT and TTS, nothing is required to pass, but you should select `Speech Style` under Chats in left sidebar, since not speaking by default.
+For basic STT and TTS, `--enable_tts=True --enable_stt=True` to `generate.py`.  Then in the UI, select `Speech Style` under Chats in left sidebar, since not speaking by default.
 
-To make h2oGPT speak by default, run instead something like:
+To make h2oGPT speak by default, choose a default `chatbot_role` and `speaker`, e.g. run instead something like:
 ```bash
 python generate.py --base_model=llama \
                    --chatbot_role="Female AI Assistant" \
                    --speaker="SLT (female)"
 ```
 By default, we effectively set `--chatbot_role="None" --speaker"None"` so you otherwise have to always choose speaker once UI is started.
+
+The default `--tts_model` is `microsoft/speecht5_tts` which is a good general model, but `tts_models/multilingual/multi-dataset/xtts_v2` is a more advanced model that can handle more languages and has better quality.    `chatbot_role` applies to Coqui models and `speaker` applies to Microsoft models.
 
 For the most advanced setup, one can use Coqui.ai models like xtts_v2.  If deepspeed was installed, then ensure `CUDA_HOME` env is set to same version as torch installation, and that the CUDA installation has full dev installation with `nvcc`, so that cuda kernels can be compiled.
 
