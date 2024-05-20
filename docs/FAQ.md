@@ -13,17 +13,20 @@ Then run the Open Web UI docker command
 
 Then run the Open Web UI docker command
 ```bash
+export api_key='EMPTY'
 docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct \
 -e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
--e OPENAI_API_KEY='EMPTY' \
+-e OPENAI_API_KEY=$api_key \
 -e ENABLE_IMAGE_GENERATION=True \
 -e IMAGE_GENERATION_ENGINE='openai' \
 -e IMAGES_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
 -e IMAGE_GENERATION_MODEL='sdxl_turbo' \
--e IMAGES_OPENAI_API_KEY='EMPTY' \
+-e IMAGES_OPENAI_API_KEY=$api_key \
 -e AUDIO_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
--e AUDIO_OPENAI_API_KEY='EMPTY' \
+-e AUDIO_OPENAI_API_KEY=$api_key \
+-e AUDIO_OPENAI_API_VOICE='SLT (female)' \
+-e AUDIO_OPENAI_API_MODEL='microsoft/speecht5_tts' \
 -e RAG_EMBEDDING_ENGINE='openai' \
 -e RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1' \
 -e OLLAMA_BASE_URL=http://0.0.0.0 \
