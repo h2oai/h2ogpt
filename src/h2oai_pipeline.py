@@ -21,6 +21,10 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  stop=None,
                  truncation_generation=None,
                  max_time=None,
+
+                 image_file=None,
+                 image_control=None,
+
                  verbose=False,
                  **kwargs):
         """
@@ -71,6 +75,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.verbose = verbose
         self.truncation_generation = truncation_generation
         self.max_time = max_time
+
+        self.image_file = image_file
+        self.image_control = image_control
 
     @staticmethod
     def get_token_count(x, tokenizer):
@@ -148,12 +155,18 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
         prompt_text, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt_text, self.tokenizer)
 
-        data_point = dict(context=self.context, instruction=prompt_text, input=self.iinput)
+        if self.image_file:
+            image_prompt = ''.join([f'![]({x})!' for x in self.image_file]) + prompt_text
+            # self.count_input_tokens += 64 * len(self.image_file)
+        else:
+            image_prompt = ''
+        data_point = dict(context=self.context, instruction=image_prompt + prompt_text, input=self.iinput)
         if self.prompter is not None:
             prompt_text = self.prompter.generate_prompt(data_point,
-                chat_conversation=self.chat_conversation,
-                user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
-            )
+                                                        chat_conversation=self.chat_conversation,
+                                                        user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                                        )
+
         self.prompt_text = prompt_text
         self.prompts.append(prompt_text)
         if handle_long_generation is None:

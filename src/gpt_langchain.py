@@ -3202,6 +3202,13 @@ def get_llm(use_openai_model=False,
                       user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                       )
     else:
+        if is_vision_model(model_name):
+            convert = True
+            str_bytes = False
+            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+        else:
+            img_file = None
+
         async_output = False  # FIXME: not implemented yet
         if model is None:
             # only used if didn't pass model in
@@ -3274,6 +3281,8 @@ def get_llm(use_openai_model=False,
                                          base_model=model_name,
                                          verbose=verbose,
                                          truncation_generation=truncation_generation,
+                                         image_file=img_file,
+                                         image_control=image_control,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,

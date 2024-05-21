@@ -141,6 +141,11 @@ def get_loaders(model_name, reward_type, llama_type=None,
         from transformers import T5ForConditionalGeneration, AutoTokenizer
         return functools.partial(T5ForConditionalGeneration.from_pretrained,
                                  **hf_model_dict), AutoTokenizer, False
+    elif 'idefics' in model_name.lower():
+        from transformers import AutoTokenizer, AutoModelForVision2Seq
+        model_loader = functools.partial(AutoModelForVision2Seq.from_pretrained, **hf_model_dict)
+        tokenizer_loader = AutoTokenizer
+        return model_loader, tokenizer_loader, False
     else:
         from transformers import AutoTokenizer, AutoModelForCausalLM
         model_loader = functools.partial(AutoModelForCausalLM.from_pretrained, **hf_model_dict)
