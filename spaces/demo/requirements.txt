@@ -1,3 +1,4 @@
 transformers==4.28.1
 torch==2.0.0
 accelerate==0.18.0
+requests>=2.32.0 # not directly required, pinned by Snyk to avoid a vulnerability
