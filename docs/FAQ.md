@@ -987,6 +987,27 @@ python generate.py \
 ```
 for example image `models/llava.png`.
 
+### Idefics2 Vision Models
+
+Run TGI server:
+```
+docker run -d --gpus '"device=0"' \
+--shm-size 12g \
+-v $HOME/.cache/huggingface/hub/:/data \
+-p 5000:80 \
+--name idefics28b \
+ghcr.io/huggingface/text-generation-inference:2.0.3 \
+--model-id HuggingFaceM4/idefics2-8b --trust-remote-code --max-stop-sequences=6 \
+--max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 \
+--num-shard 1
+```
+
+then run h2oGPT:
+```bash
+python generate.py --inference_server=http://IP:port --base_model=HuggingFaceM4/idefics2-8b-chatty --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False
+```
+where IP:port can be just IP if port is 80.
+
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
 To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
