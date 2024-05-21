@@ -2445,3 +2445,36 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, user_pro
                 raise
     assert prompt, "Prompt was not set: %s" % str(exceptions)
     return prompt
+
+
+def convert_messages_and_extract_images(tuple_list):
+    messages = []
+    images = []
+
+    for user, bot in tuple_list:
+        user_content = []
+
+        if isinstance(user, str):
+            user_content.append({"type": "text", "text": user})
+        elif isinstance(user, (list, tuple)):
+            if isinstance(user[1], list):
+                for img in user[1]:
+                    user_content.append({"type": "image"})
+                    images.append(img)
+            else:
+                user_content.append({"type": "image"})
+                images.append(user[1])
+            user_content.append({"type": "text", "text": user[0]})
+
+        messages.append({
+            "role": "user",
+            "content": user_content
+        })
+
+        if bot is not None:
+            messages.append({
+                "role": "assistant",
+                "content": [{"type": "text", "text": bot}]
+            })
+
+    return messages, images

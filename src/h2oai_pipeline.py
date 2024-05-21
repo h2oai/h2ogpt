@@ -2,10 +2,10 @@ import os
 
 import torch
 from transformers import TextGenerationPipeline
-from transformers.pipelines.text_generation import ReturnType
+from transformers.pipelines.text_generation import ReturnType, Chat
 
 from stopping import get_stopping
-from prompter import Prompter
+from prompter import Prompter, convert_messages_and_extract_images
 
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
@@ -155,13 +155,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
     def preprocess(self, prompt_text, prefix="", handle_long_generation=None, **generate_kwargs):
         prompt_text, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt_text, self.tokenizer)
 
-        if self.image_file:
-            image_prompt = ''.join([f'![]({x})!' for x in self.image_file]) + prompt_text
-            # self.count_input_tokens += 64 * len(self.image_file)
-        else:
-            image_prompt = ''
-        data_point = dict(context=self.context, instruction=image_prompt + prompt_text, input=self.iinput)
-        if self.prompter is not None:
+        data_point = dict(context=self.context, instruction=prompt_text, input=self.iinput)
+        if self.prompter is not None and not self.image_file:
             prompt_text = self.prompter.generate_prompt(data_point,
                                                         chat_conversation=self.chat_conversation,
                                                         user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
@@ -172,8 +167,79 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         if handle_long_generation is None:
             # forces truncation of inputs to avoid critical failure
             handle_long_generation = None  # disable with new approaches
-        return super().preprocess(prompt_text, prefix=prefix, handle_long_generation=handle_long_generation,
-                                  **generate_kwargs)
+        return self._preprocess(prompt_text, prefix=prefix, handle_long_generation=handle_long_generation,
+                                **generate_kwargs)
+
+    def _preprocess(
+        self,
+        prompt_text,
+        prefix="",
+        handle_long_generation=None,
+        add_special_tokens=False,
+        truncation=None,
+        padding=False,
+        max_length=None,
+        **generate_kwargs,
+    ):
+        if self.image_file:
+            from transformers.image_utils import load_image
+            images = [load_image(x) for x in self.image_file]
+
+            # Create inputs
+            from transformers import AutoProcessor
+            #  `http://` or `https://`, a valid path to an image file, or a base64 encoded string.
+            processor = AutoProcessor.from_pretrained(self.base_model)
+
+            history = self.chat_conversation.copy()
+            history.append([(prompt_text, images), None])
+
+            messages, images = convert_messages_and_extract_images(history)
+            prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+            inputs = processor(text=prompt, images=images, return_tensors="pt")
+
+            raise NotImplementedError("Not functioning yet.")
+        elif isinstance(prompt_text, Chat):
+            inputs = self.tokenizer.apply_chat_template(
+                prompt_text.messages,
+                truncation=truncation,
+                padding=padding,
+                max_length=max_length,
+                add_generation_prompt=True,
+                return_dict=True,
+                return_tensors=self.framework,
+            )
+        else:
+            inputs = self.tokenizer(
+                prefix + prompt_text,
+                truncation=truncation,
+                padding=padding,
+                max_length=max_length,
+                add_special_tokens=add_special_tokens,
+                return_tensors=self.framework,
+            )
+        inputs["prompt_text"] = prompt_text
+
+        if handle_long_generation == "hole":
+            cur_len = inputs["input_ids"].shape[-1]
+            if "max_new_tokens" in generate_kwargs:
+                new_tokens = generate_kwargs["max_new_tokens"]
+            else:
+                new_tokens = generate_kwargs.get("max_length", self.model.config.max_length) - cur_len
+                if new_tokens < 0:
+                    raise ValueError("We cannot infer how many new tokens are expected")
+            if cur_len + new_tokens > self.tokenizer.model_max_length:
+                keep_length = self.tokenizer.model_max_length - new_tokens
+                if keep_length <= 0:
+                    raise ValueError(
+                        "We cannot use `hole` to handle this generation the number of desired tokens exceeds the"
+                        " models max length"
+                    )
+
+                inputs["input_ids"] = inputs["input_ids"][:, -keep_length:]
+                if "attention_mask" in inputs:
+                    inputs["attention_mask"] = inputs["attention_mask"][:, -keep_length:]
+
+        return inputs
 
     def _postprocess(self, model_outputs, return_type=ReturnType.FULL_TEXT, clean_up_tokenization_spaces=True,
                      conditional_type=False):

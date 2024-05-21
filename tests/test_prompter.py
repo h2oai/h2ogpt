@@ -2,9 +2,10 @@ import os
 import time
 import pytest
 
+from src.image_utils import get_image_file
 from tests.utils import wrap_test_forked
 from src.enums import source_prefix, source_postfix
-from src.prompter import generate_prompt
+from src.prompter import generate_prompt, convert_messages_and_extract_images
 
 example_data_point0 = dict(instruction="Summarize",
                            input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
@@ -503,3 +504,46 @@ def test_falcon180():
                    ["What can you do?", "I can do well on leaderboard but not actually 1st."]]
         formatted_prompt = falcon180_format_prompt(prompt, history, system_prompt)
         print(formatted_prompt)
+
+
+@wrap_test_forked
+def test_hf_image_chat_template():
+    # Example usage:
+    tuple_list = [
+        ("Hello, how are you?", "I'm good, thank you!"),
+        (("What do you see?", "tests/jon.png"), "This is a presentation."),
+        ("Can you help me with my project?", "Sure, what do you need help with?"),
+        (("And how about this image?", "tests/receipt.jpg"), "This image shows a receipt.")
+    ]
+
+    messages, images = convert_messages_and_extract_images(tuple_list)
+
+    convert = True
+    str_bytes = False
+    image_file = images
+    image_control = None
+    document_choice = None
+    img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+
+    # Create inputs
+    from transformers import AutoProcessor
+    from transformers.image_utils import load_image
+    images = [load_image(x) for x in img_file]
+    #  `http://` or `https://`, a valid path to an image file, or a base64 encoded string.
+    processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics2-8b")
+
+    prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+    print(prompt)
+
+    assert prompt == """User: Hello, how are you?<end_of_utterance>
+Assistant: I'm good, thank you!<end_of_utterance>
+User:<image>What do you see?<end_of_utterance>
+Assistant: This is a presentation.<end_of_utterance>
+User: Can you help me with my project?<end_of_utterance>
+Assistant: Sure, what do you need help with?<end_of_utterance>
+User:<image>And how about this image?<end_of_utterance>
+Assistant: This image shows a receipt.<end_of_utterance>
+Assistant:"""
+
+    inputs = processor(text=prompt, images=images, return_tensors="pt")
+    assert inputs is not None
