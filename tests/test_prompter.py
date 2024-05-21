@@ -5,7 +5,7 @@ import pytest
 from src.image_utils import get_image_file
 from tests.utils import wrap_test_forked
 from src.enums import source_prefix, source_postfix
-from src.prompter import generate_prompt, convert_messages_and_extract_images
+from src.prompter import generate_prompt, convert_messages_and_extract_images, get_llm_history
 
 example_data_point0 = dict(instruction="Summarize",
                            input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
@@ -547,3 +547,26 @@ Assistant:"""
 
     inputs = processor(text=prompt, images=images, return_tensors="pt")
     assert inputs is not None
+
+
+@pytest.mark.parametrize("history, only_text, expected", [
+    # Test cases for empty and None history
+    (None, False, []),
+    ([], False, []),
+    # Test cases with mixed valid and None users
+    ([("user1", "message1"), ("user2", "message2"), (None, "error")], False, [("user1", "message1"), ("user2", "message2")]),
+    ([("user1", "message1"), ("user2", "message2"), (None, "error")], True, [("user1", "message1"), ("user2", "message2")]),
+    ([("user1", "message1"), ("user2", None), (None, "error")], True, [("user1", "message1")]),
+    ([("user1", "message1"), ("user2", "message2"), ("user3", "message3"), (None, "error"), (None, "error2")], False, [("user1", "message1"), ("user2", "message2"), ("user3", "message3")]),
+    ([("user1", "message1"), (None, "error1"), (None, "error2"), ("user2", "message2"), ("user3", "message3"), (None, "error3")], False, [("user1", "message1"), (None, "error1"), (None, "error2"), ("user2", "message2"), ("user3", "message3")]),
+    # Test cases for only valid users
+    ([("user1", "message1"), ("user2", "message2")], False, [("user1", "message1"), ("user2", "message2")]),
+    # Test cases for only None users
+    ([(None, "error1"), (None, "error2")], False, []),
+    ([(None, "error1"), (None, "error2")], True, []),
+    # Test cases for only_text flag
+    ([("user1", "message1"), (None, "error1"), ("user2", None), ("user3", "message3")], True, [("user1", "message1"), ("user3", "message3")]),
+    ([("user1", "message1"), ("user2", "message2"), ("user3", "message3")], True, [("user1", "message1"), ("user2", "message2"), ("user3", "message3")])
+])
+def test_get_llm_history(history, only_text, expected):
+    assert get_llm_history(history, only_text) == expected

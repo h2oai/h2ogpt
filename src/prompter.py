@@ -2402,21 +2402,38 @@ def history_for_llm(history):
     return history_new
 
 
-def get_llm_history(history):
+def get_llm_history(history, only_text=False):
     # avoid None users used for sources, errors, etc.
     if history is None:
         history = []
+    last_user_ii = -1
     for ii in range(len(history) - 1, -1, -1):
         if history[ii] and history[ii][0] is not None:
             last_user_ii = ii
-            history = history[:last_user_ii + 1]
             break
-    return history
+
+    if last_user_ii != -1:
+        history = history[:last_user_ii + 1]
+    else:
+        history = []
+
+    if only_text:
+        history_new = []
+        for ii, message1 in enumerate(history):
+            if len(message1) == 2 and (message1[0] is None or message1[1] is None):
+                # then not really part of LLM, internal, so avoid
+                continue
+            if len(message1) == 2:
+                history_new.append((message1[0], message1[1]))
+    else:
+        history_new = history
+
+    return history_new
 
 
 def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
                         test_only=False, verbose=False):
-    history = get_llm_history(history)
+    history = get_llm_history(history, only_text=True)
     prompt = ''
     exceptions = []
 
