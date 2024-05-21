@@ -77,6 +77,7 @@ class PromptType(Enum):
     sealion = 69
     groq = 70
     aya = 71
+    idefics2 = 72
 
 
 class DocumentSubset(Enum):
@@ -187,7 +188,9 @@ gpt_token_mapping = {
     "gpt-35-turbo-1106": 16385,  # 4096 output
     "gpt-4-vision-preview": 128000,  # 4096 output
     "gpt-4-1106-vision-preview": 128000,  # 4096 output
-    "gpt-4-turbo-2024-04-09":  128000,  # 4096 output
+    "gpt-4-turbo-2024-04-09": 128000,  # 4096 output
+    "gpt-4o": 128000,  # 4096 output
+    "gpt-4o-2024-05-13": 128000,  # 4096 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -283,7 +286,7 @@ mistralai_mapping = {
     "mistral-tiny": 32768,
     'open-mistral-7b': 32768,
     'open-mixtral-8x7b': 32768,
-    'open-mixtral-8x22b': 32768*2,
+    'open-mixtral-8x22b': 32768 * 2,
     'mistral-small-latest': 32768,
     'mistral-medium-latest': 32768,
 }
@@ -295,15 +298,20 @@ mistralai_mapping_outputs = {
     "mistral-tiny": 32768,
     'open-mistral-7b': 32768,
     'open-mixtral-8x7b': 32768,
-    'open-mixtral-8x22b': 32768*2,
+    'open-mixtral-8x22b': 32768 * 2,
     'mistral-small-latest': 32768,
     'mistral-medium-latest': 32768,
 }
 
+# https://platform.openai.com/docs/guides/function-calling
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
-                                 "gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09"]
+                                 "gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
+                                 "gpt-4o", "gpt-4o-2024-05-13",
+                                 ]
 
-openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09"]
+openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
+                             "gpt-4o", "gpt-4o-2024-05-13",
+                             ]
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
@@ -311,7 +319,9 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
                                     "gpt-35-turbo-1106": 4096,
                                     "gpt-4-vision-preview": 4096,
                                     "gpt-4-1106-vision-preview": 4096,
-                                    "gpt-4-turbo-2024-04-09":  4096,
+                                    "gpt-4-turbo-2024-04-09": 4096,
+                                    "gpt-4o": 4096,
+                                    "gpt-4o-2024-05-13": 4096,
                                     }
                                    )
 
@@ -595,7 +605,7 @@ git_hash_unset = "GET_GITHASH_UNSET"
 
 my_db_state0 = {LangChainMode.MY_DATA.value: [None, None, None]}
 langchain_modes0 = [LangChainMode.USER_DATA.value, LangChainMode.MY_DATA.value, LangChainMode.LLM.value,
-                                 LangChainMode.DISABLED.value]
+                    LangChainMode.DISABLED.value]
 langchain_mode_paths0 = {LangChainMode.USER_DATA.value: None}
 langchain_mode_types0 = {LangChainMode.USER_DATA.value: LangChainTypes.SHARED.value}
 selection_docs_state0 = dict(langchain_modes=langchain_modes0,

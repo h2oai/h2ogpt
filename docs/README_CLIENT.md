@@ -2,9 +2,13 @@
 
 A Gradio API and an OpenAI-compliant API are supported. You can also use `curl` to some extent for basic API.
 
-### OpenAI Proxy client API
+## OpenAI Proxy client API
 
-h2oGPT by default starts an [OpenAI compatible server](README_InferenceServers.md#openai-proxy-inference-server-client).  One communicates to it via OpenAI 1.x Python package.  For example:
+h2oGPT by default starts an [OpenAI compatible server](README_InferenceServers.md#openai-proxy-inference-server-client).  One communicates to it via OpenAI 1.x Python package.
+
+### Chat and Text Completions
+
+For example:
 ```python
 from openai import OpenAI
 base_url = 'https://localhost:5000/v1'
@@ -44,7 +48,296 @@ for chunk in responses:
 ```
 just as with OpenAI, and related API for text completion (non-chat) mode.
 
-#### curl
+#### Authentication
+
+If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the `username:password` as a string to access.  E.g.:
+```python
+from openai import OpenAI
+base_url = 'http://localhost:5000/v1'
+api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+model = '<model name>'
+
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+messages = [{'role': 'user', 'content': 'Who are you?'}]
+stream = False
+client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages,
+                     user='username:password')
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```
+This is only required if `--auth_access=closed` was used, else for `--auth_access=open` we use guest access if that is allowed, else random uuid if no guest access.  Note that if access is closed, one cannot get model names or info.
+
+**Note:** The default OpenAI proxy port for MacOS is set to `5001`, since ports 5000 and 7000 are being used by [AirPlay in MacOS](https://developer.apple.com/forums/thread/682332).
+
+### extra_body
+
+In order to control other parameters not normally part of OpenAI API, one can use `extra_body`, e.g.
+```python
+from openai import OpenAI
+
+base_url = 'http://localhost:5000/v1'
+api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
+model = '<model name>'
+
+client_args = dict(base_url=base_url, api_key=api_key)
+openai_client = OpenAI(**client_args)
+
+messages = [{'role': 'user', 'content': 'Who are you?'}]
+stream = False
+client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages,
+                     user='username:password',
+                     extra_body=dict(langchain_mode='UserData'))
+client = openai_client.chat.completions
+
+responses = client.create(**client_kwargs)
+text = responses.choices[0].message.content
+print(text)
+```
+The OpenAI client does a login to the Gradio server as well, so one can access personal collections like `MyData` as well.
+
+Any parameters normally passed to gradio client can be passed this way. See [H2oGPTParams](../openai_server/server.py) for complete list.
+
+### Text to Speech
+
+h2oGPT can do text-to-speech and speech-to-text if `--enable_tts=True` and `--enable_stt=True` as well
+as `--pre_load_image_audio_models=True`, respectively. h2oGPT's OpenAI Proxy server follows OpenAI API
+for [Text to Speech](https://platform.openai.com/docs/guides/text-to-speech), e.g.:
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+with client.audio.speech.with_streaming_response.create(
+        model="tts-1",
+        voice="",
+        extra_body=dict(stream=True,
+                        chatbot_role="Female AI Assistant",
+                        speaker="SLT (female)",
+                        stream_strip=True,
+                        ),
+        response_format='wav',
+        input="Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+) as response:
+    response.stream_to_file("speech_local.wav")
+```
+
+Set `stream=False` to avoid streaming, e.g.:
+```python
+    from openai import OpenAI
+
+    client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+    response = client.audio.speech.create(
+            model="tts-1",
+            voice="",
+            extra_body=dict(stream=False,
+                            chatbot_role="Female AI Assistant",
+                            speaker="SLT (female)",
+                            format='wav',
+                            ),
+            input="Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! Today is a wonderful day to build something people love! ",
+    )
+    response.stream_to_file("speech_local2.wav")
+```
+
+To stream the audio and play during streaming, one can use httpx and pygame:
+```python
+import openai
+import httpx
+import pygame
+
+import pygame.mixer
+
+pygame.mixer.init(frequency=16000, size=-16, channels=1)
+
+sound_queue = []
+
+
+def play_audio(audio):
+    import io
+    from pydub import AudioSegment
+
+    sr = 16000
+    s = io.BytesIO(audio)
+    channels = 1
+    sample_width = 2
+
+    audio = AudioSegment.from_raw(s, sample_width=sample_width, frame_rate=sr, channels=channels)
+    sound = pygame.mixer.Sound(io.BytesIO(audio.raw_data))
+    sound_queue.append(sound)
+    sound.play()
+
+    # Wait for the audio to finish playing
+    duration_ms = sound.get_length() * 1000  # Convert seconds to milliseconds
+    pygame.time.wait(int(duration_ms))
+
+
+# Ensure to clear the queue when done to free memory and resources
+def clear_queue(sound_queue):
+    for sound in sound_queue:
+        sound.stop()
+
+
+api_key = 'EMPTY'
+
+# Initialize OpenAI and Pygame
+client = openai.OpenAI(api_key=api_key)
+
+# Set up the request headers and parameters
+headers = {
+    "Authorization": f"Bearer {client.api_key}",
+    "Content-Type": "application/json",
+}
+data = {
+    "model": "tts-1",
+    "voice": "SLT (female)",
+    "input": "Good morning! The sun is shining brilliantly today, casting a warm, golden glow that promises a day full of possibility and joy. It’s the perfect moment to embrace new opportunities and make the most of every cheerful, sunlit hour. What can I do to help you make today absolutely wonderful?",
+    "stream": "true",
+    "stream_strip": "false",
+}
+
+# base_url = "https://api.openai.com/v1"
+base_url = "http://localhost:5000/v1/audio/speech"
+
+# Start the HTTP session and stream the audio
+with httpx.Client(timeout=None) as http_client:
+    # Initiate a POST request and stream the response
+    with http_client.stream("POST", base_url, headers=headers, json=data) as response:
+        chunk_riff = b''
+        for chunk in response.iter_bytes():
+            if chunk.startswith(b'RIFF'):
+                if chunk_riff:
+                    play_audio(chunk_riff)
+                chunk_riff = chunk
+            else:
+                chunk_riff += chunk
+        # Play the last accumulated chunk
+        if chunk_riff:
+            play_audio(chunk_riff)
+# done
+clear_queue(sound_queue)
+pygame.quit()
+```
+
+The streaming case writes the file (which could be to some buffer) each chunk (sentence) at a time, while non-streaming case does entire file at once and client waits till end to write the file.  For the streaming case, if it is a wave file, like OpenAI, the server artificially inflates the estimated duration of the audio so player will play through end of the audio.
+
+### Speech to Text
+
+Requires h2oGPT loaded with `--enable_stt=True --pre_load_image_audio_models=True`.
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+file = "speech.wav"
+with open(file, "rb") as f:
+    audio_file= f.read()
+transcription = client.audio.transcriptions.create(
+  model="whisper-1",
+  file=audio_file
+)
+print(transcription.text)
+```
+
+Streaming STT is not natively supported by OpenAI client, but it can still be done via httpx:
+```python
+import json
+import httpx
+import asyncio
+
+async def stream_audio_transcription(file_path, model="default-model"):
+    url = "http://0.0.0.0:5000/v1/audio/transcriptions"
+    headers = {"X-API-KEY": "your-api-key"}
+
+    # Read the audio file
+    with open(file_path, "rb") as f:
+
+        # Create the multipart/form-data payload
+        files = {
+            "file": ("audio.wav", f, "audio/wav"),
+            "model": (None, model),
+            "stream": (None, "true"),  # Note the lowercase "true" as the server checks for this
+            "response_format": (None, "text"),
+            "chunk": (None, "none"),
+        }
+
+        text = ''
+        async with httpx.AsyncClient() as client:
+            async with client.stream("POST", url, headers=headers, files=files, timeout=120) as response:
+                async for line in response.aiter_lines():
+                    # Process each chunk of data as it is received
+                    if line.startswith("data:"):
+                        try:
+                            # Remove "data: " prefix and strip any newlines or trailing whitespace
+                            json_data = json.loads(line[5:].strip())
+                            # Process the parsed JSON data
+                            print('json_data: %s' % json_data)
+                            text += json_data["text"]
+                        except json.JSONDecodeError as e:
+                            print("Error decoding JSON:", e)
+        return text
+# Run the client function
+final_text = asyncio.run(stream_audio_transcription("/home/jon/h2ogpt/tests/test_speech.wav"))
+print(final_text)
+```
+
+### Image Generation
+
+Requires h2oGPT loaded with `--enable_image=True --pre_load_image_audio_models=True --visible_image_models=['sdxl_turbo']` or some selection of such image generation models.
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+# client = OpenAI()
+
+response = client.images.generate(
+  model="sdxl_turbo",  # should be empty if do not know which model, h2oGPT will choose first if exists
+  prompt="A cute baby sea otter",
+  n=1,
+  size="1024x1024",
+  response_format='b64_json',
+)
+import base64
+image_data = base64.b64decode(response.data[0].b64_json.encode('utf-8'))
+# Convert binary data to an image
+from PIL import Image
+import io
+image = Image.open(io.BytesIO(image_data))
+# Save the image to a file or display it
+image.save('output_image.png')
+image.show()  # This will open the default image viewer and display the image
+```
+
+### Embedding
+
+Requires h2oGPT loaded with langchain enabled (not `--langchain_mode=Disabled`) and `--pre_load_embedding_model=True` and potentially some choice for `--hf_embedding_model` (default is used if no specified) and `--use_openai_embedding=False` to be set (default).
+
+Note `model` is ignored currently, uses single embedding in h2oGPT.
+```python
+from openai import OpenAI
+client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+#client = OpenAI()
+
+response = client.embeddings.create(
+    input="Your text string goes here",
+    model="text-embedding-3-small"
+)
+print(response.data[0].embedding)
+
+response = client.embeddings.create(
+    input=["Your text string goes here", "Another text string goes here"],
+    model="text-embedding-3-small"
+)
+print(response.data[0].embedding)
+print(response.data[1].embedding)
+```
+
+### Curl for REST API
 
 Or for curl, with api_key set or as `EMPTY` if not set, one can do:
 ```bash
@@ -114,61 +407,7 @@ which results in chunks of choices of delta like given in the OpenAI Python API.
 
 The strings `prompt` and `max_tokens` are taken as OpenAI type names that are converted to `instruction` and `max_new_tokens`.  In either case, any additional parameters are passed along to the Gradio `submit_nochat_api` API.  Either `http` or `https` works if using ngrok or some proxy service, or setup directly in the OpenAI proxy server.  Replace 'localhost' with the http or https proxy (or direct SSL) server name or IP.  Replace 5000 with the assigned port.
 
-#### auth
-
-If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the `username:password` as a string to access.  E.g.:
-```python
-from openai import OpenAI
-base_url = 'http://localhost:5000/v1'
-api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
-model = '<model name>'
-
-client_args = dict(base_url=base_url, api_key=api_key)
-openai_client = OpenAI(**client_args)
-
-messages = [{'role': 'user', 'content': 'Who are you?'}]
-stream = False
-client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages,
-                     user='username:password')
-client = openai_client.chat.completions
-
-responses = client.create(**client_kwargs)
-text = responses.choices[0].message.content
-print(text)
-```
-This is only required if `--auth_access=closed` was used, else for `--auth_access=open` we use guest access if that is allowed, else random uuid if no guest access.  Note that if access is closed, one cannot get model names or info.
-
-**Note:** The default OpenAI proxy port for MacOS is set to `5001`, since ports 5000 and 7000 are being used by [AirPlay in MacOS](https://developer.apple.com/forums/thread/682332).
-
-## extra_body
-
-In order to control other parameters not normally part of OpenAI API, one can use `extra_body`, e.g.
-```python
-from openai import OpenAI
-
-base_url = 'http://localhost:5000/v1'
-api_key = 'INSERT KEY HERE or set to EMPTY if no key set on h2oGPT server'
-model = '<model name>'
-
-client_args = dict(base_url=base_url, api_key=api_key)
-openai_client = OpenAI(**client_args)
-
-messages = [{'role': 'user', 'content': 'Who are you?'}]
-stream = False
-client_kwargs = dict(model=model, max_tokens=200, stream=stream, messages=messages,
-                     user='username:password',
-                     extra_body=dict(langchain_mode='UserData'))
-client = openai_client.chat.completions
-
-responses = client.create(**client_kwargs)
-text = responses.choices[0].message.content
-print(text)
-```
-The OpenAI client does a login to the Gradio server as well, so one can access personal collections like `MyData` as well.
-
-Any parameters normally passed to gradio client can be passed this way. See [H2oGPTParams](../openai_server/server.py) for complete list.
-
-### Gradio Client API
+## Gradio Client API
 
 h2oGPT's `generate.py` by default runs a gradio server, which also gives access to client API using the [Gradio Python client](https://www.gradio.app/docs/python-client). You can use it with h2oGPT, or independently of h2oGPT repository by installing an env:
 ```bash

@@ -2,9 +2,10 @@ import os
 import time
 import pytest
 
+from src.image_utils import get_image_file
 from tests.utils import wrap_test_forked
 from src.enums import source_prefix, source_postfix
-from src.prompter import generate_prompt
+from src.prompter import generate_prompt, convert_messages_and_extract_images, get_llm_history
 
 example_data_point0 = dict(instruction="Summarize",
                            input="Ducks eat seeds by the lake, then swim in the lake where fish eat small animals.",
@@ -187,6 +188,11 @@ def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1
     if system_prompt:
         messages = [{"role": "system", "content": system_prompt}] + messages
 
+    if model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b"]:
+        for message in messages:
+            message['content'] = [dict(type='text', text=message['content'])]
+        tokenizer.chat_template = "{% for message in messages %}{{message['role'].capitalize()}}{% if message['content'][0]['type'] == 'image' %}{{':'}}{% else %}{{': '}}{% endif %}{% for line in message['content'] %}{% if line['type'] == 'text' %}{{line['text']}}{% elif line['type'] == 'image' %}{{ '<image>' }}{% endif %}{% endfor %}<end_of_utterance>\n{% endfor %}{% if add_generation_prompt %}{{ 'Assistant:' }}{% endif %}"
+
     # add_generation_prompt=True somehow only required for Yi
     prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return prompt
@@ -264,6 +270,10 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              # they baked in system prompt
                              ('qwen', 'You are a helpful assistant.', None,
                               get_prompt_from_messages(messages_with_context, model='Qwen/Qwen1.5-72B-Chat')),
+                             ('idefics2',
+                             "",
+                              None,
+                              get_prompt_from_messages(messages_with_context, model='HuggingFaceM4/idefics2-8b')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -435,6 +445,9 @@ prompt_orion1 = "<s>Human: Go to the market?\n\nAssistant: </s>"
                              ('gemma', '', get_prompt_from_messages(messages_no_context, model='google/gemma-7b-it')),
                              # then baked in system prompt
                              ('qwen', 'You are a helpful assistant.', get_prompt_from_messages(messages_no_context, model='Qwen/Qwen1.5-72B-Chat')),
+                             ('idefics2',
+                             "",
+                              get_prompt_from_messages(messages_no_context, model='HuggingFaceM4/idefics2-8b')),
                          ]
                          )
 @wrap_test_forked
@@ -491,3 +504,69 @@ def test_falcon180():
                    ["What can you do?", "I can do well on leaderboard but not actually 1st."]]
         formatted_prompt = falcon180_format_prompt(prompt, history, system_prompt)
         print(formatted_prompt)
+
+
+@wrap_test_forked
+def test_hf_image_chat_template():
+    # Example usage:
+    tuple_list = [
+        ("Hello, how are you?", "I'm good, thank you!"),
+        (("What do you see?", "tests/jon.png"), "This is a presentation."),
+        ("Can you help me with my project?", "Sure, what do you need help with?"),
+        (("And how about this image?", "tests/receipt.jpg"), "This image shows a receipt.")
+    ]
+
+    messages, images = convert_messages_and_extract_images(tuple_list)
+
+    convert = True
+    str_bytes = False
+    image_file = images
+    image_control = None
+    document_choice = None
+    img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+
+    # Create inputs
+    from transformers import AutoProcessor
+    from transformers.image_utils import load_image
+    images = [load_image(x) for x in img_file]
+    #  `http://` or `https://`, a valid path to an image file, or a base64 encoded string.
+    processor = AutoProcessor.from_pretrained("HuggingFaceM4/idefics2-8b")
+
+    prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+    print(prompt)
+
+    assert prompt == """User: Hello, how are you?<end_of_utterance>
+Assistant: I'm good, thank you!<end_of_utterance>
+User:<image>What do you see?<end_of_utterance>
+Assistant: This is a presentation.<end_of_utterance>
+User: Can you help me with my project?<end_of_utterance>
+Assistant: Sure, what do you need help with?<end_of_utterance>
+User:<image>And how about this image?<end_of_utterance>
+Assistant: This image shows a receipt.<end_of_utterance>
+Assistant:"""
+
+    inputs = processor(text=prompt, images=images, return_tensors="pt")
+    assert inputs is not None
+
+
+@pytest.mark.parametrize("history, only_text, expected", [
+    # Test cases for empty and None history
+    (None, False, []),
+    ([], False, []),
+    # Test cases with mixed valid and None users
+    ([("user1", "message1"), ("user2", "message2"), (None, "error")], False, [("user1", "message1"), ("user2", "message2")]),
+    ([("user1", "message1"), ("user2", "message2"), (None, "error")], True, [("user1", "message1"), ("user2", "message2")]),
+    ([("user1", "message1"), ("user2", None), (None, "error")], True, [("user1", "message1")]),
+    ([("user1", "message1"), ("user2", "message2"), ("user3", "message3"), (None, "error"), (None, "error2")], False, [("user1", "message1"), ("user2", "message2"), ("user3", "message3")]),
+    ([("user1", "message1"), (None, "error1"), (None, "error2"), ("user2", "message2"), ("user3", "message3"), (None, "error3")], False, [("user1", "message1"), (None, "error1"), (None, "error2"), ("user2", "message2"), ("user3", "message3")]),
+    # Test cases for only valid users
+    ([("user1", "message1"), ("user2", "message2")], False, [("user1", "message1"), ("user2", "message2")]),
+    # Test cases for only None users
+    ([(None, "error1"), (None, "error2")], False, []),
+    ([(None, "error1"), (None, "error2")], True, []),
+    # Test cases for only_text flag
+    ([("user1", "message1"), (None, "error1"), ("user2", None), ("user3", "message3")], True, [("user1", "message1"), ("user3", "message3")]),
+    ([("user1", "message1"), ("user2", "message2"), ("user3", "message3")], True, [("user1", "message1"), ("user2", "message2"), ("user3", "message3")])
+])
+def test_get_llm_history(history, only_text, expected):
+    assert get_llm_history(history, only_text) == expected

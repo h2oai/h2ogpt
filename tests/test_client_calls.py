@@ -2715,12 +2715,12 @@ def test_client_curated_base_models(base_model, stream_output):
     stream_output = True
     from src.gen import main
     main_kwargs = dict(base_model=base_model,
-         inference_server='' if base_model not in openai_gpts else 'openai_chat',
-         chat=True,
-         stream_output=stream_output,
-         gradio=True, num_beams=1, block_gradio_exit=False,
-         score_model='',
-         verbose=True)
+                       inference_server='' if base_model not in openai_gpts else 'openai_chat',
+                       chat=True,
+                       stream_output=stream_output,
+                       gradio=True, num_beams=1, block_gradio_exit=False,
+                       score_model='',
+                       verbose=True)
     if 'resolve' in base_model:
         main_kwargs['prompt_type'] = 'llama2'
     main(**main_kwargs)
@@ -4147,9 +4147,9 @@ def check_curl_plain_api():
     res_dict = ast.literal_eval(json.loads(response.content.decode(encoding='utf-8', errors='strict'))['data'][0])
 
     assert 'assistant' in res_dict['response'] or \
-    'computer program' in res_dict['response'] or \
-    'program designed' in res_dict['response'] or \
-    'intelligence' in res_dict['response']
+           'computer program' in res_dict['response'] or \
+           'program designed' in res_dict['response'] or \
+           'intelligence' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
     assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == \
            res_dict['save_dict'][
@@ -5413,3 +5413,69 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
         if base_model in vllm_base_models:
             import jsonschema
             jsonschema.validate(mydict, schema=guided_json)
+
+    openai_guided_json(client, base_model, kwargs)
+
+
+def openai_guided_json(gradio_client, base_model, kwargs):
+    import jsonschema
+
+    base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
+
+    import openai
+    client = openai.OpenAI(
+        base_url=base_url,
+        api_key=kwargs.get('h2ogpt_key', 'EMPTY'),
+    )
+    messages = [{
+        "role": "system",
+        "content": "you are a helpful assistant"
+    }, {
+        "role":
+            "user",
+        "content":
+            f"Give an example JSON for an employee profile."
+            f"fits this schema: {TEST_SCHEMA}"
+    }]
+    chat_completion = client.chat.completions.create(
+        model=base_model,
+        messages=messages,
+        max_tokens=1024,
+        response_format={"type": "json_object"},
+
+        extra_body=dict(guided_json=TEST_SCHEMA,
+                        guided_whitespace_pattern=None,
+                        prompt_query=kwargs.get('prompt_query'),
+                        prompt_summary=kwargs.get('prompt_summary'),
+                        text_context_list=kwargs.get('text_context_list'),
+                        langchain_mode=kwargs.get('langchain_mode'),
+                        langchain_action=kwargs.get('langchain_action'),
+                        h2ogpt_key=kwargs.get('h2ogpt_key'),
+                        )
+    )
+    message = chat_completion.choices[0].message
+    assert message.content is not None
+    json1 = json.loads(message.content)
+    jsonschema.validate(instance=json1, schema=TEST_SCHEMA)
+    print(json1)
+
+    messages.append({"role": "assistant", "content": message.content})
+    messages.append({
+        "role":
+            "user",
+        "content":
+            "Give me another one with a different name and age."
+    })
+    chat_completion = client.chat.completions.create(
+        model=base_model,
+        messages=messages,
+        max_tokens=1024,
+        response_format={"type": "json_object"},
+        extra_body=dict(guided_json=TEST_SCHEMA))
+    message = chat_completion.choices[0].message
+    assert message.content is not None
+    json2 = json.loads(message.content)
+    jsonschema.validate(instance=json2, schema=TEST_SCHEMA)
+    assert json1["name"] != json2["name"]
+    assert json1["age"] != json2["age"]
+    print(json2)

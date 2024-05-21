@@ -24,19 +24,18 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Easy Download** of model artifacts and control over models like LLaMa.cpp through the UI
   - **Authentication** in the UI by user/password via Native or Google OAuth
   - **State Preservation** in the UI by user/password
-* **Open Web UI**
-  - Supports chat completion with streaming, document Q/A, STT, TTS, and image generation
-  - For details see [Start-up Docs](docs/FAQ.md#open-web-ui) and [Open Web UI Github](https://github.com/open-webui/open-webui)
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
-- **Inference Servers** support (oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, OpenAI, Azure OpenAI, Anthropic)
+- **Inference Servers** [support](docs/README_InferenceServers.md) for oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, Together.ai, OpenAI, Azure OpenAI, Anthropic
 - **OpenAI-compliant**
-  - Server Proxy API (h2oGPT acts as drop-in-replacement to OpenAI server)
-  - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding OpenAI compatible endpoints.
+  - Server Proxy [API](docs/README_CLIENT.md) (h2oGPT acts as drop-in-replacement to OpenAI server)
+  - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding
 - **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
+- **Open Web UI** with h2oGPT as backend via OpenAI Proxy
+  - Supports chat completion with streaming, document Q/A, STT, TTS, and image generation.  See [Start-up Docs](docs/FAQ.md#open-web-ui).
 - **Evaluate** performance using reward models
 - **Quality** maintained with over 1000 unit and integration tests taking over 4 GPU-hours
 
@@ -101,7 +100,10 @@ Then run the following commands on any system:
    ```
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 
-We recommend quantized models for most small-GPU systems, e.g. [LLaMa-2-7B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf) for 9GB+ GPU memory or larger models like [LLaMa-2-13B-Chat-GGUF](https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-13b-chat.Q6_K.gguf) if you have 16GB+ GPU memory.
+For newer chat template models, a `--prompt_type` is not required on CLI, but for GGUF files one should pass the HF tokenizer so it knows the chat template, e.g. for LLaMa-3:
+```bash
+python generate.py --base_model=llama --model_path_llama=https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf?download=true --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192
+```
 
 See [Offline](docs/README_offline.md#tldr) for how to run h2oGPT offline.
 
@@ -175,32 +177,12 @@ Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, St
 
 ---
 
-#### Example Models
-* [Highest accuracy and speed](https://huggingface.co/h2oai/h2ogpt-4096-llama2-70b-chat) on 16-bit with TGI/vLLM using ~48GB/GPU when in use (4xA100 high concurrency, 2xA100 for low concurrency)
-* [Middle-range accuracy](https://huggingface.co/h2oai/h2ogpt-gm-oasst1-en-2048-falcon-40b-v2) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (2xA100)
-* [Small memory profile with ok accuracy](https://huggingface.co/TheBloke/Llama-2-13B-Chat-GGUF) 16GB GPU if full GPU offloading
-* [Balanced accuracy and size](https://huggingface.co/h2oai/h2ogpt-4096-llama2-13b-chat) on 16-bit with TGI/vLLM using ~45GB/GPU when in use (1xA100)
-* [Smallest or CPU friendly](https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF) 32GB system ram or 9GB GPU if full GPU offloading
-* [Best for 4*A10G using g5.12xlarge](https://huggingface.co/TheBloke/Llama-2-70B-chat-AWQ) AWQ LLaMa 70B using 4*A10G using vLLM
-
-**GPU** mode requires CUDA support via torch and transformers. A 7B/13B model in 16-bit uses 14GB/26GB of GPU memory to store the weights (2 bytes per weight). Compression such as 4-bit precision (bitsandbytes, AWQ, GPTQ, etc.) can further reduce memory requirements down to less than 6GB when asking a question about your documents. (For more information, see [low-memory mode](docs/FAQ.md#low-memory-mode).)
-
-**CPU** mode uses GPT4ALL and LLaMa.cpp, e.g. gpt4all-j, requiring about 14GB of system RAM in typical use.
-
----
-
 ### Live Demos
 - [![img-small.png](docs/img-small.png) Live h2oGPT Document Q/A Demo](https://gpt.h2o.ai/)
 - [🤗 Live h2oGPT Chat Demo 1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)
 - [🤗 Live h2oGPT Chat Demo 2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT CPU](https://colab.research.google.com/drive/13RiBdAFZ6xqDwDKfW6BG_-tXfXiqPNQe?usp=sharing)
 - [![](https://colab.research.google.com/assets/colab-badge.svg) h2oGPT GPU](https://colab.research.google.com/drive/143-KFHs2iCqXTQLI2pFCDiR69z0dR8iE?usp=sharing)
-
-### Inference Benchmarks for Summarization & Generation
-
-* [Benchmark results for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md)
-* [pytest to create benchmark results](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
-* [Raw benchmark results (JSON)](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.json)
 
 ### Resources
 - [Discord](https://discord.gg/WKhYMWcVbq)
@@ -298,6 +280,12 @@ These are not part of normal installation instructions and are experimental.
 - [README for LangChain](docs/README_LangChain.md)
 
 - Useful [links](docs/LINKS.md) for additional context and information on competitors, models, and datasets
+
+### Inference Benchmarks for Summarization & Generation
+
+* [Benchmark results for Llama2](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.md)
+* [pytest to create benchmark results](https://github.com/h2oai/h2ogpt/blob/main/tests/test_perf_benchmarks.py)
+* [Raw benchmark results (JSON)](https://github.com/h2oai/h2ogpt/blob/main/benchmarks/perf.json)
 
 ### Acknowledgements
 

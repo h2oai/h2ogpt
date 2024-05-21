@@ -111,7 +111,9 @@ from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, Te
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
-from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline
+#from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline  # pycharm doesn't recognize parameters if use this
+from langchain_community.llms.huggingface_text_gen_inference import HuggingFaceTextGenInference
+from langchain_community.llms import HuggingFacePipeline
 from langchain_community.vectorstores import Chroma
 
 
@@ -1484,7 +1486,6 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     repetition_penalty: Optional[float] = None
     return_full_text: bool = False
     stop_sequences: List[str] = Field(default_factory=list)
-    seed: Optional[int] = None
     inference_server_url: str = ""
     timeout: int = 300
     headers: dict = None
@@ -1501,13 +1502,11 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     prompts: Any = []
     count_output_tokens: Any = 0
 
-    def _call(
-            self,
-            prompt: str,
-            stop: Optional[List[str]] = None,
-            run_manager: Optional[CallbackManagerForLLMRun] = None,
-            **kwargs: Any,
-    ) -> str:
+    base_model: Any = ''
+    image_file: Any = None
+    image_control: Any = None
+
+    def prep_prompt(self, prompt, stop, kwargs):
         if stop is None:
             stop = self.stop_sequences.copy()
         else:
@@ -1530,6 +1529,16 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
 
+        if self.image_file:
+            prompt = ''.join([f'![]({x})!' for x in self.image_file]) + prompt
+            self.count_input_tokens += 64 * len(self.image_file)
+
+            data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
+            prompt = self.prompter.generate_prompt(data_point,
+                                                   chat_conversation=self.chat_conversation,
+                                                   user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                                   )
+
         gen_server_kwargs = dict(do_sample=self.do_sample,
                                  seed=self.seed,
                                  stop_sequences=stop,
@@ -1544,6 +1553,17 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
                                  )
         gen_server_kwargs.update(kwargs)
 
+        return prompt, gen_server_kwargs, stop
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        prompt, gen_server_kwargs, stop = self.prep_prompt(prompt, stop, kwargs)
+
         # lower bound because client is re-used if multi-threading
         self.client.timeout = max(300, self.timeout)
 
@@ -1553,6 +1573,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
                 **gen_server_kwargs,
             )
             if self.return_full_text:
+                assert not self.image_file, "Invalid use of image files with HF client"
                 gen_text = res.generated_text[len(prompt):]
             else:
                 gen_text = res.generated_text
@@ -1560,9 +1581,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
             for stop_seq in stop:
                 if stop_seq in gen_text:
                     gen_text = gen_text[:gen_text.index(stop_seq)]
-            text = prompt + gen_text
-            text = self.prompter.get_response(text, prompt=prompt,
-                                              sanitize_bot_response=self.sanitize_bot_response)
+            text = gen_text
         else:
             text_callback = None
             if run_manager:
@@ -1574,8 +1593,6 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
             for response in self.client.generate_stream(prompt, **gen_server_kwargs):
                 text_chunk = response.token.text
                 text += text_chunk
-                text = self.prompter.get_response(prompt + text, prompt=prompt,
-                                                  sanitize_bot_response=self.sanitize_bot_response)
                 # stream part
                 is_stop = False
                 for stop_seq in stop:
@@ -1599,25 +1616,8 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     ) -> str:
         if self.verbose:
             print("acall", flush=True)
-        if stop is None:
-            stop = self.stop_sequences.copy()
-        else:
-            stop += self.stop_sequences.copy()
-        stop_tmp = stop.copy()
-        stop = []
-        [stop.append(x) for x in stop_tmp if x not in stop]
 
-        # HF inference server needs control over input tokens
-        assert self.tokenizer is not None
-        from h2oai_pipeline import H2OTextGenerationPipeline
-        prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
-
-        # NOTE: TGI server does not add prompting, so must do here
-        data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
-        prompt = self.prompter.generate_prompt(data_point,
-                                               chat_conversation=self.chat_conversation,
-                                               user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
-                                               )
+        prompt, gen_server_kwargs, stop = self.prep_prompt(prompt, stop, kwargs)
 
         gen_text = await super()._acall(prompt, stop=stop, run_manager=run_manager, **kwargs)
 
@@ -1625,9 +1625,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
         for stop_seq in stop:
             if stop_seq in gen_text:
                 gen_text = gen_text[:gen_text.index(stop_seq)]
-        text = prompt + gen_text
-        text = self.prompter.get_response(text, prompt=prompt,
-                                          sanitize_bot_response=self.sanitize_bot_response)
+        text = gen_text
         if self.verbose:
             print("acall done", flush=True)
         return text
@@ -2934,11 +2932,6 @@ def get_llm(use_openai_model=False,
         assert inference_server.startswith(
             'http'), "Malformed inference_server=%s.  Did you add http:// in front?" % inference_server
 
-        if is_gradio_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice)
-        else:
-            img_file = None
-
         from gradio_client import Client
         from gradio_utils.grclient import GradioClient
         from text_generation import Client as HFClient
@@ -2954,11 +2947,9 @@ def get_llm(use_openai_model=False,
             gr_client = None
             hf_client = model
             assert isinstance(hf_client, HFClient)
-            img_file = None
         else:
             gr_client = None
             hf_client = None
-            img_file = None
 
         if regenerate_gradio_clients and gr_client:
             # regenerate or leave None for llava so created inside
@@ -2975,8 +2966,25 @@ def get_llm(use_openai_model=False,
 
         llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
                                                                                   gr_client.endpoints]
+        gradio_llava = is_gradio_vision_model(model_name) and llava_direct_gradio
 
-        if is_gradio_vision_model(model_name) and llava_direct_gradio:
+        if is_vision_model(model_name):
+            # HF client uses markdown image url with bytes inside (or real url inside)
+            if hf_client:
+                convert = True
+                str_bytes = False
+            elif gradio_llava:
+                convert = False
+                str_bytes = True
+            else:
+                convert = True
+                str_bytes = True
+            # Gradio uses str_bytes=True
+            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+        else:
+            img_file = None
+
+        if gradio_llava:
             llm = GradioLLaVaInference(
                 inference_server_url=inference_server,
 
@@ -3018,9 +3026,6 @@ def get_llm(use_openai_model=False,
                 image_file=img_file,  # we pass file name itself
             )
         elif gr_client:
-            # ensure image in correct format
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True)
-
             chat_client = False
             from src.vision.utils_vision import img_to_base64
             llm = GradioInference(
@@ -3110,6 +3115,10 @@ def get_llm(use_openai_model=False,
                 sanitize_bot_response=sanitize_bot_response,
                 async_sem=async_sem,
                 verbose=verbose,
+
+                base_model=model_name,
+                image_file=img_file,
+                image_control=None,  # already stuffed into image_file
             )
         else:
             raise RuntimeError("No defined client")
@@ -3193,6 +3202,13 @@ def get_llm(use_openai_model=False,
                       user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                       )
     else:
+        if is_vision_model(model_name):
+            convert = True
+            str_bytes = False
+            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+        else:
+            img_file = None
+
         async_output = False  # FIXME: not implemented yet
         if model is None:
             # only used if didn't pass model in
@@ -3265,11 +3281,16 @@ def get_llm(use_openai_model=False,
                                          base_model=model_name,
                                          verbose=verbose,
                                          truncation_generation=truncation_generation,
+                                         image_file=img_file,
+                                         image_control=image_control,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
         # not built in prompt removal that is less general and not specific for our model
         # also works for Conditional generation: https://github.com/huggingface/transformers/issues/27870#issuecomment-1844775749
+        #if img_file:
+        #    pipe.task = 'image-to-text'
+        #else:
         pipe.task = "text2text-generation"
 
         llm = H2OHuggingFacePipeline(pipeline=pipe)

@@ -199,8 +199,9 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
 
     kwargs.update(**gen_kwargs)
 
-    if gen_kwargs.get('skip_gradio'):
-        fun_with_dict_str_plain
+    # WIP:
+    #if gen_kwargs.get('skip_gradio'):
+    #    fun_with_dict_str_plain
 
     # concurrent gradio client
     client = get_client(user=gen_kwargs.get('user'))
@@ -288,6 +289,9 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     if stream_output:
         yield chat_streaming_chunk('')
+
+    if instruction is None:
+        instruction = "Continue your response.  If your prior response was cut short, then continue exactly at end of your last response with any ellipses, else continue your response by starting with new line and proceeding with an additional useful and related response."
 
     token_count = count_tokens(instruction)
     generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
@@ -566,15 +570,17 @@ def text_to_audio(model, voice, input, stream, response_format, **kwargs):
     client = get_client(user=kwargs.get('user'))
     h2ogpt_key = kwargs.get('h2ogpt_key')
 
-    if not voice:
-        voice = "SLT (female)"
+    if not voice or voice in ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']:
+        # ignore OpenAI voices
+        speaker = "SLT (female)"
         chatbot_role = "Female AI Assistant"
     else:
         # don't know which model used
+        speaker = voice
         chatbot_role = voice
 
     # string of dict for input
-    inputs = dict(chatbot_role=chatbot_role, speaker=voice, tts_language='autodetect', tts_speed=1.0,
+    inputs = dict(chatbot_role=chatbot_role, speaker=speaker, tts_language='autodetect', tts_speed=1.0,
                   prompt=input, stream_output=stream,
                   h2ogpt_key=h2ogpt_key)
     if stream:
@@ -659,6 +665,8 @@ def text_to_embedding(model, text, encoding_format, **kwargs):
     if encoding_format == "base64":
         data = [{"object": "embedding", "embedding": list_to_bytes(emb), "index": n} for n, emb in
                 enumerate(embeddings)]
+    elif encoding_format == "float":
+        data = [{"object": "embedding", "embedding": emb, "index": n} for n, emb in enumerate(embeddings)]
     else:
         data = [{"object": "embedding", "embedding": emb.tolist(), "index": n} for n, emb in enumerate(embeddings)]
 

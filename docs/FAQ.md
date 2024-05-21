@@ -6,21 +6,29 @@ Run h2oGPT somehow with OpenAI server active (as is default).
 ```bash
 python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True
 ```
-You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.
+You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.  One can choose any other [image generation models](#image-generation) or [TTS models](#speech-to-text-stt-and-text-to_speech-tts) as well.
 
 Then run the Open Web UI docker command
 ```bash
+
+Then run the Open Web UI docker command
+```bash
+export api_key='EMPTY'
 docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct \
 -e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
--e OPENAI_API_KEY='EMPTY' \
+-e OPENAI_API_KEY=$api_key \
 -e ENABLE_IMAGE_GENERATION=True \
 -e IMAGE_GENERATION_ENGINE='openai' \
 -e IMAGES_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
 -e IMAGE_GENERATION_MODEL='sdxl_turbo' \
--e IMAGES_OPENAI_API_KEY='EMPTY' \
+-e IMAGES_OPENAI_API_KEY=$api_key \
 -e AUDIO_OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
--e AUDIO_OPENAI_API_KEY='EMPTY' \
+-e AUDIO_OPENAI_API_KEY=$api_key \
+-e AUDIO_OPENAI_API_VOICE='SLT (female)' \
+-e AUDIO_OPENAI_API_MODEL='microsoft/speecht5_tts' \
+-e RAG_EMBEDDING_ENGINE='openai' \
+-e RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1' \
 -e OLLAMA_BASE_URL=http://0.0.0.0 \
 -e OLLAMA_HOST=0.0.0.0:5000 \
 -e ENABLE_LITELLM=False \
@@ -28,15 +36,21 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
-For TTS, can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  However, streaming TTS is still slow for some reason that is WIP.
+Note:  The first time you login to Open Web UI, that user will be admin user who can set defaults for various admin things, have admin panel to control user behavior and settings, etc.  Additional users will take the role the admin sets (by default, pending, which can be changed to user for anyone to login).
 
-At moment, there is not a way to pass via ENV the embedding endpoint for OpenAI (to reach proxy), once that support is added one can include:
+If one wants to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
 ```bash
--e RAG_EMBEDDING_ENGINE='openai' \
 -e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
 ```
-See https://github.com/open-webui/open-webui/issues/2312.
+
+For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, one can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but they would be like:
+```bash
+-e AUDIO_GENERATION_ENGINE='openai' \
+-e AUDIO_GENERATION_VOICE='SLT (female)' \
+-e OPENAI_API_USER='user:password' \
+```
+See https://github.com/open-webui/open-webui/issues/2312.  The `OPENAI_API_USER` is not currently required since not using user-specific files at moment, but would be required if the Gradio server had authentication setup if h2oGPT was allowing access to files by Open Web UI.
 
 Flaws with Open Web UI:
 * Chat history is not used if any document is in the chat history.
@@ -159,6 +173,8 @@ guided_choice = [
     "Swift", "Kotlin"
 ]
 ```
+
+See [Client Test Code](../tests/test_client_calls.py) and code `test_guided_json` for example use for both Gradio and OpenAI client APIs.
 
 ### T5 Conditional or Sequence to Sequence models
 
@@ -983,19 +999,42 @@ python generate.py \
 ```
 for example image `models/llava.png`.
 
+### Idefics2 Vision Models
+
+Run TGI server:
+```
+docker run -d --gpus '"device=0"' \
+--shm-size 12g \
+-v $HOME/.cache/huggingface/hub/:/data \
+-p 5000:80 \
+--name idefics28b \
+ghcr.io/huggingface/text-generation-inference:2.0.3 \
+--model-id HuggingFaceM4/idefics2-8b --trust-remote-code --max-stop-sequences=6 \
+--max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 \
+--num-shard 1
+```
+
+then run h2oGPT:
+```bash
+python generate.py --inference_server=http://IP:port --base_model=HuggingFaceM4/idefics2-8b-chatty --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False
+```
+where IP:port can be just IP if port is 80.
+
 ### Speech-to-Text (STT) and Text-to_Speech (TTS)
 
 To disable STT and TTS, pass `--enable_tts=False --enable_stt=False` to `generate.py`.  Note that STT and TTS models are always preloaded if not disabled, so GPU memory is used if do not disable them.
 
-For basic STT and TTS, nothing is required to pass, but you should select `Speech Style` under Chats in left sidebar, since not speaking by default.
+For basic STT and TTS, `--enable_tts=True --enable_stt=True` to `generate.py`.  Then in the UI, select `Speech Style` under Chats in left sidebar, since not speaking by default.
 
-To make h2oGPT speak by default, run instead something like:
+To make h2oGPT speak by default, choose a default `chatbot_role` and `speaker`, e.g. run instead something like:
 ```bash
 python generate.py --base_model=llama \
                    --chatbot_role="Female AI Assistant" \
                    --speaker="SLT (female)"
 ```
 By default, we effectively set `--chatbot_role="None" --speaker"None"` so you otherwise have to always choose speaker once UI is started.
+
+The default `--tts_model` is `microsoft/speecht5_tts` which is a good general model, but `tts_models/multilingual/multi-dataset/xtts_v2` is a more advanced model that can handle more languages and has better quality.    `chatbot_role` applies to Coqui models and `speaker` applies to Microsoft models.
 
 For the most advanced setup, one can use Coqui.ai models like xtts_v2.  If deepspeed was installed, then ensure `CUDA_HOME` env is set to same version as torch installation, and that the CUDA installation has full dev installation with `nvcc`, so that cuda kernels can be compiled.
 

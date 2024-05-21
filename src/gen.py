@@ -101,7 +101,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, apply_chat_template
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, apply_chat_template, is_vision_model
 from stopping import get_stopping
 from prompter_utils import get_use_chat_template
 
@@ -2945,6 +2945,10 @@ def get_model(
     else:
         tokenizer = None
 
+    # if base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b"]:
+    #    # work-around until https://huggingface.co/HuggingFaceM4/idefics2-8b-chatty/discussions/5 fixed
+    #    tokenizer.chat_template = "{% for message in messages %}{{message['role'].capitalize()}}{% if message['content'][0]['type'] == 'image' %}{{':'}}{% else %}{{': '}}{% endif %}{% for line in message['content'] %}{% if line['type'] == 'text' %}{{line['text']}}{% elif line['type'] == 'image' %}{{ '<image>' }}{% endif %}{% endfor %}<end_of_utterance>\n{% endfor %}{% if add_generation_prompt %}{{ 'Assistant:' }}{% endif %}"
+
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                   base_model=base_model,
@@ -4354,8 +4358,7 @@ def evaluate(
                            inference_server.startswith('google') or \
                            inference_server.startswith('mistralai') or \
                            inference_server.startswith('groq') or \
-                           (image_file or image_control) and \
-                           inference_server.startswith('openai')
+                           (image_file or image_control) and (not gradio_server)
     do_langchain_path = langchain_mode not in [False, 'Disabled', 'LLM'] or \
                         langchain_only_model or \
                         force_langchain_evaluate or \
