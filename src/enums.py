@@ -77,6 +77,7 @@ class PromptType(Enum):
     sealion = 69
     groq = 70
     aya = 71
+    idefics2 = 72
 
 
 class DocumentSubset(Enum):

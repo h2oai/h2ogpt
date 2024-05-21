@@ -187,6 +187,11 @@ def get_prompt_from_messages(messages, model="mistralai/Mistral-7B-Instruct-v0.1
     if system_prompt:
         messages = [{"role": "system", "content": system_prompt}] + messages
 
+    if model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b"]:
+        for message in messages:
+            message['content'] = [dict(type='text', text=message['content'])]
+        tokenizer.chat_template = "{% for message in messages %}{{message['role'].capitalize()}}{% if message['content'][0]['type'] == 'image' %}{{':'}}{% else %}{{': '}}{% endif %}{% for line in message['content'] %}{% if line['type'] == 'text' %}{{line['text']}}{% elif line['type'] == 'image' %}{{ '<image>' }}{% endif %}{% endfor %}<end_of_utterance>\n{% endfor %}{% if add_generation_prompt %}{{ 'Assistant:' }}{% endif %}"
+
     # add_generation_prompt=True somehow only required for Yi
     prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     return prompt
@@ -264,6 +269,10 @@ def get_aquila_prompt(messages, model_base_name='AquilaChat2-34B-16K', with_sys=
                              # they baked in system prompt
                              ('qwen', 'You are a helpful assistant.', None,
                               get_prompt_from_messages(messages_with_context, model='Qwen/Qwen1.5-72B-Chat')),
+                             ('idefics2',
+                             "",
+                              None,
+                              get_prompt_from_messages(messages_with_context, model='HuggingFaceM4/idefics2-8b')),
                          ]
                          )
 def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expected):
@@ -435,6 +444,9 @@ prompt_orion1 = "<s>Human: Go to the market?\n\nAssistant: </s>"
                              ('gemma', '', get_prompt_from_messages(messages_no_context, model='google/gemma-7b-it')),
                              # then baked in system prompt
                              ('qwen', 'You are a helpful assistant.', get_prompt_from_messages(messages_no_context, model='Qwen/Qwen1.5-72B-Chat')),
+                             ('idefics2',
+                             "",
+                              get_prompt_from_messages(messages_no_context, model='HuggingFaceM4/idefics2-8b')),
                          ]
                          )
 @wrap_test_forked

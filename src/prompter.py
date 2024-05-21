@@ -238,6 +238,7 @@ prompt_type_to_model_name = {
              ],
     "sealion": ['aisingapore/sea-lion-7b-instruct'],
     "aya": ["CohereForAI/aya-101"],
+    "idefics2": ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"],
     # don't actually add, else use_chat_template wouldn't function right for LLM mode
     # 'cohere_grounded': ["CohereForAI/c4ai-command-r-v01", "CohereForAI/c4ai-command-r-plus"],
 }
@@ -296,7 +297,8 @@ def is_vision_model(base_model):
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
         base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
-        base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest"]
+        base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest"] or \
+        base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"]
 
 
 def is_video_model(base_model):
@@ -1574,6 +1576,27 @@ Remember to tailor the activities to the birthday child's interests and preferen
         chat_turn_sep = '<|im_end|>\n'
         humanstr = PreInstruct
         botstr = PreResponse
+    elif prompt_type in [PromptType.idefics2.value, str(PromptType.idefics2.value),
+                         PromptType.idefics2.name]:
+        # messages template: https://huggingface.co/HuggingFaceM4/idefics2-8b/discussions/36/files
+        # "chat_template": "{% for message in messages %}{{message['role'].capitalize()}}{% if message['content'][0]['type'] == 'image' %}{{':'}}{% else %}{{': '}}{% endif %}{% for line in message['content'] %}{% if line['type'] == 'text' %}{{line['text']}}{% elif line['type'] == 'image' %}{{ '<image>' }}{% endif %}{% endfor %}<end_of_utterance>\n{% endfor %}{% if add_generation_prompt %}{{ 'Assistant:' }}{% endif %}",
+        can_handle_system_prompt = True
+        if system_prompt in [None, 'None', 'auto']:
+            system_prompt = "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature."
+        promptA = promptB = "System: %s<end_of_utterance>\n" % system_prompt if system_prompt and not reduced else ''
+
+        PreInstruct = """User: """
+
+        PreInput = None
+
+        PreResponse = """Assistant:"""
+        terminate_response = ['User:', "Assistant:"]
+        chat_turn_sep = '<end_of_utterance>\n'
+        chat_sep = '<end_of_utterance>\n'
+        humanstr = PreInstruct
+        botstr = PreResponse
+        if making_context:
+            PreResponse = botstr + ' '
     else:
         raise RuntimeError("No such prompt_type=%s" % prompt_type)
 
