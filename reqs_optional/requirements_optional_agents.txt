@@ -7,3 +7,4 @@ wikipedia>=1.4.0
 wolframalpha>=5.0.0
 semanticscholar>=0.7.0
 sympy>=1.12
+requests>=2.32.0 # not directly required, pinned by Snyk to avoid a vulnerability
