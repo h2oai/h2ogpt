@@ -42,6 +42,7 @@ if have_hf_transfer and os.getenv('HF_HUB_ENABLE_HF_TRANSFER', 'None') != '0':
 
 os.environ['SCARF_NO_ANALYTICS'] = 'true'
 os.environ['DO_NOT_TRACK'] = 'true'
+os.environ['OTEL_SDK_DISABLED'] = 'true'
 
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
