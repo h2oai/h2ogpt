@@ -80,7 +80,7 @@ tiktoken>=0.5.2
 # optional: for OpenAI endpoint
 openai>=1.27.0
 
-requests>=2.31.0
+requests>=2.32.0
 httpx>=0.24.1
 urllib3>=1.26.16
 filelock>=3.12.2
