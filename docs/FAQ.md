@@ -1026,7 +1026,7 @@ docker run -d --gpus '"device=0"' \
 --name idefics28b \
 ghcr.io/huggingface/text-generation-inference:2.0.3 \
 --model-id HuggingFaceM4/idefics2-8b --trust-remote-code --max-stop-sequences=6 \
---max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 \
+--max-batch-prefill-tokens=32768 --max-input-length 4096 --max-total-tokens 8192 \
 --num-shard 1
 ```
 
