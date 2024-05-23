@@ -179,7 +179,7 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa,
     return base_model, model_path_llama, load_gptq, load_awq, n_gqa
 
 
-def  main(
+def main(
         load_8bit: bool = False,
         load_4bit: bool = False,
         low_bit_mode: int = 1,
