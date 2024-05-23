@@ -1262,7 +1262,9 @@ class FakeTokenizer:
                  is_google=False,
                  is_hf=False,
                  tokenizer=None,
-                 is_llama_cpp=False):
+                 is_llama_cpp=False,
+                 is_super_fake=False,
+                 ):
         if model_max_length is None:
             assert not (
                     is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
@@ -1272,21 +1274,28 @@ class FakeTokenizer:
         self.is_google = is_google
         self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
+        self.is_super_fake = is_super_fake
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
         if not self.is_openai and not self.is_anthropic and not self.is_llama_cpp:
             # don't push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
             self.model_max_length -= 250
         self.encoding_name = encoding_name
+        if self.is_super_fake:
+            self.encoding = None
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        if not (self.is_anthropic or self.is_google):
+        elif not (self.is_anthropic or self.is_google):
             import tiktoken
             self.encoding = tiktoken.get_encoding(self.encoding_name)
         else:
             self.encoding = None
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
-        if self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
+        if self.is_super_fake:
+            input_ids = self.heuristic_encode(x)
+            # avoid torch tensor
+            return dict(input_ids=input_ids)
+        elif self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
             input_ids = self.tokenizer.tokenize(b" " + x.encode("utf-8"))
         elif self.is_anthropic:
             from anthropic import Anthropic
@@ -1305,7 +1314,9 @@ class FakeTokenizer:
         return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):
-        if self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
+        if self.is_super_fake:
+            return ['aaaa'] * len(x)  # fake
+        elif self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
             return self.tokenizer.detokenize(x)
         elif self.is_anthropic:
             from anthropic import Anthropic
@@ -1321,7 +1332,9 @@ class FakeTokenizer:
 
     def num_tokens_from_string(self, prompt: str) -> int:
         """Returns the number of tokens in a text string."""
-        if self.is_anthropic:
+        if self.is_super_fake:
+            return len(self.heuristic_encode(prompt))
+        elif self.is_anthropic:
             from anthropic import Anthropic
             client = Anthropic()
             return client.count_tokens(prompt)
@@ -1331,6 +1344,13 @@ class FakeTokenizer:
             return len(self.tokenizer.encode(prompt))
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
+
+    def heuristic_encode(self, text: str) -> list:
+        """
+        A heuristic-based approach to estimate token counts.
+        """
+        total_tokens = len(text) // 4 if len(text) >= 4 else 1
+        return [0] * total_tokens
 
     def __call__(self, x, *args, **kwargs):
         return self.encode(x, *args, **kwargs)
