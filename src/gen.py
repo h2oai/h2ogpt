@@ -79,7 +79,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     langchain_modes0, langchain_mode_types0, langchain_mode_paths0, \
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
-    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0
+    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -1865,6 +1865,7 @@ def main(
         task_info = \
         get_generate_params(model_lower,
                             model_lower0,
+                            inference_server,
                             llamacpp_dict,
                             chat,
                             stream_output, show_examples,
@@ -2273,6 +2274,7 @@ def main(
         # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
         if prompt_type_infer:
             prompt_type1_trial = model_name_to_prompt_type(model_dict['base_model'],
+                                                           model_dict['inference_server'],
                                                            model_name0=model_dict['base_model0'],
                                                            llamacpp_dict=model_dict['llamacpp_dict'])
             if prompt_type1_trial:
@@ -4156,8 +4158,8 @@ def evaluate(
     model_lower = base_model.lower()
     llamacpp_dict = str_to_dict(llamacpp_dict)
     if not prompt_type and prompt_type != 'custom':
-        prompt_type_trial = model_name_to_prompt_type(base_model,
-                                                      llamacpp_dict=llamacpp_dict)
+        prompt_type_trial = model_name_to_prompt_type(base_model, inference_server,
+                                                      llamacpp_dict=llamacpp_dict, tokenizer=tokenizer)
         if prompt_type_trial:
             prompt_type = prompt_type_trial
             if verbose:
@@ -5554,6 +5556,7 @@ def generate_with_exceptions(func, *args, raise_generate_gpu_exceptions=True, **
 
 def get_generate_params(model_lower,
                         model_lower0,
+                        inference_server,
                         llamacpp_dict,
                         chat,
                         stream_output, show_examples,
@@ -5623,7 +5626,7 @@ def get_generate_params(model_lower,
     max_time = max_time if max_time is not None else max_time_defaults
 
     if not prompt_type and prompt_type != 'custom':
-        prompt_type_trial = model_name_to_prompt_type(model_lower,
+        prompt_type_trial = model_name_to_prompt_type(model_lower, inference_server,
                                                       model_name0=model_lower0,
                                                       llamacpp_dict=llamacpp_dict)
         if prompt_type_trial:
@@ -5681,6 +5684,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         placeholder_input = ""
         if not prompt_type and prompt_type != 'custom':
             prompt_type_trial = model_name_to_prompt_type(model_lower,
+                                                          inference_server,
                                                           model_name0=model_lower0,
                                                           llamacpp_dict=llamacpp_dict)
             if prompt_type_trial:
@@ -5691,7 +5695,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         task_info = "No task"
         if prompt_type == 'instruct':
             task_info = "Answer question or follow imperative as instruction with optionally input."
-        elif prompt_type in [noop_prompt_type, unknown_prompt_type]:
+        elif prompt_type in [empty_prompt_type, noop_prompt_type, unknown_prompt_type]:
             task_info = "Auto-complete phrase, code, etc."
         elif prompt_type == 'human_bot':
             if chat:
@@ -6571,7 +6575,9 @@ def get_llama_lower_hf(llama_lower):
     return llama_lower_hf
 
 
-def model_name_to_prompt_type(model_name, model_name0=None, llamacpp_dict={}, prompt_type_old=None):
+def model_name_to_prompt_type(model_name, inference_server,
+                              model_name0=None, llamacpp_dict={},
+                              prompt_type_old=None, tokenizer=None):
     model_lower0 = model_name0.strip().lower() if model_name0 is not None else ''
     model_lower = model_name.strip().lower()
     llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
@@ -6587,6 +6593,27 @@ def model_name_to_prompt_type(model_name, model_name0=None, llamacpp_dict={}, pr
         prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
     else:
         prompt_type1 = prompt_type_old or ''
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer, FakeTokenizer):
+        # handle new models not defined yet
+        if tokenizer.is_google:
+            prompt_type1 = 'google'
+        elif tokenizer.is_anthropic:
+            prompt_type1 = 'anthropic'
+        elif tokenizer.is_openai:
+            prompt_type1 = 'openai'
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type]:
+        # handle new models not defined yet
+        if inference_server == 'google':
+            prompt_type1 = 'google'
+        elif inference_server == 'mistralai':
+            prompt_type1 = 'mistralai'
+        elif inference_server == 'mistralai':
+            prompt_type1 = 'mistralai'
+        elif inference_server == 'anthropic':
+            prompt_type1 = 'anthropic'
+        elif inference_server == 'openai':
+            prompt_type1 = 'openai'
+
     return prompt_type1
 
 
