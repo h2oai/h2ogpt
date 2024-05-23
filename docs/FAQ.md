@@ -1,5 +1,23 @@
 ## Frequently asked questions
 
+### Parallel and Isolated OpenAI Proxy Servers
+
+```bash
+python generate.py --openai_server=True --openai_workers=2 ...
+```
+will launch 2 OpenAI proxy servers using FastAPIs workers, so each is a separate fork independent of any other process.
+
+This speeds up any calls to the OpenAI server, letting FastAPI handle concurrency and load balancing between the different workers using same IP/port via OS management.
+
+### Parallel and Isolated Ingestion Servers
+
+```bash
+python generate.py --function_server=True --function_server_workers=2 ...
+```
+will launch 2 Ingestion proxy servers using FastAPIs workers, so each is a separate fork independent of any other process.  If ASR, DocTR, captions, etc. are enabled, these will be run on same GPUs in separate processes.
+
+This helps keep the main UI server isolated from ingestion tasks that can consume alot of cpu or hang the Gradio server.
+
 ### Open Web UI
 
 Run h2oGPT somehow with OpenAI server active (as is default).
