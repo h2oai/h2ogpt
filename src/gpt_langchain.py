@@ -6441,7 +6441,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
     doing_grounding = tokenizer is not None and \
                       hasattr(tokenizer, 'apply_grounded_generation_template') and \
-                      prompt_type not in [noop_prompt_type, template_prompt_type]
+                      prompt_type not in [empty_prompt_type, noop_prompt_type, template_prompt_type]
 
     # handle auto case
     if system_prompt == 'auto':
@@ -8308,7 +8308,7 @@ def get_chain(query=None,
                 chain = load_qa_chain(llm, prompt=prompt, verbose=verbose)
             else:
                 # unused normally except in testing
-                assert use_openai_model or prompt_type in [noop_prompt_type,
+                assert use_openai_model or prompt_type in [empty_prompt_type, noop_prompt_type,
                                                            unknown_prompt_type], "Unexpected to use few-shot template for %s %s" % (
                     model_name, prompt_type)
                 chain = load_qa_with_sources_chain(llm)

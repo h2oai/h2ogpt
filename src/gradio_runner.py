@@ -5168,6 +5168,7 @@ def go_gradio(**kwargs):
             else:
                 all_kwargs1['n_gpus'] = n_gpus_global
             prompt_type1 = model_name_to_prompt_type(model_name,
+                                                     server_name,
                                                      model_name0=model_name0,
                                                      llamacpp_dict=llamacpp_dict,
                                                      prompt_type_old=prompt_type_old)
