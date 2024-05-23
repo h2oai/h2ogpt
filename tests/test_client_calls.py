@@ -5088,7 +5088,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
 
 
 vision_models = ['gpt-4-vision-preview',
-                 'gemini-pro-vision', 'gemini-1.5-pro-latest',
+                 'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                  'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
                  'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
                  ]
@@ -5293,7 +5293,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
                      'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
-                     'gemini-pro-vision', 'gemini-1.5-pro-latest',
+                     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
                      # 'liuhaotian/llava-v1.6-vicuna-13b',

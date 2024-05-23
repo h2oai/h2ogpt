@@ -297,14 +297,14 @@ def is_vision_model(base_model):
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
         base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
-        base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest"] or \
+        base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"] or \
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"]
 
 
 def is_video_model(base_model):
     if not base_model:
         return False
-    return base_model in ["gemini-1.5-pro-latest"]
+    return base_model in ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
 
 
 def is_json_model(base_model, inference_server, json_vllm=False):
