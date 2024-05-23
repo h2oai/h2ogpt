@@ -5,18 +5,15 @@ import json
 import inspect
 import threading
 import traceback
-import typing
 import uuid
 from traceback import print_exception
-from typing import Union
 
 from pydantic import BaseModel
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Request, Depends
-from fastapi.responses import JSONResponse, Response, StreamingResponse
-from sse_starlette import EventSourceResponse
+from fastapi import Depends
+from fastapi.responses import JSONResponse, Response
 from starlette.responses import PlainTextResponse
 
 if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
@@ -33,6 +30,7 @@ sys.path.append(project_root)
 # similar to openai_server/server.py
 def verify_api_key(authorization: str = Header(None)) -> None:
     server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+    print("server_api_key: %s %s" % (server_api_key, authorization))
     if server_api_key == 'EMPTY':
         # dummy case since '' cannot be handled
         return
