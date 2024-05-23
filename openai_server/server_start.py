@@ -30,7 +30,7 @@ def run_server(host: str = '0.0.0.0',
                workers: int = 1,
                app: Union[str, FastAPI] = None,
                is_openai_server: bool = True,
-               main_kwargs: dict = {},
+               main_kwargs: str = "",  # json.dumped dict
                ):
     if workers == 0:
         workers = min(16, os.cpu_count() * 2 + 1)
@@ -65,7 +65,7 @@ def run_server(host: str = '0.0.0.0',
     logging.getLogger("uvicorn.error").propagate = False
 
     # to pass args through so app can run gen setup
-    os.environ['H2OGPT_MAIN_KWARGS'] = json.dumps(main_kwargs)
+    os.environ['H2OGPT_MAIN_KWARGS'] = main_kwargs
 
     if not isinstance(app, str):
         workers = None
@@ -88,9 +88,11 @@ def run(wait=True, **kwargs):
             command.append(f'--{key}')  # Assume keys are formatted as expected for the script
             command.append(str(value))  # Convert all values to strings to be safe
 
-        process = subprocess.Popen(command, stdout=subprocess.PIPE)
-        for c in iter(lambda: process.stdout.read(1), b''):
-            sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
+        process = subprocess.Popen(command, stdout=None, stderr=None)
+        if wait:
+            process.communicate()
+        #for c in iter(lambda: process.stdout.read(1), b''):
+        #    sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
     elif wait:
         print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
@@ -114,7 +116,7 @@ def argv_to_kwargs(argv=None):
             if type(param.default) is int:  # Check if the default value is an integer
                 parser.add_argument(f'--{name}', type=int, default=param.default)
             elif type(param.default) is bool:  # Add support for boolean values
-                parser.add_argument(f'--{name}', action='store_true' if param.default is False else 'store_false')
+                parser.add_argument(f'--{name}', type=lambda x: (str(x).lower() in ['true', '1', 'yes']), default=param.default)
             else:  # Treat as string by default
                 parser.add_argument(f'--{name}', type=str, default=param.default if param.default is not None else '')
 

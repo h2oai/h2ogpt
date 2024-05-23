@@ -6039,19 +6039,20 @@ def go_gradio(**kwargs):
                           auth_access=kwargs['auth_access'],
                           guest_name=kwargs['guest_name'],
                           workers=kwargs['function_server_workers'],
+                          main_kwargs=json.dumps(kwargs['main_kwargs']),
                           )
 
         if kwargs['openai_server']:
+            print("Starting up OpenAI proxy server")
             from openai_server.server import app as openai_app
             openai_app = openai_app if kwargs['openai_workers'] == 1 else 'server:app'
-            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True,
-                main_kwargs=kwargs['main_kwargs'])
+            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True)
 
         if kwargs['function_server']:
+            print("Starting up Function server")
             from openai_server.function_server import app as function_app
             function_app = function_app if kwargs['function_server_workers'] == 1 else 'function_server:app'
-            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False,
-                main_kwargs=kwargs['main_kwargs'])
+            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False)
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

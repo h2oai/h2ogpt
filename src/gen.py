@@ -270,7 +270,7 @@ def  main(
         openai_workers: int = 1,
 
         function_server: bool = False,
-        function_server_port: int = 5001 if sys.platform == "darwin" else 5000,
+        function_server_port: int = 5003 if sys.platform == "darwin" else 5002,
         function_server_workers: int = 1,
 
         gradio_offline_level: int = 0,

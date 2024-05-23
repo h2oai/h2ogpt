@@ -1,9 +1,11 @@
 import os
+import pickle
 import sys
 import json
 import inspect
 import threading
 import typing
+import uuid
 from traceback import print_exception
 from typing import Union
 
@@ -49,6 +51,7 @@ class FunctionRequest(BaseModel):
     args: tuple
     kwargs: dict
     use_disk: bool = False
+    use_pickle: bool = False
 
 
 @app.get("/health")
@@ -73,7 +76,7 @@ gen_kwargs = {}
 gen_kwargs_lock = threading.Lock()
 
 
-@app.post("/execute_function/")
+@app.post("/execute_function/", dependencies=check_key)
 def execute_function(request: FunctionRequest):
     global gen_kwargs
     with gen_kwargs_lock:
@@ -82,6 +85,10 @@ def execute_function(request: FunctionRequest):
             main_kwargs['enable_image'] = False  # only for chat part, not used here
             main_kwargs['visible_image_models'] = []
             main_kwargs['image_gpu_ids'] = None
+            main_kwargs['gradio'] = False
+            main_kwargs['eval'] = False
+            main_kwargs['cli'] = False
+            main_kwargs['function'] = False
             from src.gen import main as gen_main
             gen_kwargs = gen_main(**main_kwargs)
 
@@ -105,9 +112,18 @@ def execute_function(request: FunctionRequest):
 
         if request.use_disk:
             # Save the result to a file on the shared disk
-            file_path = "/path/to/shared/disk/function_result.json"
-            with open(file_path, "w") as f:
-                json.dump(result, f)
+            base_path = 'function_results'
+            if not os.path.isdir(base_path):
+                os.makedirs(base_path)
+            file_path = os.path.join(base_path, str(uuid.uuid4()))
+            if request.use_pickle:
+                file_path += '.pkl'
+                with open(file_path, "wb") as f:
+                    pickle.dump(result, f)
+            else:
+                file_path += '.json'
+                with open(file_path, "w") as f:
+                    json.dump(result, f)
             return {"status": "success", "file_path": file_path}
         else:
             # Return the result directly
