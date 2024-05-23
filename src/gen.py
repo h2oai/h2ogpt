@@ -2483,7 +2483,8 @@ def get_config(base_model,
         elif hasattr(config, 'text_config') and hasattr(config.text_config, 'max_position_embeddings') and isinstance(config.text_config.max_position_embeddings, int):
             # help automatically limit inputs to generate
             if 'idefics' in base_model:
-                max_seq_len = 8192
+                #max_seq_len = 8192
+                max_seq_len = 4096  # safer
             else:
                 max_seq_len = config.text_config.max_position_embeddings
             if verbose:
