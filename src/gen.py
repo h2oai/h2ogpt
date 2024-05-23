@@ -1710,10 +1710,10 @@ def  main(
             # can't share LLM state across user requests due to k-v cache for LLMs
             # FIXME: In gradio 4 could use 1 for only LLM tasks, higher for rest
             concurrency_count = 1
-    if concurrency_count > 1 and not all_inference_server:
+    if concurrency_count > 1 and not all_inference_server and base_model:
         # FIXME: Could use semaphore to manage each LLM concurrency, in case mix of local and remote
         raise ValueError(
-            "Concurrency count > 1 will lead mixup in cache use for local LLMs, disable this raise at own risk.")
+            "Concurrency count > 1 will lead to mixup in cache use for local LLMs, disable this raise at own risk.")
 
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))

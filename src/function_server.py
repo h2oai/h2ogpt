@@ -77,22 +77,45 @@ gen_kwargs = {}
 gen_kwargs_lock = threading.Lock()
 
 
-@app.post("/execute_function/", dependencies=check_key)
-def execute_function(request: FunctionRequest):
+def initialize_gen_kwargs():
     global gen_kwargs
-    with gen_kwargs_lock:
+    with gen_kwargs_lock:  # not strictly required if in global scope
         if not gen_kwargs:
-            main_kwargs = json.loads(os.environ['H2OGPT_MAIN_KWARGS'])
-            main_kwargs['enable_image'] = False  # only for chat part, not used here
+            main_kwargs = json.loads(os.environ['H2OGPT_MAIN_KWARGS'])  # required
+
+            # don't double up LLMs, in pure "document ingest" mode
+            main_kwargs['model_lock'] = []
+            main_kwargs['base_model'] = ''
+            main_kwargs['inference_server'] = ''
+
+            # only for chat part, not used here
+            main_kwargs['enable_image'] = False
             main_kwargs['visible_image_models'] = []
             main_kwargs['image_gpu_ids'] = None
+
+            # function server mode only
             main_kwargs['gradio'] = False
             main_kwargs['eval'] = False
             main_kwargs['cli'] = False
             main_kwargs['function'] = True
+            # don't double this
+            main_kwargs['openai_server'] = False
+
+            # FIXME: Deal with GPU IDs for each caption/ASR/DocTR model, use MIG, etc.
+
             from src.gen import main as gen_main
             gen_kwargs = gen_main(**main_kwargs)
 
+
+# Call the initialization function at startup, but not during import
+if 'H2OGPT_MAIN_KWARGS' in os.environ:
+    initialize_gen_kwargs()
+else:
+    print("H2OGPT_MAIN_KWARGS not found in os.environ")
+
+
+@app.post("/execute_function/", dependencies=check_key)
+def execute_function(request: FunctionRequest):
     # Mapping of function names to function objects
     from src.gpt_langchain import path_to_docs
     FUNCTIONS = {

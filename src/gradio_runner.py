@@ -6044,14 +6044,18 @@ def go_gradio(**kwargs):
 
         if kwargs['openai_server']:
             print("Starting up OpenAI proxy server")
-            from openai_server.server import app as openai_app
-            openai_app = openai_app if kwargs['openai_workers'] == 1 else 'server:app'
+            if kwargs['openai_workers'] == 1:
+                from openai_server.server import app as openai_app
+            else:
+                openai_app = 'server:app'
             run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True)
 
         if kwargs['function_server']:
             print("Starting up Function server")
-            from openai_server.function_server import app as function_app
-            function_app = function_app if kwargs['function_server_workers'] == 1 else 'function_server:app'
+            if kwargs['function_server_workers'] == 1:
+                from openai_server.function_server import app as function_app
+            else:
+                function_app = 'function_server:app'
             run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False)
 
     if kwargs['block_gradio_exit']:
