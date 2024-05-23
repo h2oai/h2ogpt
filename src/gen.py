@@ -2428,8 +2428,8 @@ def get_config(base_model,
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
-                    print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
-                    max_seq_len = 2048
+                    max_seq_len = 4096
+                    print(f"Could not determine --max_seq_len, setting to {max_seq_len}.  Pass if not correct", flush=True)
                 # HF TGI server only should really require prompt_type, not HF model state
                 print("Not using tokenizer from HuggingFace:\n\n", flush=True)
                 traceback.print_exc()
@@ -2495,11 +2495,8 @@ def get_config(base_model,
             # e.g. gpt2
             max_seq_len = int(config.n_ctx)
         else:
-            print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
-            max_seq_len = 2048
-            # FIXME:
-            # raise RuntimeError("Could not determine max_seq_len,"
-            #                   " please pass --max_seq_len and set to some value, e.g. 2048.")
+            max_seq_len = 4096
+            print(f"Could not determine --max_seq_len, setting to {max_seq_len}.  Pass if not correct", flush=True)
 
         # listen to model if sets this and user passed nothing
         if not rope_scaling and hasattr(config, 'rope_scaling'):
