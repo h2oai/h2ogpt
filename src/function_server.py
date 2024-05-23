@@ -19,7 +19,15 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
 
-sys.path.append('src')
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+if os.path.dirname('src') not in sys.path:
+    sys.path.append('src')
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+sys.path.append(project_root)
 
 
 # similar to openai_server/server.py

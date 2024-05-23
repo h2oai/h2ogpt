@@ -12,6 +12,9 @@ from typing import Union
 import uvicorn
 from fastapi import FastAPI
 
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 sys.path.append('openai_server')
 
 
@@ -58,7 +61,10 @@ def run_server(host: str = '0.0.0.0',
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
 
     prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
-    from openai_server.log import logger
+    try:
+        from openai_server.log import logger
+    except ModuleNotFoundError:
+        from log import logger
     logger.info(f'{name} API URL: {prefix}://{host}:{port}')
     logger.info(f'{name} API key: {server_api_key}')
 
