@@ -2386,8 +2386,8 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
         text_context_list[0] = doc_content
         one_doc_size = len(doc_content)
         num_doc_tokens = get_token_count(doc_content + docs_joiner, tokenizer)
-        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
-            tokens[0], new_tokens0), flush=True)
+        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s for max_input_tokens=%s" % (
+            tokens[0], new_tokens0, max_input_tokens), flush=True)
     return top_k_docs, one_doc_size, num_doc_tokens
 
 

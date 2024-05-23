@@ -262,7 +262,7 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_with_score_new.append((doc1, new_score))
 
             if did_split:
-                assert one_doc_size is None, "Split failed: %s" % one_doc_size
+                assert one_doc_size is None or one_doc_size == 0, "Split failed: %s" % one_doc_size
             elif one_doc_size is not None:
                 # chopped
                 assert top_k_docs == 1
