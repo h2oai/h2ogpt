@@ -2482,7 +2482,10 @@ def get_config(base_model,
                       flush=True)
         elif hasattr(config, 'text_config') and hasattr(config.text_config, 'max_position_embeddings') and isinstance(config.text_config.max_position_embeddings, int):
             # help automatically limit inputs to generate
-            max_seq_len = config.text_config.max_position_embeddings
+            if 'idefics' in base_model:
+                max_seq_len = 8192
+            else:
+                max_seq_len = config.text_config.max_position_embeddings
             if verbose:
                 print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
                       "  If not desired, pass --max_seq_len and set to some integer value." % config.text_config.max_position_embeddings,
