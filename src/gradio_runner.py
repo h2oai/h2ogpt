@@ -2410,6 +2410,8 @@ def go_gradio(**kwargs):
                                            gradio_upload_to_chatbot_num_max=kwargs['gradio_upload_to_chatbot_num_max'],
                                            allow_upload_to_my_data=kwargs['allow_upload_to_my_data'],
                                            allow_upload_to_user_data=kwargs['allow_upload_to_user_data'],
+                                           function_server=kwargs['function_server'],
+                                           function_server_port=kwargs['function_server_port'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -4492,7 +4494,7 @@ def go_gradio(**kwargs):
                                   roles_state] + [
                        text_output],
             outputs=[text_output, chat_exception_text, speech_bot],
-            )
+        )
         retry_bot_args = dict(
             fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type,
                                  dbs=dbs, verbose=verbose),
@@ -4500,7 +4502,7 @@ def go_gradio(**kwargs):
                                   roles_state] + [
                        text_output],
             outputs=[text_output, chat_exception_text, speech_bot],
-            )
+        )
         retry_user_args = dict(
             fn=functools.partial(user, retry=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
             inputs=inputs_list + [text_output],
@@ -4524,7 +4526,7 @@ def go_gradio(**kwargs):
                                    roles_state] + [
                        text_output2],
             outputs=[text_output2, chat_exception_text, speech_bot2],
-            )
+        )
         retry_bot_args2 = dict(
             fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type,
                                  dbs=dbs, verbose=verbose),
@@ -4532,7 +4534,7 @@ def go_gradio(**kwargs):
                                    requests_state, roles_state] + [
                        text_output2],
             outputs=[text_output2, chat_exception_text, speech_bot2],
-            )
+        )
         retry_user_args2 = dict(fn=functools.partial(user, retry=True),
                                 inputs=inputs_list2 + [text_output2],
                                 outputs=text_output2,
@@ -6042,12 +6044,14 @@ def go_gradio(**kwargs):
         if kwargs['openai_server']:
             from openai_server.server import app as openai_app
             openai_app = openai_app if kwargs['openai_workers'] == 1 else 'server:app'
-            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True)
+            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True,
+                main_kwargs=kwargs['main_kwargs'])
 
         if kwargs['function_server']:
             from openai_server.function_server import app as function_app
             function_app = function_app if kwargs['function_server_workers'] == 1 else 'function_server:app'
-            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False)
+            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False,
+                main_kwargs=kwargs['main_kwargs'])
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

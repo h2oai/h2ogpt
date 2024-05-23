@@ -1,4 +1,5 @@
 import inspect
+import json
 import os
 import subprocess
 import sys
@@ -29,6 +30,7 @@ def run_server(host: str = '0.0.0.0',
                workers: int = 1,
                app: Union[str, FastAPI] = None,
                is_openai_server: bool = True,
+               main_kwargs: dict = {},
                ):
     if workers == 0:
         workers = min(16, os.cpu_count() * 2 + 1)
@@ -61,6 +63,9 @@ def run_server(host: str = '0.0.0.0',
     logger.info(f'{name} API key: {server_api_key}')
 
     logging.getLogger("uvicorn.error").propagate = False
+
+    # to pass args through so app can run gen setup
+    os.environ['H2OGPT_MAIN_KWARGS'] = json.dumps(main_kwargs)
 
     if not isinstance(app, str):
         workers = None

@@ -179,7 +179,7 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa,
     return base_model, model_path_llama, load_gptq, load_awq, n_gqa
 
 
-def main(
+def  main(
         load_8bit: bool = False,
         load_4bit: bool = False,
         low_bit_mode: int = 1,
@@ -261,7 +261,9 @@ def main(
         prepare_offline_level: int = 0,
         cli: bool = False,
         cli_loop: bool = True,
+        eval: bool = False,
         gradio: bool = True,
+        function: bool = False,
 
         openai_server: bool = True,
         openai_port: int = 5001 if sys.platform == "darwin" else 5000,
@@ -799,8 +801,10 @@ def main(
            1: prepare just h2oGPT with exact same setup as passed to CLI and ensure all artifacts for h2oGPT alone added to ~/.cache/
            2: prepare h2oGPT + all inference servers so h2oGPT+inference servers can use the ~/.cache/
     :param cli: whether to use CLI (non-gradio) interface.
+    :param eval: whether to run evals
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
+    :param function: whether to run function mode to just return locals for function server
 
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
            Disabled if API is disabled
@@ -1342,6 +1346,8 @@ def main(
     :param heap_app_id: App ID for Heap, change to your ID.
     :return:
     """
+    main_kwargs = locals().copy()
+
     if base_model is None:
         base_model = ''
     if tokenizer_base_model is None:
@@ -1449,9 +1455,9 @@ def main(
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
-        assert gradio, "model_lock only supported for gradio=True"
+        assert gradio or function, "model_lock only supported for gradio=True or function=True"
         assert not cli, "model_lock only supported for cli=False"
-        assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
+        assert not (not cli and not (gradio or function)), "model_lock only supported for eval (cli=gradio=False)"
         assert not base_model, "Don't specify model_lock and base_model"
         assert not tokenizer_base_model, "Don't specify model_lock and tokenizer_base_model"
         assert not lora_weights, "Don't specify model_lock and lora_weights"
@@ -1474,7 +1480,7 @@ def main(
         # nominally allow UI access public or not
         enforce_h2ogpt_ui_key = False
     if is_public:
-        if max_visible_models is None and gradio:
+        if max_visible_models is None and (gradio or function):
             is_gradio_h2oai = get_is_gradio_h2oai()
             max_visible_models = 4 if is_gradio_h2oai else None
         visible_tos_tab = visible_hosts_tab = True
@@ -1793,7 +1799,7 @@ def main(
     else:
         model_lower = ''
         model_lower0 = ''
-    if not gradio:
+    if not (gradio or function):
         # force, else not single response like want to look at
         stream_output = False
         # else prompt removal can mess up output
@@ -1809,7 +1815,7 @@ def main(
 
     # auto-set stt and tts.
     # Done early here for lg_to_gr() and preload of db to know what's enabled
-    if cli or not gradio:
+    if cli or not (gradio or function):
         enable_stt = enable_tts = False
 
     if not (have_soundfile and have_librosa and have_wavio):
@@ -2157,7 +2163,7 @@ def main(
                                  langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
 
-    if cli or not gradio:
+    if cli or not (gradio or function):
         # initial state for query prompt
         model_name = base_model
         pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
@@ -2368,7 +2374,7 @@ def main(
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, **local_kwargs))
-    elif not gradio:
+    elif eval:
         from eval import run_eval
         return run_eval(**get_kwargs(run_eval, **local_kwargs))
     elif gradio or prepare_offline_level > 0:
@@ -2376,6 +2382,8 @@ def main(
         from gradio_runner import go_gradio
         # assume gradio needs everything
         go_gradio(**local_kwargs)
+    elif function:
+        return local_kwargs
 
 
 def get_config(base_model,

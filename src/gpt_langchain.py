@@ -111,7 +111,7 @@ from langchain.text_splitter import Language, RecursiveCharacterTextSplitter, Te
 from langchain.chains.question_answering import load_qa_chain
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
-#from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline  # pycharm doesn't recognize parameters if use this
+# from langchain_community.llms import HuggingFaceTextGenInference, HuggingFacePipeline  # pycharm doesn't recognize parameters if use this
 from langchain_community.llms.huggingface_text_gen_inference import HuggingFaceTextGenInference
 from langchain_community.llms import HuggingFacePipeline
 from langchain_community.vectorstores import Chroma
@@ -3288,9 +3288,9 @@ def get_llm(use_openai_model=False,
         # below makes it listen only to our prompt removal,
         # not built in prompt removal that is less general and not specific for our model
         # also works for Conditional generation: https://github.com/huggingface/transformers/issues/27870#issuecomment-1844775749
-        #if img_file:
+        # if img_file:
         #    pipe.task = 'image-to-text'
-        #else:
+        # else:
         pipe.task = "text2text-generation"
 
         llm = H2OHuggingFacePipeline(pipeline=pipe)
@@ -3777,7 +3777,7 @@ def get_youtube_urls():
 
     url_prefixes_youtube1 = []
     for x in base:
-         url_prefixes_youtube1.extend([
+        url_prefixes_youtube1.extend([
             # '%s/watch?v=' % x,
             '%s' % x,
             # '%s/shorts/' % x,
@@ -3850,9 +3850,10 @@ def file_to_doc(file,
     case3_arxiv = file_lower.startswith('http://arxiv.org/abs') and len(file_lower.split('http://arxiv.org/abs')) == 2
     case4_arxiv = file_lower.startswith('arxiv.org/abs/') and len(file_lower.split('arxiv.org/abs/')) == 2
 
-
     is_arxiv = case1_arxiv or case2_arxiv or case3_arxiv or case4_arxiv
-    is_youtube = any(file_lower.replace('http://', '').replace('https://', '').replace('www.', '').startswith(prefix) for prefix in url_prefixes_youtube)
+    is_youtube = any(
+        file_lower.replace('http://', '').replace('https://', '').replace('www.', '').startswith(prefix) for prefix in
+        url_prefixes_youtube)
 
     if is_url and is_txt:
         # decide which
@@ -8924,6 +8925,9 @@ def _update_user_db(file,
 
                     allow_upload_to_my_data=None,
                     allow_upload_to_user_data=None,
+
+                    function_server: bool = False,
+                    function_server_port: int = None,
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -9032,57 +9036,72 @@ def _update_user_db(file,
         # avoid parallel if fake embedding since assume trivial ingestion
         n_jobs = 1
 
-    sources = path_to_docs(file if not is_url and not is_txt else None,
-                           verbose=verbose,
-                           fail_any_exception=False,
-                           n_jobs=n_jobs,
-                           chunk=chunk, chunk_size=chunk_size,
-                           url=file if is_url else None,
-                           text=file if is_txt else None,
+    complex_kwargs = dict(
+        captions_model=captions_model,
+        caption_loader=caption_loader,
+        doctr_loader=doctr_loader,
+        pix2struct_loader=pix2struct_loader,
+        llava_model=llava_model,
+        asr_model=asr_model,
+        asr_loader=asr_loader,
 
-                           # urls
-                           use_unstructured=use_unstructured,
-                           use_playwright=use_playwright,
-                           use_selenium=use_selenium,
-                           use_scrapeplaywright=use_scrapeplaywright,
-                           use_scrapehttp=use_scrapehttp,
+        hf_embedding_model=hf_embedding_model,
+    )
+    simple_kwargs = dict(
+        url=file if is_url else None,
+        text=file if is_txt else None,
 
-                           # pdfs
-                           use_pymupdf=use_pymupdf,
-                           use_unstructured_pdf=use_unstructured_pdf,
-                           use_pypdf=use_pypdf,
-                           enable_pdf_ocr=enable_pdf_ocr,
-                           enable_pdf_doctr=enable_pdf_doctr,
-                           try_pdf_as_html=try_pdf_as_html,
+        # images
+        enable_ocr=enable_ocr,
+        enable_doctr=enable_doctr,
+        enable_pix2struct=enable_pix2struct,
+        enable_captions=enable_captions,
+        enable_llava=enable_llava,
+        enable_transcriptions=enable_transcriptions,
+        llava_prompt=llava_prompt,
 
-                           # images
-                           enable_ocr=enable_ocr,
-                           enable_doctr=enable_doctr,
-                           enable_pix2struct=enable_pix2struct,
-                           enable_captions=enable_captions,
-                           enable_llava=enable_llava,
-                           enable_transcriptions=enable_transcriptions,
-                           captions_model=captions_model,
-                           caption_loader=caption_loader,
-                           doctr_loader=doctr_loader,
-                           pix2struct_loader=pix2struct_loader,
-                           llava_model=llava_model,
-                           llava_prompt=llava_prompt,
-                           asr_model=asr_model,
-                           asr_loader=asr_loader,
+        # urls
+        use_unstructured=use_unstructured,
+        use_playwright=use_playwright,
+        use_selenium=use_selenium,
+        use_scrapeplaywright=use_scrapeplaywright,
+        use_scrapehttp=use_scrapehttp,
 
-                           # json
-                           jq_schema=jq_schema,
-                           extract_frames=extract_frames,
+        # pdfs
+        use_pymupdf=use_pymupdf,
+        use_unstructured_pdf=use_unstructured_pdf,
+        use_pypdf=use_pypdf,
+        enable_pdf_ocr=enable_pdf_ocr,
+        enable_pdf_doctr=enable_pdf_doctr,
+        try_pdf_as_html=try_pdf_as_html,
 
-                           db_type=db_type,
+        # json
+        jq_schema=jq_schema,
+        extract_frames=extract_frames,
 
-                           is_public=is_public,
-                           from_ui=from_ui,
+        db_type=db_type,
 
-                           use_openai_embedding=use_openai_embedding,
-                           hf_embedding_model=hf_embedding_model,
-                           )
+        is_public=is_public,
+        from_ui=from_ui,
+
+        use_openai_embedding=use_openai_embedding,
+        verbose=verbose,
+        fail_any_exception=False,
+        n_jobs=n_jobs,
+        chunk=chunk, chunk_size=chunk_size,
+    )
+
+    args = (file if not is_url and not is_txt else None,)
+
+    if function_server:
+        from src.function_client import execute_function_on_server
+        sources = execute_function_on_server('0.0.0.0', function_server_port, 'path_to_docs', (file,), simple_kwargs,
+                                             use_disk=True)
+    else:
+        sources = path_to_docs(*args,
+                               **simple_kwargs,
+                               **complex_kwargs,
+                               )
     exceptions = [x for x in sources if x.metadata.get('exception')]
     exceptions_strs = [x.metadata['exception'] for x in exceptions]
     sources = [x for x in sources if 'exception' not in x.metadata]

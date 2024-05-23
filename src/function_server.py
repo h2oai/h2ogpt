@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import inspect
+import threading
 import typing
 from traceback import print_exception
 from typing import Union
@@ -45,23 +46,9 @@ class InvalidRequestError(Exception):
 
 class FunctionRequest(BaseModel):
     function_name: str
-    args: list
+    args: tuple
     kwargs: dict
     use_disk: bool = False
-
-
-# Example functions
-def example_function1(x, y):
-    return x + y
-
-
-def example_function2(path: str):
-    if not os.path.exists(path):
-        raise ValueError("Path does not exist")
-    if not os.path.isdir(path):
-        raise ValueError("Path is not a directory")
-    docs = [f for f in os.listdir(path) if f.endswith('.doc') or f.endswith('.docx')]
-    return {"documents": docs}
 
 
 @app.get("/health")
@@ -82,12 +69,26 @@ async def options_route():
     return JSONResponse(content="OK")
 
 
+gen_kwargs = {}
+gen_kwargs_lock = threading.Lock()
+
+
 @app.post("/execute_function/")
 def execute_function(request: FunctionRequest):
+    global gen_kwargs
+    with gen_kwargs_lock:
+        if not gen_kwargs:
+            main_kwargs = json.loads(os.environ['H2OGPT_MAIN_KWARGS'])
+            main_kwargs['enable_image'] = False  # only for chat part, not used here
+            main_kwargs['visible_image_models'] = []
+            main_kwargs['image_gpu_ids'] = None
+            from src.gen import main as gen_main
+            gen_kwargs = gen_main(**main_kwargs)
+
     # Mapping of function names to function objects
+    from src.gpt_langchain import path_to_docs
     FUNCTIONS = {
-        'example_function1': example_function1,
-        'example_function2': example_function2,
+        'path_to_docs': path_to_docs,
     }
     try:
         # Fetch the function from the function map
@@ -95,8 +96,12 @@ def execute_function(request: FunctionRequest):
         if not func:
             raise ValueError("Function not found")
 
+        # use gen_kwargs if needed
+        func_names = list(inspect.signature(func).parameters)
+        func_kwargs = {k: v for k, v in gen_kwargs.items() if k in func_names}
+
         # Call the function with args and kwargs
-        result = func(*request.args, **request.kwargs)
+        result = func(*request.args, **request.kwargs, **func_kwargs)
 
         if request.use_disk:
             # Save the result to a file on the shared disk
