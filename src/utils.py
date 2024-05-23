@@ -1659,7 +1659,10 @@ def return_good_url(url):
     for prefix in ['', 'https://', 'http://', 'https://www.', 'http://www.']:
         try:
             url_test = prefix + url
-            response = requests.head(url_test)
+            response = requests.head(url_test, timeout=10)
+        except requests.exceptions.Timeout as e:
+            response = None
+            url_test = None
         except Exception as e:
             response = None
             url_test = None
