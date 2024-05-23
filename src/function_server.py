@@ -30,7 +30,7 @@ sys.path.append(project_root)
 # similar to openai_server/server.py
 def verify_api_key(authorization: str = Header(None)) -> None:
     server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
-    print("server_api_key: %s %s" % (server_api_key, authorization))
+    # print("server_api_key: %s %s" % (server_api_key, authorization))
     if server_api_key == 'EMPTY':
         # dummy case since '' cannot be handled
         return
