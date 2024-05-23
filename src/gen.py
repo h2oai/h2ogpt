@@ -2324,7 +2324,7 @@ def  main(
             if fail_if_cannot_connect:
                 raise RuntimeError("Could not connect, see logs")
             # skip
-            if isinstance(model_lock, list):
+            if model_lock and isinstance(model_lock, list):
                 model_lock.remove(model_dict)
             continue
         model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
