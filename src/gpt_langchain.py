@@ -5940,14 +5940,21 @@ def _sim_search(db, query='', k=1000, with_score=False, filter_kwargs=None,
     if filter_kwargs is None:
         filter_kwargs = {}
     docs = []
+    # avoid lock if fake embeddings or faiss etc., since no complex db
+    lock_file = get_db_lock_file(db)
+    lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
+    # have query
+    # for db=None too
     while True:
         try:
             if with_score:
                 with get_context_cast():
-                    docs = db.similarity_search_with_score(query, k=k, **filter_kwargs, **where_document_dict)
+                    with lock_func(lock_file):
+                        docs = db.similarity_search_with_score(query, k=k, **filter_kwargs, **where_document_dict)
             else:
                 with get_context_cast():
-                    docs = db.similarity_search(query, k=k, **filter_kwargs, **where_document_dict)
+                    with lock_func(lock_file):
+                        docs = db.similarity_search(query, k=k, **filter_kwargs, **where_document_dict)
             break
         except (RuntimeError, AttributeError) as e:
             # AttributeError is for people with wrong version of langchain
@@ -5972,10 +5979,14 @@ def large_chroma_db(db):
 
 
 def get_metadatas(db, full_required=True, k_max=10000):
+    lock_file = get_db_lock_file(db)
+    lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
+
     from langchain_community.vectorstores import FAISS
     from langchain_community.vectorstores import Qdrant
     if isinstance(db, FAISS):
-        metadatas = [v.metadata for k, v in db.docstore._dict.items()]
+        with lock_func(lock_file):
+            metadatas = [v.metadata for k, v in db.docstore._dict.items()]
     elif is_chroma_db(db):
         if full_required or not (large_chroma_db(db) and is_new_chroma_db(db)):
             db_get = get_documents(db)
@@ -5993,13 +6004,15 @@ def get_metadatas(db, full_required=True, k_max=10000):
             docs1 = sim_search(db, k=k_max, with_score=False)
             metadatas = [x.metadata for x in docs1]
     elif isinstance(db, Qdrant):
-        points, _ = db.client.scroll(db.collection_name, limit=k_max, with_payload=True)
-        metadatas = [point.payload["metadata"] for point in points]
+        with lock_func(lock_file):
+            points, _ = db.client.scroll(db.collection_name, limit=k_max, with_payload=True)
+            metadatas = [point.payload["metadata"] for point in points]
     elif db is not None:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
-        with get_context_cast():
-            metadatas = [x.metadata for x in db.similarity_search("", k=k_max)]
+        with lock_func(lock_file):
+            with get_context_cast():
+                metadatas = [x.metadata for x in db.similarity_search("", k=k_max)]
     else:
         metadatas = []
     return metadatas
@@ -6018,39 +6031,36 @@ def get_db_lock_file(db, lock_type='getdb'):
 
 
 def get_documents(db):
-    if hasattr(db, '_persist_directory'):
-        lock_file = get_db_lock_file(db)
-        with filelock.FileLock(lock_file):
-            # get segfaults and other errors when multiple threads access this
-            return _get_documents(db)
-    else:
-        return _get_documents(db)
+    lock_file = get_db_lock_file(db)
+    lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
 
-
-def _get_documents(db):
     # returns not just documents, but full dict of documents, metadatas, ids, embeddings
     # documents['documents] should be list of texts, not Document() type
     from langchain_community.vectorstores import FAISS
     from langchain_community.vectorstores import Qdrant
     if isinstance(db, FAISS):
-        documents = [v for k, v in db.docstore._dict.items()]
+        with lock_func(lock_file):
+            documents = [v for k, v in db.docstore._dict.items()]
         documents = dict(documents=documents, metadatas=[{}] * len(documents), ids=[0] * len(documents))
     elif isinstance(db, Chroma):
-        documents = db.get()
+        with lock_func(lock_file):
+            documents = db.get()
         if documents is None:
             documents = dict(documents=[], metadatas=[], ids=[])
     elif isinstance(db, Qdrant):
-        points, next_id = db.client.scroll(db.collection_name, limit=10000, with_payload=True)
-        documents, metadatas = [], []
-        for point in points:
-            documents.append(point.payload["page_content"])
-            metadatas.append(point.payload["metadata"])
+        with lock_func(lock_file):
+            points, next_id = db.client.scroll(db.collection_name, limit=10000, with_payload=True)
+            documents, metadatas = [], []
+            for point in points:
+                documents.append(point.payload["page_content"])
+                metadatas.append(point.payload["metadata"])
         documents = dict(documents=documents, metadatas=metadatas, ids=[0] * len(documents))
     else:
         # FIXME: Hack due to https://github.com/weaviate/weaviate/issues/1947
         # seems no way to get all metadata, so need to avoid this approach for weaviate
-        with get_context_cast():
-            docs_from_search = [x for x in db.similarity_search("", k=10000)]
+        with lock_func(lock_file):
+            with get_context_cast():
+                docs_from_search = [x for x in db.similarity_search("", k=10000)]
         # Don't filter out by content etc. here, might use get_metadatas too separately
         documents = [x.page_content for x in docs_from_search]
         metadatas = [x.metadata for x in docs_from_search]
@@ -6058,21 +6068,7 @@ def _get_documents(db):
     return documents
 
 
-def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, chunk_id_filter=None):
-    if hasattr(db, '_persist_directory'):
-        lock_file = get_db_lock_file(db)
-        with filelock.FileLock(lock_file):
-            return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
-                                      text_context_list=text_context_list,
-                                      chunk_id_filter=chunk_id_filter)
-    else:
-        return _get_docs_and_meta(db, top_k_docs, filter_kwargs=filter_kwargs,
-                                  text_context_list=text_context_list,
-                                  chunk_id_filter=chunk_id_filter,
-                                  )
-
-
-def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, chunk_id_filter=None, k_max=1000):
+def get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None, chunk_id_filter=None, k_max=1000):
     # db_documents should be list of texts
     # db_metadatas should be list of dicts
     db_documents = []
@@ -6082,24 +6078,29 @@ def _get_docs_and_meta(db, top_k_docs, filter_kwargs={}, text_context_list=None,
         db_documents += [x.page_content if hasattr(x, 'page_content') else x for x in text_context_list]
         db_metadatas += [x.metadata if hasattr(x, 'metadata') else {} for x in text_context_list]
 
+    lock_file = get_db_lock_file(db)
+    lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
+
     from langchain_community.vectorstores import FAISS
     if isinstance(db, Chroma):
         if top_k_docs == -1:
             limit = k_max
         else:
             limit = max(top_k_docs, k_max)
-        db_get = db._collection.get(where=filter_kwargs.get('filter'), limit=limit)
+        with lock_func(lock_file):
+            db_get = db._collection.get(where=filter_kwargs.get('filter'), limit=limit)
         db_metadatas += db_get['metadatas']
         db_documents += db_get['documents']
     elif isinstance(db, FAISS):
         import itertools
         db_metadatas += get_metadatas(db)
         # FIXME: FAISS has no filter
-        if top_k_docs == -1:
-            db_docs_faiss = list(db.docstore._dict.values())
-        else:
-            # slice dict first
-            db_docs_faiss = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
+        with lock_func(lock_file):
+            if top_k_docs == -1:
+                db_docs_faiss = list(db.docstore._dict.values())
+            else:
+                # slice dict first
+                db_docs_faiss = list(dict(itertools.islice(db.docstore._dict.items(), top_k_docs)).values())
         db_docs_faiss = [x.page_content for x in db_docs_faiss]
         db_documents += db_docs_faiss
     elif db is not None:
@@ -7967,27 +7968,22 @@ def get_chain(query=None,
         docs = [x[0] for x in docs_with_score]
         scores = [x[1] for x in docs_with_score]
     else:
-        # avoid lock if fake embeddings or faiss etc., since no complex db
-        lock_func = filelock.FileLock if hasattr(db, '_persist_directory') else NullContext
-        # have query
-        # for db=None too
-        with lock_func(lock_file):
-            docs_with_score = get_docs_with_score(query_embedding, k_db,
-                                                  filter_kwargs,
-                                                  filter_kwargs_backup,
-                                                  db, db_type,
-                                                  text_context_list=text_context_list,
-                                                  chunk_id_filter=chunk_id_filter,
-                                                  where_document_dict=where_document_dict,
-                                                  verbose=verbose)
-            if document_source_substrings:
-                set_document_source_substrings = set(document_source_substrings)
-                if document_source_substrings_op == 'or':
-                    docs_with_score = [x for x in docs_with_score if
-                                       any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
-                else:
-                    docs_with_score = [x for x in docs_with_score if
-                                       all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+        docs_with_score = get_docs_with_score(query_embedding, k_db,
+                                              filter_kwargs,
+                                              filter_kwargs_backup,
+                                              db, db_type,
+                                              text_context_list=text_context_list,
+                                              chunk_id_filter=chunk_id_filter,
+                                              where_document_dict=where_document_dict,
+                                              verbose=verbose)
+        if document_source_substrings:
+            set_document_source_substrings = set(document_source_substrings)
+            if document_source_substrings_op == 'or':
+                docs_with_score = [x for x in docs_with_score if
+                                   any(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
+            else:
+                docs_with_score = [x for x in docs_with_score if
+                                   all(y in x[0].metadata.get('source') for y in set_document_source_substrings)]
 
     if metadata_in_context is None:
         metadata_in_context = []

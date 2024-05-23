@@ -102,7 +102,8 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, apply_chat_template, is_vision_model
+    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, apply_chat_template, is_vision_model, \
+    prompt_type_to_model_name
 from stopping import get_stopping
 from prompter_utils import get_use_chat_template
 
@@ -3021,6 +3022,8 @@ def get_model(
                         if os.getenv('HARD_ASSERTS'):
                             raise ValueError("%s not in google_mapping" % name)
                         google_mapping[name] = 8192  # estimate
+                        google_gpts.append(name)
+                        prompt_type_to_model_name['google'].append(name)
                     see_model |= base_model == name
         assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
 
