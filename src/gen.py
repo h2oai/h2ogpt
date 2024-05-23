@@ -262,9 +262,14 @@ def main(
         cli: bool = False,
         cli_loop: bool = True,
         gradio: bool = True,
+
         openai_server: bool = True,
         openai_port: int = 5001 if sys.platform == "darwin" else 5000,
         openai_workers: int = 1,
+
+        function_server: bool = False,
+        function_server_port: int = 5001 if sys.platform == "darwin" else 5000,
+        function_server_workers: int = 1,
 
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
@@ -796,10 +801,16 @@ def main(
     :param cli: whether to use CLI (non-gradio) interface.
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
+
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
-           Disabled if API is disabled or --auth=closed
+           Disabled if API is disabled
     :param openai_port: port for OpenAI proxy server
     :param openai_workers: number of workers for OpenAI (1 means 1 worker, 0 means all physical cores, else choose)
+
+    :param function_server: whether to launch Function server to handle document loading offloading to separate thread or forks
+    :param function_server_port: port for OpenAI proxy server
+    :param function_server_workers: number of workers for Function Server (1 means 1 worker, 0 means all physical cores, else choose)
+
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.
@@ -1702,7 +1713,7 @@ def main(
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
     if openai_server and not allow_api:
-        print("Cannot enable OpenAI server when allow_api=False or auth is closed")
+        print("Cannot enable OpenAI server when allow_api=False")
         openai_server = False
 
     if not os.getenv('CLEAR_CLEAR_TORCH'):

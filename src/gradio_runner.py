@@ -32,7 +32,6 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
 
-
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
 
@@ -1713,10 +1712,11 @@ def go_gradio(**kwargs):
                                                                label="guided_grammar",
                                                                info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
                                                                visible=True)
-                        guided_whitespace_pattern = gr.components.Textbox(value=kwargs['guided_whitespace_pattern'] or '',
-                                                               label="guided_whitespace_pattern, emptry string means None",
-                                                               info="https://github.com/vllm-project/vllm/pull/4305/files",
-                                                               visible=True)
+                        guided_whitespace_pattern = gr.components.Textbox(
+                            value=kwargs['guided_whitespace_pattern'] or '',
+                            label="guided_whitespace_pattern, emptry string means None",
+                            info="https://github.com/vllm-project/vllm/pull/4305/files",
+                            visible=True)
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
@@ -4295,7 +4295,8 @@ def go_gradio(**kwargs):
                         max_time1, stream_output1, \
                         chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
                         langchain_action1 = \
-                        prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti, kwargs_eval=kwargs_evaluate, kwargs=kwargs, verbose=verbose)
+                        prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti, kwargs_eval=kwargs_evaluate,
+                                 kwargs=kwargs, verbose=verbose)
                     if num_visible_bots == 1:
                         # no need to lag, will be faster this way
                         lag = 0
@@ -4484,18 +4485,22 @@ def go_gradio(**kwargs):
                          inputs=inputs_list + [text_output],
                          outputs=text_output,
                          )
-        bot_args = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
-                        inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
-                                              roles_state] + [
-                                   text_output],
-                        outputs=[text_output, chat_exception_text, speech_bot],
-                        )
-        retry_bot_args = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
-                              inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
-                                                    roles_state] + [
-                                         text_output],
-                              outputs=[text_output, chat_exception_text, speech_bot],
-                              )
+        bot_args = dict(
+            fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs,
+                                 verbose=verbose),
+            inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
+                                  roles_state] + [
+                       text_output],
+            outputs=[text_output, chat_exception_text, speech_bot],
+            )
+        retry_bot_args = dict(
+            fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type,
+                                 dbs=dbs, verbose=verbose),
+            inputs=inputs_list + [model_state, my_db_state, selection_docs_state, requests_state,
+                                  roles_state] + [
+                       text_output],
+            outputs=[text_output, chat_exception_text, speech_bot],
+            )
         retry_user_args = dict(
             fn=functools.partial(user, retry=True, sanitize_user_prompt=kwargs['sanitize_user_prompt']),
             inputs=inputs_list + [text_output],
@@ -4512,18 +4517,22 @@ def go_gradio(**kwargs):
                           inputs=inputs_list2 + [text_output2],
                           outputs=text_output2,
                           )
-        bot_args2 = dict(fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
-                         inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state,
-                                                roles_state] + [
-                                    text_output2],
-                         outputs=[text_output2, chat_exception_text, speech_bot2],
-                         )
-        retry_bot_args2 = dict(fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs, verbose=verbose),
-                               inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
-                                                      requests_state, roles_state] + [
-                                          text_output2],
-                               outputs=[text_output2, chat_exception_text, speech_bot2],
-                               )
+        bot_args2 = dict(
+            fn=functools.partial(bot, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type, dbs=dbs,
+                                 verbose=verbose),
+            inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state, requests_state,
+                                   roles_state] + [
+                       text_output2],
+            outputs=[text_output2, chat_exception_text, speech_bot2],
+            )
+        retry_bot_args2 = dict(
+            fn=functools.partial(bot, retry=True, kwargs_evaluate=kwargs_evaluate, kwargs=kwargs, db_type=db_type,
+                                 dbs=dbs, verbose=verbose),
+            inputs=inputs_list2 + [model_state2, my_db_state, selection_docs_state,
+                                   requests_state, roles_state] + [
+                       text_output2],
+            outputs=[text_output2, chat_exception_text, speech_bot2],
+            )
         retry_user_args2 = dict(fn=functools.partial(user, retry=True),
                                 inputs=inputs_list2 + [text_output2],
                                 outputs=text_output2,
@@ -5679,7 +5688,8 @@ def go_gradio(**kwargs):
                 if len(srs) > 0:
                     sr = srs[0]
                     audios = [x['audio'] for x in audios]
-                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'], verbose=verbose)
+                    audios = combine_audios(audios, audio=None, sr=sr, expect_bytes=kwargs['return_as_byte'],
+                                            verbose=verbose)
                     yield dict(audio=audios, sr=sr)
 
         def wrap_pred_func_plain_api(*args1):
@@ -5838,10 +5848,10 @@ def go_gradio(**kwargs):
         audio_api_input = gr.Textbox(value='', visible=False)
         audio_api_btn = gr.Button(visible=False)
         audio_api_btn.click(fn=wrap_transcribe_func_api,
-                     inputs=[audio_api_input, stream_output, h2ogpt_key, requests_state],
-                     outputs=[audio_api_output],
-                     api_name='transcribe_audio_api',
-                     show_progress='hidden')
+                            inputs=[audio_api_input, stream_output, h2ogpt_key, requests_state],
+                            outputs=[audio_api_output],
+                            api_name='transcribe_audio_api',
+                            show_progress='hidden')
 
         def wrap_embedding_func_api(text, h2ogpt_key1, is_list1, requests_state1):
             # check key
@@ -5868,10 +5878,10 @@ def go_gradio(**kwargs):
         embed_api_btn = gr.Button(visible=False)
         is_list = gr.Textbox(value='False', visible=False)
         embed_api_btn.click(fn=wrap_embedding_func_api,
-                     inputs=[embed_api_input, h2ogpt_key, is_list, requests_state],
-                     outputs=[embed_api_output],
-                     api_name='embed_api',
-                     show_progress='hidden')
+                            inputs=[embed_api_input, h2ogpt_key, is_list, requests_state],
+                            outputs=[embed_api_output],
+                            api_name='embed_api',
+                            show_progress='hidden')
 
     demo.queue(**queue_kwargs, api_open=kwargs['api_open'])
     favicon_file = "h2o-logo.svg"
@@ -5996,9 +6006,7 @@ def go_gradio(**kwargs):
     else:
         print("Use local URL: %s" % demo.local_url, flush=True)
 
-    if kwargs['openai_server']:
-        from openai_server.server_start import run
-        from openai_server.server import app
+    if kwargs['openai_server'] or kwargs['function_server']:
         url_split = demo.local_url.split(':')
         if len(url_split) == 3:
             gradio_prefix = ':'.join(url_split[0:1]).replace('//', '')
@@ -6017,19 +6025,29 @@ def go_gradio(**kwargs):
                 openai_host = gradio_host = '0.0.0.0'
             else:
                 openai_host = gradio_host
-        run(wait=False,
-            host=openai_host,
-            port=kwargs['openai_port'],
-            gradio_prefix=gradio_prefix,
-            gradio_host=gradio_host,
-            gradio_port=gradio_port,
-            h2ogpt_key=h2ogpt_key1,
-            auth=kwargs['auth'],
-            auth_access=kwargs['auth_access'],
-            guest_name=kwargs['guest_name'],
-            app=app if kwargs['openai_workers'] == 1 else 'server:app',
-            workers=kwargs['openai_workers'],
-            )
+        from openai_server.server_start import run
+
+        run_kwargs = dict(wait=False,
+                          host=openai_host,
+                          gradio_prefix=gradio_prefix,
+                          gradio_host=gradio_host,
+                          gradio_port=gradio_port,
+                          h2ogpt_key=h2ogpt_key1,
+                          auth=kwargs['auth'],
+                          auth_access=kwargs['auth_access'],
+                          guest_name=kwargs['guest_name'],
+                          workers=kwargs['function_server_workers'],
+                          )
+
+        if kwargs['openai_server']:
+            from openai_server.server import app as openai_app
+            openai_app = openai_app if kwargs['openai_workers'] == 1 else 'server:app'
+            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True)
+
+        if kwargs['function_server']:
+            from openai_server.function_server import app as function_app
+            function_app = function_app if kwargs['function_server_workers'] == 1 else 'function_server:app'
+            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False)
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

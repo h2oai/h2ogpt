@@ -28,10 +28,13 @@ def run_server(host: str = '0.0.0.0',
                # https://docs.gunicorn.org/en/stable/design.html#how-many-workers
                workers: int = 1,
                app: Union[str, FastAPI] = None,
+               is_openai_server: bool = True,
                ):
     if workers == 0:
         workers = min(16, os.cpu_count() * 2 + 1)
     assert app is not None
+
+    name = 'OpenAI' if is_openai_server else 'Function'
 
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
@@ -54,8 +57,8 @@ def run_server(host: str = '0.0.0.0',
 
     prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
     from openai_server.log import logger
-    logger.info(f'OpenAI API URL: {prefix}://{host}:{port}')
-    logger.info(f'OpenAI API key: {server_api_key}')
+    logger.info(f'{name} API URL: {prefix}://{host}:{port}')
+    logger.info(f'{name} API key: {server_api_key}')
 
     logging.getLogger("uvicorn.error").propagate = False
 
@@ -67,9 +70,12 @@ def run_server(host: str = '0.0.0.0',
 
 
 def run(wait=True, **kwargs):
+    assert 'is_openai_server' in kwargs
+    name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
     print(kwargs)
+
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
-        print("Multi-worker OpenAI Proxy uvicorn: %s" % kwargs['workers'])
+        print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
         # avoid CUDA forking
         command = ['python', 'openai_server/server_start.py']
         # Convert the kwargs to command line arguments
@@ -81,10 +87,10 @@ def run(wait=True, **kwargs):
         for c in iter(lambda: process.stdout.read(1), b''):
             sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
     elif wait:
-        print("Single-worker OpenAI Proxy uvicorn in this thread: %s" % kwargs['workers'])
+        print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
     else:
-        print("Single-worker OpenAI Proxy uvicorn in new thread: %s" % kwargs['workers'])
+        print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
         Thread(target=run_server, kwargs=kwargs, daemon=True).start()
 
 
