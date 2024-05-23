@@ -9096,7 +9096,7 @@ def _update_user_db(file,
     if function_server:
         from src.function_client import call_function_server
         sources = call_function_server('0.0.0.0', function_server_port, 'path_to_docs', (file,), simple_kwargs,
-                                             use_disk=True, use_pickle=True)
+                                             use_disk=True, use_pickle=True, verbose=verbose)
     else:
         sources = path_to_docs(*args,
                                **simple_kwargs,

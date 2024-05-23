@@ -22,7 +22,9 @@ def execute_function_on_server(host: str, port: int, function_name: str, args: t
         return {"error": response.json()["detail"]}
 
 
-def read_result_from_disk(file_path: str, use_pickle: bool):
+def read_result_from_disk(file_path: str, use_pickle: bool, verbose=False):
+    if verbose:
+        print(f"Size of {file_path} is {os.path.getsize(file_path)}")
     try:
         if use_pickle:
             with open(file_path, "rb") as f:
@@ -40,14 +42,14 @@ def read_result_from_disk(file_path: str, use_pickle: bool):
     return result
 
 
-def call_function_server(host, port, function_name, args, kwargs, use_disk, use_pickle):
+def call_function_server(host, port, function_name, args, kwargs, use_disk, use_pickle, verbose=False):
     execute_result = execute_function_on_server(host, port, function_name, args, kwargs, use_disk, use_pickle)
     if "error" in execute_result:
         raise RuntimeError(execute_result['error'])
     else:
         if use_disk:
             file_path = execute_result["file_path"]
-            result_from_disk = read_result_from_disk(file_path, use_pickle)
+            result_from_disk = read_result_from_disk(file_path, use_pickle, verbose=verbose)
             return result_from_disk
         else:
             return execute_result["result"]
