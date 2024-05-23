@@ -6,7 +6,7 @@ import json
 
 
 def execute_function_on_server(host: str, port: int, function_name: str, args: tuple, kwargs: dict, use_disk: bool,
-                               use_pickle: bool):
+                               use_pickle: bool, function_api_key: str):
     url = f"http://{host}:{port}/execute_function/"
     payload = {
         "function_name": function_name,
@@ -15,7 +15,10 @@ def execute_function_on_server(host: str, port: int, function_name: str, args: t
         "use_disk": use_disk,
         "use_pickle": use_pickle,
     }
-    response = requests.post(url, json=payload)
+    headers = {
+        "Authorization": f"Bearer {function_api_key}"
+    }
+    response = requests.post(url, json=payload, headers=headers)
     if response.status_code == 200:
         return response.json()
     else:
@@ -42,8 +45,8 @@ def read_result_from_disk(file_path: str, use_pickle: bool, verbose=False):
     return result
 
 
-def call_function_server(host, port, function_name, args, kwargs, use_disk, use_pickle, verbose=False):
-    execute_result = execute_function_on_server(host, port, function_name, args, kwargs, use_disk, use_pickle)
+def call_function_server(host, port, function_name, args, kwargs, use_disk=False, use_pickle=False, function_api_key='EMPTY', verbose=False):
+    execute_result = execute_function_on_server(host, port, function_name, args, kwargs, use_disk, use_pickle, function_api_key)
     if "error" in execute_result:
         raise RuntimeError(execute_result['error'])
     else:

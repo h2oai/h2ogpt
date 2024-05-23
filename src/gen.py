@@ -272,6 +272,7 @@ def main(
         function_server: bool = False,
         function_server_port: int = 5003 if sys.platform == "darwin" else 5002,
         function_server_workers: int = 1,
+        function_api_key: str = None,
 
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
@@ -814,6 +815,7 @@ def main(
     :param function_server: whether to launch Function server to handle document loading offloading to separate thread or forks
     :param function_server_port: port for OpenAI proxy server
     :param function_server_workers: number of workers for Function Server (1 means 1 worker, 0 means all physical cores, else choose)
+    :param function_api_key: API key for function server, auto-set if not provided, uses first key like OpenAI proxy server does as well
 
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached

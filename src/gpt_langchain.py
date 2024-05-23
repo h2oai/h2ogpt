@@ -8928,6 +8928,7 @@ def _update_user_db(file,
 
                     function_server: bool = False,
                     function_server_port: int = None,
+                    function_api_key: str = 'EMPTY',
                     ):
     assert db1s is not None
     assert chunk is not None
@@ -9096,7 +9097,9 @@ def _update_user_db(file,
     if function_server:
         from src.function_client import call_function_server
         sources = call_function_server('0.0.0.0', function_server_port, 'path_to_docs', (file,), simple_kwargs,
-                                             use_disk=True, use_pickle=True, verbose=verbose)
+                                             use_disk=True, use_pickle=True,
+                                             function_api_key=function_api_key,
+                                             verbose=verbose)
     else:
         sources = path_to_docs(*args,
                                **simple_kwargs,

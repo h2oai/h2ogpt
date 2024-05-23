@@ -99,6 +99,9 @@ def initialize_gen_kwargs():
             main_kwargs['visible_image_models'] = []
             main_kwargs['image_gpu_ids'] = None
 
+            main_kwargs['enable_tts'] = False
+            main_kwargs['enable_stt'] = False
+
             # function server mode only
             main_kwargs['gradio'] = False
             main_kwargs['eval'] = False

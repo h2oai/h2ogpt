@@ -314,6 +314,8 @@ def go_gradio(**kwargs):
     allow_upload = allow_upload_to_user_data or allow_upload_to_my_data
     allow_upload_api = allow_api and allow_upload
 
+    h2ogpt_key1 = get_one_key(kwargs['h2ogpt_api_keys'], kwargs['enforce_h2ogpt_api_key'])
+
     kwargs.update(locals().copy())
 
     # import control
@@ -2412,6 +2414,7 @@ def go_gradio(**kwargs):
                                            allow_upload_to_user_data=kwargs['allow_upload_to_user_data'],
                                            function_server=kwargs['function_server'],
                                            function_server_port=kwargs['function_server_port'],
+                                           function_api_key=h2ogpt_key1 if not kwargs['function_api_key'] else kwargs['function_api_key'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -6018,7 +6021,6 @@ def go_gradio(**kwargs):
             gradio_prefix = 'http'
             gradio_host = ':'.join(url_split[0:1])
             gradio_port = ':'.join(url_split[1:]).split('/')[0]
-        h2ogpt_key1 = get_one_key(kwargs['h2ogpt_api_keys'], kwargs['enforce_h2ogpt_api_key'])
         # ensure can reach out
         if platform.system() in ['Darwin', 'Windows']:
             openai_host = gradio_host if gradio_host not in ['localhost', '127.0.0.1'] else '0.0.0.0'
