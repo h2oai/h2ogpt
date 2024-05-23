@@ -4,6 +4,7 @@ import sys
 import json
 import inspect
 import threading
+import traceback
 import typing
 import uuid
 from traceback import print_exception
@@ -88,7 +89,7 @@ def execute_function(request: FunctionRequest):
             main_kwargs['gradio'] = False
             main_kwargs['eval'] = False
             main_kwargs['cli'] = False
-            main_kwargs['function'] = False
+            main_kwargs['function'] = True
             from src.gen import main as gen_main
             gen_kwargs = gen_main(**main_kwargs)
 
@@ -105,7 +106,7 @@ def execute_function(request: FunctionRequest):
 
         # use gen_kwargs if needed
         func_names = list(inspect.signature(func).parameters)
-        func_kwargs = {k: v for k, v in gen_kwargs.items() if k in func_names}
+        func_kwargs = {k: v for k, v in gen_kwargs.items() if k in func_names and k not in request.kwargs}
 
         # Call the function with args and kwargs
         result = func(*request.args, **request.kwargs, **func_kwargs)
@@ -129,4 +130,5 @@ def execute_function(request: FunctionRequest):
             # Return the result directly
             return {"status": "success", "result": result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        traceback_str = ''.join(traceback.format_exception(e))
+        raise HTTPException(status_code=500, detail=traceback_str)

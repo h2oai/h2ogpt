@@ -40,15 +40,14 @@ def read_result_from_disk(file_path: str, use_pickle: bool):
     return result
 
 
-def function_client(host, port, function_name, args, kwargs, use_disk, use_pickle):
+def call_function_server(host, port, function_name, args, kwargs, use_disk, use_pickle):
     execute_result = execute_function_on_server(host, port, function_name, args, kwargs, use_disk, use_pickle)
     if "error" in execute_result:
-        print(f"Error: {execute_result['error']}")
+        raise RuntimeError(execute_result['error'])
     else:
         if use_disk:
             file_path = execute_result["file_path"]
-            print(f"Result saved at: {file_path}")
             result_from_disk = read_result_from_disk(file_path, use_pickle)
-            print("Result read from disk:", result_from_disk)
+            return result_from_disk
         else:
-            print("Result received directly:", execute_result["result"])
+            return execute_result["result"]
