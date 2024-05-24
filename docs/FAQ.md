@@ -947,9 +947,9 @@ producing `llava-1.7.0.dev0-py3-none-any.whl`, and this package is required for 
 
 For h2oGPT run:
 ```bash
-python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://IP:30000 --base_model=lmms-lab/llama3-llava-next-8b
+python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://0.0.0.0:30000 --base_model=lmms-lab/llama3-llava-next-8b
 ```
-or use whatever port was mapped from 30000 to public port, e.g. 80.
+choose your IP if remote instead of `0.0.0.0` and use whatever port was mapped from `30000` to public port, e.g. `80`.
 
 ### LLaVa Vision Models
 

@@ -62,6 +62,7 @@ from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_
 from src.image_utils import fix_image_file, get_image_types, get_image_file
 from src.output_parser import H2OPythonMRKLOutputParser
 from src.pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
+from src.stopping import update_terminate_responses
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
@@ -1492,23 +1493,17 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     early_stopping: bool = False
     max_time: int = 180
     repetition_penalty: Optional[float] = None
-    num_return_sequences: Optional[int] = 1
     do_sample: bool = False
     seed: int = 0
-    chat_client: bool = False
 
-    return_full_text: bool = False
     stream_output: bool = False
-    sanitize_bot_response: bool = False
 
-    prompter: Any = None
     context: Any = ''
-    iinput: Any = ''
-    client: Any = None
     tokenizer: Any = None
 
-    add_chat_history_to_context: bool = True
     chat_conversation: Any = []
+    add_chat_history_to_context: bool = True
+    user_prompt_for_fake_system_prompt: Any = None
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -1521,10 +1516,6 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     count_input_tokens: Any = 0
     prompts: Any = []
     count_output_tokens: Any = 0
-
-    min_max_new_tokens: Any = 512
-    max_input_tokens: Any = -1
-    max_total_input_tokens: Any = -1
 
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
@@ -1551,6 +1542,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     @staticmethod
     def get_conv_template(conv_template_name):
+        # /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/llava/conversation.py
         conversation_module = importlib.import_module("llava.conversation")
         conv_template = copy.deepcopy(getattr(conversation_module, conv_template_name))
         return conv_template
@@ -1568,6 +1560,17 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
         conv_template_name = self.inference_server.split(':')[1]
         conv_template = self.get_conv_template(conv_template_name)
+        if self.system_prompt:
+            if not conv_template.system:
+                # assume means can't handle if didn't exist in template
+                conv_template.append_message(role="user", message=self.user_prompt_for_fake_system_prompt)
+                if self.system_prompt == 'auto':
+                    self.system_prompt = 'You are a helpful assistant.' if not self.image_file else "You are helpful visual LLM assistant capable of understanding text and images."
+                conv_template.append_message(role="assistant", message=self.system_prompt)
+            else:
+                if self.system_prompt == 'auto':
+                    self.system_prompt = conv_template.system
+                conv_template.append_message(role="system", message=self.system_prompt)
         for message in self.chat_conversation:
             if isinstance(message[0], str) and message[0]:
                 conv_template.append_message(role="user", message=message[0])
@@ -1575,9 +1578,13 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 conv_template.append_message(role="assistant", message=message[1])
         conv_template.append_message(role="user", message=prompt)
         prompt_with_template = conv_template.get_prompt()
+        if self.context:
+            prompt_with_template = self.context + prompt_with_template
         self.prompts.append(prompt_with_template)
         self.count_input_tokens += self.get_num_tokens(str(prompt_with_template))
         presence_penalty = (self.repetition_penalty - 1.0) * 2.0 + 0.0  # so good default
+
+        terminate_response = update_terminate_responses([], tokenizer=self.tokenizer)
         pload = {
             "text": prompt_with_template,
             "sampling_params": {
@@ -1586,7 +1593,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 "top_p": self.top_p,
                 "presence_penalty": presence_penalty,
                 "frequency_penalty": 2,
-                "stop": "<|eot_id|>",  # FIXME
+                "stop": terminate_response,
             },
             "image_data": self.image_file[0],  # FIXME
             "stream": self.stream_output,
@@ -2803,9 +2810,9 @@ def get_llm(use_openai_model=False,
                 verbose=verbose,
             )
     elif use_openai_model or \
-    inference_server.startswith('openai') or \
-    inference_server.startswith('vllm') or \
-    inference_server.startswith('sglang') and not (image_control or image_file):
+            inference_server.startswith('openai') or \
+            inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang') and not (image_control or image_file):
         # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
@@ -3202,7 +3209,6 @@ def get_llm(use_openai_model=False,
             early_stopping=early_stopping,
             max_time=max_time,
             repetition_penalty=repetition_penalty,
-            num_return_sequences=num_return_sequences,
             do_sample=do_sample,
             seed=seed,
 
@@ -3211,15 +3217,13 @@ def get_llm(use_openai_model=False,
 
             prompter=prompter,
             context=context,
-            iinput=iinput,
+
             tokenizer=tokenizer,
             system_prompt=system_prompt,
             chat_conversation=chat_conversation,
             user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
             add_chat_history_to_context=add_chat_history_to_context,
-            min_max_new_tokens=min_max_new_tokens,
-            max_input_tokens=max_input_tokens,
-            max_total_input_tokens=max_total_input_tokens,
+
             async_sem=async_sem,
             verbose=verbose,
 
@@ -9394,9 +9398,9 @@ def _update_user_db(file,
     if function_server:
         from src.function_client import call_function_server
         sources = call_function_server('0.0.0.0', function_server_port, 'path_to_docs', (file,), simple_kwargs,
-                                             use_disk=True, use_pickle=True,
-                                             function_api_key=function_api_key,
-                                             verbose=verbose)
+                                       use_disk=True, use_pickle=True,
+                                       function_api_key=function_api_key,
+                                       verbose=verbose)
     else:
         sources = path_to_docs(*args,
                                **simple_kwargs,
