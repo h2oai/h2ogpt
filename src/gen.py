@@ -642,6 +642,14 @@ def main(
                                  vllm_chat:https://vllm.h2o.ai:5001:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
 
+                            For sglang, text models are supported via OpenAI API and can use vllm_chat or vllm as usual.
+                            For sglang and vision models, need to specify sglang so we use http requests API via generate endpoint.  Use "sglang" prefix and otherwise it is like vllm endpoint
+                            Currently it's not clear how to make an API key work: https://github.com/sgl-project/sglang/issues/466, so one should rely upon firewalls
+                                One should also pass the name of the python module used for conversation, e.g. for
+                                  python -m sglang.launch_server --model-path lmms-lab/llama3-llava-next-8b --tokenizer-path lmms-lab/llama3-llava-next-8b-tokenizer --port=30000 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=8192
+                                One should use:
+                                  sglang:conv_llava_llama_3:IP:port
+
                             For together.ai that is OpenAI compliant, use:
                                 vllm_chat:https://api.together.xyz:None:/v1:1234ABCD
 
@@ -2429,7 +2437,8 @@ def get_config(base_model,
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
                     max_seq_len = 4096
-                    print(f"Could not determine --max_seq_len, setting to {max_seq_len}.  Pass if not correct", flush=True)
+                    print(f"Could not determine --max_seq_len, setting to {max_seq_len}.  Pass if not correct",
+                          flush=True)
                 # HF TGI server only should really require prompt_type, not HF model state
                 print("Not using tokenizer from HuggingFace:\n\n", flush=True)
                 traceback.print_exc()
@@ -2480,10 +2489,11 @@ def get_config(base_model,
                 print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
                       "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
                       flush=True)
-        elif hasattr(config, 'text_config') and hasattr(config.text_config, 'max_position_embeddings') and isinstance(config.text_config.max_position_embeddings, int):
+        elif hasattr(config, 'text_config') and hasattr(config.text_config, 'max_position_embeddings') and isinstance(
+                config.text_config.max_position_embeddings, int):
             # help automatically limit inputs to generate
             if 'idefics' in base_model:
-                #max_seq_len = 8192
+                # max_seq_len = 8192
                 max_seq_len = 4096  # safer
             else:
                 max_seq_len = config.text_config.max_position_embeddings
@@ -2753,7 +2763,9 @@ def get_inf_models(inference_server, verbose=False):
         except pydantic_core.ValidationError as e:
             print("mistrail ai issue: %s" % str(e))
             # https://github.com/mistralai/client-python/issues/83
-    elif inference_server.startswith('openai') or inference_server.startswith('vllm'):
+    elif inference_server.startswith('openai') or \
+            inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang'):
         openai_client, openai_async_client, \
             inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server)
@@ -3006,12 +3018,15 @@ def get_model(
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
+            inference_server.startswith('sglang') or
             inference_server.startswith('replicate') or
             inference_server.startswith('sagemaker') or
             inference_server.startswith('anthropic')
     )
 
-    if inference_server.startswith('vllm') or inference_server.startswith('openai'):
+    if inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang') or \
+            inference_server.startswith('openai'):
         t0 = time.time()
         client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=base_model)
@@ -3798,7 +3813,8 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources=[], save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
+    yield dict(response=invalid_key_msg, sources=[],
+               save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
                llm_answers=dict(response_raw=invalid_key_msg), response_no_refs=invalid_key_msg,
                sources_str='', audio=None, prompt_raw='INVALID')
     return
@@ -4687,11 +4703,15 @@ def evaluate(
                            )
 
     if inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang') or \
             inference_server.startswith('openai') or \
             inference_server.startswith('http'):
         text = ''
         gen_server_kwargs = {}
-        if inference_server.startswith('vllm') or inference_server.startswith('openai'):
+        if inference_server.startswith('vllm') or \
+                inference_server.startswith('sglang') or \
+                inference_server.startswith('openai'):
+            # sglang reaches here only for text mode
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
             if isinstance(model, dict):
@@ -4729,11 +4749,8 @@ def evaluate(
                                                           )
                 else:
                     vllm_extra_dict = {}
-                if inf_type == 'vllm' or inf_type == 'openai':
-                    if inf_type == 'vllm':
-                        other_dict = dict(timeout=max_time)
-                    else:
-                        other_dict = dict(timeout=max_time)
+                if inf_type in ['vllm', 'sglang', 'openai']:
+                    other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
                         # response_format=dict(type=response_format),  Text Completions API can't handle
@@ -4775,7 +4792,7 @@ def evaluate(
                                     print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                                 break
                             time.sleep(0.005)
-                elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
+                elif inf_type in ['vllm_chat', 'openai_chat']:
                     other_dict = dict(timeout=max_time)
                     if system_prompt in [None, 'None', 'auto']:
                         openai_system_prompt = "You are a helpful assistant."
@@ -6622,7 +6639,8 @@ def model_name_to_prompt_type(model_name, inference_server,
         prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
     else:
         prompt_type1 = prompt_type_old or ''
-    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer, FakeTokenizer):
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer,
+                                                                                                 FakeTokenizer):
         # handle new models not defined yet
         if tokenizer.is_google:
             prompt_type1 = 'google'

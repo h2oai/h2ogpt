@@ -4,6 +4,7 @@ import copy
 import functools
 import glob
 import gzip
+import importlib
 import inspect
 import json
 import os
@@ -1466,12 +1467,251 @@ class GradioLLaVaInference(GradioInference):
                 if self.verbose:
                     print("Exceeded max_time=%s" % self.max_time, flush=True)
                 break
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.005)
 
         self.count_output_tokens += self.get_num_tokens(text)
         if self.verbose:
             print("end _acall", flush=True)
         return text
+
+
+class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
+    """
+    SGLang generation inference API.
+    """
+    inference_server: str = ""
+    inference_server_url: str = ""
+    temperature: float = 0.8
+    top_p: Optional[float] = 0.95
+    top_k: Optional[int] = None
+    penalty_alpha: Optional[float] = 0.0
+    num_beams: Optional[int] = 1
+    max_new_tokens: int = 512
+    max_new_tokens0: int = 512
+    min_new_tokens: int = 1
+    early_stopping: bool = False
+    max_time: int = 180
+    repetition_penalty: Optional[float] = None
+    num_return_sequences: Optional[int] = 1
+    do_sample: bool = False
+    seed: int = 0
+    chat_client: bool = False
+
+    return_full_text: bool = False
+    stream_output: bool = False
+    sanitize_bot_response: bool = False
+
+    prompter: Any = None
+    context: Any = ''
+    iinput: Any = ''
+    client: Any = None
+    tokenizer: Any = None
+
+    add_chat_history_to_context: bool = True
+    chat_conversation: Any = []
+
+    system_prompt: Any = None
+    visible_models: Any = None
+    h2ogpt_key: Any = None
+
+    image_file: Any = None
+    image_control: Any = None
+
+    async_sem: Any = None
+    count_input_tokens: Any = 0
+    prompts: Any = []
+    count_output_tokens: Any = 0
+
+    min_max_new_tokens: Any = 512
+    max_input_tokens: Any = -1
+    max_total_input_tokens: Any = -1
+
+    @root_validator()
+    def validate_environment(cls, values: Dict) -> Dict:
+        """Validate that python package exists in environment."""
+
+        try:
+            import llava
+        except ImportError:
+            raise ImportError(
+                "Could not import llava python package. "
+                "Please install it with `pip install https://h2o-release.s3.amazonaws.com/h2ogpt/llava-1.7.0.dev0-py3-none-any.whl`."
+            )
+        return values
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "sglang_inference"
+
+    def get_token_ids(self, text: str) -> List[int]:
+        return self.tokenizer.encode(text)
+        # avoid base method that is not aware of how to properly tokenize (uses GPT2)
+        # return _get_token_ids_default_method(text)
+
+    @staticmethod
+    def get_conv_template(conv_template_name):
+        conversation_module = importlib.import_module("llava.conversation")
+        conv_template = copy.deepcopy(getattr(conversation_module, conv_template_name))
+        return conv_template
+
+    def setup_call(self, prompt):
+        # NOTE: Don't handle self.context
+        if not self.add_chat_history_to_context:
+            self.chat_conversation = []
+
+        if self.image_file is not None:
+            self.image_file = self.image_file[:llava_num_max]
+            self.count_input_tokens += 1500 * len(self.image_file)
+
+        prompt = f"<image>\n{prompt}"
+
+        conv_template_name = self.inference_server.split(':')[1]
+        conv_template = self.get_conv_template(conv_template_name)
+        for message in self.chat_conversation:
+            if isinstance(message[0], str) and message[0]:
+                conv_template.append_message(role="user", message=message[0])
+            if isinstance(message[1], str) and message[1]:
+                conv_template.append_message(role="assistant", message=message[1])
+        conv_template.append_message(role="user", message=prompt)
+        prompt_with_template = conv_template.get_prompt()
+        self.prompts.append(prompt_with_template)
+        self.count_input_tokens += self.get_num_tokens(str(prompt_with_template))
+        presence_penalty = (self.repetition_penalty - 1.0) * 2.0 + 0.0  # so good default
+        pload = {
+            "text": prompt_with_template,
+            "sampling_params": {
+                "max_new_tokens": self.max_new_tokens,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "presence_penalty": presence_penalty,
+                "frequency_penalty": 2,
+                "stop": "<|eot_id|>",  # FIXME
+            },
+            "image_data": self.image_file[0],  # FIXME
+            "stream": self.stream_output,
+        }
+        response = requests.post(
+            self.inference_server_url + "/generate",
+            json=pload,
+            stream=self.stream_output,
+        )
+        return response
+
+    def _call(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_call", flush=True)
+
+        response = self.setup_call(prompt)
+
+        if not self.stream_output:
+            response = response.json()['text']
+            self.count_output_tokens += self.get_num_tokens(response)
+            if self.verbose:
+                print("end _call", flush=True)
+            return response
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+
+            t_start = time.time()
+            text = ''
+            prev = 0
+            for chunk in response.iter_lines(decode_unicode=False):
+                chunk = chunk.decode("utf-8")
+                if chunk and chunk.startswith("data:"):
+                    if chunk == "data: [DONE]":
+                        break
+                    data = json.loads(chunk[5:].strip("\n"))
+                    output = data["text"].strip()
+                    text_chunk = output[prev:]
+                    text += text_chunk
+                    prev = len(output)
+
+                    if not text_chunk:
+                        # just need some sleep for threads to switch
+                        time.sleep(0.001)
+                        continue
+                    if text_callback:
+                        text_callback(text_chunk)
+                time.sleep(0.005)
+
+                if self.max_time is not None and time.time() - t_start > self.max_time:
+                    if self.verbose:
+                        print("Exceeded max_time=%s" % self.max_time, flush=True)
+                    break
+
+            self.count_output_tokens += self.get_num_tokens(text)
+            if self.verbose:
+                print("end _call", flush=True)
+            return text
+
+    # copy-paste of streaming part of _call() with asyncio.sleep instead
+    async def _acall(
+            self,
+            prompt: str,
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            **kwargs: Any,
+    ) -> str:
+        if self.verbose:
+            print("_call", flush=True)
+
+        response = self.setup_call(prompt)
+
+        if not self.stream_output:
+            response = response.json()['text']
+            self.count_output_tokens += self.get_num_tokens(response)
+            if self.verbose:
+                print("end _acall", flush=True)
+            return response
+        else:
+            text_callback = None
+            if run_manager:
+                text_callback = partial(
+                    run_manager.on_llm_new_token, verbose=self.verbose
+                )
+
+            t_start = time.time()
+            text = ''
+            prev = 0
+            for chunk in response.iter_lines(decode_unicode=False):
+                chunk = chunk.decode("utf-8")
+                if chunk and chunk.startswith("data:"):
+                    if chunk == "data: [DONE]":
+                        break
+                    data = json.loads(chunk[5:].strip("\n"))
+                    output = data["text"].strip()
+                    text_chunk = output[prev:]
+                    text += text_chunk
+                    prev = len(output)
+
+                    if not text_chunk:
+                        # just need some sleep for threads to switch
+                        await asyncio.sleep(0.001)
+                        continue
+                    if text_callback:
+                        text_callback(text_chunk)
+                await asyncio.sleep(0.005)
+
+                if self.max_time is not None and time.time() - t_start > self.max_time:
+                    if self.verbose:
+                        print("Exceeded max_time=%s" % self.max_time, flush=True)
+                    break
+
+            self.count_output_tokens += self.get_num_tokens(text)
+            if self.verbose:
+                print("end _acall", flush=True)
+            return text
 
 
 class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, HuggingFaceTextGenInference):
@@ -2562,7 +2802,10 @@ def get_llm(use_openai_model=False,
                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 verbose=verbose,
             )
-    elif use_openai_model or inference_server.startswith('openai') or inference_server.startswith('vllm'):
+    elif use_openai_model or \
+    inference_server.startswith('openai') or \
+    inference_server.startswith('vllm') or \
+    inference_server.startswith('sglang') and not (image_control or image_file):
         # supports async_output=True if chosen
         if use_openai_model and model_name is None:
             model_name = "gpt-3.5-turbo"
@@ -2672,7 +2915,7 @@ def get_llm(use_openai_model=False,
             # FIXME: Support context, iinput
         else:
             cls = H2OOpenAI
-            if inf_type == 'vllm':
+            if inf_type in ['vllm', 'sglang']:
                 async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
@@ -2719,7 +2962,7 @@ def get_llm(use_openai_model=False,
         if inf_type in ['openai', 'openai_chat', 'openai_azure', 'openai_azure_chat']:
             prompt_type = inference_server
         else:
-            # vllm goes here
+            # vllm or non-image sglang goes here
             prompt_type = prompt_type or unknown_prompt_type
     elif inference_server.startswith('anthropic'):
         # no explicit JSON mode for anthropic
@@ -2927,6 +3170,60 @@ def get_llm(use_openai_model=False,
             endpoint_kwargs={'CustomAttributes': 'accept_eula=true'},
             tokenizer=tokenizer,  # for summarization and token counting
             verbose=verbose,
+        )
+    elif inference_server.startswith('sglang'):  # image mode
+        callbacks = [streaming_callback]
+        streamer = callbacks[0] if stream_output else None
+
+        async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
+
+        if is_vision_model(model_name):
+            # https://github.com/sgl-project/sglang/issues/212#issuecomment-1973432493
+            convert = True
+            str_bytes = False
+            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+        else:
+            img_file = None
+
+        inference_server_spit = inference_server.split(':')
+        inference_server_url = ':'.join(inference_server_spit[2:])
+
+        llm = SGlangInference(
+            inference_server=inference_server,
+            inference_server_url=inference_server_url,
+
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            penalty_alpha=penalty_alpha,
+            num_beams=num_beams,
+            max_new_tokens=max_new_tokens,
+            min_new_tokens=min_new_tokens,
+            early_stopping=early_stopping,
+            max_time=max_time,
+            repetition_penalty=repetition_penalty,
+            num_return_sequences=num_return_sequences,
+            do_sample=do_sample,
+            seed=seed,
+
+            callbacks=callbacks if stream_output else None,
+            stream_output=stream_output,
+
+            prompter=prompter,
+            context=context,
+            iinput=iinput,
+            tokenizer=tokenizer,
+            system_prompt=system_prompt,
+            chat_conversation=chat_conversation,
+            user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
+            add_chat_history_to_context=add_chat_history_to_context,
+            min_max_new_tokens=min_max_new_tokens,
+            max_input_tokens=max_input_tokens,
+            max_total_input_tokens=max_total_input_tokens,
+            async_sem=async_sem,
+            verbose=verbose,
+
+            image_file=img_file,  # we pass file name itself
         )
     elif inference_server:
         assert inference_server.startswith(

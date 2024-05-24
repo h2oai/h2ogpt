@@ -2117,11 +2117,16 @@ def test_text_generation_inference_server1():
 
 
 @pytest.mark.need_tokens
+@pytest.mark.parametrize("function_server_workers", [2, 1])
+@pytest.mark.parametrize("function_server", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @pytest.mark.parametrize("loaders", ['all', None])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key):
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, function_server, function_server_workers):
+    if not function_server and function_server_workers > 1:
+        # no-op
+        return
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -2170,6 +2175,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
          append_sources_to_chat=False,
+         function_server=function_server,
+         function_server_workers=function_server_workers,
          **main_kwargs,
          verbose=True)
 

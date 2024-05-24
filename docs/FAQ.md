@@ -1,5 +1,6 @@
 ## Frequently asked questions
 
+
 ### Parallel and Isolated OpenAI Proxy Servers
 
 ```bash
@@ -914,6 +915,41 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --visible_image_models="['sdxl_turbo', 'sdxl', 'playv2']" \
 --image_gpu_ids="[0,1,2]"
 ```
+
+### SGLang for LLaVA vision models
+
+For fast and reliable vision model support, one can use SGLang instead of the server-worker-gradio setup described [below](#llava-vision-models).  See [SGLang](https://github.com/sgl-project/sglang) and see also [LLaVa-Next](https://github.com/LLaVA-VL/LLaVA-NeXT) and [LLaVa Next Blog](https://llava-vl.github.io/blog/2024-05-10-llava-next-stronger-llms/).
+
+Example models:
+* Model: https://huggingface.co/lmms-lab/llava-next-110b Tokenizer: https://huggingface.co/lmms-lab/llavanext-qwen-tokenizer Usage: https://github.com/sgl-project/sglang/blob/main/examples/usage/llava/http_qwen_llava_test.py
+* Model: https://huggingface.co/lmms-lab/llava-next-72b Tokenizer: https://huggingface.co/lmms-lab/llavanext-qwen-tokenizer Usage: https://github.com/sgl-project/sglang/blob/main/examples/usage/llava/http_qwen_llava_test.py
+* Model: https://huggingface.co/lmms-lab/llama3-llava-next-8b Tokenizer: https://huggingface.co/lmms-lab/llama3-llava-next-8b-tokenizer Usage: https://github.com/sgl-project/sglang/blob/main/examples/usage/llava/http_llama3_llava_test.py
+
+To setup, in a separate env to h2oGPT:
+```bash
+conda create -n sglang python=3.10 -y
+conda activate sglang
+pip install "sglang[all]"
+```
+Then run:
+```bash
+export CUDA_VISIBLE_DEVICES=0
+python -m sglang.launch_server --model-path lmms-lab/llama3-llava-next-8b --tokenizer-path lmms-lab/llama3-llava-next-8b-tokenizer --port=30000 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=8192
+```
+
+For text, SGLang supports [OpenAI API](https://github.com/sgl-project/sglang?tab=readme-ov-file#using-openai-models) otherwise uses http requests.  h2oGPT supports these separate modes. 
+
+For h2oGPT, the llava wheel was built like:
+```bash
+pip wheel git+https://github.com/LLaVA-VL/LLaVA-NeXT.git
+```
+producing `llava-1.7.0.dev0-py3-none-any.whl`, and this package is required for h2oGPT to use SGLang LLaVa-Next vision models.
+
+For h2oGPT run:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://IP:30000 --base_model=lmms-lab/llama3-llava-next-8b
+```
+or use whatever port was mapped from 30000 to public port, e.g. 80.
 
 ### LLaVa Vision Models
 
