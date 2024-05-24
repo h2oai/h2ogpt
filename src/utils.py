@@ -463,6 +463,26 @@ class NullContext(threading.local):
         pass
 
 
+class AsyncNullContext(threading.local):
+    """No-op async context manager, executes block without doing any additional processing.
+
+    Used as a stand-in if a particular block of code is only sometimes
+    used with a normal async context manager:
+    """
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, exc_traceback):
+        await self.finally_act()
+
+    async def finally_act(self):
+        pass
+
+
 def wrapped_partial(func, *args, **kwargs):
     """
     Give partial properties of normal function, like __name__ attribute etc.

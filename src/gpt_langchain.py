@@ -30,6 +30,7 @@ from operator import concat
 from random import randint
 from urllib.parse import urlparse
 
+import aiohttp
 import filelock
 import tabulate
 
@@ -70,7 +71,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens, markdown_to_html, is_markdown
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -605,7 +606,7 @@ class H2Oagenerate:
             new_arg_supported=None,
             **kwargs: Any,
     ) -> str:
-        async_sem = NullContext() if self.async_sem is None else self.async_sem
+        async_sem = AsyncNullContext() if self.async_sem is None else self.async_sem
         async with async_sem:  # semaphore limits num of simultaneous downloads
             return await self._acall(prompt, stop=stop, run_manager=run_manager, **kwargs) \
                 if new_arg_supported else \
@@ -1547,6 +1548,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         conv_template = copy.deepcopy(getattr(conversation_module, conv_template_name))
         return conv_template
 
+    async def send_request(self, url, data, delay=0):
+        await asyncio.sleep(delay)
+        async_sem = AsyncNullContext() if self.async_sem is None else self.async_sem
+        async with async_sem:  # semaphore limits num of simultaneous downloads
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=data) as resp:
+                    output = await resp.json()
+        return output
+
     def setup_call(self, prompt):
         # NOTE: Don't handle self.context
         if not self.add_chat_history_to_context:
@@ -1555,8 +1565,6 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if self.image_file is not None:
             self.image_file = self.image_file[:llava_num_max]
             self.count_input_tokens += 1500 * len(self.image_file)
-
-        prompt = f"<image>\n{prompt}"
 
         conv_template_name = self.inference_server.split(':')[1]
         conv_template = self.get_conv_template(conv_template_name)
@@ -1576,7 +1584,11 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 conv_template.append_message(role="user", message=message[0])
             if isinstance(message[1], str) and message[1]:
                 conv_template.append_message(role="assistant", message=message[1])
-        conv_template.append_message(role="user", message=prompt)
+
+        conv_template_before_prompt = copy.deepcopy(conv_template)
+
+        prompt_with_image = f"<image>\n{prompt}"
+        conv_template.append_message(role="user", message=prompt_with_image)
         prompt_with_template = conv_template.get_prompt()
         if self.context:
             prompt_with_template = self.context + prompt_with_template
@@ -1598,12 +1610,43 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
             "image_data": self.image_file[0],  # FIXME
             "stream": self.stream_output,
         }
+        url = self.inference_server_url + "/generate"
+
+        if len(self.image_file) > 1:
+            # deal with all images
+            # also contains prompt_tokens, completion_tokens, finish_reason, etc.
+            responses = asyncio.run(self.get_many(url, pload))
+
+            # now use all those in final prompt
+            responses_context = '\n\n'.join(['# Image %d Answer\n\n%s\n\n' % (i, r['text']) for i, r in
+                                 enumerate(responses)])
+            prompt_with_responses = f"{responses_context}\n{prompt}"
+            conv_template_before_prompt.append_message(role="user", message=prompt_with_responses)
+            prompt_with_template = conv_template_before_prompt.get_prompt()
+            if self.context:
+                prompt_with_template = self.context + prompt_with_template
+            self.prompts.append(prompt_with_template)
+            pload.pop('image_data')  # no longer have images
+
         response = requests.post(
-            self.inference_server_url + "/generate",
+            url,
             json=pload,
             stream=self.stream_output,
         )
         return response
+
+    async def get_many(self, url, pload):
+        pload_no_image = pload.copy()
+        pload_no_image.pop('image_data')
+        pload_no_image.pop('stream')  # so stays json not text stream
+
+        responses = []
+        for image_1 in self.image_file:
+            pload_i = copy.deepcopy(pload_no_image)
+            pload_i['image_data'] = image_1
+            responses.append(self.send_request(url, pload_i))
+        rets = await asyncio.gather(*responses)
+        return rets
 
     def _call(
             self,
@@ -2056,7 +2099,7 @@ class H2OTextGenOpenAI:
             run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
             **kwargs: Any,
     ) -> LLMResult:
-        async_sem = NullContext() if self.async_sem is None else self.async_sem
+        async_sem = AsyncNullContext() if self.async_sem is None else self.async_sem
         async with async_sem:  # semaphore limits num of simultaneous downloads
             prompts = [prompt]
             # update for each async call
@@ -2923,7 +2966,7 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OOpenAI
             if inf_type in ['vllm', 'sglang']:
-                async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
+                async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
                                          prompter=prompter,
@@ -3182,7 +3225,7 @@ def get_llm(use_openai_model=False,
         callbacks = [streaming_callback]
         streamer = callbacks[0] if stream_output else None
 
-        async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
+        async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
 
         if is_vision_model(model_name):
             # https://github.com/sgl-project/sglang/issues/212#issuecomment-1973432493
@@ -3263,7 +3306,7 @@ def get_llm(use_openai_model=False,
         requests.get(inference_server, timeout=int(os.getenv('REQUEST_TIMEOUT_FAST', '10')))
         callbacks = [streaming_callback]
 
-        async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
+        async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
 
         llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
                                                                                   gr_client.endpoints]
