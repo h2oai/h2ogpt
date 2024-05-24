@@ -929,15 +929,63 @@ To setup, in a separate env to h2oGPT:
 ```bash
 conda create -n sglang python=3.10 -y
 conda activate sglang
-pip install "sglang[all]"
+
+git clone https://github.com/sgl-project/sglang.git
+cd sglang/python
+pip install -e ".[all]"
 ```
+Note, for llama3 8b model, 0.1.16 version of install via pypi as `pip install "sglang[all]"` is sufficient, but for qwen need 0.1.17 or main as above.
 Then run:
 ```bash
 export CUDA_VISIBLE_DEVICES=0
 python -m sglang.launch_server --model-path lmms-lab/llama3-llava-next-8b --tokenizer-path lmms-lab/llama3-llava-next-8b-tokenizer --port=30000 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=8192
 ```
+To use the API, include the header X-API-Key, e.g. with curl:
+```bash
+curl http://0.0.0.0:30000/get_model_info -H 'X-API-Key: XXXXXXXXX' -v
+```
 
-For text, SGLang supports [OpenAI API](https://github.com/sgl-project/sglang?tab=readme-ov-file#using-openai-models) otherwise uses http requests.  h2oGPT supports these separate modes. 
+For h2oGPT run:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://0.0.0.0:30000 --base_model=lmms-lab/llama3-llava-next-8b --prompt_type=llama3 &> 8b.log &
+disown %1
+```
+choose your IP if remote instead of `0.0.0.0` and use whatever port was mapped from `30000` to public port, e.g. `80`.
+
+For Yi 34B:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1"
+python -m sglang.launch_server --model-path liuhaotian/llava-v1.6-34b --tokenizer-path liuhaotian/llava-v1.6-34b-tokenizer --port=30020 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=4096 &> 34b.log &
+disown %1
+```
+and for h2oGPT:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_chatml_direct:http://0.0.0.0:30000 --base_model=liuhaotian/llava-v1.6-34b --prompt_type=yi
+```
+
+For Qwen 72B:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
+python -m sglang.launch_server --model-path lmms-lab/llava-next-72b --tokenizer-path lmms-lab/llavanext-qwen-tokenizer --port=30010 --host="0.0.0.0" --tp-size=4 --random-seed=1234 --context-length=32768 &> 72b.log &
+disown %1
+```
+and for h2oGPT:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_qwen:http://0.0.0.0:30000 --base_model=lmms-lab/llava-next-72b --prompt_type=qwen
+```
+
+Or Qwen 110B:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"
+python -m sglang.launch_server --model-path lmms-lab/llava-next-110b --tokenizer-path lmms-lab/llavanext-qwen-tokenizer --port=30010 --host="0.0.0.0" --tp-size=4 --random-seed=1234 --context-length=32768 &> 110b.log &
+disown %1
+```
+and for h2oGPT:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_qwen:http://0.0.0.0:30000 --base_model=lmms-lab/llava-next-110b --prompt_type=qwen
+```
+
+For text, SGLang supports [OpenAI API](https://github.com/sgl-project/sglang?tab=readme-ov-file#using-openai-models) which is what the `--prompt_type` above is used for.  Otherwise h2oGPT uses http requests to talk to the SGLang server.
 
 For h2oGPT, the llava wheel was built like:
 ```bash
@@ -945,11 +993,6 @@ pip wheel git+https://github.com/LLaVA-VL/LLaVA-NeXT.git
 ```
 producing `llava-1.7.0.dev0-py3-none-any.whl`, and this package is required for h2oGPT to use SGLang LLaVa-Next vision models.
 
-For h2oGPT run:
-```bash
-python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://0.0.0.0:30000 --base_model=lmms-lab/llama3-llava-next-8b
-```
-choose your IP if remote instead of `0.0.0.0` and use whatever port was mapped from `30000` to public port, e.g. `80`.
 
 ### LLaVa Vision Models
 

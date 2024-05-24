@@ -1607,7 +1607,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 "frequency_penalty": 2,
                 "stop": terminate_response,
             },
-            "image_data": self.image_file[0],  # FIXME
+            "image_data": self.image_file[0],
             "stream": self.stream_output,
         }
         url = self.inference_server_url + "/generate"

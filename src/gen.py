@@ -648,7 +648,7 @@ def main(
                                 One should also pass the name of the python module used for conversation, e.g. for
                                   python -m sglang.launch_server --model-path lmms-lab/llama3-llava-next-8b --tokenizer-path lmms-lab/llama3-llava-next-8b-tokenizer --port=30000 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=8192
                                 One should use:
-                                  sglang:conv_llava_llama_3:IP:port
+                                  sglang:conv_llava_llama_3:http://IP:port
 
                             For together.ai that is OpenAI compliant, use:
                                 vllm_chat:https://api.together.xyz:None:/v1:1234ABCD

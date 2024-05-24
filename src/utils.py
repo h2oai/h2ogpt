@@ -1574,6 +1574,8 @@ def set_openai(inference_server, model_name=None):
         else:
             http_prefix = 'http://'
             auto_v1 = True
+        if inference_server.startswith('sglang') and '/v1' not in inference_server:
+            auto_v1 = True
 
         address = ':'.join(ip_port.split(':')[0:1]).strip()
         api_base = http_prefix + address
