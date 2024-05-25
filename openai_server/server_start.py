@@ -95,7 +95,7 @@ def run(wait=True, **kwargs):
             command.append(f'--{key}')  # Assume keys are formatted as expected for the script
             command.append(str(value))  # Convert all values to strings to be safe
 
-        file_prefix = "popen" + str(uuid.uuid4())
+        file_prefix = "popen" + '_' + name + '_' + str(uuid.uuid4()) + '_'
         file_stdout = file_prefix + 'stdout.log'
         file_stderr = file_prefix + 'stderr.log'
         f_stdout = open(file_stdout, 'wt')
