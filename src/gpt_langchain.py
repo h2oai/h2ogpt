@@ -1576,9 +1576,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                     self.system_prompt = 'You are a helpful assistant.' if not self.image_file else "You are helpful visual LLM assistant capable of understanding text and images."
                 conv_template.append_message(role="assistant", message=self.system_prompt)
             else:
-                if self.system_prompt == 'auto':
-                    self.system_prompt = conv_template.system
-                conv_template.append_message(role="system", message=self.system_prompt)
+                our_system_prompt = False
+                if our_system_prompt:
+                    # FIXME: our own system prompt
+                    if self.system_prompt == 'auto':
+                        self.system_prompt = conv_template.system
+                    if '<|im_start|>system\n' in conv_template.system:
+                        conv_template.system = '<|im_start|>system\n' + self.system_prompt
+                    elif conv_template.system == "":
+                        conv_template.append_message(role="system", message=self.system_prompt)
         for message in self.chat_conversation:
             if isinstance(message[0], str) and message[0]:
                 conv_template.append_message(role="user", message=message[0])
