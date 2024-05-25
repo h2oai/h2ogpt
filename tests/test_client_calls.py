@@ -5409,28 +5409,30 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
             response = response[0]
 
         try:
-            mydict = json.loads(response)
+            response = json.loads(response)
         except:
             print("Bad response: %s" % response)
             raise
 
-        # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
-        check_keys = ['age', 'name', 'skills', 'workhistory']
-        cond1 = all([k in mydict for k in check_keys])
-        if not guided_json:
-            assert mydict, "Empty dict"
-        else:
-            assert cond1, "Missing keys: %s" % response
-            if base_model in vllm_base_models:
-                import jsonschema
-                jsonschema.validate(mydict, schema=guided_json)
+        check_response(response, base_model, guided_json)
     else:
         openai_guided_json(client, base_model, prompt, kwargs)
 
 
-def openai_guided_json(gradio_client, base_model, prompt, kwargs):
-    import jsonschema
+def check_response(response, base_model, guided_json):
+    # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
+    check_keys = ['age', 'name', 'skills', 'workhistory']
+    cond1 = all([k in response for k in check_keys])
+    if not guided_json:
+        assert response, "Empty dict"
+    else:
+        assert cond1, "Missing keys: %s" % response
+        if base_model in vllm_base_models:
+            import jsonschema
+            jsonschema.validate(response, schema=guided_json)
 
+
+def openai_guided_json(gradio_client, base_model, prompt, kwargs):
     base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
 
     import openai
@@ -5464,12 +5466,25 @@ def openai_guided_json(gradio_client, base_model, prompt, kwargs):
     )
     message = chat_completion.choices[0].message
     assert message.content is not None
-    print(message.content)
-    json1 = json.loads(message.content)
-    jsonschema.validate(instance=json1, schema=TEST_SCHEMA)
-    print(json1)
+    response = message.content
 
-    messages.append({"role": "assistant", "content": message.content})
+    # just take first for testing
+    if kwargs.get('langchain_action') == LangChainAction.EXTRACT.value:
+        response = ast.literal_eval(response)
+        assert isinstance(response, list), str(response)
+        response = response[0]
+
+    try:
+        response = json.loads(response)
+    except:
+        print("Bad response: %s" % response)
+        raise
+    print(response, file=sys.stderr)
+    response1 = response.copy()
+
+    check_response(response, base_model, kwargs.get('guided_json'))
+
+    messages.append({"role": "assistant", "content": response})
     messages.append({
         "role": "user",
         "content": "Give me another one with a different name and age."
@@ -5480,8 +5495,23 @@ def openai_guided_json(gradio_client, base_model, prompt, kwargs):
     )
     message = chat_completion.choices[0].message
     assert message.content is not None
-    json2 = json.loads(message.content)
-    jsonschema.validate(instance=json2, schema=TEST_SCHEMA)
-    assert json1["name"] != json2["name"]
-    assert json1["age"] != json2["age"]
-    print(json2)
+    response = message.content
+
+    # just take first for testing
+    if kwargs.get('langchain_action') == LangChainAction.EXTRACT.value:
+        response = ast.literal_eval(response)
+        assert isinstance(response, list), str(response)
+        response = response[0]
+
+    try:
+        response = json.loads(response)
+    except:
+        print("Bad response: %s" % response)
+        raise
+    print(response, file=sys.stderr)
+    response2 = response.copy()
+
+    check_response(response, base_model, kwargs.get('guided_json'))
+
+    assert response1["name"] != response2["name"]
+    assert response1["age"] != response2["age"]
