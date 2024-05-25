@@ -1,10 +1,6 @@
-# devel needed for bitsandbytes requirement of libcudart.so, otherwise runtime sufficient
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu20.04
+FROM gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:1 AS build-stage
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-ENV PATH="/h2ogpt_conda/envs/h2ogpt/bin:${PATH}"
-ARG PATH="/h2ogpt_conda/envs/h2ogpt/bin:${PATH}"
+USER root
 
 ENV HOME=/workspace
 ENV CUDA_HOME=/usr/local/cuda-12.1
@@ -14,22 +10,18 @@ ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
 WORKDIR /workspace
 
-COPY . /workspace/
+# copy code
+COPY .              /workspace/
 
+# copy build info
 COPY build_info.txt /workspace/
+COPY git_hash.txt   /workspace/
 
-COPY git_hash.txt /workspace/
+# copy install script
+COPY linux_install_wolfi.sh    /workspace/
 
-RUN cd /workspace && ./docker_build_script_ubuntu.sh
-
-RUN chmod -R a+rwx /workspace
-
-ARG user=h2ogpt
-ARG group=h2ogpt
-ARG uid=1000
-ARG gid=1000
-
-RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
+# run setup
+RUN cd /workspace && ./linux_install_wolfi.sh
 
 EXPOSE 8888
 EXPOSE 7860
