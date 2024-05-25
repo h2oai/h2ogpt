@@ -6,6 +6,7 @@ import sys
 import argparse
 import logging
 import typing
+import uuid
 from threading import Thread
 from typing import Union
 
@@ -94,11 +95,14 @@ def run(wait=True, **kwargs):
             command.append(f'--{key}')  # Assume keys are formatted as expected for the script
             command.append(str(value))  # Convert all values to strings to be safe
 
-        process = subprocess.Popen(command, stdout=None, stderr=None)
+        file_prefix = "popen" + str(uuid.uuid4())
+        file_stdout = file_prefix + 'stdout.log'
+        file_stderr = file_prefix + 'stderr.log'
+        f_stdout = open(file_stdout, 'wt')
+        f_stderr = open(file_stderr, 'wt')
+        process = subprocess.Popen(command, stdout=f_stdout, stderr=f_stderr)
         if wait:
             process.communicate()
-        #for c in iter(lambda: process.stdout.read(1), b''):
-        #    sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
     elif wait:
         print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
