@@ -261,10 +261,18 @@ def main(
         prepare_offline_level: int = 0,
         cli: bool = False,
         cli_loop: bool = True,
+        eval: bool = False,
         gradio: bool = True,
+        function: bool = False,
+
         openai_server: bool = True,
         openai_port: int = 5001 if sys.platform == "darwin" else 5000,
         openai_workers: int = 1,
+
+        function_server: bool = False,
+        function_server_port: int = 5003 if sys.platform == "darwin" else 5002,
+        function_server_workers: int = 1,
+        function_api_key: str = None,
 
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
@@ -634,6 +642,14 @@ def main(
                                  vllm_chat:https://vllm.h2o.ai:5001:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
 
+                            For sglang, text models are supported via OpenAI API and can use vllm_chat or vllm as usual.
+                            For sglang and vision models, need to specify sglang so we use http requests API via generate endpoint.  Use "sglang" prefix and otherwise it is like vllm endpoint
+                            Currently it's not clear how to make an API key work: https://github.com/sgl-project/sglang/issues/466, so one should rely upon firewalls
+                                One should also pass the name of the python module used for conversation, e.g. for
+                                  python -m sglang.launch_server --model-path lmms-lab/llama3-llava-next-8b --tokenizer-path lmms-lab/llama3-llava-next-8b-tokenizer --port=30000 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=8192
+                                One should use:
+                                  sglang:conv_llava_llama_3:http://IP:port
+
                             For together.ai that is OpenAI compliant, use:
                                 vllm_chat:https://api.together.xyz:None:/v1:1234ABCD
 
@@ -794,12 +810,21 @@ def main(
            1: prepare just h2oGPT with exact same setup as passed to CLI and ensure all artifacts for h2oGPT alone added to ~/.cache/
            2: prepare h2oGPT + all inference servers so h2oGPT+inference servers can use the ~/.cache/
     :param cli: whether to use CLI (non-gradio) interface.
+    :param eval: whether to run evals
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
+    :param function: whether to run function mode to just return locals for function server
+
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
-           Disabled if API is disabled or --auth=closed
+           Disabled if API is disabled
     :param openai_port: port for OpenAI proxy server
     :param openai_workers: number of workers for OpenAI (1 means 1 worker, 0 means all physical cores, else choose)
+
+    :param function_server: whether to launch Function server to handle document loading offloading to separate thread or forks
+    :param function_server_port: port for OpenAI proxy server
+    :param function_server_workers: number of workers for Function Server (1 means 1 worker, 0 means all physical cores, else choose)
+    :param function_api_key: API key for function server, auto-set if not provided, uses first key like OpenAI proxy server does as well
+
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
            == 2 means backend and frontend don't need internet to download any fonts.
@@ -1331,6 +1356,8 @@ def main(
     :param heap_app_id: App ID for Heap, change to your ID.
     :return:
     """
+    main_kwargs = locals().copy()
+
     if base_model is None:
         base_model = ''
     if tokenizer_base_model is None:
@@ -1438,9 +1465,9 @@ def main(
         visible_langchain_actions.remove(LangChainAction.IMAGE_QUERY.value)
 
     if model_lock:
-        assert gradio, "model_lock only supported for gradio=True"
+        assert gradio or function, "model_lock only supported for gradio=True or function=True"
         assert not cli, "model_lock only supported for cli=False"
-        assert not (not cli and not gradio), "model_lock only supported for eval (cli=gradio=False)"
+        assert not (not cli and not (gradio or function)), "model_lock only supported for eval (cli=gradio=False)"
         assert not base_model, "Don't specify model_lock and base_model"
         assert not tokenizer_base_model, "Don't specify model_lock and tokenizer_base_model"
         assert not lora_weights, "Don't specify model_lock and lora_weights"
@@ -1463,7 +1490,7 @@ def main(
         # nominally allow UI access public or not
         enforce_h2ogpt_ui_key = False
     if is_public:
-        if max_visible_models is None and gradio:
+        if max_visible_models is None and (gradio or function):
             is_gradio_h2oai = get_is_gradio_h2oai()
             max_visible_models = 4 if is_gradio_h2oai else None
         visible_tos_tab = visible_hosts_tab = True
@@ -1693,16 +1720,16 @@ def main(
             # can't share LLM state across user requests due to k-v cache for LLMs
             # FIXME: In gradio 4 could use 1 for only LLM tasks, higher for rest
             concurrency_count = 1
-    if concurrency_count > 1 and not all_inference_server:
+    if concurrency_count > 1 and not all_inference_server and base_model:
         # FIXME: Could use semaphore to manage each LLM concurrency, in case mix of local and remote
         raise ValueError(
-            "Concurrency count > 1 will lead mixup in cache use for local LLMs, disable this raise at own risk.")
+            "Concurrency count > 1 will lead to mixup in cache use for local LLMs, disable this raise at own risk.")
 
     api_open = bool(int(os.getenv('API_OPEN', str(int(api_open)))))
     allow_api = bool(int(os.getenv('ALLOW_API', str(int(allow_api)))))
 
     if openai_server and not allow_api:
-        print("Cannot enable OpenAI server when allow_api=False or auth is closed")
+        print("Cannot enable OpenAI server when allow_api=False")
         openai_server = False
 
     if not os.getenv('CLEAR_CLEAR_TORCH'):
@@ -1782,7 +1809,7 @@ def main(
     else:
         model_lower = ''
         model_lower0 = ''
-    if not gradio:
+    if not (gradio or function):
         # force, else not single response like want to look at
         stream_output = False
         # else prompt removal can mess up output
@@ -1798,7 +1825,7 @@ def main(
 
     # auto-set stt and tts.
     # Done early here for lg_to_gr() and preload of db to know what's enabled
-    if cli or not gradio:
+    if cli or not (gradio or function):
         enable_stt = enable_tts = False
 
     if not (have_soundfile and have_librosa and have_wavio):
@@ -2146,7 +2173,7 @@ def main(
                                  langchain_mode_types=langchain_mode_types)
     selection_docs_state = copy.deepcopy(selection_docs_state0)
 
-    if cli or not gradio:
+    if cli or not (gradio or function):
         # initial state for query prompt
         model_name = base_model
         pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
@@ -2307,7 +2334,7 @@ def main(
             if fail_if_cannot_connect:
                 raise RuntimeError("Could not connect, see logs")
             # skip
-            if isinstance(model_lock, list):
+            if model_lock and isinstance(model_lock, list):
                 model_lock.remove(model_dict)
             continue
         model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
@@ -2357,7 +2384,7 @@ def main(
     if cli:
         from cli import run_cli
         return run_cli(**get_kwargs(run_cli, **local_kwargs))
-    elif not gradio:
+    elif eval:
         from eval import run_eval
         return run_eval(**get_kwargs(run_eval, **local_kwargs))
     elif gradio or prepare_offline_level > 0:
@@ -2365,6 +2392,8 @@ def main(
         from gradio_runner import go_gradio
         # assume gradio needs everything
         go_gradio(**local_kwargs)
+    elif function:
+        return local_kwargs
 
 
 def get_config(base_model,
@@ -2407,8 +2436,9 @@ def get_config(base_model,
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
-                    print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
-                    max_seq_len = 2048
+                    max_seq_len = 4096
+                    print(f"Could not determine --max_seq_len, setting to {max_seq_len}.  Pass if not correct",
+                          flush=True)
                 # HF TGI server only should really require prompt_type, not HF model state
                 print("Not using tokenizer from HuggingFace:\n\n", flush=True)
                 traceback.print_exc()
@@ -2459,15 +2489,24 @@ def get_config(base_model,
                 print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
                       "  If not desired, pass --max_seq_len and set to some integer value." % config.max_position_embeddings,
                       flush=True)
+        elif hasattr(config, 'text_config') and hasattr(config.text_config, 'max_position_embeddings') and isinstance(
+                config.text_config.max_position_embeddings, int):
+            # help automatically limit inputs to generate
+            if 'idefics' in base_model:
+                # max_seq_len = 8192
+                max_seq_len = 4096  # safer
+            else:
+                max_seq_len = config.text_config.max_position_embeddings
+            if verbose:
+                print("Used max_position_embeddings=%s as base model (pre-rope) max_seq_len."
+                      "  If not desired, pass --max_seq_len and set to some integer value." % config.text_config.max_position_embeddings,
+                      flush=True)
         elif hasattr(config, 'n_ctx'):
             # e.g. gpt2
             max_seq_len = int(config.n_ctx)
         else:
-            print("Could not determine --max_seq_len, setting to 2048.  Pass if not correct", flush=True)
-            max_seq_len = 2048
-            # FIXME:
-            # raise RuntimeError("Could not determine max_seq_len,"
-            #                   " please pass --max_seq_len and set to some value, e.g. 2048.")
+            max_seq_len = 4096
+            print(f"Could not determine --max_seq_len, setting to {max_seq_len}.  Pass if not correct", flush=True)
 
         # listen to model if sets this and user passed nothing
         if not rope_scaling and hasattr(config, 'rope_scaling'):
@@ -2724,7 +2763,9 @@ def get_inf_models(inference_server, verbose=False):
         except pydantic_core.ValidationError as e:
             print("mistrail ai issue: %s" % str(e))
             # https://github.com/mistralai/client-python/issues/83
-    elif inference_server.startswith('openai') or inference_server.startswith('vllm'):
+    elif inference_server.startswith('openai') or \
+            inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang'):
         openai_client, openai_async_client, \
             inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server)
@@ -2977,12 +3018,15 @@ def get_model(
     inf_server_for_max_seq_len_handling = isinstance(inference_server, str) and (
             inference_server.startswith('openai') or
             inference_server.startswith('vllm') or
+            inference_server.startswith('sglang') or
             inference_server.startswith('replicate') or
             inference_server.startswith('sagemaker') or
             inference_server.startswith('anthropic')
     )
 
-    if inference_server.startswith('vllm') or inference_server.startswith('openai'):
+    if inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang') or \
+            inference_server.startswith('openai'):
         t0 = time.time()
         client, async_client, inf_type, deployment_type, base_url, api_version, api_key = \
             set_openai(inference_server, model_name=base_model)
@@ -3769,7 +3813,8 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources=[], save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
+    yield dict(response=invalid_key_msg, sources=[],
+               save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
                llm_answers=dict(response_raw=invalid_key_msg), response_no_refs=invalid_key_msg,
                sources_str='', audio=None, prompt_raw='INVALID')
     return
@@ -4658,11 +4703,15 @@ def evaluate(
                            )
 
     if inference_server.startswith('vllm') or \
+            inference_server.startswith('sglang') or \
             inference_server.startswith('openai') or \
             inference_server.startswith('http'):
         text = ''
         gen_server_kwargs = {}
-        if inference_server.startswith('vllm') or inference_server.startswith('openai'):
+        if inference_server.startswith('vllm') or \
+                inference_server.startswith('sglang') or \
+                inference_server.startswith('openai'):
+            # sglang reaches here only for text mode
             assert not inference_server.startswith('openai_azure_chat'), "Not fo Azure, use langchain path"
             assert not inference_server.startswith('openai_azure'), "Not for Azure, use langchain path"
             if isinstance(model, dict):
@@ -4700,11 +4749,8 @@ def evaluate(
                                                           )
                 else:
                     vllm_extra_dict = {}
-                if inf_type == 'vllm' or inf_type == 'openai':
-                    if inf_type == 'vllm':
-                        other_dict = dict(timeout=max_time)
-                    else:
-                        other_dict = dict(timeout=max_time)
+                if inf_type in ['vllm', 'sglang', 'openai']:
+                    other_dict = dict(timeout=max_time)
                     responses = openai_client.completions.create(
                         model=base_model,
                         # response_format=dict(type=response_format),  Text Completions API can't handle
@@ -4746,7 +4792,7 @@ def evaluate(
                                     print("Took too long for OpenAI or VLLM: %s" % (time.time() - tgen0), flush=True)
                                 break
                             time.sleep(0.005)
-                elif inf_type == 'vllm_chat' or inf_type == 'openai_chat':
+                elif inf_type in ['vllm_chat', 'openai_chat']:
                     other_dict = dict(timeout=max_time)
                     if system_prompt in [None, 'None', 'auto']:
                         openai_system_prompt = "You are a helpful assistant."
@@ -6593,7 +6639,8 @@ def model_name_to_prompt_type(model_name, inference_server,
         prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
     else:
         prompt_type1 = prompt_type_old or ''
-    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer, FakeTokenizer):
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer,
+                                                                                                 FakeTokenizer):
         # handle new models not defined yet
         if tokenizer.is_google:
             prompt_type1 = 'google'

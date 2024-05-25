@@ -1,4 +1,5 @@
 import inspect
+import json
 import os
 import subprocess
 import sys
@@ -10,6 +11,9 @@ from typing import Union
 
 import uvicorn
 from fastapi import FastAPI
+
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 sys.path.append('openai_server')
 
@@ -28,10 +32,14 @@ def run_server(host: str = '0.0.0.0',
                # https://docs.gunicorn.org/en/stable/design.html#how-many-workers
                workers: int = 1,
                app: Union[str, FastAPI] = None,
+               is_openai_server: bool = True,
+               main_kwargs: str = "",  # json.dumped dict
                ):
     if workers == 0:
         workers = min(16, os.cpu_count() * 2 + 1)
     assert app is not None
+
+    name = 'OpenAI' if is_openai_server else 'Function'
 
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
@@ -53,11 +61,17 @@ def run_server(host: str = '0.0.0.0',
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
 
     prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
-    from openai_server.log import logger
-    logger.info(f'OpenAI API URL: {prefix}://{host}:{port}')
-    logger.info(f'OpenAI API key: {server_api_key}')
+    try:
+        from openai_server.log import logger
+    except ModuleNotFoundError:
+        from log import logger
+    logger.info(f'{name} API URL: {prefix}://{host}:{port}')
+    logger.info(f'{name} API key: {server_api_key}')
 
     logging.getLogger("uvicorn.error").propagate = False
+
+    # to pass args through so app can run gen setup
+    os.environ['H2OGPT_MAIN_KWARGS'] = main_kwargs
 
     if not isinstance(app, str):
         workers = None
@@ -67,9 +81,12 @@ def run_server(host: str = '0.0.0.0',
 
 
 def run(wait=True, **kwargs):
+    assert 'is_openai_server' in kwargs
+    name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
     print(kwargs)
+
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
-        print("Multi-worker OpenAI Proxy uvicorn: %s" % kwargs['workers'])
+        print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
         # avoid CUDA forking
         command = ['python', 'openai_server/server_start.py']
         # Convert the kwargs to command line arguments
@@ -77,14 +94,16 @@ def run(wait=True, **kwargs):
             command.append(f'--{key}')  # Assume keys are formatted as expected for the script
             command.append(str(value))  # Convert all values to strings to be safe
 
-        process = subprocess.Popen(command, stdout=subprocess.PIPE)
-        for c in iter(lambda: process.stdout.read(1), b''):
-            sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
+        process = subprocess.Popen(command, stdout=None, stderr=None)
+        if wait:
+            process.communicate()
+        #for c in iter(lambda: process.stdout.read(1), b''):
+        #    sys.stdout.write(c.decode('utf-8', errors='replace'))  # Ensure decoding from bytes to str
     elif wait:
-        print("Single-worker OpenAI Proxy uvicorn in this thread: %s" % kwargs['workers'])
+        print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
     else:
-        print("Single-worker OpenAI Proxy uvicorn in new thread: %s" % kwargs['workers'])
+        print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
         Thread(target=run_server, kwargs=kwargs, daemon=True).start()
 
 
@@ -103,7 +122,7 @@ def argv_to_kwargs(argv=None):
             if type(param.default) is int:  # Check if the default value is an integer
                 parser.add_argument(f'--{name}', type=int, default=param.default)
             elif type(param.default) is bool:  # Add support for boolean values
-                parser.add_argument(f'--{name}', action='store_true' if param.default is False else 'store_false')
+                parser.add_argument(f'--{name}', type=lambda x: (str(x).lower() in ['true', '1', 'yes']), default=param.default)
             else:  # Treat as string by default
                 parser.add_argument(f'--{name}', type=str, default=param.default if param.default is not None else '')
 

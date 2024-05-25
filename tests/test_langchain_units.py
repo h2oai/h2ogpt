@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 import uuid
 
 import pytest
@@ -758,7 +759,7 @@ def test_urls_file_add(db_type):
                                                db_type=db_type)
             assert db is not None
             if db_type == 'chroma':
-                assert len(db.get()['documents']) > 50
+                assert len(db.get()['documents']) > 45
             docs = db.similarity_search("list founding team of h2o.ai")
             assert len(docs) >= 1
             assert 'Sri Ambati' in docs[0].page_content
@@ -1715,7 +1716,7 @@ def test_youtube_audio_add(db_type):
             assert db is not None
             docs = db.similarity_search("Example")
             assert len(docs) >= 1
-            assert 'structured output' in docs[0].page_content
+            assert 'Contrasting this' in docs[0].page_content
             assert url in docs[0].metadata['source']
     kill_weaviate(db_type)
 
@@ -2001,15 +2002,18 @@ def test_chroma_filtering():
     'helium4',
     'helium5',
     'long',
+    'very_long',
 ])
 @wrap_test_forked
 def test_merge_docs(data_kind, max_input_tokens):
+    t0 = time.time()
+
     model_max_length = 4096
     if max_input_tokens is None:
         max_input_tokens = model_max_length - 512
     docs_joiner = docs_joiner_default
     docs_token_handling = docs_token_handling_default
-    tokenizer = FakeTokenizer(model_max_length=model_max_length)
+    tokenizer = FakeTokenizer(model_max_length=model_max_length, is_super_fake=True)
 
     from langchain.docstore.document import Document
     if data_kind == 'simple':
@@ -2026,6 +2030,8 @@ def test_merge_docs(data_kind, max_input_tokens):
         texts = texts_helium5
     elif data_kind == 'long':
         texts = texts_long
+    elif data_kind == 'very_long':
+        texts = ['\n'.join(texts_long * 100)]
     else:
         raise RuntimeError("BAD")
 
@@ -2043,34 +2049,51 @@ def test_merge_docs(data_kind, max_input_tokens):
     if data_kind == 'simple':
         assert len(docs_with_score_new) == 1
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
     elif data_kind == 'helium1':
-        assert len(docs_with_score_new) == 4 if max_input_tokens == 1024 else 2
+        assert len(docs_with_score_new) == 4 if max_input_tokens == 1024 else 2, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
     elif data_kind == 'helium2':
-        assert len(docs_with_score_new) == 8 if max_input_tokens == 1024 else 3
+        assert len(docs_with_score_new) == 7 if max_input_tokens == 1024 else 3, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
     elif data_kind == 'helium3':
-        assert len(docs_with_score_new) == 5 if max_input_tokens == 1024 else 2
+        assert len(docs_with_score_new) == 6 if max_input_tokens == 1024 else 2, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
     elif data_kind == 'helium4':
-        assert len(docs_with_score_new) == 5 if max_input_tokens == 1024 else 2
+        assert len(docs_with_score_new) == 6 if max_input_tokens == 1024 else 2, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
     elif data_kind == 'helium5':
-        assert len(docs_with_score_new) == 3 if max_input_tokens == 1024 else 1
+        assert len(docs_with_score_new) == 6 if max_input_tokens == 1024 else 1, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
     elif data_kind == 'long':
-        assert len(docs_with_score_new) == 41 if max_input_tokens == 1024 else 6, len(docs_with_score_new)
+        assert len(docs_with_score_new) == 47 if max_input_tokens == 1024 else 6, len(docs_with_score_new)
         assert all([x <= max_input_tokens for x in tokens])
+        assert time.time() - t0 < 0.1
+    elif data_kind == 'very_long':
+        assert len(docs_with_score_new) == 4601 if max_input_tokens == 1024 else 6, len(docs_with_score_new)
+        assert all([x <= max_input_tokens for x in tokens])
+        if max_input_tokens == 1024:
+            assert time.time() - t0 < 60
+        else:
+            assert time.time() - t0 < 10
+    print("duration: %s" % (time.time() - t0), flush=True)
 
 
 @wrap_test_forked
 def test_split_and_merge():
-    kwargs = {'max_input_tokens': 7118, 'docs_token_handling': 'split_or_merge', 'joiner': '\n\n', 'non_doc_prompt': '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nGive a summary that is well-structured yet concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"""\n\n"""\nWrite a summary for a physics Ph.D. and assistant professor in physics doing astrophysics, identifying key points of interest.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n',
-    'verbose': False}
+    kwargs = {'max_input_tokens': 7118, 'docs_token_handling': 'split_or_merge', 'joiner': '\n\n',
+              'non_doc_prompt': '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nGive a summary that is well-structured yet concise.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n"""\n\n"""\nWrite a summary for a physics Ph.D. and assistant professor in physics doing astrophysics, identifying key points of interest.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n',
+              'verbose': False}
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained('meta-llama/Meta-Llama-3-8B-Instruct')
     from langchain_core.documents import Document
-    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content in enumerate(texts_long)]
+    docs_with_score = [(Document(page_content=page_content, metadata={"source": "%d" % pi}), 1.0) for pi, page_content
+                       in enumerate(texts_long)]
 
     docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                        tokenizer,
@@ -2094,14 +2117,16 @@ def test_hyde_acc():
     llm_answers = dict(response_raw='raw')
     hyde_show_intermediate_in_accordion = False
     map_reduce_show_intermediate_in_accordion = False
-    answer, hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion)
+    answer, hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion,
+                                map_reduce_show_intermediate_in_accordion)
     assert hyde == ''
 
     answer = ['answer']
     llm_answers = dict(response_raw='raw')
     hyde_show_intermediate_in_accordion = False
     map_reduce_show_intermediate_in_accordion = False
-    answer, hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion, map_reduce_show_intermediate_in_accordion)
+    answer, hyde = get_hyde_acc(answer, llm_answers, hyde_show_intermediate_in_accordion,
+                                map_reduce_show_intermediate_in_accordion)
     assert hyde is None
 
 

@@ -1,5 +1,24 @@
 ## Frequently asked questions
 
+
+### Parallel and Isolated OpenAI Proxy Servers
+
+```bash
+python generate.py --openai_server=True --openai_workers=2 ...
+```
+will launch 2 OpenAI proxy servers using FastAPIs workers, so each is a separate fork independent of any other process.
+
+This speeds up any calls to the OpenAI server, letting FastAPI handle concurrency and load balancing between the different workers using same IP/port via OS management.
+
+### Parallel and Isolated Ingestion Servers
+
+```bash
+python generate.py --function_server=True --function_server_workers=2 ...
+```
+will launch 2 Ingestion proxy servers using FastAPIs workers, so each is a separate fork independent of any other process.  If ASR, DocTR, captions, etc. are enabled, these will be run on same GPUs in separate processes.
+
+This helps keep the main UI server isolated from ingestion tasks that can consume alot of cpu or hang the Gradio server.
+
 ### Open Web UI
 
 Run h2oGPT somehow with OpenAI server active (as is default).
@@ -93,6 +112,11 @@ TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=
 which assumes the model was downloaded to default location of `llamacpp_path`.  This works for offline if previously used the earlier command that got the tokenizer.
 
 Note the chat template is defined by the model card's [tokenizer_config.json](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct/blob/main/tokenizer_config.json#L2053).
+
+Also, `--base_model` accepts a few forms of passing urls, TheBloke, etc. for GGUF, but not others.  For more general GGUF locations, you should specify the file or url download link explicitly.  E.g. for Phi:
+```bash
+python generate.py  --tokenizer_base_model=microsoft/Phi-3-mini-4k-instruct --base_model=llama --llama_cpp_model=https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf --max_seq_len=4096 
+```
 
 ### Mixtral AWQ
 
@@ -892,6 +916,84 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --image_gpu_ids="[0,1,2]"
 ```
 
+### SGLang for LLaVA vision models
+
+For fast and reliable vision model support, one can use SGLang instead of the server-worker-gradio setup described [below](#llava-vision-models).  See [SGLang](https://github.com/sgl-project/sglang) and see also [LLaVa-Next](https://github.com/LLaVA-VL/LLaVA-NeXT) and [LLaVa Next Blog](https://llava-vl.github.io/blog/2024-05-10-llava-next-stronger-llms/).
+
+Example models:
+* Model: https://huggingface.co/lmms-lab/llava-next-110b Tokenizer: https://huggingface.co/lmms-lab/llavanext-qwen-tokenizer Usage: https://github.com/sgl-project/sglang/blob/main/examples/usage/llava/http_qwen_llava_test.py
+* Model: https://huggingface.co/lmms-lab/llava-next-72b Tokenizer: https://huggingface.co/lmms-lab/llavanext-qwen-tokenizer Usage: https://github.com/sgl-project/sglang/blob/main/examples/usage/llava/http_qwen_llava_test.py
+* Model: https://huggingface.co/lmms-lab/llama3-llava-next-8b Tokenizer: https://huggingface.co/lmms-lab/llama3-llava-next-8b-tokenizer Usage: https://github.com/sgl-project/sglang/blob/main/examples/usage/llava/http_llama3_llava_test.py
+
+To setup, in a separate env to h2oGPT:
+```bash
+conda create -n sglang python=3.10 -y
+conda activate sglang
+
+git clone https://github.com/sgl-project/sglang.git
+cd sglang/python
+pip install -e ".[all]"
+```
+Note, for llama3 8b model, 0.1.16 version of install via pypi as `pip install "sglang[all]"` is sufficient, but for qwen need 0.1.17 or main as above.
+Then run:
+```bash
+export CUDA_VISIBLE_DEVICES=0
+python -m sglang.launch_server --model-path lmms-lab/llama3-llava-next-8b --tokenizer-path lmms-lab/llama3-llava-next-8b-tokenizer --port=30000 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=8192
+```
+To use the API, include the header X-API-Key, e.g. with curl:
+```bash
+curl http://0.0.0.0:30000/get_model_info -H 'X-API-Key: XXXXXXXXX' -v
+```
+
+For h2oGPT run:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://0.0.0.0:30000 --base_model=lmms-lab/llama3-llava-next-8b --prompt_type=llama3 &> 8b.log &
+disown %1
+```
+choose your IP if remote instead of `0.0.0.0` and use whatever port was mapped from `30000` to public port, e.g. `80`.
+
+For Yi 34B:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1"
+python -m sglang.launch_server --model-path liuhaotian/llava-v1.6-34b --tokenizer-path liuhaotian/llava-v1.6-34b-tokenizer --port=30020 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=4096 &> 34b.log &
+disown %1
+```
+and for h2oGPT:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_chatml_direct:http://0.0.0.0:30000 --base_model=liuhaotian/llava-v1.6-34b --prompt_type=yi
+```
+
+For Qwen 72B:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
+python -m sglang.launch_server --model-path lmms-lab/llava-next-72b --tokenizer-path lmms-lab/llavanext-qwen-tokenizer --port=30010 --host="0.0.0.0" --tp-size=4 --random-seed=1234 --context-length=32768 &> 72b.log &
+disown %1
+```
+and for h2oGPT:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_qwen:http://0.0.0.0:30000 --base_model=lmms-lab/llava-next-72b --prompt_type=qwen
+```
+
+Or Qwen 110B:
+```bash
+export CUDA_VISIBLE_DEVICES="0,1,2,3,4,5,6,7"
+python -m sglang.launch_server --model-path lmms-lab/llava-next-110b --tokenizer-path lmms-lab/llavanext-qwen-tokenizer --port=30010 --host="0.0.0.0" --tp-size=4 --random-seed=1234 --context-length=32768 &> 110b.log &
+disown %1
+```
+and for h2oGPT:
+```bash
+python --trust-remote-code --inference_server=sglang:conv_qwen:http://0.0.0.0:30000 --base_model=lmms-lab/llava-next-110b --prompt_type=qwen
+```
+
+For text, SGLang supports [OpenAI API](https://github.com/sgl-project/sglang?tab=readme-ov-file#using-openai-models) which is what the `--prompt_type` above is used for.  Otherwise h2oGPT uses http requests to talk to the SGLang server.
+
+For h2oGPT, the llava wheel was built like:
+```bash
+pip wheel git+https://github.com/LLaVA-VL/LLaVA-NeXT.git
+```
+producing `llava-1.7.0.dev0-py3-none-any.whl`, and this package is required for h2oGPT to use SGLang LLaVa-Next vision models.
+
+
 ### LLaVa Vision Models
 
 https://github.com/haotian-liu/LLaVA
@@ -1003,7 +1105,7 @@ docker run -d --gpus '"device=0"' \
 --name idefics28b \
 ghcr.io/huggingface/text-generation-inference:2.0.3 \
 --model-id HuggingFaceM4/idefics2-8b --trust-remote-code --max-stop-sequences=6 \
---max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 \
+--max-batch-prefill-tokens=32768 --max-input-length 4096 --max-total-tokens 8192 \
 --num-shard 1
 ```
 

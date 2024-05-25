@@ -33,6 +33,8 @@ langchain-openai==0.1.6
 langchain-google-genai==1.0.3
 google-generativeai==0.5.2
 
+llava @ https://h2o-release.s3.amazonaws.com/h2ogpt/llava-1.7.0.dev0-py3-none-any.whl
+
 #langchain_mistralai==0.1.2  # tokenizers<0.16.0, but transformers requires >=0.19
 httpx>=0.25.2
 httpx-sse>=0.3.1
@@ -90,7 +92,7 @@ weaviate-client==3.26.2
 # vllm==0.2.2
 
 # only gradio>=4
-gradio_pdf>=0.0.4
+gradio_pdf>=0.0.7
 
 gradio_tools>=0.0.9
 

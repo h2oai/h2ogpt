@@ -47,6 +47,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 [![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/h2oai/h2ogpt/blob/main/docs/README_WINDOWS.md)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/h2oai/h2ogpt/blob/main/docs/README_DOCKER.md)
 
+#### Limited Doc Q/A trial
 
 To quickly try out h2oGPT with limited document Q/A capability, create a fresh Python 3.10 environment and run:
 * CPU or MAC (M1/M2):
@@ -81,6 +82,9 @@ export CMAKE_ARGS="-DLLAMA_METAL=on"
 export FORCE_CMAKE=1
 ```
 
+#### Chat with h2oGPT
+
+```bash
 Then run the following commands on any system:
    ```bash
    git clone https://github.com/h2oai/h2ogpt.git
@@ -100,10 +104,17 @@ Then run the following commands on any system:
    ```
 Next, go to your browser by visiting [http://127.0.0.1:7860](http://127.0.0.1:7860) or [http://localhost:7860](http://localhost:7860).  Choose 13B for a better model than 7B.
 
+#### Chat template based GGUF models
+
 For newer chat template models, a `--prompt_type` is not required on CLI, but for GGUF files one should pass the HF tokenizer so it knows the chat template, e.g. for LLaMa-3:
 ```bash
 python generate.py --base_model=llama --model_path_llama=https://huggingface.co/QuantFactory/Meta-Llama-3-8B-Instruct-GGUF/resolve/main/Meta-Llama-3-8B-Instruct.Q5_K_M.gguf?download=true --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192
 ```
+Or for Phi:
+```bash
+python generate.py  --tokenizer_base_model=microsoft/Phi-3-mini-4k-instruct --base_model=llama --llama_cpp_model=https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf --max_seq_len=4096 
+```
+the `--llama_cpp_path` could be a local path as well if you already downloaded it, or we will also check the `llamacpp_path` for the file.
 
 See [Offline](docs/README_offline.md#tldr) for how to run h2oGPT offline.
 

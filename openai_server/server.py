@@ -8,7 +8,7 @@ from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union
 from pydantic import BaseModel, Field
 
-from fastapi import  FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse

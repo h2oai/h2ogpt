@@ -145,7 +145,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     if verbose:
                         print("using %s tokens with %s chars" % (num_prompt_tokens, len(prompt_text)), flush=True)
                     break
-            if num_prompt_tokens is not None and num_prompt_tokens > model_max_length:
+            if num_prompt_tokens is not None and num_prompt_tokens > model_max_length and model_max_length > 0:
                 print(
                     "Failed to reduce %s tokens with %s chars: %s" % (num_prompt_tokens, len(prompt_text), prompt_text),
                     flush=True)
