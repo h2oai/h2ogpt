@@ -158,9 +158,6 @@ for enc in model_encodings:
 print('Done!')
 "
 
-# mitigate CVE-2024-22423
-pip install yt-dlp>=2024.4.9 --no-cache-dir -c reqs_optional/reqs_constraints.txt
-
 # more cleanup
 rm -rf /bin/busybox
 
