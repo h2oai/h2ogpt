@@ -1,3 +1,4 @@
+import asyncio
 import os
 import pickle
 import sys
@@ -165,37 +166,29 @@ def execute_function(request: FunctionRequest):
         raise HTTPException(status_code=500, detail=traceback_str)
 
 
-@app.on_event("startup")
-async def startup_event():
-    background_tasks = BackgroundTasks()
-    background_tasks.add_task(periodic_health_check_task)
-    await background_tasks()
+state_checks = True
+if state_checks:
+    @app.on_event("startup")
+    async def startup_event(verbose=True):
+        asyncio.create_task(periodic_health_check(verbose=verbose))
 
+    async def periodic_health_check(verbose=False):
+        while True:
+            if verbose:
+                print("Checking health...")
+            await asyncio.sleep(120)  # Wait for 2 minutes between checks
+            health_result = check_some_conditions()
+            if not health_result:
+                print("Health check failed! Terminating without cleanup (to avoid races)...")
+                os._exit(1)
 
-# Use repeat_every to run the task periodically
-@app.on_event("startup")
-@repeat_every(seconds=120)  # Run the check every 2 minutes
-def periodic_health_check_task() -> None:
-    perform_periodic_check()
-
-
-# This function performs the periodic check
-def perform_periodic_check():
-    # Replace this with your actual check logic
-    health = check_some_conditions()
-
-    if not health:
-        # Terminate the process if the check fails
-        os._exit(1)
-
-
-def check_some_conditions():
-    # Replace with actual health check logic
-    # Return False if something is wrong
-    try:
-        sys.stdout.flush()
-        sys.stderr.flush()
-        return True
-    except:
-        # to catch case when hit I/O operation on closed file, from some unknown non-python package
-        return False
+    def check_some_conditions():
+        # Replace with actual health check logic
+        # Return False if something is wrong
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            return True
+        except:
+            # to catch case when hit I/O operation on closed file, from some unknown non-python package
+            return False
