@@ -2414,7 +2414,8 @@ def go_gradio(**kwargs):
                                            allow_upload_to_user_data=kwargs['allow_upload_to_user_data'],
                                            function_server=kwargs['function_server'],
                                            function_server_port=kwargs['function_server_port'],
-                                           function_api_key=h2ogpt_key1 if not kwargs['function_api_key'] else kwargs['function_api_key'],
+                                           function_api_key=h2ogpt_key1 if not kwargs['function_api_key'] else kwargs[
+                                               'function_api_key'],
                                            )
         add_file_outputs = [fileup_output, langchain_mode]
         add_file_kwargs = dict(fn=update_db_func,
@@ -6041,7 +6042,6 @@ def go_gradio(**kwargs):
                           auth=kwargs['auth'],
                           auth_access=kwargs['auth_access'],
                           guest_name=kwargs['guest_name'],
-                          workers=kwargs['function_server_workers'],
                           main_kwargs=json.dumps(kwargs['main_kwargs']),
                           )
 
@@ -6051,7 +6051,9 @@ def go_gradio(**kwargs):
                 from openai_server.server import app as openai_app
             else:
                 openai_app = 'server:app'
-            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True)
+            run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True,
+                workers=kwargs['openai_workers'],
+                )
 
         if kwargs['function_server']:
             print("Starting up Function server")
@@ -6059,7 +6061,9 @@ def go_gradio(**kwargs):
                 from openai_server.function_server import app as function_app
             else:
                 function_app = 'function_server:app'
-            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False)
+            run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False,
+                workers=kwargs['function_server_workers'],
+                )
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()
