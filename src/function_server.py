@@ -10,21 +10,20 @@ from traceback import print_exception
 
 from pydantic import BaseModel
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Depends
 from fastapi.responses import JSONResponse, Response
+from fastapi_utils.tasks import repeat_every
 from starlette.responses import PlainTextResponse
 
-if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-if os.path.dirname('src') not in sys.path:
-    sys.path.append('src')
-
+# Ensure required directories are in sys.path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(script_dir)
-sys.path.append(project_root)
+if project_root not in sys.path:
+    sys.path.append(project_root)
+if os.path.dirname('src') not in sys.path:
+    sys.path.append('src')
 
 
 # similar to openai_server/server.py
@@ -164,3 +163,39 @@ def execute_function(request: FunctionRequest):
     except Exception as e:
         traceback_str = ''.join(traceback.format_exception(e))
         raise HTTPException(status_code=500, detail=traceback_str)
+
+
+@app.on_event("startup")
+async def startup_event():
+    background_tasks = BackgroundTasks()
+    background_tasks.add_task(periodic_health_check_task)
+    await background_tasks()
+
+
+# Use repeat_every to run the task periodically
+@app.on_event("startup")
+@repeat_every(seconds=120)  # Run the check every 2 minutes
+def periodic_health_check_task() -> None:
+    perform_periodic_check()
+
+
+# This function performs the periodic check
+def perform_periodic_check():
+    # Replace this with your actual check logic
+    health = check_some_conditions()
+
+    if not health:
+        # Terminate the process if the check fails
+        os._exit(1)
+
+
+def check_some_conditions():
+    # Replace with actual health check logic
+    # Return False if something is wrong
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        return True
+    except:
+        # to catch case when hit I/O operation on closed file, from some unknown non-python package
+        return False
