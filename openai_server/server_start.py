@@ -34,6 +34,7 @@ def run_server(host: str = '0.0.0.0',
                workers: int = 1,
                app: Union[str, FastAPI] = None,
                is_openai_server: bool = True,
+               multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
                ):
     if workers == 0:
@@ -76,9 +77,36 @@ def run_server(host: str = '0.0.0.0',
 
     if not isinstance(app, str):
         workers = None
-    uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile,
-                workers=workers,
-                )
+
+    if multiple_workers_gunicorn:
+        assert isinstance(app, str), "app must be string for gunicorn multi-worker mode."
+        print(f"Multi-worker {name} Proxy gunicorn: {workers}")
+        # Build gunicorn command
+        command = [
+            'gunicorn',
+            '-w', str(workers),
+            '-k', 'uvicorn.workers.UvicornWorker',
+            '-b', f"{host}:{port}",
+        ]
+        if ssl_certfile:
+            command.extend(['--certfile', ssl_certfile])
+        if ssl_keyfile:
+            command.extend(['--keyfile', ssl_keyfile])
+        command.append('openai_server.' + app)  # This should be a string like 'server:app'
+
+        file_prefix = "gunicorn" + '_' + name + '_' + str(uuid.uuid4()) + '_'
+        file_stdout = file_prefix + 'stdout.log'
+        file_stderr = file_prefix + 'stderr.log'
+        f_stdout = open(file_stdout, 'wt')
+        f_stderr = open(file_stderr, 'wt')
+        process = subprocess.Popen(command, stdout=f_stdout, stderr=f_stderr)
+        wait = False
+        if wait:
+            process.communicate()
+    else:
+        uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile,
+                    workers=workers,
+                    )
 
 
 def run(wait=True, **kwargs):
@@ -87,26 +115,35 @@ def run(wait=True, **kwargs):
     print(kwargs)
 
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
-        print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
-        # avoid CUDA forking
-        command = ['python', 'openai_server/server_start.py']
-        # Convert the kwargs to command line arguments
-        for key, value in kwargs.items():
-            command.append(f'--{key}')  # Assume keys are formatted as expected for the script
-            command.append(str(value))  # Convert all values to strings to be safe
+        if not kwargs['multiple_workers_gunicorn']:
+            # popen now, so launch uvicorn with string app
+            print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
+            # avoid CUDA forking
+            command = ['python', 'openai_server/server_start.py']
+            # Convert the kwargs to command line arguments
+            for key, value in kwargs.items():
+                command.append(f'--{key}')  # Assume keys are formatted as expected for the script
+                command.append(str(value))  # Convert all values to strings to be safe
 
-        file_prefix = "popen" + '_' + name + '_' + str(uuid.uuid4()) + '_'
-        file_stdout = file_prefix + 'stdout.log'
-        file_stderr = file_prefix + 'stderr.log'
-        f_stdout = open(file_stdout, 'wt')
-        f_stderr = open(file_stderr, 'wt')
-        process = subprocess.Popen(command, stdout=f_stdout, stderr=f_stderr)
-        if wait:
-            process.communicate()
+            file_prefix = "popen" + '_' + name + '_' + str(uuid.uuid4()) + '_'
+            file_stdout = file_prefix + 'stdout.log'
+            file_stderr = file_prefix + 'stderr.log'
+            f_stdout = open(file_stdout, 'wt')
+            f_stderr = open(file_stderr, 'wt')
+            process = subprocess.Popen(command, stdout=f_stdout, stderr=f_stderr)
+            if wait:
+                process.communicate()
+        else:
+            # will launch gunicorn in popen inside run_server
+            run_server(**kwargs)
     elif wait:
+        kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
+        # launch uvicorn in this thread/process
         print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
     else:
+        kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
+        # launch uvicorn in this process in new thread
         print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
         Thread(target=run_server, kwargs=kwargs, daemon=True).start()
 
@@ -126,7 +163,8 @@ def argv_to_kwargs(argv=None):
             if type(param.default) is int:  # Check if the default value is an integer
                 parser.add_argument(f'--{name}', type=int, default=param.default)
             elif type(param.default) is bool:  # Add support for boolean values
-                parser.add_argument(f'--{name}', type=lambda x: (str(x).lower() in ['true', '1', 'yes']), default=param.default)
+                parser.add_argument(f'--{name}', type=lambda x: (str(x).lower() in ['true', '1', 'yes']),
+                                    default=param.default)
             else:  # Treat as string by default
                 parser.add_argument(f'--{name}', type=str, default=param.default if param.default is not None else '')
 

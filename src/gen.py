@@ -274,6 +274,8 @@ def main(
         function_server_workers: int = 1,
         function_api_key: str = None,
 
+        multiple_workers_gunicorn: bool = False,
+
         gradio_offline_level: int = 0,
         server_name: str = "0.0.0.0",
         share: bool = False,
@@ -824,6 +826,8 @@ def main(
     :param function_server_port: port for OpenAI proxy server
     :param function_server_workers: number of workers for Function Server (1 means 1 worker, 0 means all physical cores, else choose)
     :param function_api_key: API key for function server, auto-set if not provided, uses first key like OpenAI proxy server does as well
+
+    :param multiple_workers_gunicorn: whether to use gunicorn (True) or uvicorn (False) for multiple workers
 
     :param gradio_offline_level: > 0, then change fonts so full offline
            == 1 means backend won't need internet for fonts, but front-end UI might if font not cached
