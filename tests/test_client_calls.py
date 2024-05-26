@@ -5484,7 +5484,7 @@ def openai_guided_json(gradio_client, base_model, prompt, kwargs):
 
     check_response(response, base_model, kwargs.get('guided_json'))
 
-    messages.append({"role": "assistant", "content": response})
+    messages.append({"role": "assistant", "content": str(response)})
     messages.append({
         "role": "user",
         "content": "Give me another one with a different name and age."
