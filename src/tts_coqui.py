@@ -4,6 +4,7 @@ import functools
 import io
 import os
 import tempfile
+import traceback
 
 import filelock
 import numpy as np
@@ -126,7 +127,9 @@ def get_voice_streaming(prompt, language, latent, suffix="0", model=None, sr=240
             print(f"Restarted required due to exception: %s" % str(e), flush=True)
         else:
             print("Failed to generate wave: %s" % str(e))
+        traceback.print_exc()
     except Exception as e:
+        traceback.print_exc()
         print("Failed to generate wave: %s" % str(e))
 
 
