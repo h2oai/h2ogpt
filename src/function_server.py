@@ -189,6 +189,7 @@ if state_checks:
             sys.stdout.flush()
             sys.stderr.flush()
             return True
-        except:
+        except BaseException:
             # to catch case when hit I/O operation on closed file, from some unknown non-python package
+            traceback.print_exc()
             return False
