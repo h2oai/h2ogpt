@@ -6032,6 +6032,7 @@ def go_gradio(**kwargs):
         from openai_server.server_start import run
 
         run_kwargs = dict(wait=False,
+                          multiple_workers_gunicorn=kwargs['multiple_workers_gunicorn'],
                           host=openai_host,
                           gradio_prefix=gradio_prefix,
                           gradio_host=gradio_host,
