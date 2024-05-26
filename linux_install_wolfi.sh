@@ -164,3 +164,4 @@ chmod -R a+rwx /workspace
 
 # remove pip cache
 rm -rf /workspace/.cache
+rm -rf /usr/lib/python3.10/site-packages/future/backports/test
