@@ -92,7 +92,7 @@ def run_server(host: str = '0.0.0.0',
             command.extend(['--certfile', ssl_certfile])
         if ssl_keyfile:
             command.extend(['--keyfile', ssl_keyfile])
-        command.append(app)  # This should be a string like 'server:app'
+        command.append('openai_server.' + app)  # This should be a string like 'server:app'
 
         file_prefix = "gunicorn" + '_' + name + '_' + str(uuid.uuid4()) + '_'
         file_stdout = file_prefix + 'stdout.log'
