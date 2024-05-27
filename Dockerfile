@@ -60,6 +60,8 @@ RUN rm -rf /workspace/.cache && \
     rm -rf /workspace/notebooks && \
     rm -rf /workspace/papers
 
+RUN mkdir -p /workspace/save
+
 # make main workspace writable
 RUN chmod -R a+rwx /workspace
 
@@ -71,6 +73,9 @@ COPY --from=intermediate-stage    /docker_cache/nvidia/           /usr/lib/pytho
 COPY --from=intermediate-stage    /docker_cache/torch/            /usr/lib/python3.10/site-packages/torch/
 COPY --from=intermediate-stage    /docker_cache/onnxruntime/      /usr/lib/python3.10/site-packages/onnxruntime/
 COPY --from=intermediate-stage    /docker_cache/triton/           /usr/lib/python3.10/site-packages/triton/
+
+COPY --from=intermediate-stage    /workspace/build_info.txt       /build_info.txt
+COPY --from=intermediate-stage    /workspace/git_hash.txt         /git_hash.txt
 COPY --from=intermediate-stage    /workspace                      /workspace
 RUN chmod a+rwx /workspace  # only for top dir, as docker COPY skips it.
 
