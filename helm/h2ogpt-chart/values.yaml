@@ -139,7 +139,7 @@ vllm:
   replicaCount: 1
 
   image:
-    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime-vllm
     tag:
     pullPolicy: IfNotPresent
 
