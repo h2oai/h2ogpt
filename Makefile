@@ -47,7 +47,10 @@ build_info.txt:
 git_hash.txt:
 	@echo "$(shell git rev-parse HEAD)" >> $@
 
+DOCKER_BASE_OS_IMAGE := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:2
+
 docker_build: build_info.txt git_hash.txt
+	docker pull $(DOCKER_BASE_OS_IMAGE)
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image/artifacts/$(BUILD_TAG)/tags),200)
 	@echo "Image already pushed to Harbor: $(DOCKER_TEST_IMAGE)"
 else
@@ -56,6 +59,7 @@ else
 endif
 
 just_docker_build: build_info.txt git_hash.txt
+	docker pull $(DOCKER_BASE_OS_IMAGE)
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -f Dockerfile .
 
 docker_build_runner: docker_build

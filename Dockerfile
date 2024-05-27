@@ -1,4 +1,4 @@
-FROM gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:1 AS base-stage
+FROM gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:2 AS base-stage
 
 USER root
 
