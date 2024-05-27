@@ -158,12 +158,6 @@ for enc in model_encodings:
 print('Done!')
 "
 
-# more cleanup
-rm -rf /bin/busybox
 
-# remove pip cache
-rm -rf /workspace/.cache
-rm -rf /usr/lib/python3.10/site-packages/future/backports/test
-
-# make main workspace writable
-chmod -R a+rwx /workspace
+# mitigate CVE-2024-22423
+pip install yt-dlp==2024.4.9 --no-deps --no-cache-dir
