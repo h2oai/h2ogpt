@@ -49,8 +49,16 @@ RUN \
     rm -rf /docker_cache/user_data/x86_64-pc-linux-gnu && \
     rm -rf /docker_cache/python_data/site-packages/future/backports/test
 
-# remove pip cache
-RUN rm -rf /workspace/.cache
+# cleanup
+RUN rm -rf /workspace/.cache && \
+    rm -rf /workspace/spaces && \
+    rm -rf /workspace/benchmarks && \
+    rm -rf /workspace/data && \
+    rm -rf /workspace/cloud && \
+    rm -rf /workspace/docs && \
+    rm -rf /workspace/helm && \
+    rm -rf /workspace/notebooks && \
+    rm -rf /workspace/papers
 
 # make main workspace writable
 RUN chmod -R a+rwx /workspace
