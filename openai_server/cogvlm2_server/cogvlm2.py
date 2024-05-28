@@ -11,6 +11,8 @@ import base64
 
 from contextlib import asynccontextmanager
 from typing import List, Literal, Union, Tuple, Optional
+
+import filelock
 import torch
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -173,10 +175,13 @@ async def create_chat_completion(request: ChatCompletionRequest):
         repetition_penalty=request.repetition_penalty
     )
 
-    if request.stream:
-        generate = predict(request.model, gen_params)
-        return EventSourceResponse(generate, media_type="text/event-stream")
-    response = generate_cogvlm(model, tokenizer, gen_params)
+    lock_file = f"{MODEL_PATH}.lock"
+    os.makedirs(os.path.dirname(lock_file), exist_ok=True)
+    with filelock.FileLock(lock_file):
+        if request.stream:
+            generate = predict(request.model, gen_params)
+            return EventSourceResponse(generate, media_type="text/event-stream")
+        response = generate_cogvlm(model, tokenizer, gen_params)
 
     usage = UsageInfo()
 
