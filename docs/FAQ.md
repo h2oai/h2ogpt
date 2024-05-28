@@ -107,21 +107,12 @@ and you should at least pass `max_seq_len` as well.  This ensures accurate promp
 
 To use offline, then do:
 ```bash
-<<<<<<< HEAD
-python generate.py --base_model=llama --model_path_llama=Meta-Llama-3-8B-Instruct.Q5_K_M.gguf --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192 --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
-```
-which assumes the model was downloaded to default location of `llamacpp_path`.  This works for offline if previously used the earlier command that got the tokenizer.
-
-=======
 TRANSFORMERS_OFFLINE=1 python generate.py --base_model=llama --model_path_llama=Meta-Llama-3-8B-Instruct.Q5_K_M.gguf --tokenizer_base_model=meta-llama/Meta-Llama-3-8B-Instruct --max_seq_len=8192 --gradio_offline_level=2 --share=False --add_disk_models_to_ui=False
 ```
 which assumes the model was downloaded to default location of `llamacpp_path`.  This works for offline if previously used the earlier command that got the tokenizer.
 
 Note the chat template is defined by the model card's [tokenizer_config.json](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct/blob/main/tokenizer_config.json#L2053).
 
-<<<<<<< HEAD
->>>>>>> main
-=======
 Also, `--base_model` accepts a few forms of passing urls, TheBloke, etc. for GGUF, but not others.  For more general GGUF locations, you should specify the file or url download link explicitly.  E.g. for Phi:
 ```bash
 python generate.py  --tokenizer_base_model=microsoft/Phi-3-mini-4k-instruct --base_model=llama --llama_cpp_model=https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf --max_seq_len=4096 

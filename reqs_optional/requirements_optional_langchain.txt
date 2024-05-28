@@ -92,11 +92,7 @@ weaviate-client==3.26.2
 # vllm==0.2.2
 
 # only gradio>=4
-<<<<<<< HEAD
-#gradio_pdf>=0.0.4
-=======
-gradio_pdf>=0.0.7
->>>>>>> main
+#gradio_pdf>=0.0.7
 
 gradio_tools>=0.0.9
 
