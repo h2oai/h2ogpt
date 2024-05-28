@@ -175,8 +175,10 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
 
         # load model for inference
         if self.device == 'cpu':
-            device_map = {"", 'cpu'}
+            device = 'cpu'
+            device_map = None
         else:
+            device = None
             device_map = {"": 'cuda:%d' % device_id} if device_id >= 0 else {'': 'cuda'}
 
         # https://huggingface.co/blog/asr-chunking
@@ -186,6 +188,7 @@ class OpenAIWhisperParserLocal(BaseBlobParser):
             chunk_length_s=30,
             stride_length_s=5,
             batch_size=8,
+            device=device,
             device_map=device_map,
         )
         if use_better:
