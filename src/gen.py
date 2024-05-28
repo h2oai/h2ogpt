@@ -1081,6 +1081,7 @@ def main(
 
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name, 'All' means use all docs
+        e.g. --document_choice="['file2.pdf']" or --document_choice="['file2.pdf', 'file3.pdf']"
     :param document_source_substrings: substrings in list to search in source names in metadata for chroma dbs
     :param document_source_substrings_op: 'and or 'or' for source search words
     :param document_content_substrings: substrings in list to search in content for chroma dbs
@@ -1384,6 +1385,7 @@ def main(
     tts_stop_phrases = str_to_list(tts_stop_phrases)
     visible_image_models = str_to_list(visible_image_models)
     image_gpu_ids = str_to_list(image_gpu_ids)
+    document_choice = str_to_list(document_choice)
     if image_gpu_ids:
         assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
