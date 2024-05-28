@@ -1,5 +1,6 @@
 # https://raw.githubusercontent.com/THUDM/CogVLM2/main/basic_demo/openai_api_demo.py
 import gc
+import os
 import threading
 import time
 import base64
@@ -392,4 +393,4 @@ if __name__ == "__main__":
             trust_remote_code=True
         ).eval().to(DEVICE)
 
-    uvicorn.run(app, host='0.0.0.0', port=8000, workers=1)
+    uvicorn.run(app, host=os.environ.get('HOST', '0.0.0.0'), port=int(os.environ.get('PORT', '8000')), workers=1)
