@@ -1864,6 +1864,12 @@ def main(
         stt_gpu = False
         caption_gpu = False
         asr_gpu = False
+
+    if n_gpus == 0 and get_device(n_gpus=n_gpus) != "mps":
+        # if local DocTR, doesn't work on CPU
+        enable_doctr = False
+        enable_pdf_doctr = False
+
     if is_public:
         stt_model = 'distil-whisper/distil-large-v3'
 
