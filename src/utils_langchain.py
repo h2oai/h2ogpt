@@ -205,7 +205,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
 
         did_split = False
         for splitter_type, text_splitter in text_splitters.items():
-            tokens_before_split = [get_token_count(x + joiner, tokenizer) for x in
+            # don't include joiner with x, because this is each part, not joined part
+            tokens_before_split = [get_token_count(x, tokenizer) for x in
                                    [x[0].page_content for x in docs_with_score]]
 
             do_split &= any([x > max_input_tokens for x in tokens_before_split])
@@ -230,7 +231,8 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_with_score = [(x, x.metadata['docscore']) for x in docs_new]
 
             if verbose:
-                tokens_after_split = [get_token_count(x + joiner, tokenizer) for x in
+                # don't include joiner with x, because this is each part, not joined part
+                tokens_after_split = [get_token_count(x, tokenizer) for x in
                                       [x[0].page_content for x in docs_with_score]]
                 print('tokens_after_split=%s' % tokens_after_split, flush=True)
 
@@ -260,14 +262,15 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             docs_with_score_new.append((doc1, new_score))
 
             if did_split:
-                assert one_doc_size is None, "Split failed: %s" % one_doc_size
+                assert one_doc_size is None or one_doc_size == 0, "Split failed: %s" % one_doc_size
             elif one_doc_size is not None:
                 # chopped
                 assert top_k_docs == 1
             assert top_k_docs >= 1
             k += top_k_docs
 
-        tokens_after_merge = [get_token_count(x + joiner, tokenizer) for x in
+        # don't include joiner with x, because this is each part, not joined part
+        tokens_after_merge = [get_token_count(x, tokenizer) for x in
                               [x[0].page_content for x in docs_with_score_new]]
         if verbose:
             print('tokens_after_merge=%s' % tokens_after_merge, flush=True)
@@ -311,7 +314,7 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
             source_chunks = splitter.split_documents(sources)
         else:
             try:
-                tokenizer = FakeTokenizer(model_max_length=max(20, chunk_size - 50), is_openai=True)
+                tokenizer = FakeTokenizer(model_max_length=max(20, chunk_size - 50), is_super_fake=True)
                 sources_with_score = [(x, 1) for x in sources]
                 source_chunks_with_score, max_tokens_after_merge = \
                     split_merge_docs(sources_with_score, tokenizer=tokenizer,

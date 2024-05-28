@@ -2117,11 +2117,17 @@ def test_text_generation_inference_server1():
 
 
 @pytest.mark.need_tokens
+@pytest.mark.parametrize("function_server_workers", [2, 1])
+@pytest.mark.parametrize("function_server", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @pytest.mark.parametrize("loaders", ['all', None])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key):
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, function_server,
+                                             function_server_workers):
+    if not function_server and function_server_workers > 1:
+        # no-op
+        return
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
@@ -2170,6 +2176,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          langchain_mode=langchain_mode, user_path=user_path,
          langchain_modes=langchain_modes,
          append_sources_to_chat=False,
+         function_server=function_server,
+         function_server_workers=function_server_workers,
          **main_kwargs,
          verbose=True)
 
@@ -5336,6 +5344,7 @@ def get_test_server_client(base_model):
 
 
 @wrap_test_forked
+@pytest.mark.parametrize("api", ['gradio', 'openai'])
 @pytest.mark.parametrize("guided_json", ['', TEST_SCHEMA])
 @pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("base_model", other_base_models)
@@ -5345,7 +5354,7 @@ def get_test_server_client(base_model):
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value,
                                               LangChainAction.EXTRACT.value])
-def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output, guided_json):
+def test_guided_json(langchain_action, langchain_mode, response_format, base_model, stream_output, guided_json, api):
     if langchain_mode == 'LLM' and \
             (langchain_action == LangChainAction.SUMMARIZE_MAP.value or
              langchain_action == LangChainAction.EXTRACT.value):
@@ -5378,48 +5387,52 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
                   guided_json=guided_json,
                   guided_whitespace_pattern=None,
                   )
-    res_dict = {}
-    if stream_output:
-        for res_dict1 in client.simple_stream(client_kwargs=kwargs):
-            res_dict = res_dict1.copy()
+
+    if api == 'gradio':
+        res_dict = {}
+        if stream_output:
+            for res_dict1 in client.simple_stream(client_kwargs=kwargs):
+                res_dict = res_dict1.copy()
+        else:
+            res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+            res_dict = ast.literal_eval(res_dict)
+
+        response = res_dict['response']
+        print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
+              file=sys.stderr)
+        print(response, file=sys.stderr)
+
+        # just take first for testing
+        if langchain_action == LangChainAction.EXTRACT.value:
+            response = ast.literal_eval(response)
+            assert isinstance(response, list), str(response)
+            response = response[0]
+
+        try:
+            response = json.loads(response)
+        except:
+            print("Bad response: %s" % response)
+            raise
+
+        check_response(response, base_model, guided_json)
     else:
-        res_dict = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-        res_dict = ast.literal_eval(res_dict)
+        openai_guided_json(client, base_model, prompt, kwargs)
 
-    response = res_dict['response']
-    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response),
-          file=sys.stderr)
-    print(response, file=sys.stderr)
 
-    # just take first for testing
-    if langchain_action == LangChainAction.EXTRACT.value:
-        response = ast.literal_eval(response)
-        assert isinstance(response, list), str(response)
-        response = response[0]
-
-    try:
-        mydict = json.loads(response)
-    except:
-        print("Bad response: %s" % response)
-        raise
-
+def check_response(response, base_model, guided_json):
     # claude-3 can't handle spaces in keys.  should match pattern '^[a-zA-Z0-9_-]{1,64}$'
     check_keys = ['age', 'name', 'skills', 'workhistory']
-    cond1 = all([k in mydict for k in check_keys])
+    cond1 = all([k in response for k in check_keys])
     if not guided_json:
-        assert mydict, "Empty dict"
+        assert response, "Empty dict"
     else:
         assert cond1, "Missing keys: %s" % response
         if base_model in vllm_base_models:
             import jsonschema
-            jsonschema.validate(mydict, schema=guided_json)
-
-    openai_guided_json(client, base_model, kwargs)
+            jsonschema.validate(response, schema=guided_json)
 
 
-def openai_guided_json(gradio_client, base_model, kwargs):
-    import jsonschema
-
+def openai_guided_json(gradio_client, base_model, prompt, kwargs):
     base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
 
     import openai
@@ -5431,51 +5444,74 @@ def openai_guided_json(gradio_client, base_model, kwargs):
         "role": "system",
         "content": "you are a helpful assistant"
     }, {
-        "role":
-            "user",
-        "content":
-            f"Give an example JSON for an employee profile."
-            f"fits this schema: {TEST_SCHEMA}"
+        "role": "user",
+        "content": prompt,
     }]
+    chat_kwargs = dict(model=base_model,
+                       max_tokens=1024,
+                       response_format={"type": "json_object"},
+                       extra_body=dict(guided_json=TEST_SCHEMA,
+                                       guided_whitespace_pattern=None,
+                                       prompt_query=kwargs.get('prompt_query'),
+                                       prompt_summary=kwargs.get('prompt_summary'),
+                                       text_context_list=kwargs.get('text_context_list'),
+                                       langchain_mode=kwargs.get('langchain_mode'),
+                                       langchain_action=kwargs.get('langchain_action'),
+                                       h2ogpt_key=kwargs.get('h2ogpt_key'),
+                                       )
+                       )
     chat_completion = client.chat.completions.create(
-        model=base_model,
         messages=messages,
-        max_tokens=1024,
-        response_format={"type": "json_object"},
-
-        extra_body=dict(guided_json=TEST_SCHEMA,
-                        guided_whitespace_pattern=None,
-                        prompt_query=kwargs.get('prompt_query'),
-                        prompt_summary=kwargs.get('prompt_summary'),
-                        text_context_list=kwargs.get('text_context_list'),
-                        langchain_mode=kwargs.get('langchain_mode'),
-                        langchain_action=kwargs.get('langchain_action'),
-                        h2ogpt_key=kwargs.get('h2ogpt_key'),
-                        )
+        **chat_kwargs,
     )
     message = chat_completion.choices[0].message
     assert message.content is not None
-    json1 = json.loads(message.content)
-    jsonschema.validate(instance=json1, schema=TEST_SCHEMA)
-    print(json1)
+    response = message.content
 
-    messages.append({"role": "assistant", "content": message.content})
+    # just take first for testing
+    if kwargs.get('langchain_action') == LangChainAction.EXTRACT.value:
+        response = ast.literal_eval(response)
+        assert isinstance(response, list), str(response)
+        response = response[0]
+
+    try:
+        response = json.loads(response)
+    except:
+        print("Bad response: %s" % response)
+        raise
+    print(response, file=sys.stderr)
+    response1 = response.copy()
+
+    check_response(response, base_model, kwargs.get('guided_json'))
+
+    messages.append({"role": "assistant", "content": str(response)})
     messages.append({
-        "role":
-            "user",
-        "content":
-            "Give me another one with a different name and age."
+        "role": "user",
+        "content": "Give me another one, ensure it has a totally different name and totally different age."
     })
     chat_completion = client.chat.completions.create(
-        model=base_model,
         messages=messages,
-        max_tokens=1024,
-        response_format={"type": "json_object"},
-        extra_body=dict(guided_json=TEST_SCHEMA))
+        **chat_kwargs,
+    )
     message = chat_completion.choices[0].message
     assert message.content is not None
-    json2 = json.loads(message.content)
-    jsonschema.validate(instance=json2, schema=TEST_SCHEMA)
-    assert json1["name"] != json2["name"]
-    assert json1["age"] != json2["age"]
-    print(json2)
+    response = message.content
+
+    # just take first for testing
+    if kwargs.get('langchain_action') == LangChainAction.EXTRACT.value:
+        response = ast.literal_eval(response)
+        assert isinstance(response, list), str(response)
+        response = response[0]
+
+    try:
+        response = json.loads(response)
+    except:
+        print("Bad response: %s" % response)
+        raise
+    print(response, file=sys.stderr)
+    response2 = response.copy()
+
+    check_response(response, base_model, kwargs.get('guided_json'))
+
+    assert response1["name"] != response2["name"]
+    assert response1["age"] != response2["age"]

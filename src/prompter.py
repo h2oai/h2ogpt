@@ -298,7 +298,8 @@ def is_vision_model(base_model):
         base_model.startswith('claude-3-') or \
         base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"] or \
-        base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"]
+        base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
+        base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"]
 
 
 def is_video_model(base_model):

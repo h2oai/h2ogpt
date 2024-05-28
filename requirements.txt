@@ -15,6 +15,9 @@ gradio_client==0.6.1
 #gradio_client @ https://h2o-release.s3.amazonaws.com/h2ogpt/gradio_client-0.15.1-py3-none-any.whl
 
 
+uvicorn[standard]
+gunicorn
+fastapi-utils
 sse_starlette==1.8.2
 # consrained by tokenizers etc.:
 huggingface_hub>=0.12.4

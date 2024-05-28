@@ -30,3 +30,6 @@ sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends
 sed -i 's/while True:/while True:\n            time.sleep(0.001)\n/g' $sp/gradio_client/client.py
 
 patch $sp/transformers/modeling_utils.py docs/trans.patch
+
+# diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/TTS/tts/layers/xtts/stream_generator.py new.py > docs/xtt.patch
+patch $sp/TTS/tts/layers/xtts/stream_generator.py docs/xtt.patch

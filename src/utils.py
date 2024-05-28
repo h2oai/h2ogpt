@@ -463,6 +463,26 @@ class NullContext(threading.local):
         pass
 
 
+class AsyncNullContext(threading.local):
+    """No-op async context manager, executes block without doing any additional processing.
+
+    Used as a stand-in if a particular block of code is only sometimes
+    used with a normal async context manager:
+    """
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, exc_traceback):
+        await self.finally_act()
+
+    async def finally_act(self):
+        pass
+
+
 def wrapped_partial(func, *args, **kwargs):
     """
     Give partial properties of normal function, like __name__ attribute etc.
@@ -1262,7 +1282,9 @@ class FakeTokenizer:
                  is_google=False,
                  is_hf=False,
                  tokenizer=None,
-                 is_llama_cpp=False):
+                 is_llama_cpp=False,
+                 is_super_fake=False,
+                 ):
         if model_max_length is None:
             assert not (
                     is_openai or is_anthropic or is_google), "Should have set model_max_length for OpenAI or Anthropic or Google"
@@ -1272,21 +1294,28 @@ class FakeTokenizer:
         self.is_google = is_google
         self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
+        self.is_super_fake = is_super_fake
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
         if not self.is_openai and not self.is_anthropic and not self.is_llama_cpp:
             # don't push limit, since if using fake tokenizer, only estimate, and seen underestimates by order 250
             self.model_max_length -= 250
         self.encoding_name = encoding_name
+        if self.is_super_fake:
+            self.encoding = None
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        if not (self.is_anthropic or self.is_google):
+        elif not (self.is_anthropic or self.is_google):
             import tiktoken
             self.encoding = tiktoken.get_encoding(self.encoding_name)
         else:
             self.encoding = None
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
-        if self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
+        if self.is_super_fake:
+            input_ids = self.heuristic_encode(x)
+            # avoid torch tensor
+            return dict(input_ids=input_ids)
+        elif self.is_llama_cpp:  # and len(x) < 4 * 4 * self.model_max_length: # don't use llama.cpp if too much
             input_ids = self.tokenizer.tokenize(b" " + x.encode("utf-8"))
         elif self.is_anthropic:
             from anthropic import Anthropic
@@ -1305,7 +1334,9 @@ class FakeTokenizer:
         return dict(input_ids=input_ids)
 
     def decode(self, x, *args, **kwargs):
-        if self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
+        if self.is_super_fake:
+            return ['aaaa'] * len(x)  # fake
+        elif self.is_llama_cpp:  # and len(x) < 4 * self.model_max_length:   # don't use llama.cpp if too much
             return self.tokenizer.detokenize(x)
         elif self.is_anthropic:
             from anthropic import Anthropic
@@ -1321,7 +1352,9 @@ class FakeTokenizer:
 
     def num_tokens_from_string(self, prompt: str) -> int:
         """Returns the number of tokens in a text string."""
-        if self.is_anthropic:
+        if self.is_super_fake:
+            return len(self.heuristic_encode(prompt))
+        elif self.is_anthropic:
             from anthropic import Anthropic
             client = Anthropic()
             return client.count_tokens(prompt)
@@ -1331,6 +1364,13 @@ class FakeTokenizer:
             return len(self.tokenizer.encode(prompt))
         num_tokens = len(self.encode(prompt)['input_ids'])
         return num_tokens
+
+    def heuristic_encode(self, text: str) -> list:
+        """
+        A heuristic-based approach to estimate token counts.
+        """
+        total_tokens = len(text) // 4 if len(text) >= 4 else 1
+        return [0] * total_tokens
 
     def __call__(self, x, *args, **kwargs):
         return self.encode(x, *args, **kwargs)
@@ -1515,38 +1555,44 @@ only_playwright = os.environ.get("ONLY_PLAYWRIGHT", "0") == "1"
 
 
 def set_openai(inference_server, model_name=None):
-    if inference_server.startswith('vllm'):
+    if inference_server.startswith('sglang'):
+        inference_server_split = inference_server.split(':')
+        inference_server_split[1] = None
+        inference_server = ':'.join([x for x in inference_server_split if x is not None])
+    if inference_server.startswith('vllm') or inference_server.startswith('sglang'):
         api_key = "EMPTY"
         inf_type = inference_server.split(':')[0].strip()
-        ip_port_vllm = ':'.join(inference_server.split(':')[1:])
-        if ip_port_vllm.startswith('https://'):
+        ip_port = ':'.join(inference_server.split(':')[1:])
+        if ip_port.startswith('https://'):
             http_prefix = 'https://'
-            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+            ip_port = ip_port[len(http_prefix):]
             auto_v1 = False
-        elif ip_port_vllm.startswith('http://'):
+        elif ip_port.startswith('http://'):
             http_prefix = 'http://'
-            ip_port_vllm = ip_port_vllm[len(http_prefix):]
+            ip_port = ip_port[len(http_prefix):]
             auto_v1 = False
         else:
             http_prefix = 'http://'
             auto_v1 = True
+        if inference_server.startswith('sglang') and '/v1' not in inference_server:
+            auto_v1 = True
 
-        address = ':'.join(ip_port_vllm.split(':')[0:1]).strip()
+        address = ':'.join(ip_port.split(':')[0:1]).strip()
         api_base = http_prefix + address
-        if len(ip_port_vllm.split(':')) >= 2:
-            port_vllm = ip_port_vllm.split(':')[1].strip()
-            if port_vllm not in [None, 'None']:
-                api_base += ':' + port_vllm
-        if len(ip_port_vllm.split(':')) >= 3:
+        if len(ip_port.split(':')) >= 2:
+            port = ip_port.split(':')[1].strip()
+            if port not in [None, 'None']:
+                api_base += ':' + port
+        if len(ip_port.split(':')) >= 3:
             # if not there, use EMPTY as default
-            url_path = ip_port_vllm.split(':')[2].strip()
+            url_path = ip_port.split(':')[2].strip()
             if url_path not in [None, 'None']:
                 api_base += url_path  # assume includes prefix of / and /v1
         if auto_v1 and not api_base.endswith('/v1'):
             api_base += '/v1'
-        if len(ip_port_vllm.split(':')) >= 4:
+        if len(ip_port.split(':')) >= 4:
             # if not there, use EMPTY as default
-            api_key = ip_port_vllm.split(':')[3].strip()
+            api_key = ip_port.split(':')[3].strip()
 
         from openai import OpenAI, AsyncOpenAI
         client_args = dict(base_url=api_base, api_key=api_key)
@@ -2366,8 +2412,8 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
         text_context_list[0] = doc_content
         one_doc_size = len(doc_content)
         num_doc_tokens = get_token_count(doc_content + docs_joiner, tokenizer)
-        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s" % (
-            tokens[0], new_tokens0), flush=True)
+        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s for max_input_tokens=%s" % (
+            tokens[0], new_tokens0, max_input_tokens), flush=True)
     return top_k_docs, one_doc_size, num_doc_tokens
 
 

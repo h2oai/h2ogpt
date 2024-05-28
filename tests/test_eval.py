@@ -101,7 +101,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
     kwargs['load_exllama'] = False
     kwargs['use_safetensors'] = False
     eval_out_filename = main(base_model=base_model,
-                             gradio=False,
+                             eval=True, gradio=False,
                              eval_filename=eval_filename,
                              eval_prompts_only_num=eval_prompts_only_num,
                              eval_as_output=False,
@@ -268,7 +268,7 @@ def test_eval_json_langchain():
         user_path=user_path,
     )
     eval_out_filename = main(base_model=base_model,
-                             gradio=False,
+                             eval=True, gradio=False,
                              eval_filename=eval_filename,
                              eval_prompts_only_num=eval_prompts_only_num,
                              eval_as_output=False,

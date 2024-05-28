@@ -37,6 +37,7 @@ def test_score_eval(base_model):
         base_model=base_model,
         chat=False,
         stream_output=False,
+        eval=True,
         gradio=False,
         eval_prompts_only_num=500,
         eval_as_output=False,
