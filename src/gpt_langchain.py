@@ -3004,10 +3004,17 @@ def get_llm(use_openai_model=False,
         if is_vision_model(model_name):
             img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
             if img_file:
+                # gpt4imagetag also applies to lmdeploy use of OpenAI via vllm_chat
                 chat_conversation.append((img_file, gpt4imagetag))
 
         callbacks = [streaming_callback]
         model_kwargs.update(dict(seed=seed))
+
+        if inf_type == 'vllm_chat':
+            # override, required for lmdeploy
+            # https://github.com/InternLM/lmdeploy/issues/1674
+            model_name = openai_client.models.list().data[0].id
+
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.0,
                   # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py

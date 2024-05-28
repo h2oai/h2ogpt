@@ -299,7 +299,9 @@ def is_vision_model(base_model):
         base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"] or \
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
-        base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"]
+        base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"] or \
+        base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5", "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8"] or \
+        base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B", "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"]
 
 
 def is_video_model(base_model):

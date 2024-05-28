@@ -932,7 +932,94 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 --image_gpu_ids="[0,1,2]"
 ```
 
-### SGLang for LLaVA vision models
+### Deploy CogVLM OpenAI server
+
+```bash
+conda create -n cogvlm2 -y
+conda activate cogvlm2
+conda install python=3.10 -y
+pip install -r openai_server/cogvlm2_server/requirements.txt
+```
+
+```bash
+HOST=0.0.0.0 PORT=30030 CUDA_VISIBLE_DEVICES=7 python openai_server/cogvlm2_server/cogvlm2.py &> cogvlm2.log &
+disown %1
+```
+
+For h2oGPT, run:
+```bash
+python generate.py --base_model=THUDM/cogvlm2-llama3-chat-19B --inference_server='vllm_chat:http://0.0.0.0:30030/v1'
+```
+where by using `vllm_chat` we trigger use of the OpenAI chat like API for InternalVL models, using the GPT-4V like API.
+
+### LMDeploy for InternVL-Chat-V1.5 or LLaVa 1.5 or 1.6 (Next) vision models
+
+Make the file `Dockerfile.internalvl`:
+```text
+FROM openmmlab/lmdeploy:latest
+
+RUN apt-get update && apt-get install -y python3 python3-pip git
+
+WORKDIR /app
+
+RUN pip3 install --upgrade pip
+RUN pip3 install timm
+RUN pip3 install git+https://github.com/haotian-liu/LLaVA.git --no-deps
+
+COPY . .
+
+CMD ["lmdeploy", "serve", "api_server", "OpenGVLab/InternVL-Chat-V1-5"]
+```
+then run:
+```bash
+docker build - < Dockerfile.internalvl -t internalvl
+```
+then to launch server run:
+```bash
+docker run -d --runtime nvidia --gpus '"device=0"' \
+    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    --env "HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN" \
+    -p 23333:23333 \
+    --ipc=host \
+    internalvl \
+    lmdeploy serve api_server OpenGVLab/InternVL-Chat-V1-5
+```
+once it is up normally, you can keep it up against crashes by adding `--restart=always`.
+
+Check that it's working:
+```python
+from openai import OpenAI
+
+client = OpenAI(api_key='EMPTY', base_url='http://0.0.0.0:23333/v1')
+model_name = client.models.list().data[0].id
+response = client.chat.completions.create(
+    model=model_name,
+    messages=[{
+        'role':
+        'user',
+        'content': [{
+            'type': 'text',
+            'text': 'Describe the image please',
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url':
+                'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
+            },
+        }],
+    }],
+    temperature=0.8,
+    top_p=0.8)
+print(response)
+```
+
+For h2oGPT, run:
+```bash
+python generate.py --base_model=OpenGVLab/InternVL-Chat-V1-5 --inference_server='vllm_chat:http://0.0.0.0:23333/v1'
+```
+where by using `vllm_chat` we trigger use of the OpenAI chat like API for InternalVL models, using the GPT-4V like API.
+
+### SGLang for LLaVA 1.5 and 1.6 (Next) vision models
 
 For fast and reliable vision model support, one can use SGLang instead of the server-worker-gradio setup described [below](#llava-vision-models).  See [SGLang](https://github.com/sgl-project/sglang) and see also [LLaVa-Next](https://github.com/LLaVA-VL/LLaVA-NeXT) and [LLaVa Next Blog](https://llava-vl.github.io/blog/2024-05-10-llava-next-stronger-llms/).
 
