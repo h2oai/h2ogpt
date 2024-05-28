@@ -1081,6 +1081,7 @@ def main(
 
     :param document_subset: Default document choice when taking subset of collection
     :param document_choice: Chosen document(s) by internal name, 'All' means use all docs
+        e.g. --document_choice="['file2.pdf']" or --document_choice="['file2.pdf', 'file3.pdf']"
     :param document_source_substrings: substrings in list to search in source names in metadata for chroma dbs
     :param document_source_substrings_op: 'and or 'or' for source search words
     :param document_content_substrings: substrings in list to search in content for chroma dbs
@@ -1384,6 +1385,7 @@ def main(
     tts_stop_phrases = str_to_list(tts_stop_phrases)
     visible_image_models = str_to_list(visible_image_models)
     image_gpu_ids = str_to_list(image_gpu_ids)
+    document_choice = str_to_list(document_choice)
     if image_gpu_ids:
         assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
@@ -2170,7 +2172,7 @@ def main(
                                       trust_remote_code=trust_remote_code,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
-                            base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
+                            base_model=None, base_model0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
@@ -2178,6 +2180,11 @@ def main(
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
+    # for allowing rest of eval_func_param_names
+    for k in eval_func_param_names:
+        if k not in model_state_none:
+            model_state_none[k] = None
+
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)
@@ -2229,16 +2236,18 @@ def main(
 
     # get default model(s)
     model_states = []
-    model_list = [dict(base_model=base_model, base_model0=base_model0,
+    model_state_base0 = dict(base_model=base_model, base_model0=base_model0,
                        tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                        inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
                        display_name=base_model,
-                       visible_models=None, h2ogpt_key=None)]
-    model_list[0].update(other_model_state_defaults)
-    # FIXME: hyper per model, not about model loading
-    # for k in gen_hyper:
-    #     model_list[k] = locals()[k]
+                       visible_models=None, h2ogpt_key=None)
+    model_state_base0.update(other_model_state_defaults)
+    # for allowing rest of eval_func_param_names.  We don't want to force CLI values always by default
+    for k in eval_func_param_names:
+        if k not in model_state_base0:
+            model_state_base0[k] = None
 
+    model_list = [model_state_base0]
     model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
     model_state0 = model_state_none.copy()
     assert len(model_state_none) == len(model_state0)
@@ -4186,6 +4195,9 @@ def evaluate(
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
+    if inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+        # no extra LLM prompting
+        prompt_type = 'plain'
 
     assert base_model.strip(), no_model_msg
     assert model is not None, "Model is missing"
@@ -4832,8 +4844,14 @@ def evaluate(
                         other_dict.update(dict(type=response_format))
 
                     # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
+                    if inf_type == 'vllm_chat':
+                        # https://github.com/InternLM/lmdeploy/blob/e6468e7afda6b29d4c065f296a4e893b52bd33d5/lmdeploy/serve/proxy/proxy.py#L320
+                        # https://lmdeploy.readthedocs.io/en/latest/serving/api_server.html#restful-api
+                        model_name = openai_client.models.list().data[0].id
+                    else:
+                        model_name = base_model
                     responses = openai_client.chat.completions.create(
-                        model=base_model,
+                        model=model_name,
                         messages=messages0,
                         stream=stream_output,
                         **gen_server_kwargs,
@@ -4845,6 +4863,8 @@ def evaluate(
                     response = ''
                     response_raw = ''
                     if not stream_output:
+                        if responses.choices is None and responses.model_extra:
+                            raise RuntimeError("OpenAI Chat failed: %s" % responses.model_extra)
                         text = responses.choices[0].message.content
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
@@ -4852,6 +4872,7 @@ def evaluate(
                             response_raw = response
                             response = get_json(response)
                     else:
+                        # NOTE: If some stream failure like wrong model, don't get back response and no failure
                         tgen0 = time.time()
                         for chunk in responses:
                             delta = chunk.choices[0].delta.content
@@ -6670,6 +6691,9 @@ def model_name_to_prompt_type(model_name, inference_server,
             prompt_type1 = 'anthropic'
         elif inference_server == 'openai':
             prompt_type1 = 'openai'
+        elif inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+            # no extra LLM prompting
+            prompt_type1 = 'plain'
 
     return prompt_type1
 
