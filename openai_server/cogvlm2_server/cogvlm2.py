@@ -265,8 +265,9 @@ def process_history_and_images(messages: List[ChatMessageInput]) -> Tuple[
             for item in content:
                 if isinstance(item, ImageUrlContent):
                     image_url = item.image_url.url
-                    if image_url.startswith("data:image/jpeg;base64,"):
-                        base64_encoded_image = image_url.split("data:image/jpeg;base64,")[1]
+                    image_url_prefix = image_url[:30]
+                    if image_url_prefix.startswith("data:image/") and ';base64,' in image_url_prefix:
+                        base64_encoded_image = image_url.split(";base64,")[1]
                         image_data = base64.b64decode(base64_encoded_image)
                         image = Image.open(BytesIO(image_data)).convert('RGB')
                         image_list.append(image)
@@ -311,8 +312,8 @@ def generate_stream_cogvlm(model: AutoModelForCausalLM, tokenizer: AutoTokenizer
     if image_list:
         inputs.update(dict(images=[[input_by_model['images'][0].to(DEVICE).to(TORCH_TYPE)]]))
 
-        if 'cross_images' in input_by_model and input_by_model['cross_images']:
-            inputs['cross_images'] = [[input_by_model['cross_images'][0].to(DEVICE).to(TORCH_TYPE)]]
+    if 'cross_images' in input_by_model and input_by_model['cross_images']:
+        inputs['cross_images'] = [[input_by_model['cross_images'][0].to(DEVICE).to(TORCH_TYPE)]]
 
     input_echo_len = len(inputs["input_ids"][0])
     streamer = TextIteratorStreamer(
