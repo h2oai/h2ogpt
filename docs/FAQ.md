@@ -934,7 +934,13 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 
 ### Deploy CogVLM OpenAI server
 
-WIP
+```bash
+ 1086  python openai_api_demo.py 
+ 1087  conda create -n cogvlm2 -y
+ 1088  conda activate cogvlm2
+ 1089  conda install python=3.10 -y
+ 1090  pip install -r requirements.txt 
+```
 
 ### LMDeploy for InternVL-Chat-V1.5 or LLaVa 1.5 or 1.6 (Next) vision models
 
