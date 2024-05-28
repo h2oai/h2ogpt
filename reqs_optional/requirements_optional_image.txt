@@ -2,4 +2,4 @@
 fiftyone>=0.23.8
 pytube
 diffusers==0.24.0
-yt-dlp>=2024.4.9
+yt-dlp>=2024.5.27

@@ -5487,7 +5487,7 @@ def openai_guided_json(gradio_client, base_model, prompt, kwargs):
     messages.append({"role": "assistant", "content": str(response)})
     messages.append({
         "role": "user",
-        "content": "Give me another one with a different name and age."
+        "content": "Give me another one, ensure it has a totally different name and totally different age."
     })
     chat_completion = client.chat.completions.create(
         messages=messages,

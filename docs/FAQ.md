@@ -1115,6 +1115,7 @@ for example image `models/llava.png`.
 Run TGI server:
 ```
 docker run -d --gpus '"device=0"' \
+--restart=always \
 --shm-size 12g \
 -v $HOME/.cache/huggingface/hub/:/data \
 -p 5000:80 \

@@ -517,6 +517,8 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
         if hf_embedding_model.startswith('tei:'):
             from langchain_community.embeddings import HuggingFaceHubEmbeddings
             name = 'tei:'.join(hf_embedding_model.split('tei:')[1:])
+            if not name.startswith('http'):
+                name = 'http://' + name
             embedding = H2OHuggingFaceHubEmbeddings(model=name,
                                                     huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN"),
                                                     model_kwargs={"truncate": True})
@@ -1568,13 +1570,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
         conv_template_name = self.inference_server.split(':')[1]
         conv_template = self.get_conv_template(conv_template_name)
+        user_role = conv_template.roles[0]
+        assistant_role = conv_template.roles[1]
         if self.system_prompt:
             if not conv_template.system:
                 # assume means can't handle if didn't exist in template
-                conv_template.append_message(role="user", message=self.user_prompt_for_fake_system_prompt)
+                conv_template.append_message(role=user_role, message=self.user_prompt_for_fake_system_prompt)
                 if self.system_prompt == 'auto':
                     self.system_prompt = 'You are a helpful assistant.' if not self.image_file else "You are helpful visual LLM assistant capable of understanding text and images."
-                conv_template.append_message(role="assistant", message=self.system_prompt)
+                conv_template.append_message(role=assistant_role, message=self.system_prompt)
             else:
                 our_system_prompt = False
                 if our_system_prompt:
@@ -1587,14 +1591,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                         conv_template.append_message(role="system", message=self.system_prompt)
         for message in self.chat_conversation:
             if isinstance(message[0], str) and message[0]:
-                conv_template.append_message(role="user", message=message[0])
+                conv_template.append_message(role=user_role, message=message[0])
             if isinstance(message[1], str) and message[1]:
-                conv_template.append_message(role="assistant", message=message[1])
+                conv_template.append_message(role=assistant_role, message=message[1])
 
         conv_template_before_prompt = copy.deepcopy(conv_template)
 
         prompt_with_image = f"<image>\n{prompt}"
-        conv_template.append_message(role="user", message=prompt_with_image)
+        conv_template.append_message(role=user_role, message=prompt_with_image)
+        conv_template.append_message(role=assistant_role, message=None)
         prompt_with_template = conv_template.get_prompt()
         if self.context:
             prompt_with_template = self.context + prompt_with_template
@@ -1627,7 +1632,8 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
             responses_context = '\n\n'.join(['# Image %d Answer\n\n%s\n\n' % (i, r['text']) for i, r in
                                  enumerate(responses)])
             prompt_with_responses = f"{responses_context}\n{prompt}"
-            conv_template_before_prompt.append_message(role="user", message=prompt_with_responses)
+            conv_template_before_prompt.append_message(role=user_role, message=prompt_with_responses)
+            conv_template.append_message(role=assistant_role, message=None)
             prompt_with_template = conv_template_before_prompt.get_prompt()
             if self.context:
                 prompt_with_template = self.context + prompt_with_template
