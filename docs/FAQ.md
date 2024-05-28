@@ -118,7 +118,6 @@ Also, `--base_model` accepts a few forms of passing urls, TheBloke, etc. for GGU
 python generate.py  --tokenizer_base_model=microsoft/Phi-3-mini-4k-instruct --base_model=llama --llama_cpp_model=https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf --max_seq_len=4096 
 ```
 
->>>>>>> main
 ### Mixtral AWQ
 
 In our testing, most AWQ Mixtral builds are bad, e.g. `TheBloke/dolphin-2.7-mixtral-8x7b-AWQ` and `TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ`, generating repeats with RAG or no output at all.  We only found one that [works well](https://huggingface.co/casperhansen/mixtral-instruct-awq).  The vLLM options to run are:
