@@ -2170,7 +2170,7 @@ def main(
                                       trust_remote_code=trust_remote_code,
                                       )
     model_state_none = dict(model=None, tokenizer=None, device=None,
-                            base_model=None, base_mode0=None, tokenizer_base_model=None, lora_weights=None,
+                            base_model=None, base_model0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
@@ -2178,6 +2178,11 @@ def main(
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
+    # for allowing rest of eval_func_param_names
+    for k in eval_func_param_names:
+        if k not in model_state_none:
+            model_state_none[k] = None
+
     selection_docs_state0 = dict(langchain_modes=langchain_modes,
                                  langchain_mode_paths=langchain_mode_paths,
                                  langchain_mode_types=langchain_mode_types)
@@ -2229,16 +2234,18 @@ def main(
 
     # get default model(s)
     model_states = []
-    model_list = [dict(base_model=base_model, base_model0=base_model0,
+    model_state_base0 = dict(base_model=base_model, base_model0=base_model0,
                        tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                        inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
                        display_name=base_model,
-                       visible_models=None, h2ogpt_key=None)]
-    model_list[0].update(other_model_state_defaults)
-    # FIXME: hyper per model, not about model loading
-    # for k in gen_hyper:
-    #     model_list[k] = locals()[k]
+                       visible_models=None, h2ogpt_key=None)
+    model_state_base0.update(other_model_state_defaults)
+    # for allowing rest of eval_func_param_names.  We don't want to force CLI values always by default
+    for k in eval_func_param_names:
+        if k not in model_state_base0:
+            model_state_base0[k] = None
 
+    model_list = [model_state_base0]
     model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
     model_state0 = model_state_none.copy()
     assert len(model_state_none) == len(model_state0)

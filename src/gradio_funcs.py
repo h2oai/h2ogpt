@@ -703,6 +703,14 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     args_list[0] = instruction1  # override original instruction with history from user
     args_list[2] = context1
 
+    for k in eval_func_param_names:
+        if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key']:
+            # already handled
+            continue
+        # allow override of expert/user input for other parameters
+        if k in model_state1 and model_state1[k] is not None:
+            args_list[eval_func_param_names.index(k)] = model_state1[k]
+
     eval_args = (model_state1, my_db_state1, selection_docs_state1, requests_state1, roles_state1)
     assert len(eval_args) == len(input_args_list)
     fun1 = functools.partial(evaluate_local, *eval_args, *tuple(args_list), **kwargs_eval)
