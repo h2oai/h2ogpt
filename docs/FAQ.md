@@ -934,7 +934,23 @@ python --base_model=HuggingFaceH4/zephyr-7b-beta --score_model=None \
 
 ### Deploy CogVLM OpenAI server
 
-WIP
+```bash
+conda create -n cogvlm2 -y
+conda activate cogvlm2
+conda install python=3.10 -y
+pip install -r openai_server/cogvlm2_server/requirements.txt
+```
+
+```bash
+HOST=0.0.0.0 PORT=30030 CUDA_VISIBLE_DEVICES=7 python openai_server/cogvlm2_server/cogvlm2.py &> cogvlm2.log &
+disown %1
+```
+
+For h2oGPT, run:
+```bash
+python generate.py --base_model=THUDM/cogvlm2-llama3-chat-19B --inference_server='vllm_chat:http://0.0.0.0:30030/v1'
+```
+where by using `vllm_chat` we trigger use of the OpenAI chat like API for InternalVL models, using the GPT-4V like API.
 
 ### LMDeploy for InternVL-Chat-V1.5 or LLaVa 1.5 or 1.6 (Next) vision models
 
