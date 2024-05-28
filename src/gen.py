@@ -4195,6 +4195,9 @@ def evaluate(
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
+    if inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+        # no extra LLM prompting
+        prompt_type = 'plain'
 
     assert base_model.strip(), no_model_msg
     assert model is not None, "Model is missing"
@@ -4841,8 +4844,12 @@ def evaluate(
                         other_dict.update(dict(type=response_format))
 
                     # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
+                    if inf_type == 'vllm_chat':
+                        model_name = openai_client.models.list().data[0].id
+                    else:
+                        model_name = base_model
                     responses = openai_client.chat.completions.create(
-                        model=base_model,
+                        model=model_name,
                         messages=messages0,
                         stream=stream_output,
                         **gen_server_kwargs,
@@ -4854,6 +4861,8 @@ def evaluate(
                     response = ''
                     response_raw = ''
                     if not stream_output:
+                        if responses.choices is None and responses.model_extra:
+                            raise RuntimeError("OpenAI Chat failed: %s" % responses.model_extra)
                         text = responses.choices[0].message.content
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
@@ -4861,6 +4870,7 @@ def evaluate(
                             response_raw = response
                             response = get_json(response)
                     else:
+                        # NOTE: If some stream failure like wrong model, don't get back response and no failure
                         tgen0 = time.time()
                         for chunk in responses:
                             delta = chunk.choices[0].delta.content
@@ -6679,6 +6689,9 @@ def model_name_to_prompt_type(model_name, inference_server,
             prompt_type1 = 'anthropic'
         elif inference_server == 'openai':
             prompt_type1 = 'openai'
+        elif inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+            # no extra LLM prompting
+            prompt_type1 = 'plain'
 
     return prompt_type1
 
