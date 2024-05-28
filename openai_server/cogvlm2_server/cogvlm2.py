@@ -1,4 +1,8 @@
 # https://raw.githubusercontent.com/THUDM/CogVLM2/main/basic_demo/openai_api_demo.py
+
+# HOST=0.0.0.0 PORT=30030 CUDA_VISIBLE_DEVICES=7 python openai_server/cogvlm2_server/cogvlm2.py &> cogvlm2.log &
+# disown %1
+
 import gc
 import os
 import threading
@@ -10,6 +14,7 @@ from typing import List, Literal, Union, Tuple, Optional
 import torch
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -133,6 +138,12 @@ class ChatCompletionResponse(BaseModel):
     choices: List[Union[ChatCompletionResponseChoice, ChatCompletionResponseStreamChoice]]
     created: Optional[int] = Field(default_factory=lambda: int(time.time()))
     usage: Optional[UsageInfo] = None
+
+
+@app.get("/health")
+async def health() -> Response:
+    """Health check."""
+    return Response(status_code=200)
 
 
 @app.get("/v1/models", response_model=ModelList)
