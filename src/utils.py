@@ -1095,8 +1095,13 @@ forkdatacontext = _ForkDataContext()
 
 
 def _traced_func(func, *args, **kwargs):
-    func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
-    return func(*args, **kwargs)
+    try:
+        func, args, kwargs = forkdatacontext.get_args_kwargs_for_traced_func(func, args, kwargs)
+        return func(*args, **kwargs)
+    except BaseException as e:
+        print(e)
+        ex = traceback.format_exc()
+        raise RuntimeError(str(ex))
 
 
 def call_subprocess_onetask(func, args=None, kwargs=None):

@@ -1630,7 +1630,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
             # now use all those in final prompt
             responses_context = '\n\n'.join(['# Image %d Answer\n\n%s\n\n' % (i, r['text']) for i, r in
-                                 enumerate(responses)])
+                                             enumerate(responses)])
             prompt_with_responses = f"{responses_context}\n{prompt}"
             conv_template_before_prompt.append_message(role=user_role, message=prompt_with_responses)
             conv_template.append_message(role=assistant_role, message=None)
@@ -1958,9 +1958,11 @@ class H2OTextGenOpenAI:
             prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
             # NOTE: OpenAI/vLLM server does not add prompting, so must do here
             data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
+            context_from_history = len(self.chat_conversation) > 0
             prompt = self.prompter.generate_prompt(data_point,
                                                    chat_conversation=self.chat_conversation,
                                                    user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                                   context_from_history=context_from_history,
                                                    )
             prompts[prompti] = prompt
 
@@ -8482,18 +8484,25 @@ def get_chain(query=None,
 
         # first docs_with_score are most important with highest score
         estimated_full_prompt, \
-            _, _, _, \
+            _, iinput, context, \
             _, _, \
             _, _, \
             _, _, \
             _, _, \
-            _, _ = get_limited_prompt_func(estimated_prompt_no_docs,
-                                           iinput,
-                                           tokenizer,
-                                           estimated_instruction=estimated_prompt_no_docs,
-                                           text_context_list=[],
-                                           # nothing, just getting base amount for each call
-                                           )
+            _, system_prompt = get_limited_prompt_func(estimated_prompt_no_docs,
+                                                       iinput,
+                                                       tokenizer,
+                                                       estimated_instruction=estimated_prompt_no_docs,
+                                                       text_context_list=[],
+                                                       # nothing, just getting base amount for each call
+                                                       )
+        # get updated llm, so includes chat_conversation etc.
+        llm_kwargs.update(  # max_new_tokens=max_new_tokens,
+            # max_input_tokens=max_input_tokens,
+            # max_total_input_tokens=max_total_input_tokens,
+            context=context,
+            iinput=iinput,
+            system_prompt=system_prompt)
 
         docs_with_score, max_doc_tokens = split_merge_docs(docs_with_score,
                                                            tokenizer,

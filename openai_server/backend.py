@@ -290,8 +290,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     if stream_output:
         yield chat_streaming_chunk('')
 
-    if instruction is None:
+    if instruction is None and gen_kwargs.get('langchain_action', '') == 'Query':
         instruction = "Continue your response.  If your prior response was cut short, then continue exactly at end of your last response with any ellipses, else continue your response by starting with new line and proceeding with an additional useful and related response."
+    if instruction is None:
+        instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
     token_count = count_tokens(instruction)
     generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,

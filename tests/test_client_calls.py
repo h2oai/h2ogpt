@@ -5416,7 +5416,7 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
 
         check_response(response, base_model, guided_json)
     else:
-        openai_guided_json(client, base_model, prompt, kwargs)
+        openai_guided_json(client, base_model, kwargs, use_instruction)
 
 
 def check_response(response, base_model, guided_json):
@@ -5432,20 +5432,36 @@ def check_response(response, base_model, guided_json):
             jsonschema.validate(response, schema=guided_json)
 
 
-def openai_guided_json(gradio_client, base_model, prompt, kwargs):
-    base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
+def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
+    if 'localhost:7860' in gradio_client.api_url:
+        base_url = gradio_client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+    else:
+        base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
 
     import openai
     client = openai.OpenAI(
         base_url=base_url,
         api_key=kwargs.get('h2ogpt_key', 'EMPTY'),
     )
+
+    # constructing messages depends upon if Query or Summarize/Extract
+    if use_instruction:
+        old_prompt = kwargs.get('instruction_nochat')
+        old_prompt2 = old_prompt
+        new_prompt2 = "Give me another one, ensure it has a totally different name and totally different age."
+        new_prompt_summary = kwargs.get('prompt_summary')
+    else:
+        old_prompt = ""
+        old_prompt2 = kwargs.get('prompt_summary')
+        new_prompt2 = ""
+        new_prompt_summary = "Give me another one, ensure it has a totally different name and totally different age."
+
     messages = [{
         "role": "system",
         "content": "you are a helpful assistant"
     }, {
         "role": "user",
-        "content": prompt,
+        "content": old_prompt,
     }]
     chat_kwargs = dict(model=base_model,
                        max_tokens=1024,
@@ -5484,11 +5500,20 @@ def openai_guided_json(gradio_client, base_model, prompt, kwargs):
 
     check_response(response, base_model, kwargs.get('guided_json'))
 
+    messages = [{
+        "role": "system",
+        "content": "you are a helpful assistant"
+    }, {
+        "role": "user",
+        "content": old_prompt2,
+    }]
     messages.append({"role": "assistant", "content": str(response)})
     messages.append({
         "role": "user",
-        "content": "Give me another one, ensure it has a totally different name and totally different age."
+        "content": new_prompt2
     })
+    chat_kwargs['extra_body']['prompt_summary'] = new_prompt_summary
+
     chat_completion = client.chat.completions.create(
         messages=messages,
         **chat_kwargs,
