@@ -3015,7 +3015,10 @@ def get_llm(use_openai_model=False,
         if inf_type == 'vllm_chat':
             # override, required for lmdeploy
             # https://github.com/InternLM/lmdeploy/issues/1674
-            model_name = openai_client.models.list().data[0].id
+            try:
+                model_name = openai_client.models.list().data[0].id
+            except Exception as e:
+                print("Failed to get model name from OpenAI client, using default", e)
 
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.0,
