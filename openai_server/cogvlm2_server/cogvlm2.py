@@ -290,7 +290,7 @@ def process_history_and_images(messages: List[ChatMessageInput]) -> Tuple[
                 formatted_history[-1] = (formatted_history[-1][0], text_content)
             else:
                 assert False, f"assistant reply before user"
-        elif 'role' == 'system':
+        elif role == 'system':
             system_prompt = text_content
         else:
             assert False, f"unrecognized role: {role}"
