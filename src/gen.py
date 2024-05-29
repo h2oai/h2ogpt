@@ -4847,7 +4847,12 @@ def evaluate(
                     if inf_type == 'vllm_chat':
                         # https://github.com/InternLM/lmdeploy/blob/e6468e7afda6b29d4c065f296a4e893b52bd33d5/lmdeploy/serve/proxy/proxy.py#L320
                         # https://lmdeploy.readthedocs.io/en/latest/serving/api_server.html#restful-api
-                        model_name = openai_client.models.list().data[0].id
+                        try:
+                            model_name = openai_client.models.list().data[0].id
+                        except Exception as e:
+                            print("Failed to get model name from OpenAI client, using default", e)
+                            # together.ai
+                            model_name = base_model
                     else:
                         model_name = base_model
                     responses = openai_client.chat.completions.create(
