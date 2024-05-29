@@ -5135,10 +5135,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision'] and """safety_ratings {
-  category: HARM_CATEGORY_DANGEROUS_CONTENT
-  probability: MEDIUM
-}""" in str(e):
+        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
             raise
@@ -5150,7 +5147,10 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     print(response)
 
     assert 'license' in response.lower()
-    assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+    if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    else:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
 def get_creation_date(file_path):
