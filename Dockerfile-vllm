@@ -1,0 +1,18 @@
+FROM h2ogpt:current
+
+USER root
+
+# vllm server
+RUN \
+    python -m pip install vllm==0.4.0.post1 && \
+    python -m pip install gputil==1.4.0 hf_transfer==0.1.6 && \
+    python -m pip install setuptools==69.5.1 && \
+    python -m pip install flash-attn==2.5.6 --no-build-isolation --no-deps --no-cache-dir
+
+EXPOSE 8888
+EXPOSE 7860
+EXPOSE 5000
+
+USER h2ogpt
+
+ENTRYPOINT ["python3.10"]
