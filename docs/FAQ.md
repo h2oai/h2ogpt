@@ -2744,7 +2744,7 @@ pip install gradio==3.50.1
 CUDA error: an illegal memory access was encountered
 ```
 
-With upgrade to llama_cpp_python 0.2.56 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
+With upgrade to llama_cpp_python 0.2.76 for faster performance and other bug fixes, thread safety is worse.  So cannot do audio streaming + GGUF streaming at same time.  See: https://github.com/ggerganov/llama.cpp/issues/3960.
 
 A temporary workaround is present in h2oGPT, whereby the XTTS model (not the Microsoft TTS model) and llama.cpp models are not used at the same time. This leads to more delays in streaming for text + audio, but not too bad a result.
 
@@ -2752,7 +2752,7 @@ Other workarounds:
 
 * Workaround 1: Use inference server like oLLaMa, vLLM, gradio inference server, etc.  as described [below](FAQ.md#running-ollama-vs-h2ogpt-as-inference-server).
 
-* Workaround 2: Follow normal directions for installation, but replace 0.2.56 with 0.2.26, e.g. for CUDA with Linux:
+* Workaround 2: Follow normal directions for installation, but replace 0.2.76 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
     pip uninstall llama_cpp_python llama_cpp_python_cuda -y
     export LLAMA_CUBLAS=1
@@ -2760,4 +2760,4 @@ Other workarounds:
     export FORCE_CMAKE=1
     pip install llama_cpp_python==0.2.26 --no-cache-dir
     ```
-    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.56 runs at 65 tokens/sec for exact same model and prompt.
+    However, 0.2.26 runs about 16 tokens/sec on 3090Ti on i9 while 0.2.76 runs at 65 tokens/sec for exact same model and prompt.
