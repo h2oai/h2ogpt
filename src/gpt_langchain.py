@@ -1556,7 +1556,10 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         async with async_sem:  # semaphore limits num of simultaneous downloads
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, json=data) as resp:
-                    output = await resp.json()
+                    if resp.headers['Content-Type'] == 'application/json':
+                        output = await resp.json()
+                    else:
+                        output = await resp.text()
         return output
 
     def setup_call(self, prompt):
