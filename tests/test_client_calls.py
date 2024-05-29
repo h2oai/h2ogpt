@@ -4416,7 +4416,7 @@ def test_client_upload_to_user_or_my_not_allowed():
 
 
 @wrap_test_forked
-def test_client1_image_qa():
+def test_client1_image_qa_original():
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -5099,6 +5099,10 @@ vision_models = ['gpt-4-vision-preview',
                  'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                  'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
                  'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
+                 'HuggingFaceM4/idefics2-8b-chatty',
+                 'lmms-lab/llama3-llava-next-8b',
+                 'OpenGVLab/InternVL-Chat-V1-5',
+                 'THUDM/cogvlm2-llama3-chat-19B',
                  ]
 
 
