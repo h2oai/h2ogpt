@@ -173,7 +173,7 @@ langsmith==0.0.77
 layoutparser==0.3.4
 lazy_loader==0.3
 librosa==0.10.1
-llama_cpp_python==0.2.56
+llama_cpp_python==0.2.76
 llvmlite==0.41.1
 lm-dataformat==0.0.20
 lm_eval==0.4.0
