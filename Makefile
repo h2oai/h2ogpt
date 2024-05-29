@@ -48,7 +48,7 @@ build_info.txt:
 git_hash.txt:
 	@echo "$(shell git rev-parse HEAD)" >> $@
 
-DOCKER_BASE_OS_IMAGE := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:2
+DOCKER_BASE_OS_IMAGE := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:3
 
 docker_build: build_info.txt git_hash.txt
 	docker pull $(DOCKER_BASE_OS_IMAGE)
