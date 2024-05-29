@@ -256,6 +256,7 @@ def process_history_and_images(messages: List[ChatMessageInput]) -> Tuple[
     formatted_history = []
     image_list = []
     last_user_query = ''
+    system_prompt = ''
 
     for i, message in enumerate(messages):
         role = message.role
@@ -289,8 +290,13 @@ def process_history_and_images(messages: List[ChatMessageInput]) -> Tuple[
                 formatted_history[-1] = (formatted_history[-1][0], text_content)
             else:
                 assert False, f"assistant reply before user"
+        elif 'role' == 'system':
+            system_prompt = text_content
         else:
             assert False, f"unrecognized role: {role}"
+
+    if system_prompt:
+        last_user_query = f'SYS: {system_prompt}\n\n{last_user_query}'
 
     return last_user_query, formatted_history, image_list
 
