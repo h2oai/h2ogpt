@@ -2265,15 +2265,16 @@ def get_json(response, fixup=True):
 
 
 def _get_json(response, fixup=True):
-    # first rely upon json_repair package, handles code block extraction as well automatically
-    from json_repair import repair_json
-    try:
-        response0 = repair_json(response)
-        if response0:
-            return response0
-    except Exception as e:
-        # FIXME: best effort, don't understand if package will hae issues
-        print("repair_json exception1: %s: %s" % (str(e), response))
+    if fixup:
+        # first rely upon json_repair package, handles code block extraction as well automatically
+        from json_repair import repair_json
+        try:
+            response0 = repair_json(response)
+            if response0:
+                return response0
+        except Exception as e:
+            # FIXME: best effort, don't understand if package will hae issues
+            print("repair_json exception1: %s: %s" % (str(e), response))
 
     # if json_repair fails, try to extract code block content
     # sIf content is found (not an empty string), return None (or possibly an empty string as per updated logic)
