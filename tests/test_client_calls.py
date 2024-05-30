@@ -4416,7 +4416,7 @@ def test_client_upload_to_user_or_my_not_allowed():
 
 
 @wrap_test_forked
-def test_client1_image_qa():
+def test_client1_image_qa_original():
     os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
     sys.modules.pop('gpt_langchain', None)
     sys.modules.pop('langchain', None)
@@ -5099,6 +5099,10 @@ vision_models = ['gpt-4-vision-preview',
                  'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                  'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
                  'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
+                 'HuggingFaceM4/idefics2-8b-chatty',
+                 'lmms-lab/llama3-llava-next-8b',
+                 'OpenGVLab/InternVL-Chat-V1-5',
+                 'THUDM/cogvlm2-llama3-chat-19B',
                  ]
 
 
@@ -5131,10 +5135,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision'] and """safety_ratings {
-  category: HARM_CATEGORY_DANGEROUS_CONTENT
-  probability: MEDIUM
-}""" in str(e):
+        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
             raise
@@ -5146,7 +5147,10 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     print(response)
 
     assert 'license' in response.lower()
-    assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+    if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    else:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
 
 def get_creation_date(file_path):
@@ -5304,8 +5308,12 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
-                     # 'liuhaotian/llava-v1.6-vicuna-13b',
-                     # 'liuhaotian/llava-v1.6-34b',
+                     'liuhaotian/llava-v1.6-vicuna-13b',
+                     'liuhaotian/llava-v1.6-34b',
+                     'HuggingFaceM4/idefics2-8b-chatty',
+                     'lmms-lab/llama3-llava-next-8b',
+                     'OpenGVLab/InternVL-Chat-V1-5',
+                     'THUDM/cogvlm2-llama3-chat-19B',
                      ]
 
 vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',

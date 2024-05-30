@@ -38,7 +38,7 @@ llava @ https://h2o-release.s3.amazonaws.com/h2ogpt/llava-1.7.0.dev0-py3-none-an
 #langchain_mistralai==0.1.2  # tokenizers<0.16.0, but transformers requires >=0.19
 httpx>=0.25.2
 httpx-sse>=0.3.1
-mistralai==0.1.8
+mistralai==0.3.0
 # pydantic issue, don't need yet
 #mistral-common==1.0.2
 

@@ -977,20 +977,33 @@ docker build - < Dockerfile.internalvl -t internalvl
 then to launch server run:
 ```bash
 docker run -d --runtime nvidia --gpus '"device=0"' \
-    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    -v $HOME/.cache/huggingface:/root/.cache/huggingface \
     --env "HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN" \
     -p 23333:23333 \
     --ipc=host \
+    --name internalvl-chat-v1-5_lmdeploy \
     internalvl \
-    lmdeploy serve api_server OpenGVLab/InternVL-Chat-V1-5
+    lmdeploy serve api_server OpenGVLab/InternVL-Chat-V1-5 --model-name OpenGVLab/InternVL-Chat-V1-5
 ```
-once it is up normally, you can keep it up against crashes by adding `--restart=always`.
+or for 34b llava next
+```bash
+docker run -d --runtime nvidia --gpus '"device=1"' \
+    -v $HOME/.cache/huggingface:/root/.cache/huggingface \
+    --env "HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN" \
+    -p 30020:23333 \
+    --ipc=host \
+    --name llava-v1.6-34b_lmdeploy \
+    internalvl \
+    lmdeploy serve api_server liuhaotian/llava-v1.6-34b --model-name liuhaotian/llava-v1.6-34b
+```
+
+Once the image is up and stable, can keep it up against crashes by adding `--restart=always`.  If want a health check, use `/v1/models`.
 
 Check that it's working:
 ```python
 from openai import OpenAI
 
-client = OpenAI(api_key='EMPTY', base_url='http://0.0.0.0:23333/v1')
+client = OpenAI(api_key='EMPTY', base_url='http://0.0.0.0:23333/v1')  # change to 30020 to test 34b
 model_name = client.models.list().data[0].id
 response = client.chat.completions.create(
     model=model_name,
@@ -1019,7 +1032,17 @@ python generate.py --base_model=OpenGVLab/InternVL-Chat-V1-5 --inference_server=
 ```
 where by using `vllm_chat` we trigger use of the OpenAI chat like API for InternalVL models, using the GPT-4V like API.
 
+or for both models:
+```bash
+python generate.py --model-lock="[{'base_model': 'OpenGVLab/InternVL-Chat-V1-5', 'inference_server': 'vllm_chat:http://0.0.0.0:23333/v1'}, {'base_model': 'OpenGVLab/InternVL-Chat-V1-5', 'inference_server': 'vllm_chat:http://0.0.0.0:23333/v1'}]"
+```
+
 ### SGLang for LLaVA 1.5 and 1.6 (Next) vision models
+
+NOT RECOMMENDED.  Currently unstable, use LMDeploy instead
+* https://github.com/sgl-project/sglang/issues/485
+* https://github.com/sgl-project/sglang/issues/474
+* https://github.com/sgl-project/sglang/issues/473
 
 For fast and reliable vision model support, one can use SGLang instead of the server-worker-gradio setup described [below](#llava-vision-models).  See [SGLang](https://github.com/sgl-project/sglang) and see also [LLaVa-Next](https://github.com/LLaVA-VL/LLaVA-NeXT) and [LLaVa Next Blog](https://llava-vl.github.io/blog/2024-05-10-llava-next-stronger-llms/).
 
@@ -1050,12 +1073,12 @@ curl http://0.0.0.0:30000/get_model_info -H 'X-API-Key: XXXXXXXXX' -v
 
 For h2oGPT run:
 ```bash
-python --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://0.0.0.0:30000 --base_model=lmms-lab/llama3-llava-next-8b --prompt_type=llama3 &> 8b.log &
+python generate.py --trust-remote-code --inference_server=sglang:conv_llava_llama_3:http://0.0.0.0:30000 --base_model=lmms-lab/llama3-llava-next-8b --prompt_type=llama3 &> 8b.log &
 disown %1
 ```
-choose your IP if remote instead of `0.0.0.0` and use whatever port was mapped from `30000` to public port, e.g. `80`.
+choose your IP if remote instead of `0.0.0.0` and use whatever port was mapped from `30000` to public port, e.g. `80`.  The `--prompt-type` is used when not doing image or document Q/A when sglang not used.
 
-For Yi 34B:
+For Yi 34B (unstable at moment due to sglang bugs):
 ```bash
 export CUDA_VISIBLE_DEVICES="0,1"
 python -m sglang.launch_server --model-path liuhaotian/llava-v1.6-34b --tokenizer-path liuhaotian/llava-v1.6-34b-tokenizer --port=30020 --host="0.0.0.0" --tp-size=1 --random-seed=1234 --context-length=4096 &> 34b.log &
@@ -1066,7 +1089,7 @@ and for h2oGPT:
 python --trust-remote-code --inference_server=sglang:conv_chatml_direct:http://0.0.0.0:30000 --base_model=liuhaotian/llava-v1.6-34b --prompt_type=yi
 ```
 
-For Qwen 72B:
+For Qwen 72B (unstable due to sglang bugs, can't even start now):
 ```bash
 export CUDA_VISIBLE_DEVICES="0,1,2,3"
 python -m sglang.launch_server --model-path lmms-lab/llava-next-72b --tokenizer-path lmms-lab/llavanext-qwen-tokenizer --port=30010 --host="0.0.0.0" --tp-size=4 --random-seed=1234 --context-length=32768 &> 72b.log &

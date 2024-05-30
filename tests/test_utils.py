@@ -414,6 +414,160 @@ Note that the `work history` array contains two objects, each with a `company`, 
     assert extracted_content == """{\n \"name\": \"John Doe\",\n \"email\": \"john.doe@example.com\",\n \"jobTitle\": \"Software Developer\",\n \"department\": \"Technology\",\n \"hireDate\": \"2020-01-01\",\n \"employeeId\": 123456,\n \"manager\": {\n \"name\": \"Jane Smith\",\n \"email\": \"jane.smith@example.com\",\n \"jobTitle\": \"Senior Software Developer\"\n },\n \"skills\": [\n \"Java\",\n \"Python\",\n \"JavaScript\",\n \"React\",\n \"Spring\"\n ],\n \"education\": {\n \"degree\": \"Bachelor's Degree\",\n \"field\": \"Computer Science\",\n \"institution\": \"Example University\",\n \"graduationYear\": 2018\n },\n \"awards\": [\n {\n \"awardName\": \"Best Developer of the Year\",\n \"year\": 2021\n },\n {\n \"awardName\": \"Most Valuable Team Player\",\n \"year\": 2020\n }\n ],\n \"performanceRatings\": {\n \"communication\": 4.5,\n \"teamwork\": 4.8,\n \"creativity\": 4.2,\n \"problem-solving\": 4.6,\n \"technical skills\": 4.7\n }\n}"""
 
 
+def test_partial_codeblock2():
+    example_1 = "```code block starts immediately"
+    example_2 = "\n    ```code block after newline and spaces"
+    example_3 = "<br>```code block after HTML line break"
+    example_4 = "This is a regular text without a code block."
+
+    assert has_starting_code_block(example_1)
+    assert has_starting_code_block(example_2)
+    assert has_starting_code_block(example_3)
+    assert not has_starting_code_block(example_4)
+
+
+def test_extract_code_block_content():
+    example_stream_1 = "```code block content here```more text"
+    example_stream_2 = "```code block content with no end yet..."
+    example_stream_3 = "```\ncode block content here\n```\nmore text"
+    example_stream_4 = "```\ncode block content \nwith no end yet..."
+    example_stream_5 = "\n ```\ncode block content here\n```\nmore text"
+    example_stream_6 = "\n ```\ncode block content \nwith no end yet..."
+    example_stream_7 = "more text"
+    example_stream_8 = """```markdown
+```json
+{
+  "Employee": {
+    "Name": "Henry",
+    "Title": "AI Scientist",
+    "Department": "AI",
+    "Location": "San Francisco",
+    "Contact": {
+      "Email": "henryai@gmail.com",
+      "Phone": "+1-234-567-8901"
+    },
+    "Profile": {
+      "Education": [
+        {
+          "Institution": "Stanford University",
+          "Degree": "Ph.D.",
+          "Field": "Computer Science"
+        },
+        {
+          "Institution": "University of California, Berkeley",
+          "Degree": "M.S.",
+          "Field": "Artificial Intelligence"
+        }
+      ],
+      "Experience": [
+        {
+          "Company": "Google",
+          "Role": "Senior AI Engineer",
+          "Duration": "5 years"
+        },
+        {
+          "Company": "Facebook",
+          "Role": "Principal AI Engineer",
+          "Duration": "3 years"
+        }
+      ],
+      "Skills": [
+        "Python",
+        "TensorFlow",
+        "PyTorch",
+        "Natural Language Processing",
+        "Machine Learning"
+      ],
+      "Languages": [
+        "English",
+        "French",
+        "Spanish"
+      ],
+      "Certifications": [
+        {
+          "Name": "Certified AI Professional",
+          "Issuing Body": "AI Professional Association"
+        },
+        {
+          "Name": "Advanced AI Course Certificate",
+          "Issuing Body": "AI Institute"
+        }
+      ]
+    }
+  }
+}
+```
+"""
+    assert extract_code_block_content(example_stream_1) == "block content here"
+    assert extract_code_block_content(example_stream_2) == "block content with no end yet..."
+    assert extract_code_block_content(example_stream_3) == "code block content here"
+    assert extract_code_block_content(example_stream_4) == "code block content \nwith no end yet..."
+    assert extract_code_block_content(example_stream_5) == "code block content here"
+    assert extract_code_block_content(example_stream_6) == "code block content \nwith no end yet..."
+    assert extract_code_block_content(example_stream_7) == ""
+    expected8 = """{
+  "Employee": {
+    "Name": "Henry",
+    "Title": "AI Scientist",
+    "Department": "AI",
+    "Location": "San Francisco",
+    "Contact": {
+      "Email": "henryai@gmail.com",
+      "Phone": "+1-234-567-8901"
+    },
+    "Profile": {
+      "Education": [
+        {
+          "Institution": "Stanford University",
+          "Degree": "Ph.D.",
+          "Field": "Computer Science"
+        },
+        {
+          "Institution": "University of California, Berkeley",
+          "Degree": "M.S.",
+          "Field": "Artificial Intelligence"
+        }
+      ],
+      "Experience": [
+        {
+          "Company": "Google",
+          "Role": "Senior AI Engineer",
+          "Duration": "5 years"
+        },
+        {
+          "Company": "Facebook",
+          "Role": "Principal AI Engineer",
+          "Duration": "3 years"
+        }
+      ],
+      "Skills": [
+        "Python",
+        "TensorFlow",
+        "PyTorch",
+        "Natural Language Processing",
+        "Machine Learning"
+      ],
+      "Languages": [
+        "English",
+        "French",
+        "Spanish"
+      ],
+      "Certifications": [
+        {
+          "Name": "Certified AI Professional",
+          "Issuing Body": "AI Professional Association"
+        },
+        {
+          "Name": "Advanced AI Course Certificate",
+          "Issuing Body": "AI Institute"
+        }
+      ]
+    }
+  }
+}"""
+    assert extract_code_block_content(example_stream_8) == expected8
+
+
 @wrap_test_forked
 def test_repair_json():
     a = """{

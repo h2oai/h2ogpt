@@ -1,5 +1,5 @@
 # https://raw.githubusercontent.com/THUDM/CogVLM2/main/basic_demo/openai_api_demo.py
-
+import asyncio
 # HOST=0.0.0.0 PORT=30030 CUDA_VISIBLE_DEVICES=7 python openai_server/cogvlm2_server/cogvlm2.py &> cogvlm2.log &
 # disown %1
 
@@ -44,6 +44,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+lock = asyncio.Lock()
 
 app.add_middleware(
     CORSMiddleware,
@@ -160,44 +161,45 @@ async def list_models():
 
 @app.post("/v1/chat/completions", response_model=ChatCompletionResponse)
 async def create_chat_completion(request: ChatCompletionRequest):
-    global model, tokenizer
+    async with lock:
+        global model, tokenizer
 
-    if len(request.messages) < 1 or request.messages[-1].role == "assistant":
-        raise HTTPException(status_code=400, detail="Invalid request")
+        if len(request.messages) < 1 or request.messages[-1].role == "assistant":
+            raise HTTPException(status_code=400, detail="Invalid request")
 
-    gen_params = dict(
-        messages=request.messages,
-        temperature=request.temperature,
-        top_p=request.top_p,
-        max_tokens=request.max_tokens or 1024,
-        echo=False,
-        stream=request.stream,
-        repetition_penalty=request.repetition_penalty
-    )
+        gen_params = dict(
+            messages=request.messages,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            max_tokens=request.max_tokens or 1024,
+            echo=False,
+            stream=request.stream,
+            repetition_penalty=request.repetition_penalty
+        )
 
-    lock_file = f"{MODEL_PATH}.lock"
-    os.makedirs(os.path.dirname(lock_file), exist_ok=True)
-    with filelock.FileLock(lock_file):
-        if request.stream:
-            generate = predict(request.model, gen_params)
-            return EventSourceResponse(generate, media_type="text/event-stream")
-        response = generate_cogvlm(model, tokenizer, gen_params)
+        lock_file = f"{MODEL_PATH}.lock"
+        os.makedirs(os.path.dirname(lock_file), exist_ok=True)
+        with filelock.FileLock(lock_file):
+            if request.stream:
+                generate = predict(request.model, gen_params)
+                return EventSourceResponse(generate, media_type="text/event-stream")
+            response = generate_cogvlm(model, tokenizer, gen_params)
 
-    usage = UsageInfo()
+        usage = UsageInfo()
 
-    message = ChatMessageResponse(
-        role="assistant",
-        content=response["text"],
-    )
-    logger.debug(f"==== message ====\n{message}")
-    choice_data = ChatCompletionResponseChoice(
-        index=0,
-        message=message,
-    )
-    task_usage = UsageInfo.model_validate(response["usage"])
-    for usage_key, usage_value in task_usage.model_dump().items():
-        setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
-    return ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion", usage=usage)
+        message = ChatMessageResponse(
+            role="assistant",
+            content=response["text"],
+        )
+        logger.debug(f"==== message ====\n{message}")
+        choice_data = ChatCompletionResponseChoice(
+            index=0,
+            message=message,
+        )
+        task_usage = UsageInfo.model_validate(response["usage"])
+        for usage_key, usage_value in task_usage.model_dump().items():
+            setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
+        return ChatCompletionResponse(model=request.model, choices=[choice_data], object="chat.completion", usage=usage)
 
 
 def predict(model_id: str, params: dict):
@@ -256,6 +258,7 @@ def process_history_and_images(messages: List[ChatMessageInput]) -> Tuple[
     formatted_history = []
     image_list = []
     last_user_query = ''
+    system_prompt = ''
 
     for i, message in enumerate(messages):
         role = message.role
@@ -289,8 +292,13 @@ def process_history_and_images(messages: List[ChatMessageInput]) -> Tuple[
                 formatted_history[-1] = (formatted_history[-1][0], text_content)
             else:
                 assert False, f"assistant reply before user"
+        elif role == 'system':
+            system_prompt = text_content
         else:
             assert False, f"unrecognized role: {role}"
+
+    if system_prompt:
+        last_user_query = f'SYS: {system_prompt}\n\n{last_user_query}'
 
     return last_user_query, formatted_history, image_list
 
