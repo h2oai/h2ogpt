@@ -1520,6 +1520,13 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     prompts: Any = []
     count_output_tokens: Any = 0
 
+    # runtime
+    assistant_role: Any = None
+    user_role: Any = None
+    conv_template_before_prompt: Any = None
+    url: Any = None
+    pload: Any = None
+
     @root_validator()
     def validate_environment(cls, values: Dict) -> Dict:
         """Validate that python package exists in environment."""
@@ -1563,8 +1570,6 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         return output
 
     def setup_call(self, prompt):
-        self.prompt = prompt
-
         # NOTE: Don't handle self.context
         if not self.add_chat_history_to_context:
             self.chat_conversation = []
@@ -1613,7 +1618,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         presence_penalty = (self.repetition_penalty - 1.0) * 2.0 + 0.0  # so good default
 
         terminate_response = update_terminate_responses([], tokenizer=self.tokenizer)
-        pload = {
+        self.pload = {
             "text": prompt_with_template,
             "sampling_params": {
                 "max_new_tokens": self.max_new_tokens,
@@ -1626,10 +1631,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
             "image_data": self.image_file[0],
             "stream": self.stream_output,
         }
-        url = self.inference_server_url + "/generate"
-
-        self.url = url
-        self.pload = pload
+        self.url = self.inference_server_url + "/generate"
 
     def do_many(self):
         # deal with all images
@@ -1639,12 +1641,12 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     async def a_do_many(self):
         return await self.get_many(self.url, self.pload)
 
-    def many_to_prompt(self, responses):
+    def many_to_prompt(self, prompt, responses):
         if len(self.image_file) > 1:
             # now use all those in final prompt
             responses_context = '\n\n'.join(['# Image %d Answer\n\n%s\n\n' % (i, r['text']) for i, r in
                                              enumerate(responses)])
-            prompt_with_responses = f"{responses_context}\n{self.prompt}"
+            prompt_with_responses = f"{responses_context}\n{prompt}"
             self.conv_template_before_prompt.append_message(role=self.user_role, message=prompt_with_responses)
             self.conv_template_before_prompt.append_message(role=self.assistant_role, message=None)
             prompt_with_template = self.conv_template_before_prompt.get_prompt()
@@ -1689,7 +1691,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         self.setup_call(prompt)
         if len(self.image_file) > 1:
             responses = self.do_many()
-            self.many_to_prompt(responses)
+            self.many_to_prompt(prompt, responses)
         response = self.do_final()
 
         if not self.stream_output:
@@ -1751,7 +1753,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         self.setup_call(prompt)
         if len(self.image_file) > 1:
             responses = await self.a_do_many()
-            self.many_to_prompt(responses)
+            self.many_to_prompt(prompt, responses)
         response = self.do_final()
 
         if not self.stream_output:
