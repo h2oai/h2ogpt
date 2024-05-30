@@ -3283,6 +3283,7 @@ def get_llm(use_openai_model=False,
         callbacks = [streaming_callback]
         streamer = callbacks[0] if stream_output else None
 
+        num_async = min(2, num_async)  # can't handle as much
         async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
 
         if is_vision_model(model_name):
