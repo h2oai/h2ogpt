@@ -7814,12 +7814,15 @@ def get_chain(query=None,
         requests_tools = load_tools(["requests_all"])
 
         from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
-        wolfram = WolframAlphaAPIWrapper()
-        wolfram_tool = Tool(
-            name="wolframalpha",
-            description="WolframAlpha is an answer engine developed by Wolfram Research. It answers factual queries by computing answers from externally sourced data.",
-            func=wolfram.run,
-        )
+        if os.environ.get('WOLFRAM_ALPHA_APPID'):
+            wolfram = WolframAlphaAPIWrapper()
+            wolfram_tool = Tool(
+                name="wolframalpha",
+                description="WolframAlpha is an answer engine developed by Wolfram Research. It answers factual queries by computing answers from externally sourced data.",
+                func=wolfram.run,
+            )
+        else:
+            wolfram_tool = None
 
         from langchain_experimental.llm_symbolic_math.base import LLMSymbolicMathChain
         sympy_math = LLMSymbolicMathChain.from_llm(llm)
@@ -7861,15 +7864,14 @@ def get_chain(query=None,
             tools.extend([sympy_tool])
 
         from langchain_community.docstore import InMemoryDocstore
-        from langchain_community.embeddings import OpenAIEmbeddings
         from langchain_community.vectorstores import FAISS
 
         # Define your embedding model
-        embeddings_model = OpenAIEmbeddings()
+        embeddings_model = get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model)
         # Initialize the vectorstore as empty
         import faiss
 
-        embedding_size = 1536
+        embedding_size = len(embeddings_model.embed_documents(['prompt'])[0])
         index = faiss.IndexFlatL2(embedding_size)
         vectorstore = FAISS(embeddings_model.embed_query, index, InMemoryDocstore({}), {})
 
