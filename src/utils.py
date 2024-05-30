@@ -2069,7 +2069,8 @@ def get_token_count(x, tokenizer, token_count_fun=None, add_special_tokens=True)
             raise RuntimeError("Cannot handle tokens: %s" % tokens)
     elif token_count_fun is not None:
         assert callable(token_count_fun)
-        other_kwargs = dict(add_special_tokens=add_special_tokens) if hasattr(token_count_fun, 'add_special_tokens') else {}
+        other_kwargs = dict(add_special_tokens=add_special_tokens) if hasattr(token_count_fun,
+                                                                              'add_special_tokens') else {}
         n_tokens = token_count_fun(x, **other_kwargs)
     else:
         tokenizer = FakeTokenizer()
@@ -2264,11 +2265,21 @@ def get_json(response, fixup=True):
 
 
 def _get_json(response, fixup=True):
-    # First, try to extract code block content. If content is found (not an empty string), return None (or possibly an empty string as per updated logic)
+    # first rely upon json_repair package, handles code block extraction as well automatically
+    from json_repair import repair_json
+    try:
+        response0 = repair_json(response)
+        if response0:
+            return response0
+    except Exception as e:
+        # FIXME: best effort, don't understand if package will hae issues
+        print("repair_json exception1: %s: %s" % (str(e), response))
+
+    # if json_repair fails, try to extract code block content
+    # sIf content is found (not an empty string), return None (or possibly an empty string as per updated logic)
     response0 = extract_code_block_content(response)
     if response0:
         if fixup:
-            from json_repair import repair_json
             try:
                 response0 = repair_json(response0)
             except Exception as e:
@@ -2281,7 +2292,6 @@ def _get_json(response, fixup=True):
         if response.endswith('```'):
             response = response[:-3].strip()
         if fixup:
-            from json_repair import repair_json
             try:
                 response = repair_json(response)
             except Exception as e:
@@ -2292,38 +2302,32 @@ def _get_json(response, fixup=True):
     return invalid_json_str
 
 
-# This pattern looks for the start of the text or any kind of newline followed by optional whitespace,
-# and then the code block delimiter (```).
-# It accounts for different newline characters and HTML line breaks.
-pattern_partial_codeblock = re.compile(r"(^|\n|\r|<br\s*/?>)\s*```")
+# Adjusted pattern to match code block content accurately
+pattern_extract_codeblock = re.compile(r"```(?:[a-zA-Z]*)\s*(.*?)(```|$)", re.DOTALL)
 
 
-def has_starting_code_block(text):
-    # Search the text for the pattern
-    if pattern_partial_codeblock.search(text):
-        return True
-    else:
-        return False
-
-
-pattern_extract_codeblock = re.compile(r"```[a-zA-Z]*\s*(.*?)(```|$)", re.DOTALL)
-
-
-# pattern_extract_codeblock = re.compile(r"```(?:[a-zA-Z]*\s*)(.*?)(?=```|$)", re.DOTALL)
+def preprocess_code_blocks(stream_content):
+    # Remove consecutive starting code block delimiters, but keep the inner content
+    stream_content = re.sub(r"```[a-zA-Z]*\n```[a-zA-Z]*", "```", stream_content)
+    # Remove consecutive ending code block delimiters
+    stream_content = re.sub(r"```\n```", "```", stream_content)
+    return stream_content
 
 
 def extract_code_block_content(stream_content):
-    # This pattern matches content starting from an opening code block delimiter (```)
-    # and captures everything after it until a closing delimiter or the end of string if no closing delimiter is found.
-    # Non-greedy matching is used to ensure it captures the earliest possible ending.
+    # Postprocess to handle nested or consecutive code block delimiters
+    stream_content = preprocess_code_blocks(stream_content)
 
     match = pattern_extract_codeblock.search(stream_content)
     if match:
-        # Returns the captured group which is the content of the code block.
-        # The .strip() is used to remove any leading or trailing whitespace that might be present.
         return match.group(1).strip()
     else:
         return ''
+
+
+def has_starting_code_block(text):
+    pattern_partial_codeblock = re.compile(r"(^|\n|\r|<br\s*/?>)\s*```")
+    return bool(pattern_partial_codeblock.search(text))
 
 
 def looks_like_json(text):
@@ -2417,8 +2421,9 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
         text_context_list[0] = doc_content
         one_doc_size = len(doc_content)
         num_doc_tokens = get_token_count(doc_content + docs_joiner, tokenizer)
-        print("Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s for max_input_tokens=%s" % (
-            tokens[0], new_tokens0, max_input_tokens), flush=True)
+        print(
+            "Unexpected large chunks and can't add to context, will add 1 anyways.  Tokens %s -> %s for max_input_tokens=%s" % (
+                tokens[0], new_tokens0, max_input_tokens), flush=True)
     return top_k_docs, one_doc_size, num_doc_tokens
 
 
