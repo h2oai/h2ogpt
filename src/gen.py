@@ -1886,6 +1886,8 @@ def main(
         url_loaders_options0, url_loaders_options = lg_to_gr(**locals().copy())
     jq_schema0 = jq_schema
     extract_frames0 = extract_frames
+    guided_whitespace_pattern0 = guided_whitespace_pattern
+    metadata_in_context0 = metadata_in_context
     # transcribe
     image_audio_loaders = image_audio_loaders_options0
     pdf_loaders = pdf_loaders_options0
@@ -4021,6 +4023,8 @@ def evaluate(
         url_loaders_options0=None,
         jq_schema0=None,
         extract_frames0=None,
+        guided_whitespace_pattern0=None,
+        metadata_in_context0=None,
         keep_sources_in_context=None,
         gradio_errors_to_chatbot=None,
         allow_chat_system_prompt=None,
@@ -4067,9 +4071,14 @@ def evaluate(
         extract_frames = extract_frames0
     if seed is None:
         seed = 0
-    if guided_whitespace_pattern == '':
-        # translate empty string to None
-        guided_whitespace_pattern = None
+    if guided_whitespace_pattern is None:
+        if guided_whitespace_pattern0:
+            guided_whitespace_pattern = guided_whitespace_pattern0
+        if guided_whitespace_pattern == '':
+            # translate empty string to None
+            guided_whitespace_pattern = None
+    if metadata_in_context is None:
+        metadata_in_context = metadata_in_context0
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)

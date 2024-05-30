@@ -76,6 +76,8 @@ def run_eval(  # for local function:
         jq_schema=None,
         extract_frames=None,
         extract_frames0=None,
+        guided_whitespace_pattern0=None,
+        metadata_in_context0=None,
         llava_prompt=None,
         visible_models=None,
         h2ogpt_key=None,

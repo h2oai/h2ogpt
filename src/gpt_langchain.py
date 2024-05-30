@@ -8406,7 +8406,7 @@ def get_chain(query=None,
         metadata_in_context_set = FullSet()
     elif metadata_in_context == 'auto':
         metadata_in_context_set = set(
-            ['date', 'file_path', 'input_type', 'keywords', 'chunk_id', 'page', 'source', 'title', 'total_pages'])
+            ['date', 'file_path', 'input_type', 'keywords', 'chunk_id', 'page', 'source', 'title'])
     else:
         assert isinstance(metadata_in_context, list)
         metadata_in_context_set = set(metadata_in_context)

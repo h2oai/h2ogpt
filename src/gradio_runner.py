@@ -1585,7 +1585,7 @@ def go_gradio(**kwargs):
                                                                label="JSON docs mode",
                                                                info="Whether to pass JSON to and get JSON back from LLM",
                                                                visible=True)
-                        metadata_in_context = gr.components.Textbox(value='[]',
+                        metadata_in_context = gr.components.Textbox(value=str(kwargs['metadata_in_context']),
                                                                     label="Metadata keys to include in LLM context (all, auto, or [key1, key2, ...] where strings are quoted)",
                                                                     visible=True)
 
