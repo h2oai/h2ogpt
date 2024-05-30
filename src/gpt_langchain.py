@@ -1557,11 +1557,14 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         conv_template = copy.deepcopy(getattr(conversation_module, conv_template_name))
         return conv_template
 
-    async def send_request(self, url, data, delay=0):
+    async def send_request(self, url, data, delay=0, timeout=None):
+        if timeout is None:
+            timeout = self.max_time
         await asyncio.sleep(delay)
+        timeout_settings = aiohttp.ClientTimeout(total=timeout)  # Set the total timeout
         async_sem = AsyncNullContext() if self.async_sem is None else self.async_sem
         async with async_sem:  # semaphore limits num of simultaneous downloads
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=timeout_settings) as session:
                 async with session.post(url, json=data) as resp:
                     print("headers: %s" % resp.headers, flush=True)
                     if resp.headers['Content-Type'] == 'application/json':
@@ -1569,6 +1572,8 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                     else:
                         output_text = await resp.text()
                         output = {"text": output_text}
+                        if resp.status == 504:
+                            raise TimeoutError(resp.headers)
                     print(f"Response received from {url}: {output}", flush=True)
         return output
 
