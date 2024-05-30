@@ -389,6 +389,8 @@ class ChatMistralAI(BaseChatModel):
 
     def _create_chat_result(self, response: Dict) -> ChatResult:
         generations = []
+        if 'choices' not in response:
+            raise ValueError(f"Expected 'choices' in response, got {response}")
         for res in response["choices"]:
             finish_reason = res.get("finish_reason")
             gen = ChatGeneration(
