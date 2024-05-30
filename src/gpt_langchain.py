@@ -80,7 +80,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
-    gpt4_image_tokens, user_prompt_for_fake_system_prompt0
+    gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -1563,6 +1563,8 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         return output
 
     def setup_call(self, prompt):
+        self.prompt = prompt
+
         # NOTE: Don't handle self.context
         if not self.add_chat_history_to_context:
             self.chat_conversation = []
@@ -1573,15 +1575,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
         conv_template_name = self.inference_server.split(':')[1]
         conv_template = self.get_conv_template(conv_template_name)
-        user_role = conv_template.roles[0]
-        assistant_role = conv_template.roles[1]
+        self.user_role = conv_template.roles[0]
+        self.assistant_role = conv_template.roles[1]
         if self.system_prompt:
             if not conv_template.system:
                 # assume means can't handle if didn't exist in template
-                conv_template.append_message(role=user_role, message=self.user_prompt_for_fake_system_prompt)
+                conv_template.append_message(role=self.user_role, message=self.user_prompt_for_fake_system_prompt)
                 if self.system_prompt == 'auto':
                     self.system_prompt = 'You are a helpful assistant.' if not self.image_file else "You are helpful visual LLM assistant capable of understanding text and images."
-                conv_template.append_message(role=assistant_role, message=self.system_prompt)
+                conv_template.append_message(role=self.assistant_role, message=self.system_prompt)
             else:
                 our_system_prompt = False
                 if our_system_prompt:
@@ -1594,15 +1596,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                         conv_template.append_message(role="system", message=self.system_prompt)
         for message in self.chat_conversation:
             if isinstance(message[0], str) and message[0]:
-                conv_template.append_message(role=user_role, message=message[0])
+                conv_template.append_message(role=self.user_role, message=message[0])
             if isinstance(message[1], str) and message[1]:
-                conv_template.append_message(role=assistant_role, message=message[1])
+                conv_template.append_message(role=self.assistant_role, message=message[1])
 
-        conv_template_before_prompt = copy.deepcopy(conv_template)
+        self.conv_template_before_prompt = copy.deepcopy(conv_template)
 
         prompt_with_image = f"<image>\n{prompt}"
-        conv_template.append_message(role=user_role, message=prompt_with_image)
-        conv_template.append_message(role=assistant_role, message=None)
+        conv_template.append_message(role=self.user_role, message=prompt_with_image)
+        conv_template.append_message(role=self.assistant_role, message=None)
         prompt_with_template = conv_template.get_prompt()
         if self.context:
             prompt_with_template = self.context + prompt_with_template
@@ -1626,29 +1628,40 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         }
         url = self.inference_server_url + "/generate"
 
-        if len(self.image_file) > 1:
-            # deal with all images
-            # also contains prompt_tokens, completion_tokens, finish_reason, etc.
-            responses = asyncio.run(self.get_many(url, pload))
+        self.url = url
+        self.pload = pload
 
+    def do_many(self):
+        # deal with all images
+        # also contains prompt_tokens, completion_tokens, finish_reason, etc.
+        return asyncio.run(self.get_many(self.url, self.pload))
+
+    async def a_do_many(self):
+        return await self.get_many(self.url, self.pload)
+
+    def many_to_prompt(self, responses):
+        if len(self.image_file) > 1:
             # now use all those in final prompt
             responses_context = '\n\n'.join(['# Image %d Answer\n\n%s\n\n' % (i, r['text']) for i, r in
                                              enumerate(responses)])
-            prompt_with_responses = f"{responses_context}\n{prompt}"
-            conv_template_before_prompt.append_message(role=user_role, message=prompt_with_responses)
-            conv_template.append_message(role=assistant_role, message=None)
-            prompt_with_template = conv_template_before_prompt.get_prompt()
+            prompt_with_responses = f"{responses_context}\n{self.prompt}"
+            self.conv_template_before_prompt.append_message(role=self.user_role, message=prompt_with_responses)
+            self.conv_template_before_prompt.append_message(role=self.assistant_role, message=None)
+            prompt_with_template = self.conv_template_before_prompt.get_prompt()
             if self.context:
                 prompt_with_template = self.context + prompt_with_template
             self.prompts.append(prompt_with_template)
-            pload.pop('image_data')  # no longer have images
 
-        response = requests.post(
-            url,
-            json=pload,
+            # update pload
+            self.pload['text'] = prompt_with_template  # prompt now has response per image as single prompt
+            self.pload.pop('image_data')  # no longer have images, just text
+
+    def do_final(self):
+        return requests.post(
+            self.url,
+            json=self.pload,
             stream=self.stream_output,
         )
-        return response
 
     async def get_many(self, url, pload):
         pload_no_image = pload.copy()
@@ -1673,7 +1686,11 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if self.verbose:
             print("_call", flush=True)
 
-        response = self.setup_call(prompt)
+        self.setup_call(prompt)
+        if len(self.image_file) > 1:
+            responses = self.do_many()
+            self.many_to_prompt(responses)
+        response = self.do_final()
 
         if not self.stream_output:
             response = response.json()['text']
@@ -1731,7 +1748,11 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if self.verbose:
             print("_call", flush=True)
 
-        response = self.setup_call(prompt)
+        self.setup_call(prompt)
+        if len(self.image_file) > 1:
+            responses = await self.a_do_many()
+            self.many_to_prompt(responses)
+        response = self.do_final()
 
         if not self.stream_output:
             response = response.json()['text']
