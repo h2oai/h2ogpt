@@ -1573,8 +1573,8 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                         output_text = await resp.text()
                         output = {"text": output_text}
                         if resp.status == 504:
-                            raise TimeoutError(resp.headers)
-                    print(f"Response received from {url}: {output}", flush=True)
+                            print(f"504 Response received from {url}: {output}", flush=True)
+                            raise TimeoutError(output_text)
         return output
 
     def setup_call(self, prompt):
