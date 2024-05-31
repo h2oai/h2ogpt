@@ -73,7 +73,7 @@ instructorembedding>=1.0.1
 # for gpt4all .env file, but avoid worrying about imports
 python-dotenv>=1.0.0
 
-json_repair>=0.13.0
+json_repair>=0.21.0
 
 text-generation>=0.7.0
 
