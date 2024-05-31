@@ -5501,7 +5501,7 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
     try:
         response = json.loads(response)
     except:
-        print("Bad response: %s" % response)
+        print("Bad response1: %s" % response, file=sys.stderr)
         raise
     print(response, file=sys.stderr)
     response1 = response.copy()
@@ -5539,7 +5539,7 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
     try:
         response = json.loads(response)
     except:
-        print("Bad response: %s" % response)
+        print("Bad response: %s" % response, file=sys.stderr)
         raise
     print(response, file=sys.stderr)
     response2 = response.copy()
