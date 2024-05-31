@@ -2251,7 +2251,7 @@ def main(
 
     model_list = [model_state_base0]
     model_list0 = copy.deepcopy(model_list)  # just strings, safe to deepcopy
-    model_state0 = model_state_none.copy()
+    model_state0 = copy.deepcopy(model_state_none)
     assert len(model_state_none) == len(model_state0)
     if model_lock:
         model_list = model_lock
@@ -2272,9 +2272,10 @@ def main(
         model_dict['prompt_type'] = model_dict.get('prompt_type',
                                                    model_list0[0]['prompt_type'])  # don't use mutated value
         # rest of generic defaults
-        for k in model_list0[0]:
+        new_model_dict0 = copy.deepcopy(model_list0[0])
+        for k in new_model_dict0:
             if k not in model_dict:
-                model_dict[k] = model_list0[0][k]
+                model_dict[k] = new_model_dict0[k]
         # make so don't have to pass dict in dict so more like CLI for these options
         inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
                            'model_name_exllama_if_no_config']
