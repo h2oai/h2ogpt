@@ -9,6 +9,8 @@ RUN \
     python -m pip install setuptools==69.5.1 && \
     python -m pip install flash-attn==2.5.6 --no-build-isolation --no-deps --no-cache-dir
 
+ENV VLLM_NCCL_SO_PATH=/usr/lib/python3.10/site-packages/nvidia/nccl/lib/libnccl.so.2
+
 EXPOSE 8888
 EXPOSE 7860
 EXPOSE 5000
