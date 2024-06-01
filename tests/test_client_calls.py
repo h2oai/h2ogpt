@@ -6353,10 +6353,11 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
         "content": old_prompt2,
     }]
     messages.append({"role": "assistant", "content": str(response)})
-    messages.append({
-        "role": "user",
-        "content": new_prompt2
-    })
+    if new_prompt2:
+        messages.append({
+            "role": "user",
+            "content": new_prompt2
+        })
     chat_kwargs['extra_body']['prompt_summary'] = new_prompt_summary
 
     chat_completion = client.chat.completions.create(

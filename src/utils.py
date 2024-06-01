@@ -2254,22 +2254,32 @@ def get_code_blocks(response):
     return pattern.findall(response)
 
 
-def get_json(response, fixup=True):
+def get_json(response, fixup=True, json_schema_type=None):
     is_list = isinstance(response, list)
     if not is_list:
         response = [response]
-    response_new = [_get_json(x, fixup=fixup) for x in response]
+    response_new = [_get_json(x, fixup=fixup, json_schema_type=json_schema_type) for x in response]
     if not is_list:
         response_new = response_new[0]
     return response_new
 
 
-def _get_json(response, fixup=True):
+def repair_json_by_type(response, json_schema_type=None):
+    if json_schema_type == 'object':
+        from json_repair.json_repair import JSONParser
+        a = JSONParser(response, None, None)
+        return json.dumps(a.parse_object())
+    else:
+        # rest are safe
+        from json_repair import repair_json
+        return repair_json(response)
+
+
+def _get_json(response, fixup=True, json_schema_type=None):
     if fixup:
         # first rely upon json_repair package, handles code block extraction as well automatically
-        from json_repair import repair_json
         try:
-            response0 = repair_json(response)
+            response0 = repair_json_by_type(response, json_schema_type=json_schema_type)
             if response0:
                 return response0
         except Exception as e:
@@ -2282,7 +2292,7 @@ def _get_json(response, fixup=True):
     if response0:
         if fixup:
             try:
-                response0 = repair_json(response0)
+                response0 = repair_json_by_type(response0, json_schema_type=json_schema_type)
             except Exception as e:
                 # FIXME: best effort, don't understand if package will hae issues
                 print("repair_json exception1: %s: %s" % (str(e), response))
@@ -2294,7 +2304,7 @@ def _get_json(response, fixup=True):
             response = response[:-3].strip()
         if fixup:
             try:
-                response = repair_json(response)
+                response = repair_json_by_type(response, json_schema_type=json_schema_type)
             except Exception as e:
                 # FIXME: best effort, don't understand if package will hae issues
                 print("repair_json exception2: %s: %s" % (str(e), response))
