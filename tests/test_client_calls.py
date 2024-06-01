@@ -5243,7 +5243,7 @@ def test_get_image_file():
 gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
               'mistralai/Mixtral-8x7B-Instruct-v0.1',
               'gpt-3.5-turbo-0613',
-              'mistralai/Mistral-7B-Instruct-v0.2',
+              'mistralai/Mistral-7B-Instruct-v0.3',
               'NousResearch/Nous-Capybara-34B',
               # 'liuhaotian/llava-v1.6-vicuna-13b',
               # 'liuhaotian/llava-v1.6-34b',
@@ -5298,7 +5298,7 @@ TEST_CHOICE = [
 ]
 
 other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                     'mistralai/Mistral-7B-Instruct-v0.2',
+                     'mistralai/Mistral-7B-Instruct-v0.3',
                      'NousResearch/Nous-Capybara-34B',
                      'mistralai/Mixtral-8x7B-Instruct-v0.1',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest', 'gpt-4-turbo-2024-04-09',
@@ -5317,7 +5317,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      ]
 
 vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                    'mistralai/Mistral-7B-Instruct-v0.2',
+                    'mistralai/Mistral-7B-Instruct-v0.3',
                     'NousResearch/Nous-Capybara-34B',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',
