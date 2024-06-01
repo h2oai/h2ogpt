@@ -617,6 +617,117 @@ def test_repair_json():
         json.loads(good_json_string)
 
 
+def test_json_repair_more():
+    response0 = """```markdown
+    ```json
+    {
+      "Employee": {
+        "Name": "Henry",
+        "Title": "AI Scientist",
+        "Department": "AI",
+        "Location": "San Francisco",
+        "Contact": {
+          "Email": "henryai@gmail.com",
+          "Phone": "+1-234-567-8901"
+        },
+        "Profile": {
+          "Education": [
+            {
+              "Institution": "Stanford University",
+              "Degree": "Ph.D.",
+              "Field": "Computer Science"
+            },
+            {
+              "Institution": "University of California, Berkeley",
+              "Degree": "M.S.",
+              "Field": "Artificial Intelligence"
+            }
+          ],
+          "Experience": [
+            {
+              "Company": "Google",
+              "Role": "Senior AI Engineer",
+              "Duration": "5 years"
+            },
+            {
+              "Company": "Facebook",
+              "Role": "Principal AI Engineer",
+              "Duration": "3 years"
+            }
+          ],
+          "Skills": [
+            "Python",
+            "TensorFlow",
+            "PyTorch",
+            "Natural Language Processing",
+            "Machine Learning"
+          ],
+          "Languages": [
+            "English",
+            "French",
+            "Spanish"
+          ],
+          "Certifications": [
+            {
+              "Name": "Certified AI Professional",
+              "Issuing Body": "AI Professional Association"
+            },
+            {
+              "Name": "Advanced AI Course Certificate",
+              "Issuing Body": "AI Institute"
+            }
+          ]
+        }
+      }
+    }
+    ```
+    """
+    from json_repair import repair_json
+    response = repair_json(response0)
+    assert response.startswith('{')
+
+    response0 = """  Here is an example employee profile in JSON format, with keys that are less than 64 characters and made of only alphanumerics, underscores, or hyphens:
+    ```json
+    {
+      "employee_id": 1234,
+      "name": "John Doe",
+      "email": "johndoe@example.com",
+      "job_title": "Software Engineer",
+      "department": "Engineering",
+      "hire_date": "2020-01-01",
+      "salary": 100000,
+      "manager_id": 5678
+    }
+    ```
+    In Markdown, you can display this JSON code block like this:
+    ```json
+    ```
+    {
+      "employee_id": 1234,
+      "name": "John Doe",
+      "email": "johndoe@example.com",
+      "job_title": "Software Engineer",
+      "department": "Engineering",
+      "hire_date": "2020-01-01",
+      "salary": 100000,
+      "manager_id": 5678
+    }
+    ```
+    This will display the JSON code block with proper formatting and highlighting.
+    """
+    from json_repair import repair_json
+    from src.utils import get_json
+    import json
+
+    response = repair_json(response0)
+    assert json.loads(response)['employee_id'] == 1234
+    print(response)
+
+    response = get_json(response0, json_schema_type='object')
+    assert json.loads(response)['employee_id'] == 1234
+    print(response)
+
+
 @wrap_test_forked
 def test_dedup():
     # Example usage:
