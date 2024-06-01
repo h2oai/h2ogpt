@@ -5577,7 +5577,7 @@ def go_gradio(**kwargs):
                 chat1 = copy.deepcopy(chat1)
                 chat1 = chat1 + [['user_message1', None]]
                 model_max_length1 = tokenizer.model_max_length
-                context1 = history_to_context(chat1,
+                context1, chat1 = history_to_context(chat1,
                                               langchain_mode=langchain_mode1,
                                               add_chat_history_to_context=add_chat_history_to_context1,
                                               prompt_type=prompt_type1,

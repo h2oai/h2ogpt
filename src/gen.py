@@ -2239,10 +2239,10 @@ def main(
     # get default model(s)
     model_states = []
     model_state_base0 = dict(base_model=base_model, base_model0=base_model0,
-                       tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
-                       inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
-                       display_name=base_model,
-                       visible_models=None, h2ogpt_key=None)
+                             tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
+                             inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                             display_name=base_model,
+                             visible_models=None, h2ogpt_key=None)
     model_state_base0.update(other_model_state_defaults)
     # for allowing rest of eval_func_param_names.  We don't want to force CLI values always by default
     for k in eval_func_param_names:
@@ -6138,7 +6138,7 @@ def history_to_context(history, langchain_mode=None,
                        gradio_errors_to_chatbot=None,
                        min_max_new_tokens=512):
     """
-    consumes all history up to (but not including) latest history item that is presumed to be an [instruction, None] pair
+    Consumes all history up to (but not including) the latest history item that is presumed to be an [instruction, None] pair.
     :param history:
     :param langchain_mode:
     :param add_chat_history_to_context:
@@ -6153,34 +6153,43 @@ def history_to_context(history, langchain_mode=None,
     :return:
     """
     history = merge_chat_conversation_history(chat_conversation, history)
+    len_history = len(history)
 
-    if len(history) >= 1 and len(history[-1]) >= 2 and not history[-1][1]:
-        len_history = len(history) - 1
-    else:
-        # full history
-        len_history = len(history)
-
-    # ensure output will be unique to models
+    # Ensure output will be unique to models
     _, _, _, max_prompt_length = get_cutoffs(memory_restriction_level,
                                              for_context=True, model_max_length=model_max_length,
                                              min_max_new_tokens=min_max_new_tokens)
+
+    # Account for the system prompt length
+    if system_prompt:
+        system_prompt_length = len(system_prompt)
+        max_prompt_length -= system_prompt_length
+
     context1 = ''
+    final_history = []
+
     if max_prompt_length is not None and add_chat_history_to_context:
-        context1 = ''
-        # - 1 below because current instruction already in history from user()
-        for histi in range(0, len_history):
+        # Compute terminate_response, chat_sep, chat_turn_sep once
+        _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
+            generate_prompt({}, prompt_type, prompt_dict,
+                            reduced=True,
+                            making_context=True,
+                            system_prompt=system_prompt,
+                            histi=-1)
+
+        for histi in range(len_history - 1, -1, -1):  # Iterate in reverse order
             user = history[histi][0]
             bot = history[histi][1]
 
             if user is None:
-                # used to indicate was error or something similar put into chatbot stream
+                # Used to indicate was error or something similar put into chatbot stream
                 continue
 
             instruction = gradio_to_llm(user, bot=False)
-            output = gradio_to_llm(bot, bot=True)
+            output = gradio_to_llm(bot, bot=True) if bot is not None else ''
 
             data_point = dict(instruction=instruction, input='', output=output)
-            prompt, pre_response, terminate_response, chat_sep, chat_turn_sep = \
+            prompt, _, _, _, _ = \
                 generate_prompt(data_point,
                                 prompt_type,
                                 prompt_dict,
@@ -6192,21 +6201,52 @@ def history_to_context(history, langchain_mode=None,
             prompt = prompt.replace('<br>', chat_turn_sep)
             if not prompt.endswith(chat_turn_sep):
                 prompt += chat_turn_sep
-            # most recent first, add older if can
-            # only include desired chat history
-            if len(prompt + context1) > max_prompt_length:
-                break
-            context1 += prompt
 
-        _, pre_response, terminate_response, chat_sep, chat_turn_sep = \
-            generate_prompt({}, prompt_type, prompt_dict,
-                            reduced=True,
-                            making_context=True,
-                            system_prompt=system_prompt,
-                            histi=-1)
+            if len(prompt + context1) > max_prompt_length:
+                remaining_length = max_prompt_length - len(context1)
+                if len(instruction) > len(output):
+                    if len(output) >= remaining_length:
+                        truncated_instruction = ''
+                        truncated_output = output[:remaining_length]
+                    else:
+                        truncated_output = output
+                        truncated_instruction = instruction[:remaining_length - len(output)]
+                else:
+                    if len(instruction) >= remaining_length:
+                        truncated_instruction = instruction[:remaining_length]
+                        truncated_output = ''
+                    else:
+                        truncated_instruction = instruction
+                        truncated_output = output[:remaining_length - len(instruction)]
+
+                data_point = dict(instruction=truncated_instruction, input='', output=truncated_output)
+                truncated_prompt, _, _, _, _ = \
+                    generate_prompt(data_point,
+                                    prompt_type,
+                                    prompt_dict,
+                                    reduced=True,
+                                    making_context=True,
+                                    system_prompt=system_prompt,
+                                    histi=histi)
+                truncated_prompt = remove_refs(truncated_prompt, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot)
+                truncated_prompt = truncated_prompt.replace('<br>', chat_turn_sep)
+                if not truncated_prompt.endswith(chat_turn_sep):
+                    truncated_prompt += chat_turn_sep
+
+                if bot is not None:
+                    context1 = truncated_prompt + context1
+
+                final_history.insert(0, (truncated_instruction, truncated_output))
+                break
+
+            if bot is not None:
+                context1 = prompt + context1
+            final_history.insert(0, (instruction, output))
+
         if context1 and not context1.endswith(chat_turn_sep):
-            context1 += chat_turn_sep  # ensure if terminates abruptly, then human continues on next line
-    return context1
+            context1 += chat_turn_sep  # Ensure if terminates abruptly, then human continues on next line
+
+    return context1, final_history
 
 
 def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_new_tokens0=None):
@@ -6250,6 +6290,11 @@ def get_limited_prompt(instruction,
                        attention_sinks=False,
                        doing_grounding=False,
                        ):
+    """
+    Take instruction (estimated_instruction for counting token purposes), iinput, system_prompt, context, chat_conversation, text_context_list as inputs
+    and return a prompt and other items accounting for (if required) a balanced truncation of these outputs to avoid going over the token limits
+    """
+
     if gradio_server or not inference_server:
         # can listen to truncation_generation
         pass
@@ -6378,13 +6423,17 @@ def get_limited_prompt(instruction,
                                                                                      max_prompt_length=int(
                                                                                          max_input_tokens * 0.9))
     if use_chat_template:
+        # first limit history
+        context2_fake, history = history_to_context_func(history)
+        # now apply chat template
         context2 = apply_chat_template(instruction, system_prompt_to_use, history, tokenizer,
                                        user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         iinput = ''
         context1 = ''
         num_context1_tokens = 0
     else:
-        context2 = history_to_context_func(history)
+        # this also limits history
+        context2, history = history_to_context_func(history)
 
     context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
                                                                                  max_prompt_length=max_input_tokens)
@@ -6475,7 +6524,7 @@ def get_limited_prompt(instruction,
                     context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, tokenizer,
                                                    user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
                 else:
-                    context2 = history_to_context_func(history_to_use)
+                    context2, history_to_use = history_to_context_func(history_to_use)
 
                 num_context2_tokens = get_token_count(context2, tokenizer)
                 diff1 = non_doc_max_length - (
@@ -6505,7 +6554,7 @@ def get_limited_prompt(instruction,
                 context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, tokenizer,
                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
             else:
-                context2 = history_to_context_func(history_to_use_final)
+                context2, history_to_use_final = history_to_context_func(history_to_use_final)
 
             num_context2_tokens = get_token_count(context2, tokenizer)
             if verbose:
