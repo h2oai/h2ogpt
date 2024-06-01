@@ -297,7 +297,7 @@ def test_prompt_with_context(prompt_type, system_prompt, chat_conversation, expe
                ]
     print("duration1: %s %s" % (prompt_type, time.time() - t0), flush=True)
     t0 = time.time()
-    context = history_to_context(history,
+    context, history = history_to_context(history,
                                  langchain_mode=langchain_mode,
                                  add_chat_history_to_context=add_chat_history_to_context,
                                  prompt_type=prompt_type,
@@ -570,3 +570,103 @@ Assistant:"""
 ])
 def test_get_llm_history(history, only_text, expected):
     assert get_llm_history(history, only_text) == expected
+
+
+@pytest.mark.parametrize("history, system_prompt, model_max_length", [
+    # Short history, short system_prompt, short model_max_length
+    (
+        [["Hello!", "Hi!"], ["How are you?", "I'm good"], ["Go to the market?", None]],
+        "Short system prompt",
+        50
+    ),
+    # Long history, no system_prompt, large model_max_length
+    (
+        [["Hello!" * 50, "Hi!" * 50], ["How are you?" * 50, "I'm good" * 50], ["Go to the market?" * 50, None]],
+        "",
+        2048
+    ),
+    # Very long system_prompt, short history
+    (
+        [["Hello!", "Hi!"], ["How are you?", "I'm good"], ["Go to the market?", None]],
+        "System prompt " * 200,
+        1000
+    ),
+    # Short history, large system_prompt, short model_max_length
+    (
+        [["Hello!", "Hi!"], ["How are you?", "I'm good"], ["Go to the market?", None]],
+        "System prompt " * 200,
+        300
+    ),
+    # Very long history, large system_prompt, moderate model_max_length
+    (
+        [["Hello!" * 500, "Hi!" * 500], ["How are you?" * 500, "I'm good" * 500], ["Go to the market?" * 500, None]],
+        "System prompt " * 200,
+        1000
+    ),
+    # Extremely long system_prompt, very short history
+    (
+        [["Hi", "Hello"]],
+        "System prompt " * 1000,
+        500
+    ),
+    # Moderate history, moderate system_prompt, moderate model_max_length
+    (
+        [["Hello! " * 10, "Hi! " * 10], ["How are you? " * 10, "I'm good " * 10], ["Go to the market? " * 10, None]],
+        "Moderate system prompt",
+        150
+    ),
+    # No system_prompt, short history, large model_max_length
+    (
+        [["Hi", "Hello"], ["What are you doing?", "Nothing much"], ["Do you like music?", "Yes"]],
+        "",
+        1000
+    ),
+    # Short history, very short system_prompt, very short model_max_length
+    (
+        [["Hello!", "Hi!"], ["How are you?", "I'm good"], ["Go to the market?", None]],
+        "Sys",
+        20
+    ),
+    # Long history, short system_prompt, short model_max_length
+    (
+        [["Hello!" * 20, "Hi!" * 20], ["How are you?" * 20, "I'm good" * 20], ["Go to the market?" * 20, None]],
+        "Short",
+        100
+    ),
+])
+def test_history_to_context(history, system_prompt, model_max_length):
+    langchain_mode = 'Disabled'
+    add_chat_history_to_context = True
+    memory_restriction_level = 0
+    keep_sources_in_context = False
+
+    # Calculate the expected max prompt length considering the system prompt
+    system_prompt_length = len(system_prompt)
+    expected_max_prompt_length = max(0, model_max_length * 4 - system_prompt_length)
+
+    # Use the function
+    from src.gen import history_to_context
+    context, final_history = history_to_context(
+        history,
+        langchain_mode=langchain_mode,
+        add_chat_history_to_context=add_chat_history_to_context,
+        prompt_type='plain',  # Using 'plain' as a default type
+        prompt_dict=None,
+        model_max_length=model_max_length,
+        memory_restriction_level=memory_restriction_level,
+        keep_sources_in_context=keep_sources_in_context,
+        system_prompt=system_prompt,
+        chat_conversation=None
+    )
+
+    # Verify the length of context and final history
+    context_length = len(context)
+    history_length_sum = sum(len(item[0]) + (len(item[1]) if item[1] is not None else 0) for item in final_history) // 4
+
+    fudge = 4
+
+    # Ensure the context length does not exceed the expected max prompt length
+    assert context_length <= expected_max_prompt_length + fudge
+
+    # Ensure the sum of history lengths does not exceed the expected max prompt length
+    assert history_length_sum <= expected_max_prompt_length + fudge

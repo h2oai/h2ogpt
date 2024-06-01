@@ -79,6 +79,8 @@ def run_server(host: str = '0.0.0.0',
         workers = None
 
     if multiple_workers_gunicorn:
+        os.environ['multiple_workers_gunicorn'] = 'True'
+
         assert isinstance(app, str), "app must be string for gunicorn multi-worker mode."
         print(f"Multi-worker {name} Proxy gunicorn: {workers}")
         # Build gunicorn command

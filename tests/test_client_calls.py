@@ -1589,6 +1589,842 @@ def test_client_system_prompts(system_prompt, chat_conversation):
                        "I'm just an AI" in res_dict['response']
 
 
+long_prompt = """\"\"\"
+
+Main menu
+
+WikipediaThe Free Encyclopedia
+Search Wikipedia
+Search
+Create account
+Log in
+
+Personal tools
+
+Toggle the table of contents
+Solar eclipse
+
+Article
+Talk
+Read
+View source
+View history
+
+Tools
+Featured article
+Page semi-protected
+Listen to this article
+From Wikipedia, the free encyclopedia
+For the video game, see Solar Eclipse (video game). For the song, see Solar Eclipse (song).
+"Eclipse of the Sun" redirects here. For other uses, see Eclipse of the Sun (disambiguation).
+Total solar eclipse
+A total solar eclipse occurs when the Moon completely covers the Sun's disk, as seen in this solar eclipse. Solar prominences can be seen along the limb (in red) as well as extensively the coronal and partly the radiating coronal streamers.
+Annular solar eclipse
+An annular solar eclipse occurs when the Moon is too far away to completely cover the Sun's disk (October 14, 2023).
+Partial solar eclipse
+During a partial solar eclipse, the Moon blocks only part of the Sun's disk (October 25, 2022).
+A solar eclipse occurs when the Moon passes between Earth and the Sun, thereby obscuring the view of the Sun from a small part of Earth, totally or partially. Such an alignment occurs approximately every six months, during the eclipse season in its new moon phase, when the Moon's orbital plane is closest to the plane of Earth's orbit.[1] In a total eclipse, the disk of the Sun is fully obscured by the Moon. In partial and annular eclipses, only part of the Sun is obscured. Unlike a lunar eclipse, which may be viewed from anywhere on the night side of Earth, a solar eclipse can only be viewed from a relatively small area of the world. As such, although total solar eclipses occur somewhere on Earth every 18 months on average, they recur at any given place only once every 360 to 410 years.
+
+If the Moon were in a perfectly circular orbit and in the same orbital plane as Earth, there would be total solar eclipses once a month, at every new moon. Instead, because the Moon's orbit is tilted at about 5 degrees to Earth's orbit, its shadow usually misses Earth. Solar (and lunar) eclipses therefore happen only during eclipse seasons, resulting in at least two, and up to five, solar eclipses each year, no more than two of which can be total.[2][3] Total eclipses are rarer because they require a more precise alignment between the centers of the Sun and Moon, and because the Moon's apparent size in the sky is sometimes too small to fully cover the Sun.
+
+An eclipse is a natural phenomenon. In some ancient and modern cultures, solar eclipses were attributed to supernatural causes or regarded as bad omens. Astronomers' predictions of eclipses began in China as early as the 4th century BC; eclipses hundreds of years into the future may now be predicted with high accuracy.
+
+Looking directly at the Sun can lead to permanent eye damage, so special eye protection or indirect viewing techniques are used when viewing a solar eclipse. Only the total phase of a total solar eclipse is safe to view without protection. Enthusiasts known as eclipse chasers or umbraphiles travel to remote locations to see solar eclipses.[4][5]
+
+Types
+Ten Minute Time Lapse Video of the Total Solar Eclipse on April 8, 2024, in Mazatlán, Mexico.
+
+Partial and annular phases of the solar eclipse of May 20, 2012
+The Sun's distance from Earth is about 400 times the Moon's distance, and the Sun's diameter is about 400 times the Moon's diameter. Because these ratios are approximately the same, the Sun and the Moon as seen from Earth appear to be approximately the same size: about 0.5 degree of arc in angular measure.[6]
+
+The Moon's orbit around Earth is slightly elliptical, as is Earth's orbit around the Sun. The apparent sizes of the Sun and Moon therefore vary.[7] The magnitude of an eclipse is the ratio of the apparent size of the Moon to the apparent size of the Sun during an eclipse. An eclipse that occurs when the Moon is near its closest distance to Earth (i.e., near its perigee) can be a total eclipse because the Moon will appear to be large enough to completely cover the Sun's bright disk or photosphere; a total eclipse has a magnitude greater than or equal to 1.000. Conversely, an eclipse that occurs when the Moon is near its farthest distance from Earth (i.e., near its apogee) can be only an annular eclipse because the Moon will appear to be slightly smaller than the Sun; the magnitude of an annular eclipse is less than 1.[8]
+
+Because Earth's orbit around the Sun is also elliptical, Earth's distance from the Sun similarly varies throughout the year. This affects the apparent size of the Sun in the same way, but not as much as does the Moon's varying distance from Earth.[6] When Earth approaches its farthest distance from the Sun in early July, a total eclipse is somewhat more likely, whereas conditions favour an annular eclipse when Earth approaches its closest distance to the Sun in early January.[9]
+
+There are three main types of solar eclipses:[10]
+
+Total eclipse
+A total eclipse occurs on average every 18 months[11] when the dark silhouette of the Moon completely obscures the bright light of the Sun, allowing the much fainter solar corona to be visible. During an eclipse, totality occurs only along a narrow track on the surface of Earth.[12] This narrow track is called the path of totality.[13]
+
+Annular eclipse
+An annular eclipse, like a total eclipse, occurs when the Sun and Moon are exactly in line with Earth. During an annular eclipse, however, the apparent size of the Moon is not large enough to completely block out the Sun.[6] Totality thus does not occur; the Sun instead appears as a very bright ring, or annulus, surrounding the dark disk of the Moon.[6] Annular eclipses occur once every one or two years, not annually.[11][14] Their name comes from the Latin root word anulus, meaning "ring", rather than annus, for "year".[14]
+
+Partial eclipse
+A partial eclipse occurs about twice a year,[11] when the Sun and Moon are not exactly in line with Earth and the Moon only partially obscures the Sun. This phenomenon can usually be seen from a large part of Earth outside of the track of an annular or total eclipse. However, some eclipses can be seen only as a partial eclipse, because the umbra passes above Earth's polar regions and never intersects Earth's surface.[6] Partial eclipses are virtually unnoticeable in terms of the Sun's brightness, as it takes well over 90% coverage to notice any darkening at all. Even at 99%, it would be no darker than civil twilight.[15]
+
+
+Comparison of minimum and maximum apparent sizes of the Sun and Moon (and planets). An annular eclipse can occur when the Sun has a larger apparent size than the Moon, whereas a total eclipse can occur when the Moon has a larger apparent size.
+Terminology
+Hybrid eclipse
+A hybrid eclipse (also called annular/total eclipse) shifts between a total and annular eclipse. At certain points on the surface of Earth, it appears as a total eclipse, whereas at other points it appears as annular. Hybrid eclipses are comparatively rare.[6]
+
+A hybrid eclipse occurs when the magnitude of an eclipse changes during the event from less to greater than one, so the eclipse appears to be total at locations nearer the midpoint, and annular at other locations nearer the beginning and end, since the sides of Earth are slightly further away from the Moon. These eclipses are extremely narrow in their path width and relatively short in their duration at any point compared with fully total eclipses; the 2023 April 20 hybrid eclipse's totality is over a minute in duration at various points along the path of totality. Like a focal point, the width and duration of totality and annularity are near zero at the points where the changes between the two occur.[16]
+
+Central eclipse
+
+Each icon shows the view from the centre of its black spot, representing the Moon (not to scale)
+
+Diamond ring effect at third contact—the end of totality—with visible prominences (August 21, 2017)
+Central eclipse is often used as a generic term for a total, annular, or hybrid eclipse.[17] This is, however, not completely correct: the definition of a central eclipse is an eclipse during which the central line of the umbra touches Earth's surface. It is possible, though extremely rare, that part of the umbra intersects with Earth (thus creating an annular or total eclipse), but not its central line. This is then called a non-central total or annular eclipse.[17] Gamma is a measure of how centrally the shadow strikes. The last (umbral yet) non-central solar eclipse was on April 29, 2014. This was an annular eclipse. The next non-central total solar eclipse will be on April 9, 2043.[18]
+
+Eclipse phases
+The visual phases observed during a total eclipse are called:[19]
+
+First contact—when the Moon's limb (edge) is exactly tangential to the Sun's limb.
+Second contact—starting with Baily's Beads (caused by light shining through valleys on the Moon's surface) and the diamond ring effect. Almost the entire disk is covered.
+Totality—the Moon obscures the entire disk of the Sun and only the solar corona is visible.
+Third contact—when the first bright light becomes visible and the Moon's shadow is moving away from the observer. Again a diamond ring may be observed.
+Fourth contact—when the trailing edge of the Moon ceases to overlap with the solar disk and the eclipse ends.
+Predictions
+Geometry
+
+Geometry of a total solar eclipse (not to scale)
+The diagrams to the right show the alignment of the Sun, Moon, and Earth during a solar eclipse. The dark gray region between the Moon and Earth is the umbra, where the Sun is completely obscured by the Moon. The small area where the umbra touches Earth's surface is where a total eclipse can be seen. The larger light gray area is the penumbra, in which a partial eclipse can be seen. An observer in the antumbra, the area of shadow beyond the umbra, will see an annular eclipse.[20]
+
+The Moon's orbit around Earth is inclined at an angle of just over 5 degrees to the plane of Earth's orbit around the Sun (the ecliptic). Because of this, at the time of a new moon, the Moon will usually pass to the north or south of the Sun. A solar eclipse can occur only when a new moon occurs close to one of the points (known as nodes) where the Moon's orbit crosses the ecliptic.[21]
+
+As noted above, the Moon's orbit is also elliptical. The Moon's distance from Earth varies by up to about 5.9% from its average value. Therefore, the Moon's apparent size varies with its distance from Earth, and it is this effect that leads to the difference between total and annular eclipses. The distance of Earth from the Sun also varies during the year, but this is a smaller effect (by up to about 0.85% from its average value). On average, the Moon appears to be slightly (2.1%) smaller than the Sun as seen from Earth, so the majority (about 60%) of central eclipses are annular. It is only when the Moon is closer to Earth than average (near its perigee) that a total eclipse occurs.[22][23]
+
+Moon    Sun
+At perigee
+(nearest)       At apogee
+(farthest)      At perihelion
+(nearest)       At aphelion
+(farthest)
+Mean radius     1737.10 km
+(1079.38 mi)    696000 km
+(432000 mi)
+Distance        363104 km
+(225622 mi)     405696 km
+(252088 mi)     147098070 km
+(91402500 mi)   152097700 km
+(94509100 mi)
+Angular
+diameter[24]    33' 30"
+(0.5583°)       29' 26"
+(0.4905°)       32' 42"
+(0.5450°)       31' 36"
+(0.5267°)
+Apparent size
+to scale                                
+Order by
+decreasing
+apparent size   1st     4th     2nd     3rd
+The Moon orbits Earth in approximately 27.3 days, relative to a fixed frame of reference. This is known as the sidereal month. However, during one sidereal month, Earth has revolved part way around the Sun, making the average time between one new moon and the next longer than the sidereal month: it is approximately 29.5 days. This is known as the synodic month and corresponds to what is commonly called the lunar month.[21]
+
+The Moon crosses from south to north of the ecliptic at its ascending node, and vice versa at its descending node.[21] However, the nodes of the Moon's orbit are gradually moving in a retrograde motion, due to the action of the Sun's gravity on the Moon's motion, and they make a complete circuit every 18.6 years. This regression means that the time between each passage of the Moon through the ascending node is slightly shorter than the sidereal month. This period is called the nodical or draconic month.[25]
+
+Finally, the Moon's perigee is moving forwards or precessing in its orbit and makes a complete circuit in 8.85 years. The time between one perigee and the next is slightly longer than the sidereal month and known as the anomalistic month.[26]
+
+The Moon's orbit intersects with the ecliptic at the two nodes that are 180 degrees apart. Therefore, the new moon occurs close to the nodes at two periods of the year approximately six months (173.3 days) apart, known as eclipse seasons, and there will always be at least one solar eclipse during these periods. Sometimes the new moon occurs close enough to a node during two consecutive months to eclipse the Sun on both occasions in two partial eclipses. This means that, in any given year, there will always be at least two solar eclipses, and there can be as many as five.[27]
+
+Eclipses can occur only when the Sun is within about 15 to 18 degrees of a node, (10 to 12 degrees for central eclipses). This is referred to as an eclipse limit, and is given in ranges because the apparent sizes and speeds of the Sun and Moon vary throughout the year. In the time it takes for the Moon to return to a node (draconic month), the apparent position of the Sun has moved about 29 degrees, relative to the nodes.[2] Since the eclipse limit creates a window of opportunity of up to 36 degrees (24 degrees for central eclipses), it is possible for partial eclipses (or rarely a partial and a central eclipse) to occur in consecutive months.[28][29]
+
+
+Fraction of the Sun's disc covered, f, when the same-sized discs are offset a fraction t of their diameter.[30]
+Path
+
+From space, the Moon's shadow during the solar eclipse of March 9, 2016 appears as a dark spot moving across Earth.
+During a central eclipse, the Moon's umbra (or antumbra, in the case of an annular eclipse) moves rapidly from west to east across Earth. Earth is also rotating from west to east, at about 28 km/min at the Equator, but as the Moon is moving in the same direction as Earth's rotation at about 61 km/min, the umbra almost always appears to move in a roughly west–east direction across a map of Earth at the speed of the Moon's orbital velocity minus Earth's rotational velocity.[31]
+
+The width of the track of a central eclipse varies according to the relative apparent diameters of the Sun and Moon. In the most favourable circumstances, when a total eclipse occurs very close to perigee, the track can be up to 267 km (166 mi) wide and the duration of totality may be over 7 minutes.[32] Outside of the central track, a partial eclipse is seen over a much larger area of Earth. Typically, the umbra is 100–160 km wide, while the penumbral diameter is in excess of 6400 km.[33]
+
+Besselian elements are used to predict whether an eclipse will be partial, annular, or total (or annular/total), and what the eclipse circumstances will be at any given location.[34]: Chapter 11 
+
+Calculations with Besselian elements can determine the exact shape of the umbra's shadow on Earth's surface. But at what longitudes on Earth's surface the shadow will fall, is a function of Earth's rotation, and on how much that rotation has slowed down over time. A number called ΔT is used in eclipse prediction to take this slowing into account. As Earth slows, ΔT increases. ΔT for dates in the future can only be roughly estimated because Earth's rotation is slowing irregularly. This means that, although it is possible to predict that there will be a total eclipse on a certain date in the far future, it is not possible to predict in the far future exactly at what longitudes that eclipse will be total. Historical records of eclipses allow estimates of past values of ΔT and so of Earth's rotation. [34]: Equation 11.132 
+
+Duration
+The following factors determine the duration of a total solar eclipse (in order of decreasing importance):[35][36]
+
+The Moon being almost exactly at perigee (making its angular diameter as large as possible).
+Earth being very near aphelion (furthest away from the Sun in its elliptical orbit, making its angular diameter nearly as small as possible).
+The midpoint of the eclipse being very close to Earth's equator, where the rotational velocity is greatest and is closest to the speed of the lunar shadow moving over Earth's surface.
+The vector of the eclipse path at the midpoint of the eclipse aligning with the vector of Earth's rotation (i.e. not diagonal but due east).
+The midpoint of the eclipse being near the subsolar point (the part of Earth closest to the Sun).
+The longest eclipse that has been calculated thus far is the eclipse of July 16, 2186 (with a maximum duration of 7 minutes 29 seconds over northern Guyana).[35]
+
+Occurrence and cycles
+Main article: Eclipse cycle
+
+As Earth revolves around the Sun, approximate axial parallelism of the Moon's orbital plane (tilted five degrees to Earth's orbital plane) results in the revolution of the lunar nodes relative to Earth. This causes an eclipse season approximately every six months, in which a solar eclipse can occur at the new moon phase and a lunar eclipse can occur at the full moon phase.
+
+Total solar eclipse paths: 1001–2000, showing that total solar eclipses occur almost everywhere on Earth. This image was merged from 50 separate images from NASA.[37]
+A total solar eclipse is a rare event, recurring somewhere on Earth every 18 months on average,[38] yet is estimated to recur at any given location only every 360–410 years on average.[39] The total eclipse lasts for only a maximum of a few minutes at any location because the Moon's umbra moves eastward at over 1700 km/h (1100 mph; 470 m/s; 1500 ft/s).[40] Totality currently can never last more than 7 min 32 s. This value changes over the millennia and is currently decreasing. By the 8th millennium, the longest theoretically possible total eclipse will be less than 7 min 2 s.[35] The last time an eclipse longer than 7 minutes occurred was June 30, 1973 (7 min 3 sec). Observers aboard a Concorde supersonic aircraft were able to stretch totality for this eclipse to about 74 minutes by flying along the path of the Moon's umbra.[41] The next total eclipse exceeding seven minutes in duration will not occur until June 25, 2150. The longest total solar eclipse during the 11000 year period from 3000 BC to at least 8000 AD will occur on July 16, 2186, when totality will last 7 min 29 s.[35][42] For comparison, the longest total eclipse of the 20th century at 7 min 8 s occurred on June 20, 1955, and there will be no total solar eclipses over 7 min in duration in the 21st century.[43]
+
+It is possible to predict other eclipses using eclipse cycles. The saros is probably the best known and one of the most accurate. A saros lasts 6585.3 days (a little over 18 years), which means that, after this period, a practically identical eclipse will occur. The most notable difference will be a westward shift of about 120° in longitude (due to the 0.3 days) and a little in latitude (north-south for odd-numbered cycles, the reverse for even-numbered ones). A saros series always starts with a partial eclipse near one of Earth's polar regions, then shifts over the globe through a series of annular or total eclipses, and ends with a partial eclipse at the opposite polar region. A saros series lasts 1226 to 1550 years and 69 to 87 eclipses, with about 40 to 60 of them being central.[44]
+
+Frequency per year
+Between two and five solar eclipses occur every year, with at least one per eclipse season. Since the Gregorian calendar was instituted in 1582, years that have had five solar eclipses were 1693, 1758, 1805, 1823, 1870, and 1935. The next occurrence will be 2206.[45] On average, there are about 240 solar eclipses each century.[46]
+
+The five solar eclipses of 1935
+January 5       February 3      June 30 July 30 December 25
+Partial
+(south) Partial
+(north) Partial
+(north) Partial
+(south) Annular
+(south)
+
+Saros 111       
+Saros 149       
+Saros 116       
+Saros 154       
+Saros 121
+Final totality
+Total solar eclipses are seen on Earth because of a fortuitous combination of circumstances. Even on Earth, the diversity of eclipses familiar to people today is a temporary (on a geological time scale) phenomenon. Hundreds of millions of years in the past, the Moon was closer to Earth and therefore apparently larger, so every solar eclipse was total or partial, and there were no annular eclipses. Due to tidal acceleration, the orbit of the Moon around Earth becomes approximately 3.8 cm more distant each year. Millions of years in the future, the Moon will be too far away to fully occlude the Sun, and no total eclipses will occur. In the same timeframe, the Sun may become brighter, making it appear larger in size.[47] Estimates of the time when the Moon will be unable to occlude the entire Sun when viewed from Earth range between 650 million[48] and 1.4 billion years in the future.[47]
+
+Viewing
+2017 total solar eclipse viewed in real time with audience reactions
+Looking directly at the photosphere of the Sun (the bright disk of the Sun itself), even for just a few seconds, can cause permanent damage to the retina of the eye, because of the intense visible and invisible radiation that the photosphere emits. This damage can result in impairment of vision, up to and including blindness. The retina has no sensitivity to pain, and the effects of retinal damage may not appear for hours, so there is no warning that injury is occurring.[49][50]
+
+Under normal conditions, the Sun is so bright that it is difficult to stare at it directly. However, during an eclipse, with so much of the Sun covered, it is easier and more tempting to stare at it. Looking at the Sun during an eclipse is as dangerous as looking at it outside an eclipse, except during the brief period of totality, when the Sun's disk is completely covered (totality occurs only during a total eclipse and only very briefly; it does not occur during a partial or annular eclipse). Viewing the Sun's disk through any kind of optical aid (binoculars, a telescope, or even an optical camera viewfinder) is extremely hazardous and can cause irreversible eye damage within a fraction of a second.[51][52]
+
+Partial and annular eclipses
+
+Eclipse glasses filter out eye damaging radiation, allowing direct viewing of the Sun during all partial eclipse phases; they are not used during totality, when the Sun is completely eclipsed
+
+Pinhole projection method of observing partial solar eclipse. Insert (upper left): partially eclipsed Sun photographed with a white solar filter. Main image: projections of the partially eclipsed Sun (bottom right)
+Viewing the Sun during partial and annular eclipses (and during total eclipses outside the brief period of totality) requires special eye protection, or indirect viewing methods if eye damage is to be avoided. The Sun's disk can be viewed using appropriate filtration to block the harmful part of the Sun's radiation. Sunglasses do not make viewing the Sun safe. Only properly designed and certified solar filters should be used for direct viewing of the Sun's disk.[53] Especially, self-made filters using common objects such as a floppy disk removed from its case, a Compact Disc, a black colour slide film, smoked glass, etc. must be avoided.[54][55]
+
+The safest way to view the Sun's disk is by indirect projection.[56] This can be done by projecting an image of the disk onto a white piece of paper or card using a pair of binoculars (with one of the lenses covered), a telescope, or another piece of cardboard with a small hole in it (about 1 mm diameter), often called a pinhole camera. The projected image of the Sun can then be safely viewed; this technique can be used to observe sunspots, as well as eclipses. Care must be taken, however, to ensure that no one looks through the projector (telescope, pinhole, etc.) directly.[57] A kitchen colander with small holes can also be used to project multiple images of the partially eclipsed Sun onto the ground or a viewing screen. Viewing the Sun's disk on a video display screen (provided by a video camera or digital camera) is safe, although the camera itself may be damaged by direct exposure to the Sun. The optical viewfinders provided with some video and digital cameras are not safe. Securely mounting #14 welder's glass in front of the lens and viewfinder protects the equipment and makes viewing possible.[55] Professional workmanship is essential because of the dire consequences any gaps or detaching mountings will have. In the partial eclipse path, one will not be able to see the corona or nearly complete darkening of the sky. However, depending on how much of the Sun's disk is obscured, some darkening may be noticeable. If three-quarters or more of the Sun is obscured, then an effect can be observed by which the daylight appears to be dim, as if the sky were overcast, yet objects still cast sharp shadows.[58]
+
+Totality
+Solar eclipse of August 21, 2017
+
+Baily's beads, sunlight visible through lunar valleys
+
+Composite image with corona, prominences, and diamond ring effect
+When the shrinking visible part of the photosphere becomes very small, Baily's beads will occur. These are caused by the sunlight still being able to reach Earth through lunar valleys. Totality then begins with the diamond ring effect, the last bright flash of sunlight.[59]
+
+It is safe to observe the total phase of a solar eclipse directly only when the Sun's photosphere is completely covered by the Moon, and not before or after totality.[56] During this period, the Sun is too dim to be seen through filters. The Sun's faint corona will be visible, and the chromosphere, solar prominences, coronal streamers and possibly even a solar flare may be seen. At the end of totality, the same effects will occur in reverse order, and on the opposite side of the Moon.[59]
+
+Eclipse chasing
+Main article: Eclipse chasing
+A dedicated group of eclipse chasers have pursued the observation of solar eclipses when they occur around Earth.[60] A person who chases eclipses is known as an umbraphile, meaning shadow lover.[61] Umbraphiles travel for eclipses and use various tools to help view the sun including solar viewing glasses, also known as eclipse glasses, as well as telescopes.[62][63]
+
+Photography
+
+The progression of a solar eclipse on August 1, 2008 in Novosibirsk, Russia. All times UTC (local time was UTC+7). The time span between shots is three minutes.
+The first known photograph of a solar eclipse was taken on July 28, 1851, by Johann Julius Friedrich Berkowski, using the daguerreotype process.[64][65]
+
+Photographing an eclipse is possible with fairly common camera equipment. In order for the disk of the Sun/Moon to be easily visible, a fairly high magnification long focus lens is needed (at least 200 mm for a 35 mm camera), and for the disk to fill most of the frame, a longer lens is needed (over 500 mm). As with viewing the Sun directly, looking at it through the optical viewfinder of a camera can produce damage to the retina, so care is recommended.[66] Solar filters are required for digital photography even if an optical viewfinder is not used. Using a camera's live view feature or an electronic viewfinder is safe for the human eye, but the Sun's rays could potentially irreparably damage digital image sensors unless the lens is covered by a properly designed solar filter.[67]
+
+
+Pinholes in shadows during no eclipse (1 & 4), a partial eclipse (2 & 5) and an annular eclipse (3 & 6)
+
+Pinhole shadows during the Solar eclipse of April 8, 2024, as seen from Winder, Georgia.
+Historical eclipses
+Further information: Eclipses in mythology and culture and Lists of solar eclipses
+
+Astronomers Studying an Eclipse, Antoine Caron, 1571
+Historical eclipses are a very valuable resource for historians, in that they allow a few historical events to be dated precisely, from which other dates and ancient calendars may be deduced.[68] The oldest recorded solar eclipse was recorded on a clay tablet found at Ugarit, in modern Syria, with two plausible dates usually cited: 3 May 1375 BC or 5 March 1223 BC, the latter being favored by most recent authors on the topic.[69][70] A solar eclipse of June 15, 763 BC mentioned in an Assyrian text is important for the chronology of the ancient Near East.[71] There have been other claims to date earlier eclipses. The legendary Chinese king Zhong Kang supposedly beheaded two astronomers, Hsi and Ho, who failed to predict an eclipse 4000 years ago.[72] Perhaps the earliest still-unproven claim is that of archaeologist Bruce Masse, who putatively links an eclipse that occurred on May 10, 2807, BC with a possible meteor impact in the Indian Ocean on the basis of several ancient flood myths that mention a total solar eclipse.[73]
+
+
+Records of the solar eclipses of 993 and 1004 as well as the lunar eclipses of 1001 and 1002 by Ibn Yunus of Cairo (c. 1005).
+Eclipses have been interpreted as omens, or portents.[74] The ancient Greek historian Herodotus wrote that Thales of Miletus predicted an eclipse that occurred during a battle between the Medes and the Lydians. Both sides put down their weapons and declared peace as a result of the eclipse.[75] The exact eclipse involved remains uncertain, although the issue has been studied by hundreds of ancient and modern authorities. One likely candidate took place on May 28, 585 BC, probably near the Halys river in Asia Minor.[76] An eclipse recorded by Herodotus before Xerxes departed for his expedition against Greece,[77] which is traditionally dated to 480 BC, was matched by John Russell Hind to an annular eclipse of the Sun at Sardis on February 17, 478 BC.[78] Alternatively, a partial eclipse was visible from Persia on October 2, 480 BC.[79] Herodotus also reports a solar eclipse at Sparta during the Second Persian invasion of Greece.[80] The date of the eclipse (August 1, 477 BC) does not match exactly the conventional dates for the invasion accepted by historians.[81]
+
+In ancient China, where solar eclipses were known as an "eating of the Sun" (rìshí 日食), the earliest records of eclipses date to around 720 BC.[82] The 4th century BC astronomer Shi Shen described the prediction of eclipses by using the relative positions of the Moon and Sun.[83]
+
+Attempts have been made to establish the exact date of Good Friday by assuming that the darkness described at Jesus's crucifixion was a solar eclipse. This research has not yielded conclusive results,[84][85] and Good Friday is recorded as being at Passover, which is held at the time of a full moon. Further, the darkness lasted from the sixth hour to the ninth, or three hours, which is much, much longer than the eight-minute upper limit for any solar eclipse's totality. Contemporary chronicles wrote about an eclipse at the beginning of May 664 that coincided with the beginning of the plague of 664 in the British isles.[86] In the Western hemisphere, there are few reliable records of eclipses before AD 800, until the advent of Arab and monastic observations in the early medieval period.[82]
+
+A solar eclipse took place on January 27, 632 over Arabia during Muhammad's lifetime. Muhammad denied the eclipse had anything to do with his son dying earlier that day, saying "The sun and the moon do not eclipse because of the death of someone from the people but they are two signs amongst the signs of God."[87] The Cairo astronomer Ibn Yunus wrote that the calculation of eclipses was one of the many things that connect astronomy with the Islamic law, because it allowed knowing when a special prayer can be made.[88] The first recorded observation of the corona was made in Constantinople in AD 968.[79][82]
+
+
+Erhard Weigel, predicted course of Moon shadow on 12 August 1654 (O.S. 2 August)
+The first known telescopic observation of a total solar eclipse was made in France in 1706.[82] Nine years later, English astronomer Edmund Halley accurately predicted and observed the solar eclipse of May 3, 1715.[79][82] By the mid-19th century, scientific understanding of the Sun was improving through observations of the Sun's corona during solar eclipses. The corona was identified as part of the Sun's atmosphere in 1842, and the first photograph (or daguerreotype) of a total eclipse was taken of the solar eclipse of July 28, 1851.[79] Spectroscope observations were made of the solar eclipse of August 18, 1868, which helped to determine the chemical composition of the Sun.[79]
+
+John Fiske summed up myths about the solar eclipse like this in his 1872 book Myth and Myth-Makers,
+the myth of Hercules and Cacus, the fundamental idea is the victory of the solar god over the robber who steals the light. Now whether the robber carries off the light in the evening when Indra has gone to sleep, or boldly rears his black form against the sky during the daytime, causing darkness to spread over the earth, would make little difference to the framers of the myth. To a chicken a solar eclipse is the same thing as nightfall, and he goes to roost accordingly. Why, then, should the primitive thinker have made a distinction between the darkening of the sky caused by black clouds and that caused by the rotation of the earth? He had no more conception of the scientific explanation of these phenomena than the chicken has of the scientific explanation of an eclipse. For him it was enough to know that the solar radiance was stolen, in the one case as in the other, and to suspect that the same demon was to blame for both robberies.[89]
+
+Particular observations, phenomena and impact
+
+Solar eclipse with the still illuminated and refrecting horizon, as well as the coronal streamers,
+A total solar eclipse provides a rare opportunity to observe the corona (the outer layer of the Sun's atmosphere). Normally this is not visible because the photosphere is much brighter than the corona. According to the point reached in the solar cycle, the corona may appear small and symmetric, or large and fuzzy. It is very hard to predict this in advance.[90]
+
+Phenomena associated with eclipses include shadow bands (also known as flying shadows), which are similar to shadows on the bottom of a swimming pool. They occur only just prior to and after totality, when a narrow solar crescent acts as an anisotropic light source.[91] As the light filters through leaves of trees during a partial eclipse, the overlapping leaves create natural pinholes, displaying mini eclipses on the ground.[92]
+
+1919 observations
+See also: Tests of general relativity § Deflection of light by the Sun
+
+Eddington's original photograph of the 1919 eclipse, which provided evidence for Einstein's theory of general relativity.
+The observation of a total solar eclipse of May 29, 1919, helped to confirm Einstein's theory of general relativity. By comparing the apparent distance between stars in the constellation Taurus, with and without the Sun between them, Arthur Eddington stated that the theoretical predictions about gravitational lenses were confirmed.[93] The observation with the Sun between the stars was possible only during totality since the stars are then visible. Though Eddington's observations were near the experimental limits of accuracy at the time, work in the later half of the 20th century confirmed his results.[94][95]
+
+Gravity anomalies
+There is a long history of observations of gravity-related phenomena during solar eclipses, especially during the period of totality. In 1954, and again in 1959, Maurice Allais reported observations of strange and unexplained movement during solar eclipses.[96] The reality of this phenomenon, named the Allais effect, has remained controversial. Similarly, in 1970, Saxl and Allen observed the sudden change in motion of a torsion pendulum; this phenomenon is called the Saxl effect.[97]
+
+Observation during the 1997 solar eclipse by Wang et al. suggested a possible gravitational shielding effect,[98] which generated debate. In 2002, Wang and a collaborator published detailed data analysis, which suggested that the phenomenon still remains unexplained.[99]
+
+Eclipses and transits
+In principle, the simultaneous occurrence of a solar eclipse and a transit of a planet is possible. But these events are extremely rare because of their short durations. The next anticipated simultaneous occurrence of a solar eclipse and a transit of Mercury will be on July 5, 6757, and a solar eclipse and a transit of Venus is expected on April 5, 15232.[100]
+
+More common, but still infrequent, is a conjunction of a planet (especially, but not only, Mercury or Venus) at the time of a total solar eclipse, in which event the planet will be visible very near the eclipsed Sun, when without the eclipse it would have been lost in the Sun's glare. At one time, some scientists hypothesized that there may be a planet (often given the name Vulcan) even closer to the Sun than Mercury; the only way to confirm its existence would have been to observe it in transit or during a total solar eclipse. No such planet was ever found, and general relativity has since explained the observations that led astronomers to suggest that Vulcan might exist.[101]
+
+Artificial satellites
+
+The Moon's shadow over Turkey and Cyprus, seen from the ISS during a 2006 total solar eclipse.
+
+A composite image showing the ISS transit of the Sun while the 2017 solar eclipse was in progress
+Artificial satellites can also pass in front of the Sun as seen from Earth, but none is large enough to cause an eclipse. At the altitude of the International Space Station, for example, an object would need to be about 3.35 km (2.08 mi) across to blot the Sun out entirely. These transits are difficult to watch because the zone of visibility is very small. The satellite passes over the face of the Sun in about a second, typically. As with a transit of a planet, it will not get dark.[102]
+
+Observations of eclipses from spacecraft or artificial satellites orbiting above Earth's atmosphere are not subject to weather conditions. The crew of Gemini 12 observed a total solar eclipse from space in 1966.[103] The partial phase of the 1999 total eclipse was visible from Mir.[104]
+
+Impact
+The solar eclipse of March 20, 2015, was the first occurrence of an eclipse estimated to potentially have a significant impact on the power system, with the electricity sector taking measures to mitigate any impact. The continental Europe and Great Britain synchronous areas were estimated to have about 90 gigawatts of solar power and it was estimated that production would temporarily decrease by up to 34 GW compared to a clear sky day.[105][106]
+
+Eclipses may cause the temperature to decrease by 3 °C (5 °F), with wind power potentially decreasing as winds are reduced by 0.7 meters (2.3 ft) per second.[107]
+
+In addition to the drop in light level and air temperature, animals change their behavior during totality. For example, birds and squirrels return to their nests and crickets chirp.[108]
+
+Recent and forthcoming solar eclipses
+Main article: List of solar eclipses in the 21st century
+Further information: Lists of solar eclipses
+
+This section needs additional citations for verification. Please help improve this article by adding citations to reliable sources in this section. Unsourced material may be challenged and removed. (May 2024) (Learn how and when to remove this message)
+
+Eclipse path for total and hybrid eclipses from 2021 to 2040
+Eclipses occur only in the eclipse season, when the Sun is close to either the ascending or descending node of the Moon. Each eclipse is separated by one, five or six lunations (synodic months), and the midpoint of each season is separated by 173.3 days, which is the mean time for the Sun to travel from one node to the next. The period is a little less than half a calendar year because the lunar nodes slowly regress. Because 223 synodic months is roughly equal to 239 anomalistic months and 242 draconic months, eclipses with similar geometry recur 223 synodic months (about 6,585.3 days) apart. This period (18 years 11.3 days) is a saros. Because 223 synodic months is not identical to 239 anomalistic months or 242 draconic months, saros cycles do not endlessly repeat. Each cycle begins with the Moon's shadow crossing Earth near the north or south pole, and subsequent events progress toward the other pole until the Moon's shadow misses Earth and the series ends.[28] Saros cycles are numbered; currently, cycles 117 to 156 are active.[citation needed]
+
+1997–2000
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[109]
+
+Solar eclipse series sets from 1997 to 2000 
+Descending node         Ascending node
+Saros   Map     Gamma   Saros   Map     Gamma
+120
+
+Chita, Russia   1997 March 09
+
+Total   0.91830 125     1997 September 02
+
+Partial (south) −1.03521
+130
+
+Total eclipse near Guadeloupe   1998 February 26
+
+Total   0.23909 135     1998 August 22
+
+Annular −0.26441
+140     1999 February 16
+
+Annular −0.47260        145
+
+Totality from France    1999 August 11
+
+Total   0.50623
+150     2000 February 05
+
+Partial (south) −1.22325        155     2000 July 31
+
+Partial (north) 1.21664
+Partial solar eclipses on July 1, 2000 and December 25, 2000 occur in the next lunar year eclipse set.
+
+2000–2003
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[110]
+
+Partial solar eclipses on February 5, 2000 and July 31, 2000 occur in the previous lunar year set.
+
+Solar eclipse series sets from 2000 to 2003 
+Ascending node          Descending node
+Saros   Map     Gamma   Saros   Map     Gamma
+117     2000 July 01
+
+Partial (south) −1.28214        122     2000 December 25
+
+Partial (north) 1.13669
+127
+
+Totality from Lusaka, Zambia    2001 June 21
+
+Total   −0.57013        132
+
+Partial from Minneapolis, MN    2001 December 14
+
+Annular 0.40885
+137
+
+Partial from Los Angeles, CA    2002 June 10
+
+Annular 0.19933 142
+
+Totality from Woomera   2002 December 04
+
+Total   −0.30204
+147
+
+Culloden, Scotland      2003 May 31
+
+Annular 0.99598 152     2003 November 23
+
+Total   −0.96381
+2004–2007
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[111]
+
+Solar eclipse series sets from 2004 to 2007 
+Ascending node          Descending node
+Saros   Map     Gamma   Saros   Map     Gamma
+119     2004 April 19
+
+Partial (south) −1.13345        124     2004 October 14
+
+Partial (north) 1.03481
+129
+
+Partial from Naiguatá   2005 April 08
+
+Hybrid  −0.34733        134
+
+Annular from Madrid, Spain      2005 October 03
+
+Annular 0.33058
+139
+
+Total from Side, Turkey 2006 March 29
+
+Total   0.38433 144
+
+Partial from São Paulo, Brazil  2006 September 22
+
+Annular −0.40624
+149
+
+From Jaipur, India      2007 March 19
+
+Partial (north) 1.07277 154
+
+From Córdoba, Argentina 2007 September 11
+
+Partial (south) −1.12552
+2008–2011
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[112]
+
+Solar eclipse series sets from 2008 to 2011 
+Ascending node          Descending node
+Saros   Map     Gamma   Saros   Map     Gamma
+121
+
+Partial from Christchurch, NZ   2008 February 07
+
+Annular −0.95701        126
+
+Novosibirsk, Russia     2008 August 01
+
+Total   0.83070
+131
+
+Palangka Raya, Indonesia        2009 January 26
+
+Annular −0.28197        136
+
+Kurigram, Bangladesh    2009 July 22
+
+Total   0.06977
+141
+
+Bangui, Central African Republic        2010 January 15
+
+Annular 0.40016 146
+
+Hao, French Polynesia   2010 July 11
+
+Total   −0.67877
+151
+
+Partial from Vienna, Austria    2011 January 04
+
+Partial (north) 1.06265 156     2011 July 01
+
+Partial (south) −1.49171
+Partial solar eclipses on June 1, 2011, and November 25, 2011, occur on the next lunar year eclipse set.
+
+2011–2014
+This eclipse is a member of the 2011–2014 solar eclipse semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[113][Note 1]
+
+Solar eclipse series sets from 2011 to 2014 
+Descending node         Ascending node
+Saros   Map     Gamma   Saros   Map     Gamma
+118
+
+Partial from Tromsø, Norway     2011 June 01
+
+Partial (north) 1.21300 123
+
+Hinode XRT footage      2011 November 25
+
+Partial (south) −1.05359
+128
+
+Middlegate, Nevada      2012 May 20
+
+Annular 0.48279 133
+
+Cairns, Australia       2012 November 13
+
+Total   −0.37189
+138
+
+Churchills Head, Australia      2013 May 10
+
+Annular −0.26937        143
+
+Partial from Libreville, Gabon  2013 November 03
+
+Hybrid  0.32715
+148
+
+Partial from Adelaide, Australia        2014 April 29
+
+Annular (non-central)   −0.99996        153
+
+Partial from Minneapolis        2014 October 23
+
+Partial (north) 1.09078
+2015–2018
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[114]
+
+Solar eclipse series sets from 2015 to 2018 
+Descending node         Ascending node
+Saros   Map     Gamma   Saros   Map     Gamma
+120
+
+Longyearbyen, Svalbard  2015 March 20
+
+Total   0.94536 125
+
+Solar Dynamics Observatory      
+2015 September 13
+
+Partial (south) −1.10039
+130
+
+Balikpapan, Indonesia   2016 March 9
+
+Total   0.26092 135
+
+L'Étang-Salé, Réunion   2016 September 1
+
+Annular −0.33301
+140
+
+Partial from Buenos Aires       2017 February 26
+
+Annular −0.45780        145
+
+Casper, Wyoming 2017 August 21
+
+Total   0.43671
+150
+
+Partial from Olivos, Buenos Aires       2018 February 15
+
+Partial (south) −1.21163        155
+
+Partial from Huittinen, Finland 2018 August 11
+
+Partial (north) 1.14758
+Partial solar eclipses on July 13, 2018, and January 6, 2019, occur during the next semester series.
+
+2018–2021
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[115]
+
+Note: Partial solar eclipses on February 15, 2018, and August 11, 2018, occurred during the previous semester series.
+
+Solar eclipse series sets from 2018 to 2021 
+Ascending node          Descending node
+Saros   Map     Gamma   Saros   Map     Gamma
+117
+
+Partial from Melbourne, Australia       2018 July 13
+
+Partial −1.35423        122
+
+Partial from Nakhodka, Russia   2019 January 6
+
+Partial 1.14174
+127
+
+La Serena, Chile        2019 July 2
+
+Total   −0.64656        132
+
+Jaffna, Sri Lanka       2019 December 26
+
+Annular 0.41351
+137
+
+Beigang, Yunlin, Taiwan 2020 June 21
+
+Annular 0.12090 142
+
+Gorbea, Chile   2020 December 14
+
+Total   −0.29394
+147
+
+Partial from Halifax, Canada    2021 June 10
+
+Annular 0.91516 152
+
+From HMS Protector off South Georgia    2021 December 4
+
+Total   −0.95261
+2022–2025
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[116]
+
+Solar eclipse series sets from 2022 to 2025
+2026–2029
+This eclipse is a member of a semester series. An eclipse in a semester series of solar eclipses repeats approximately every 177 days and 4 hours (a semester) at alternating nodes of the Moon's orbit.[117]
+
+Solar eclipse series sets from 2026 to 2029 
+Ascending node          Descending node
+Saros   Map     Gamma   Saros   Map     Gamma
+121     2026 February 17
+
+Annular −0.97427        126     2026 August 12
+
+Total   0.89774
+131     2027 February 6
+
+Annular −0.29515        136     2027 August 2
+
+Total   0.14209
+141     2028 January 26
+
+Annular 0.39014 146     2028 July 22
+
+Total   −0.60557
+151     2029 January 14
+
+Partial 1.05532 156     2029 July 11
+
+Partial −1.41908
+Partial solar eclipses on June 12, 2029, and December 5, 2029, occur in the next lunar year eclipse set.
+
+See also
+Lists of solar eclipses
+List of films featuring eclipses
+Apollo–Soyuz: First joint U.S.–Soviet space flight. Mission included an arranged eclipse of the Sun by the Apollo module to allow instruments on the Soyuz to take photographs of the solar corona.
+Eclipse chasing: Travel to eclipse locations for study and enjoyment
+Occultation: Generic term for occlusion of an object by another object that passes between it and the observer, thus revealing (for example) the presence of an exoplanet orbiting a distant star by eclipsing it as seen from Earth
+Eclipses in history and culture: treatment of solar and lunar eclipses by historical and contemporary society and religion
+Solar eclipses in fiction
+Solar eclipses on the Moon: Eclipse of the Sun by planet Earth, as seen from the Moon
+Lunar eclipse: Solar eclipse of the Moon, as seen from Earth; the shadow cast on the Moon by that eclipse
+Transit of Venus: Passage of the planet Venus between the Sun and Earth, as seen from Earth. Technically a partial eclipse.
+Transit of Deimos from Mars: Passage of the Martian moon Deimos between the Sun and Mars, as seen from Mars
+Transit of Phobos from Mars: Passage of the Martian moon Phobos between the Sun and Mars, as seen from Mars
+Footnotes
+ The partial solar eclipses of January 4, 2011 and July 1, 2011 occurred in the previous semester series.
+References
+ "What is an eclipse?". European Space Agency. Archived from the original on 2018-08-04. Retrieved 2018-08-04.
+ Littmann, Mark; Espenak, Fred; Willcox, Ken (2008). Totality: Eclipses of the Sun. Oxford University Press. pp. 18–19. ISBN 978-0-19-953209-4.
+ Five solar eclipses occurred in 1935.NASA (September 6, 2009). "Five Millennium Catalog of Solar Eclipses". NASA Eclipse Web Site. Fred Espenak, Project and Website Manager. Archived from the original on April 29, 2010. Retrieved January 26, 2010.
+ Koukkos, Christina (May 14, 2009). "Eclipse Chasing, in Pursuit of Total Awe". The New York Times. Archived from the original on June 26, 2018. Retrieved January 15, 2012.
+ Pasachoff, Jay M. (July 10, 2010). "Why I Never Miss a Solar Eclipse". The New York Times. Archived from the original on June 26, 2018. Retrieved January 15, 2012.
+ Harrington, pp. 9–11
+ "Solar Eclipses". University of Tennessee. Archived from the original on June 9, 2015. Retrieved January 15, 2012.
+ "How Is the Sun Completely Blocked in an Eclipse?". NASA Space Place. NASA. 2009. Archived from the original on 2021-01-19. Retrieved 2019-09-01.
+ Steel, p. 351
+ Baylor University Department of Physics (2024). "What is a solar eclipse?". Baylor University. Retrieved April 12, 2024. There are three main types of solar eclipses: Total solar eclipse, Partial solar eclipse, Annular solar eclipse
+ "What Are the Three Types of Solar Eclipses?". Exploratorium. Retrieved 11 Oct 2023.
+ Harrington, pp. 7–8
+ "Eclipse: Who? What? Where? When? and How? | Total Solar Eclipse 2017". eclipse2017.nasa.gov. Archived from the original on 2017-09-18. Retrieved 2017-09-21.
+ Villalpando, Roberto (September 15, 2023). "October eclipse will be annular, not annual, but oversized glasses show how confusing it can be". San Antonio Express-News. Retrieved April 11, 2024. Annular means of, relating to or forming a ring [...] it has its roots in the Latin word for ring, 'anulus'. [...] Annual, on the other hand, means occurring every year or once a year. The word also has a Latin ancestor: 'annus', which means year.
+ "Transit of Venus, Sun–Earth Day 2012". nasa.gov. Archived from the original on January 14, 2016. Retrieved February 7, 2016.
+ Espenak, Fred (September 26, 2009). "Solar Eclipses for Beginners". MrEclipse.com. Archived from the original on May 24, 2015. Retrieved January 15, 2012.
+ Espenak, Fred (January 6, 2009). "Central Solar Eclipses: 1991–2050". NASA Eclipse web site. Greenbelt, MD: NASA Goddard Space Flight Center. Archived from the original on January 8, 2021. Retrieved January 15, 2012.
+ Verbelen, Felix (November 2003). "Solar Eclipses on Earth, 1001 BC to AD 2500". online.be. Archived from the original on August 3, 2019. Retrieved January 15, 2012.
+ Harrington, pp. 13–14; Steel, pp. 266–279
+ Mobberley, pp. 30–38
+ Harrington, pp. 4–5
+ Hipschman, Ron. "Why Eclipses Happen". Exploratorium. Archived from the original on December 27, 2015. Retrieved January 14, 2012.
+ Brewer, Bryan (January 14, 1998). "What Causes an Eclipse?". Earth View. Archived from the original on January 2, 2013. Retrieved January 14, 2012.
+ NASA – Eclipse 99 – Frequently Asked Questions Archived 2010-05-27 at the Wayback Machine – There is a mistake in the How long will we continue to be able to see total eclipses of the Sun? answer, "...the Sun's angular diameter varies from 32.7 minutes of arc when the Earth is at its farthest point in its orbit (aphelion), and 31.6 arc minutes when it is at its closest (perihelion)." It should appear smaller when farther, so the values should be swapped.
+ Steel, pp. 319–321
+ Steel, pp. 317–319
+ Harrington, pp. 5–7
+ Espenak, Fred (August 28, 2009). "Periodicity of Solar Eclipses". NASA Eclipse web site. Greenbelt, MD: NASA Goddard Space Flight Center. Archived from the original on November 12, 2020. Retrieved January 15, 2012.
+ Espenak, Fred; Meeus, Jean (January 26, 2007). "Five Millennium Catalog of Solar Eclipses: -1999 to +3000". NASA Eclipse web site. Greenbelt, MD: NASA Goddard Space Flight Center. Archived from the original on October 24, 2020. Retrieved January 15, 2012.
+ European Space Agency, "Spacecraft flight dynamics Archived 2019-12-11 at the Wayback Machine: proceedings of an international symposium, 18–22 May 1981 – Darmstadt, Germany", p. 347
+ Mobberley, pp. 33–37
+ "How do eclipses such as the one on Wednesday 14 November 2012 occur?". Sydney Observatory. Archived from the original on 29 April 2013. Retrieved 20 March 2015.
+ Steel, pp. 52–53
+ Seidelmann, P. Kenneth; Urban, Sean E., eds. (2013). Explanatory Supplement to the Astronomical Almanac (3rd ed.). University Science Books. ISBN 978-1-891389-85-6.
+ Meeus, J. (December 2003). "The maximum possible duration of a total solar eclipse". Journal of the British Astronomical Association. 113 (6): 343–348. Bibcode:2003JBAA..113..343M.
+ M. Littman, et al.
+ Espenak, Fred (March 24, 2008). "World Atlas of Solar Eclipse Paths". NASA Eclipse web site. NASA Goddard Space Flight Center. Archived from the original on July 14, 2012. Retrieved January 15, 2012.
+ Steel, p. 4
+ For 360 years, see Harrington, p. 9; for 410 years, see Steel, p. 31
+ Mobberley, pp. 33–36; Steel, p. 258
+ Beckman, J.; Begot, J.; Charvin, P.; Hall, D.; Lena, P.; Soufflot, A.; Liebenberg, D.; Wraight, P. (1973). "Eclipse Flight of Concorde 001". Nature. 246 (5428): 72–74. Bibcode:1973Natur.246...72B. doi:10.1038/246072a0. S2CID 10644966.
+ Stephenson, F. Richard (1997). Historical Eclipses and Earth's Rotation. Cambridge University Press. p. 54. doi:10.1017/CBO9780511525186. ISBN 0-521-46194-4. Archived from the original on 2020-08-01. Retrieved 2012-01-04.
+ Mobberley, p. 10
+ Espenak, Fred (August 28, 2009). "Eclipses and the Saros". NASA Eclipse web site. NASA Goddard Space Flight Center. Archived from the original on May 24, 2012. Retrieved January 15, 2012.
+ Pogo, Alexander (1935). "Calendar years with five solar eclipses". Popular Astronomy. Vol. 43. p. 412. Bibcode:1935PA.....43..412P.
+ "What are solar eclipses and how often do they occur?". timeanddate.com. Archived from the original on 2017-02-02. Retrieved 2014-11-23.
+ Walker, John (July 10, 2004). "Moon near Perigee, Earth near Aphelion". Fourmilab. Archived from the original on December 8, 2013. Retrieved March 7, 2010.
+ Mayo, Lou. "WHAT'S UP? The Very Last Solar Eclipse!". NASA. Archived from the original on 2017-08-22. Retrieved 22 August 2017.
+ Espenak, Fred (July 11, 2005). "Eye Safety During Solar Eclipses". NASA Eclipse web site. NASA Goddard Space Flight Center. Archived from the original on July 16, 2012. Retrieved January 15, 2012.
+ Dobson, Roger (August 21, 1999). "UK hospitals assess eye damage after solar eclipse". British Medical Journal. 319 (7208): 469. doi:10.1136/bmj.319.7208.469. PMC 1116382. PMID 10454393.
+ MacRobert, Alan M. (8 August 2006). "How to Watch a Partial Solar Eclipse Safely". Sky & Telescope. Retrieved August 4, 2007.
+ Chou, B. Ralph (July 11, 2005). "Eye safety during solar eclipses". NASA Eclipse web site. NASA Goddard Space Flight Center. Archived from the original on November 14, 2020. Retrieved January 15, 2012.
+ Littmann, Mark; Willcox, Ken; Espenak, Fred (1999). "Observing Solar Eclipses Safely". MrEclipse.com. Archived from the original on July 26, 2020. Retrieved January 15, 2012.
+ Chou, B. Ralph (January 20, 2008). "Eclipse Filters". MrEclipse.com. Archived from the original on November 27, 2020. Retrieved January 4, 2012.
+ "Solar Viewing Safety". Perkins Observatory. Archived from the original on July 14, 2020. Retrieved January 15, 2012.
+ Harrington, p. 25
+ Harrington, p. 26
+ Harrington, p. 40
+ Littmann, Mark; Willcox, Ken; Espenak, Fred (1999). "The Experience of Totality". MrEclipse.com. Archived from the original on February 4, 2012. Retrieved January 15, 2012.
+ Kate Russo (2012). Total Addiction: The Life of an Eclipse Chaser. Springer Science & Business Media. ISBN 978-3-642-30481-1. Archived from the original on 9 December 2019. Retrieved 24 August 2017.
+ Kelly, Pat (2017-07-06). "Umbraphile, Umbraphilia, Umbraphiles, and Umbraphiliacs – Solar Eclipse with the Sol Alliance". Solar Eclipse with the Sol Alliance. Archived from the original on 2019-08-13. Retrieved 2017-08-24.
+ "How to View the 2017 Solar Eclipse Safely". eclipse2017.nasa.gov. Archived from the original on 2017-08-24. Retrieved 2017-08-24.
+ Wright, Andy (2017-08-16). "Chasing Totality: A Look Into the World of Umbraphiles". Atlas Obscura. Archived from the original on 2020-12-14. Retrieved 2017-08-24.
+ Weitering, Hanneke (2017-07-28). "1st Photo of a Total Solar Eclipse Was Taken 166 Years Ago Today". Space.com. Retrieved 2024-04-08.
+ Farber, Madeline (2017-08-11). "This Is the First-Ever Photo of a Total Solar Eclipse". TIME. Retrieved 2024-04-09.
+ Kramer, Bill. "Photographing a Total Solar Eclipse". Eclipse-chasers.com. Archived from the original on January 29, 2009. Retrieved March 7, 2010.
+ Vorenkamp, Todd (April 2017). "How to Photograph a Solar Eclipse". B&H Photo Video. Archived from the original on July 1, 2019. Retrieved August 19, 2017.
+ Acta Eruditorum. Leipzig. 1762. p. 168. Archived from the original on 2020-07-31. Retrieved 2018-06-06.
+ "Solar Physics Historical Timeline (1223 BC – 200 BC) | High Altitude Observatory". www2.hao.ucar.edu. Retrieved 2023-12-14.
+ Smith, Kiona N. "People Recorded A Total Solar Eclipse For The First Time 3,241 Years Ago". Forbes. Retrieved 2023-12-14.
+ van Gent, Robert Harry. "Astronomical Chronology". University of Utrecht. Archived from the original on July 28, 2020. Retrieved January 15, 2012.
+ Harrington, p. 2
+ Blakeslee, Sandra (November 14, 2006). "Ancient Crash, Epic Wave". The New York Times. Archived from the original on April 11, 2009. Retrieved November 14, 2006.
+ Steel, p. 1
+ Steel, pp. 84–85
+ Le Conte, David (December 6, 1998). "Eclipse Quotations". MrEclipse.com. Archived from the original on October 17, 2020. Retrieved January 8, 2011.
+ Herodotus. Book VII. p. 37. Archived from the original on 2008-08-19. Retrieved 2008-07-13.
+ Chambers, G. F. (1889). A Handbook of Descriptive and Practical Astronomy. Oxford: Clarendon Press. p. 323.
+ Espenak, Fred. "Solar Eclipses of Historical Interest". NASA Eclipse web site. NASA Goddard Space Flight Center. Archived from the original on March 9, 2008. Retrieved December 28, 2011.
+ Herodotus. Book IX. p. 10. Archived from the original on 2020-07-26. Retrieved 2008-07-14.
+ Schaefer, Bradley E. (May 1994). "Solar Eclipses That Changed the World". Sky & Telescope. Vol. 87, no. 5. pp. 36–39. Bibcode:1994S&T....87...36S.
+ Stephenson, F. Richard (1982). "Historical Eclipses". Scientific American. Vol. 247, no. 4. pp. 154–163. Bibcode:1982SciAm.247d.154S.
+ Needham, Joseph (1986). Science and Civilization in China: Volume 3. Taipei: Caves Books. pp. 411–413. OCLC 48999277.
+ Humphreys, C. J.; Waddington, W. G. (1983). "Dating the Crucifixion". Nature. 306 (5945): 743–746. Bibcode:1983Natur.306..743H. doi:10.1038/306743a0. S2CID 4360560.
+ Kidger, Mark (1999). The Star of Bethlehem: An Astronomer's View. Princeton, NJ: Princeton University Press. pp. 68–72. ISBN 978-0-691-05823-8.
+ Ó Cróinín, Dáibhí (13 May 2020). "Reeling in the years: why 664 AD was a terrible year in Ireland". rte.ie. Archived from the original on 2021-01-08. Retrieved January 9, 2021.
+ "Translation of Sahih Bukhari, Book 18".
+ Regis Morelon (1996). "General survey of Arabic astronomy". In Roshdi Rashed (ed.). Encyclopedia of the History of Arabic Science. Vol. I. Routledge. p. 15.
+ Fiske, John (1997). Myths and Myth-Makers Old Tales and Superstitions Interpreted by Comparative Mythology. Archived from the original on July 26, 2020. Retrieved February 12, 2017 – via Project Gutenberg.
+ "The science of eclipses". ESA. September 28, 2004. Archived from the original on August 1, 2012. Retrieved August 4, 2007.
+ Dravins, Dainis. "Flying Shadows". Lund Observatory. Archived from the original on July 26, 2020. Retrieved January 15, 2012.
+ Johnson-Groh, Mara (10 August 2017). "Five Tips from NASA for Photographing the Total Solar Eclipse on Aug. 21". NASA. Archived from the original on 18 August 2020. Retrieved 21 September 2017.
+ Dyson, F.W.; Eddington, A.S.; Davidson, C.R. (1920). "A Determination of the Deflection of Light by the Sun's Gravitational Field, from Observations Made at the Solar eclipse of May 29, 1919". Phil. Trans. Roy. Soc. A. 220 (571–81): 291–333. Bibcode:1920RSPTA.220..291D. doi:10.1098/rsta.1920.0009. Archived from the original on November 3, 2020. Retrieved August 27, 2019.
+ "Relativity and the 1919 eclipse". ESA. September 13, 2004. Archived from the original on October 21, 2012. Retrieved January 11, 2011.
+ Steel, pp. 114–120
+ Allais, Maurice (1959). "Should the Laws of Gravitation be Reconsidered?". Aero/Space Engineering. 9: 46–55.
+ Saxl, Erwin J.; Allen, Mildred (1971). "1970 solar eclipse as 'seen' by a torsion pendulum". Physical Review D. 3 (4): 823–825. Bibcode:1971PhRvD...3..823S. doi:10.1103/PhysRevD.3.823.
+ Wang, Qian-shen; Yang, Xin-she; Wu, Chuan-zhen; Guo, Hong-gang; Liu, Hong-chen; Hua, Chang-chai (2000). "Precise measurement of gravity variations during a total solar eclipse". Physical Review D. 62 (4): 041101(R). arXiv:1003.4947. Bibcode:2000PhRvD..62d1101W. doi:10.1103/PhysRevD.62.041101. S2CID 6846335.
+ Yang, X. S.; Wang, Q. S. (2002). "Gravity anomaly during the Mohe total solar eclipse and new constraint on gravitational shielding parameter". Astrophysics and Space Science. 282 (1): 245–253. Bibcode:2002Ap&SS.282..245Y. doi:10.1023/A:1021119023985. S2CID 118497439.
+ Meeus, J.; Vitagliano, A. (2004). "Simultaneous transits" (PDF). J. Br. Astron. Assoc. 114 (3): 132–135. Bibcode:2004JBAA..114..132M. Archived from the original (PDF) on July 10, 2007.
+ Grego, Peter (2008). Venus and Mercury, and How to Observe Them. Springer. p. 3. ISBN 978-0387742854.
+ "ISS-Venustransit". astronomie.info (in German). Archived from the original on 2020-07-28. Retrieved 2004-07-29.
+ "JSC Digital Image Collection". NASA Johnson Space Center. January 11, 2006. Archived from the original on February 4, 2012. Retrieved January 15, 2012.
+ Nemiroff, R.; Bonnell, J., eds. (August 30, 1999). "Looking Back on an Eclipsed Earth". Astronomy Picture of the Day. NASA. Retrieved January 15, 2012.
+ "Solar Eclipse 2015 – Impact Analysis Archived 2017-02-21 at the Wayback Machine" pp. 3, 6–7, 13. European Network of Transmission System Operators for Electricity, 19 February 2015. Accessed: 4 March 2015.
+ "Curve of potential power loss". ing.dk. Archived from the original on 2020-07-28. Retrieved 2015-03-04.
+ Gray, S. L.; Harrison, R. G. (2012). "Diagnosing eclipse-induced wind changes". Proceedings of the Royal Society. 468 (2143): 1839–1850. Bibcode:2012RSPSA.468.1839G. doi:10.1098/rspa.2012.0007. Archived from the original on 2015-03-04. Retrieved 2015-03-04.
+ Young, Alex. "How Eclipses Work". NASA. Archived from the original on 2017-09-18. Retrieved 21 September 2017.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+ van Gent, R.H. "Solar- and Lunar-Eclipse Predictions from Antiquity to the Present". A Catalogue of Eclipse Cycles. Utrecht University. Retrieved 6 October 2018.
+Bibliography
+Mucke, Hermann; Meeus, Jean (1992). Canon of Solar Eclipses −2003 to +2526 (2 ed.). Vienna: Astronomisches Büro.
+Harrington, Philip S. (1997). Eclipse! The What, Where, When, Why and How Guide to Watching Solar and Lunar Eclipses. New York: John Wiley and Sons. ISBN 0-471-12795-7.
+Steel, Duncan (1999). Eclipse: The celestial phenomenon which has changed the course of history. London: Headline. ISBN 0-7472-7385-5.
+Mobberley, Martin (2007). Total Solar Eclipses and How to Observe Them. Astronomers' Observing Guides. New York: Springer. ISBN 978-0-387-69827-4.
+Espenak, Fred (2015). Thousand Year Canon of Solar Eclipses 1501 to 2500. Portal AZ: Astropixels Publishing. ISBN 978-1-941983-02-7.
+Espenak, Fred (2016). 21st Century Canon of Solar Eclipses. Portal AZ: Astropixels Publishing. ISBN 978-1-941983-12-6.
+Fotheringham, John Knight (1921). Historical eclipses: being the Halley lecture delivered 17 May 1921. Oxford: Clarendon Press.
+External links
+
+Wikimedia Commons has media related to Solar eclipses.
+
+Wikivoyage has a travel guide for Solar eclipses.
+Listen to this article
+(2 parts, 27 minutes)
+Duration: 15 minutes and 41 seconds.15:41
+Duration: 11 minutes and 48 seconds.11:48
+Spoken Wikipedia icon
+These audio files were created from a revision of this article dated 3 May 2006, and do not reflect subsequent edits.
+(Audio help · More spoken articles)
+NASA Eclipse Web Site, with information on future eclipses and eye safety information
+NASA Eclipse Web Site (older version)
+Eclipsewise, Fred Espenak's new eclipse site
+Andrew Lowe's Eclipse Page, with maps and circumstances for 5000 years of solar eclipses
+A Guide to Eclipse Activities for Educators, Explaining eclipses in educational settings
+Detailed eclipse explanations and predictions, Hermit Eclipse
+Eclipse Photography, Prof. Miroslav Druckmüller
+Animated maps of August 21, 2017 solar eclipses, Larry Koehn
+Five Millennium (−1999 to +3000) Canon of Solar Eclipses Database, Xavier M. Jubier
+Animated explanation of the mechanics of a solar eclipse Archived 2013-05-25 at the Wayback Machine, University of South Wales
+Eclipse Image Gallery Archived 2016-10-15 at the Wayback Machine, The World at Night
+Ring of Fire Eclipse: 2012, Photos
+"Sun, Eclipses of the" . Collier's New Encyclopedia. 1921.
+Centered and aligned video recording of Total Solar Eclipse 20th March 2015 on YouTube
+Solar eclipse photographs taken from the Lick Observatory from the Lick Observatory Records Digital Archive, UC Santa Cruz Library’s Digital Collections Archived 2020-06-05 at the Wayback Machine
+Video with Total Solar Eclipse March 09 2016 (from the beginning to the total phase) on YouTube
+Total Solar Eclipse Shadow on Earth March 09 2016 CIMSSSatelite
+List of all solar eclipses
+National Geographic Solar Eclipse 101 video Archived 2018-08-04 at the Wayback Machine
+ Wikiversity has a solar eclipse lab that students can do on any sunny day.
+vte
+Solar eclipses
+vte
+The Sun
+vte
+The Moon
+vte
+Stars
+Portals:
+ Astronomy
+icon Stars
+ Spaceflight
+ Outer space
+ Solar System
+Authority control databases: National Edit this at Wikidata     
+GermanyIsraelUnited StatesJapanCzech Republic
+Categories: EclipsesSolar eclipses
+This page was last edited on 22 May 2024, at 22:05 (UTC).
+Text is available under the Creative Commons Attribution-ShareAlike License 4.0; additional terms may apply. By using this site, you agree to the Terms of Use and Privacy Policy. Wikipedia® is a registered trademark of the Wikimedia Foundation, Inc., a non-profit organization.
+Privacy policyAbout WikipediaDisclaimersContact WikipediaCode of ConductDevelopersStatisticsCookie statementMobile viewWikimedia FoundationPowered by MediaWiki
+
+\"\"\"
+Summarize"""
+
+long_resopnse = """Based on the information provided in the given context, there is no relevant information or mention of the books or authors mentioned in the question. Therefore, it is not possible to provide a summary or insightful response to the question about the books "Canon of Solar Eclipses" and "Eclipse! The What, Where, When, Why and How Guide to Watching Solar and Lunar Eclipses."""
+
+
+# also do very long text_context_list and very long system_prompt all separate and all combined.
+@wrap_test_forked
+def test_client_long_chat():
+    from src.gen import main
+    os.environ['GPT_H2O_AI'] = '1'
+    main(model_lock=os.getenv('GPT35'), block_gradio_exit=False, h2ogpt_api_keys=['foo'])
+
+    from src.client_test import get_client, get_args, run_client
+    client = get_client(serialize=False)
+
+    # QUERY1
+    chat_conversation = [(long_prompt, long_resopnse)]
+    prompt = "Tell a very long kid's story about birds."
+    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+    kwargs = dict(instruction_nochat=prompt,
+                  h2ogpt_key='foo',
+                  # system_prompt=system_prompt,
+                  chat_conversation=chat_conversation)
+    # pass string of dict.  All entries are optional, but expect at least instruction_nochat to be filled
+    res = client.predict(str(dict(kwargs)), api_name=api_name)
+    res_dict = ast.literal_eval(res)
+    print(res_dict['response'])
+    assert 'Invalid' not in res_dict['response']
+    assert res_dict['response']
+
+
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
 @pytest.mark.parametrize("top_k_docs", [3, 100])
@@ -5135,7 +5971,8 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
+        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+                          'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
             raise
@@ -5243,7 +6080,7 @@ def test_get_image_file():
 gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
               'mistralai/Mixtral-8x7B-Instruct-v0.1',
               'gpt-3.5-turbo-0613',
-              'mistralai/Mistral-7B-Instruct-v0.2',
+              'mistralai/Mistral-7B-Instruct-v0.3',
               'NousResearch/Nous-Capybara-34B',
               # 'liuhaotian/llava-v1.6-vicuna-13b',
               # 'liuhaotian/llava-v1.6-34b',
@@ -5298,7 +6135,7 @@ TEST_CHOICE = [
 ]
 
 other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                     'mistralai/Mistral-7B-Instruct-v0.2',
+                     'mistralai/Mistral-7B-Instruct-v0.3',
                      'NousResearch/Nous-Capybara-34B',
                      'mistralai/Mixtral-8x7B-Instruct-v0.1',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest', 'gpt-4-turbo-2024-04-09',
@@ -5317,7 +6154,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      ]
 
 vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                    'mistralai/Mistral-7B-Instruct-v0.2',
+                    'mistralai/Mistral-7B-Instruct-v0.3',
                     'NousResearch/Nous-Capybara-34B',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',

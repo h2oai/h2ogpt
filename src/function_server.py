@@ -180,7 +180,8 @@ if state_checks:
             health_result = check_some_conditions()
             if not health_result:
                 print("Health check failed! Terminating without cleanup (to avoid races)...")
-                os._exit(1)
+                if os.getenv('multiple_workers_gunicorn'):
+                    os._exit(1)
 
     def check_some_conditions():
         # Replace with actual health check logic
