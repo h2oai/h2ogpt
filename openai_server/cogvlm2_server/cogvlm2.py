@@ -176,6 +176,7 @@ async def create_chat_completion(request: ChatCompletionRequest):
             stream=request.stream,
             repetition_penalty=request.repetition_penalty
         )
+        print(gen_params)
 
         lock_file = f"{MODEL_PATH}.lock"
         os.makedirs(os.path.dirname(lock_file), exist_ok=True)
@@ -338,12 +339,13 @@ def generate_stream_cogvlm(model: AutoModelForCausalLM, tokenizer: AutoTokenizer
     gen_kwargs = {
         "repetition_penalty": repetition_penalty,
         "max_new_tokens": max_new_tokens,
-        "do_sample": True if temperature > 1e-5 else False,
-        "top_p": top_p if temperature > 1e-5 else 0,
+        "do_sample": temperature > 1e-5,
         'streamer': streamer,
     }
     if temperature > 1e-5:
         gen_kwargs["temperature"] = temperature
+        gen_kwargs["top_p"] = top_p
+    print(gen_kwargs)
 
     generated_text = ""
 
