@@ -10,7 +10,7 @@ import gradio as gr
 from src.utils import is_gradio_version4
 
 
-def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_type='', model_label_prefix='', debug=False):
+def get_chatbot_name(base_model, display_name, model_path_llama, inference_server='', prompt_type='', model_label_prefix='', debug=False):
     #have_inference_server = inference_server not in [no_server_str, None, '']
     #if not have_inference_server and prompt_type in [None, '', 'plain']:
     #    label_postfix = '   [Please select prompt_type in Models tab or on CLI for chat models]'
@@ -29,6 +29,9 @@ def get_chatbot_name(base_model, model_path_llama, inference_server='', prompt_t
     else:
         if base_model == 'mixtral-8x7b-32768':
             base_model = 'groq:mixtral-8x7b-32768'
+        if display_name:
+            # so can distinguish between models in UI
+            base_model = display_name
         label = f'{model_label_prefix} [Model: {base_model}{inference_server}]'
     label += label_postfix
     return label
@@ -142,6 +145,7 @@ def make_chatbots(output_label0, output_label0_model2, **kwargs):
     min_width = 250 if kwargs['gradio_size'] in ['small', 'large', 'medium'] else 160
     for model_state_locki, model_state_lock in enumerate(kwargs['model_states']):
         output_label = get_chatbot_name(model_state_lock["base_model"],
+                                        model_state_lock["display_name"],
                                         model_state_lock['llamacpp_dict']["model_path_llama"],
                                         model_state_lock["inference_server"],
                                         model_state_lock["prompt_type"],

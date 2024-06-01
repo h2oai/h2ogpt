@@ -426,6 +426,7 @@ def go_gradio(**kwargs):
 
     no_model_msg = 'h2oGPT [   !!! Please Load Model in Models Tab !!!   ]'
     chat_name0 = get_chatbot_name(kwargs.get("base_model"),
+                                  kwargs.get("display_name"),
                                   kwargs.get("llamacpp_dict", {}).get("model_path_llama"),
                                   kwargs.get("inference_server"),
                                   kwargs.get("prompt_type"),
@@ -5264,7 +5265,7 @@ def go_gradio(**kwargs):
 
         def chatbot_list(x, model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
                          model_label_prefix_in=''):
-            chat_name = get_chatbot_name(model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
+            chat_name = get_chatbot_name(model_used_in, model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
                                          model_label_prefix=model_label_prefix_in)
             return gr.Textbox(label=chat_name)
 
