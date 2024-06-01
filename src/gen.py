@@ -4328,6 +4328,7 @@ def evaluate(
 
     # don't repeat prompting if doing gradio server since inner prompting will handle
     json_vllm = False
+    json_schema_type = None
     if not h2ogpt_gradio_server and \
             response_format in ['json_object', 'json_code']:
 
@@ -4354,6 +4355,18 @@ def evaluate(
             guided_json_properties = guided_json_properties['properties']
         # back to string, so e.g. do not get ' in prompt but " for quotes etc.  gemma messes that up.
         guided_json_properties_json = json.dumps(guided_json_properties)
+        if guided_json_properties_json.startswith('{'):
+            json_schema_type = 'object'
+        elif guided_json_properties_json.startswith('['):
+            json_schema_type = 'array'
+        elif guided_json_properties_json.startswith('"'):
+            json_schema_type = 'string'
+        elif guided_json_properties_json.startswith('true') or guided_json_properties_json.startswith('false'):
+            json_schema_type = 'boolean'
+        elif guided_json_properties_json.startswith('null'):
+            json_schema_type = 'null'
+        elif guided_json_properties_json.isdigit():
+            json_schema_type = 'number'
 
         schema_instruction = json_schema_instruction.format(properties_schema=guided_json_properties_json)
         json_vllm = chosen_model_state['json_vllm']
@@ -4665,7 +4678,7 @@ def evaluate(
             response = r['response']
             if response_format in ['json_object', 'json_code']:
                 response_raw = response
-                response = get_json(response)
+                response = get_json(response, json_schema_type=json_schema_type)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
             llm_answers = r['llm_answers']
@@ -4802,7 +4815,7 @@ def evaluate(
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
-                            response = get_json(response)
+                            response = get_json(response, json_schema_type=json_schema_type)
                     else:
                         collected_events = []
                         tgen0 = time.time()
@@ -4815,7 +4828,7 @@ def evaluate(
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 if response_format in ['json_object', 'json_code']:
                                     response_raw = response
-                                    response = get_json(response)
+                                    response = get_json(response, json_schema_type=json_schema_type)
                                 yield dict(response=response, sources=sources, save_dict={},
                                            llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4885,7 +4898,7 @@ def evaluate(
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
                             response_raw = response
-                            response = get_json(response)
+                            response = get_json(response, json_schema_type=json_schema_type)
                     else:
                         # NOTE: If some stream failure like wrong model, don't get back response and no failure
                         tgen0 = time.time()
@@ -4897,7 +4910,7 @@ def evaluate(
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 if response_format in ['json_object', 'json_code']:
                                     response_raw = response
-                                    response = get_json(response)
+                                    response = get_json(response, json_schema_type=json_schema_type)
                                 yield dict(response=response, sources=sources, save_dict={},
                                            llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -4972,7 +4985,7 @@ def evaluate(
 
                     if response_format in ['json_object', 'json_code']:
                         response_raw = response
-                        response = get_json(response)
+                        response = get_json(response, json_schema_type=json_schema_type)
                     yield dict(response=response, sources=[], save_dict={}, error='',
                                llm_answers=dict(response_raw=response_raw),
                                response_no_refs=response, sources_str='', prompt_raw='')
@@ -4982,7 +4995,7 @@ def evaluate(
                     for response1 in get_llava_stream(**llava_kwargs):
                         if response_format in ['json_object', 'json_code']:
                             response_raw = response1
-                            response = get_json(response1)
+                            response = get_json(response1, json_schema_type=json_schema_type)
                         else:
                             response = response1
                         yield dict(response=response, sources=[], save_dict={}, error='',
@@ -5166,7 +5179,7 @@ def evaluate(
                                 response = res_dict['response']
                                 if response_format in ['json_object', 'json_code']:
                                     response_raw = response
-                                    response = get_json(response)
+                                    response = get_json(response, json_schema_type=json_schema_type)
                                     res_dict['response'] = response
                                     res_dict['llm_answers'] = res_dict.get('llm_answers', {})
                                     res_dict['llm_answers']['response_raw'] = response_raw
@@ -5214,7 +5227,7 @@ def evaluate(
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
                             response_raw = response
-                            response = get_json(response)
+                            response = get_json(response, json_schema_type=json_schema_type)
                     else:
                         tgen0 = time.time()
                         text = ""
@@ -5228,7 +5241,7 @@ def evaluate(
                                 sources = []
                                 if response_format in ['json_object', 'json_code']:
                                     response_raw = response
-                                    response = get_json(response)
+                                    response = get_json(response, json_schema_type=json_schema_type)
                                 yield dict(response=response, sources=sources, save_dict={},
                                            llm_answers=dict(response_raw=response_raw),
                                            response_no_refs=response, sources_str='', prompt_raw='')
@@ -5423,7 +5436,7 @@ def evaluate(
                                                              sanitize_bot_response=sanitize_bot_response)
                             if response_format in ['json_object', 'json_code']:
                                 response_raw = response
-                                response = get_json(response)
+                                response = get_json(response, json_schema_type=json_schema_type)
                             ret = dict(response=response, sources=sources, save_dict=save_dict,
                                        llm_answers=dict(response_raw=response_raw),
                                        response_no_refs=response, sources_str='', prompt_raw=prompt)
@@ -5469,7 +5482,7 @@ def evaluate(
                                                      sanitize_bot_response=sanitize_bot_response)
                     if response_format in ['json_object', 'json_code']:
                         response_raw = response
-                        response = get_json(response)
+                        response = get_json(response, json_schema_type=json_schema_type)
                     if outputs and len(outputs) >= 1:
                         decoded_output = prompt + outputs[0]
 
