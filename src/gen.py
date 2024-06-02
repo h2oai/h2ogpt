@@ -79,7 +79,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     langchain_modes0, langchain_mode_types0, langchain_mode_paths0, \
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
-    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type
+    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, is_json_model
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -102,7 +102,7 @@ from transformers import GenerationConfig, AutoModel, TextIteratorStreamer, Auto
 
 from prompter import Prompter, inv_prompt_type_to_model_lower, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, anthropic_gpts, google_gpts, mistralai_gpts, groq_gpts, \
-    gradio_to_llm, history_for_llm, is_gradio_vision_model, is_json_model, apply_chat_template, is_vision_model, \
+    gradio_to_llm, history_for_llm, apply_chat_template, \
     prompt_type_to_model_name
 from stopping import get_stopping
 from prompter_utils import get_use_chat_template

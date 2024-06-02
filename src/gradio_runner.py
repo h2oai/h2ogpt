@@ -63,13 +63,13 @@ fix_pydantic_duplicate_validators_error()
 from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, LangChainAction, LangChainMode, \
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
     LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
-    summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0, noneset
+    summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0, noneset, \
+    is_vision_model, is_video_model, is_json_model
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
 from prompter import prompt_type_to_model_name, prompt_types_strings, non_hf_types, \
-    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, is_vision_model, \
-    is_video_model, is_json_model, get_llm_history
+    get_prompt, model_names_curated, get_system_prompts, get_llava_prompts, get_llm_history
 from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_allocated, system_info_print, \
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \

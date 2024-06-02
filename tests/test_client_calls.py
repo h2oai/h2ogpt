@@ -6163,7 +6163,7 @@ vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
 
 def get_test_server_client(base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    # inference_server = 'http://localhost:7860'
+    inference_server = 'http://localhost:7860'
 
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
@@ -6360,6 +6360,10 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
         })
     chat_kwargs['extra_body']['prompt_summary'] = new_prompt_summary
 
+    # NOTE: for Sonnet, it oddly gets confused by the case:
+    # Extract-MyData-json_object-claude-3-sonnet-20240229-False-guided_json1-openai
+    # it seems maybe because text_context_list about Henry is part of newest message, but
+    # it's pretty poor and result from sonnet is the schema itself, not a new example.
     chat_completion = client.chat.completions.create(
         messages=messages,
         **chat_kwargs,

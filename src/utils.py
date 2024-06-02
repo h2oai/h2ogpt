@@ -2313,7 +2313,7 @@ def _get_json(response, fixup=True, json_schema_type=None):
                 response0 = repair_json_by_type(response0, json_schema_type=json_schema_type)
             except Exception as e:
                 # FIXME: best effort, don't understand if package will hae issues
-                print("repair_json exception1: %s: %s" % (str(e), response))
+                print("repair_json exception2: %s: %s" % (str(e), response))
         return response0
     # Next, check if the response looks like JSON, return it if so
     if looks_like_json(response):
@@ -2325,7 +2325,7 @@ def _get_json(response, fixup=True, json_schema_type=None):
                 response = repair_json_by_type(response, json_schema_type=json_schema_type)
             except Exception as e:
                 # FIXME: best effort, don't understand if package will hae issues
-                print("repair_json exception2: %s: %s" % (str(e), response))
+                print("repair_json exception3: %s: %s" % (str(e), response))
         return response
     # If it doesn't look like JSON, return an empty string as a default case
     return invalid_json_str

@@ -328,6 +328,8 @@ class ChatMistralAI(BaseChatModel):
     random_seed: Optional[int] = None
     safe_mode: bool = False
     streaming: bool = False
+    tools: Optional[List] = None
+    tool_choice: str = 'auto'
 
     class Config:
         """Configuration for this pydantic object."""
@@ -345,6 +347,8 @@ class ChatMistralAI(BaseChatModel):
             "top_p": self.top_p,
             "random_seed": self.random_seed,
             "safe_prompt": self.safe_mode,
+            "tools": self.tools,
+            "tool_choice": self.tool_choice,
         }
         filtered = {k: v for k, v in defaults.items() if v is not None}
         return filtered
