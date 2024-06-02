@@ -80,12 +80,12 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     does_support_json_mode, claude3imagetag, gpt4imagetag, geminiimagetag, \
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
-    gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type
+    gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
+    is_vision_model, is_gradio_vision_model, is_json_model
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
-from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary, \
-    is_vision_model, is_gradio_vision_model, is_json_model
+from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary
 from src.serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
@@ -2943,7 +2943,7 @@ def get_llm(use_openai_model=False,
                             )
         if langchain_agents is not None and \
                 LangChainAgent.AUTOGPT.value in langchain_agents and \
-                does_support_json_mode(inference_server, model_name):
+                does_support_json_mode(inference_server, model_name, json_vllm=json_vllm):
             azure_kwargs.update(response_format={"type": "json_object"})
 
         kwargs_extra = {}
@@ -3176,7 +3176,6 @@ def get_llm(use_openai_model=False,
         cls = H2OChatMistralAI
 
         # Langchain oddly passes some things directly and rest via model_kwargs
-        model_kwargs = dict()
         kwargs_extra = {}
         kwargs_extra.update(dict(system_prompt=system_prompt, chat_conversation=chat_conversation,
                                  user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt))
@@ -3192,6 +3191,24 @@ def get_llm(use_openai_model=False,
             # As if still since Feb 26, 2024 no updates for other models despite the bottom of https://mistral.ai/news/mistral-large/
             # Not vllm, guided_json not required
             kwargs_extra.update(dict(response_format=dict(type=response_format)))
+        # Langchain oddly passes some things directly and rest via model_kwargs
+        if does_support_functiontools(inference_server, model_name) and \
+                is_json_model(model_name, inference_server) and guided_json and response_format == 'json_object':
+            # https://docs.mistral.ai/capabilities/function_calling/
+            model_kwargs = dict(tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "JSON",
+                        "description": "Document, image, chat history conversion to strict JSON.",
+                        "parameters": guided_json,
+                    }
+                }
+            ],
+            # tool_choice='any'
+            )
+        else:
+            model_kwargs = {}
 
         llm = cls(model=model_name,
                   mistral_api_key=os.getenv('MISTRAL_API_KEY'),
@@ -3203,12 +3220,12 @@ def get_llm(use_openai_model=False,
                   stream=stream_output,
                   stream_output=stream_output,
                   default_request_timeout=max_time,
-                  model_kwargs=model_kwargs,
                   max_tokens=max_new_tokens,
                   safe_mode=False,
                   random_seed=seed,
                   verbose=verbose,
                   tokenizer=tokenizer,
+                  **model_kwargs,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
                   )

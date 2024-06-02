@@ -282,66 +282,6 @@ for p in PromptType:
     prompt_types.extend([p.name, p.value, str(p.value)])
 
 
-def is_gradio_vision_model(base_model):
-    if not base_model:
-        return False
-    return base_model.startswith('llava-') or \
-        base_model.startswith('liuhaotian/llava-') or \
-        base_model.startswith('Qwen-VL') or \
-        base_model.startswith('Qwen/Qwen-VL')
-
-
-def is_vision_model(base_model):
-    if not base_model:
-        return False
-    return is_gradio_vision_model(base_model) or \
-        base_model.startswith('claude-3-') or \
-        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
-        base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"] or \
-        base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
-        base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"] or \
-        base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5", "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8"] or \
-        base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B", "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"]
-
-
-def is_video_model(base_model):
-    if not base_model:
-        return False
-    return base_model in ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
-
-
-def is_json_model(base_model, inference_server, json_vllm=False):
-    if not base_model:
-        return False
-    if inference_server.startswith('vllm'):
-        # assumes 0.4.0+ for vllm
-        # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html
-        # https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
-        # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/model_executor/guided_decoding.py#L91
-        # https://github.com/vllm-project/vllm/blob/b0925b38789bb3b20dcc39e229fcfe12a311e487/tests/entrypoints/test_openai_server.py#L477
-        return json_vllm
-    if inference_server.startswith('openai'):
-        # not older models
-        # https://platform.openai.com/docs/guides/text-generation/json-mode
-        return base_model in openai_supports_json_mode
-    if inference_server.startswith('mistralai'):
-        # https://docs.mistral.ai/platform/client/#json-mode
-        # https://docs.mistral.ai/guides/prompting-capabilities/#include-a-confidence-score
-        return base_model in ["mistral-large-latest",
-                              "mistral-medium"
-                              "mistral-small",
-                              "mistral-tiny",
-                              'open-mistral-7b',
-                              'open-mixtral-8x7b',
-                              'mistral-small-latest',
-                              'mistral-medium-latest',
-                              ]
-    if inference_server.startswith('anthropic'):
-        # but no streaming
-        return base_model.startswith('claude-3')
-    return False
-
-
 def get_prompt(prompt_type, prompt_dict, context, reduced, making_context, return_dict=False,
                system_prompt=None, histi=-1):
     prompt_dict_error = ''

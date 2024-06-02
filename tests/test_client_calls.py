@@ -6360,6 +6360,10 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
         })
     chat_kwargs['extra_body']['prompt_summary'] = new_prompt_summary
 
+    # NOTE: for Sonnet, it oddly gets confused by the case:
+    # Extract-MyData-json_object-claude-3-sonnet-20240229-False-guided_json1-openai
+    # it seems maybe because text_context_list about Henry is part of newest message, but
+    # it's pretty poor and result from sonnet is the schema itself, not a new example.
     chat_completion = client.chat.completions.create(
         messages=messages,
         **chat_kwargs,
