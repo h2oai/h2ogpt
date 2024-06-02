@@ -3204,7 +3204,7 @@ def get_llm(use_openai_model=False,
                         "parameters": guided_json,
                     }
                 }
-            ])
+            ], tool_choice='any')
         else:
             model_kwargs = {}
 
