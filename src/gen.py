@@ -1551,7 +1551,7 @@ def main(
     # allow set token directly
     if not use_auth_token:
         use_auth_token = os.environ.get("HUGGING_FACE_HUB_TOKEN", use_auth_token)
-    if isinstance(use_auth_token, str) and use_auth_token and 'HUGGING_FACE_HUB_TOKEN' not in os.environ:
+    if isinstance(use_auth_token, str) and use_auth_token:
         os.environ['HUGGING_FACE_HUB_TOKEN'] = use_auth_token
     allow_upload_to_user_data = bool(
         int(os.environ.get("allow_upload_to_user_data", str(int(allow_upload_to_user_data)))))
