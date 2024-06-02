@@ -6163,7 +6163,7 @@ vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
 
 def get_test_server_client(base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7860'
 
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
