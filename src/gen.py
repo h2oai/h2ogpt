@@ -4864,7 +4864,7 @@ def evaluate(
                         messages0.append({'role': 'user', 'content': prompt})
 
                     if response_format == 'json_object' and inf_type == 'openai_chat':
-                        other_dict.update(dict(type=response_format))
+                        other_dict.update(dict(response_format=dict(type=response_format)))
 
                     # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
                     if inf_type == 'vllm_chat':
