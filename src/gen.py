@@ -79,7 +79,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     langchain_modes0, langchain_mode_types0, langchain_mode_paths0, \
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
-    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, is_json_model
+    json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
+    is_json_model
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -4407,6 +4408,16 @@ def evaluate(
                 pre_instruction = json_code_prompt + json_code_prompt_if_no_schema
         # ignore these, make no sense for JSON mode
         system_prompt = ''  # can mess up the model, e.g. 70b
+        if pre_instruction:
+            if True or base_model and base_model in anthropic_mapping:
+                # NOTE: enabled generally for now, seems to help generally
+                pre_instruction = '\n<response_format_instructions>\n' + \
+                                  pre_instruction + \
+                                  '\n</response_format_instructions>\n\n'
+            else:
+                pre_instruction = 'Begin response format instructions:\n###\n' + \
+                                  pre_instruction + \
+                                  '\n###\nEnd response format instructions\n\n'
         if instruction:
             # FIXME: don't embed instruction with extra JSON stuff
             instruction = pre_instruction + '\n\n' + instruction
@@ -6241,7 +6252,8 @@ def history_to_context(history, langchain_mode=None,
                                     making_context=True,
                                     system_prompt=system_prompt,
                                     histi=histi)
-                truncated_prompt = remove_refs(truncated_prompt, keep_sources_in_context, langchain_mode, hyde_level, gradio_errors_to_chatbot)
+                truncated_prompt = remove_refs(truncated_prompt, keep_sources_in_context, langchain_mode, hyde_level,
+                                               gradio_errors_to_chatbot)
                 truncated_prompt = truncated_prompt.replace('<br>', chat_turn_sep)
                 if not truncated_prompt.endswith(chat_turn_sep):
                     truncated_prompt += chat_turn_sep

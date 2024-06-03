@@ -206,7 +206,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False, do_shared=True):
               '-p', '%s:80' % inf_port,
               '-v', '%s/.cache/huggingface/hub/:/data' % home_dir,
               '-v', '%s:/data' % data_dir,
-              'ghcr.io/huggingface/text-generation-inference:1.4',
+              'ghcr.io/huggingface/text-generation-inference:2.04',
               '--model-id', base_model,
               '--cuda-memory-fraction', '0.8',
               '--max-stop-sequences', '6',
