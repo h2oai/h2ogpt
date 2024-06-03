@@ -492,6 +492,9 @@ class ChatMistralAI(BaseChatModel):
             raise ValueError(f"Expected 'choices' in response, got {response}")
         for res in response["choices"]:
             finish_reason = res.get("finish_reason")
+            # JSON mode using function calling
+            if finish_reason == 'tool_calls' and res["message"]['tool_calls'][-1]['function']['name'] == 'JSON':
+                res['message']['content'] = res["message"]['tool_calls'][-1]['function']['arguments']
             gen = ChatGeneration(
                 message=_convert_mistral_chat_message_to_message(res["message"]),
                 generation_info={"finish_reason": finish_reason},
