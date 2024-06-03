@@ -2944,7 +2944,7 @@ def get_llm(use_openai_model=False,
         if langchain_agents is not None and \
                 LangChainAgent.AUTOGPT.value in langchain_agents and \
                 does_support_json_mode(inference_server, model_name, json_vllm=json_vllm):
-            azure_kwargs.update(response_format={"type": "json_object"})
+            azure_kwargs.update(dict(response_format=dict(type="json_object")))
 
         kwargs_extra = {}
 
@@ -2973,7 +2973,7 @@ def get_llm(use_openai_model=False,
                 if is_json_model(model_name, inference_server,
                                  json_vllm=json_vllm) and response_format == 'json_object':
                     # vllm without guided_json can't make json directly
-                    kwargs_extra.update(dict(type=response_format if guided_json else 'text'))
+                    kwargs_extra.update(dict(response_format=dict(type=response_format if guided_json else 'text')))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(tokenizer=tokenizer,

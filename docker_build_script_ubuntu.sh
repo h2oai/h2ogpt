@@ -39,6 +39,7 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     echo "h2oGPT conda env: $CONDA_DEFAULT_ENV"
 
 # if building for CPU, would remove CMAKE_ARGS and avoid GPU image as base image
+# Choose llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends), e.g. for CUDA:
 export LLAMA_CUBLAS=1
 export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
