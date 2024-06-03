@@ -6,6 +6,7 @@ ENV HOME=/workspace
 ENV CUDA_HOME=/usr/local/cuda-12.1
 ENV VLLM_CACHE=/workspace/.vllm_cache
 ENV TIKTOKEN_CACHE_DIR=/workspace/tiktoken_cache
+ENV NUMBA_CACHE_DIR=/workspace/numba_cache
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
 WORKDIR /workspace
