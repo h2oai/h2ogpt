@@ -81,7 +81,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
-    is_vision_model, is_gradio_vision_model, is_json_model
+    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -3205,7 +3205,7 @@ def get_llm(use_openai_model=False,
                     }
                 }
             ],
-            # tool_choice='any'
+                # tool_choice='any'
             )
         else:
             model_kwargs = {}
@@ -8201,6 +8201,7 @@ def get_chain(query=None,
                      add_search_to_context,
                      system_prompt,
                      doc_json_mode,
+                     model_name=model_name,
                      prompter=prompter)
 
     model_max_length = get_model_max_length(llm=llm, tokenizer=tokenizer, inference_server=inference_server,
@@ -8665,6 +8666,7 @@ def get_chain(query=None,
                      add_search_to_context,
                      system_prompt,
                      doc_json_mode,
+                     model_name=model_name,
                      prompter=prompter)
 
     if doc_json_mode:
@@ -8883,6 +8885,7 @@ def get_template(query, iinput,
                  add_search_to_context,
                  system_prompt,
                  doc_json_mode,
+                 model_name=None,
                  prompter=None):
     # Escape braces in the inputs that will be used in the format strings
     query_esc = escape_braces(query)
@@ -8892,7 +8895,16 @@ def get_template(query, iinput,
     pre_prompt_query = escape_braces(pre_prompt_query)
     pre_prompt_summary = escape_braces(pre_prompt_summary)
 
-    triple_quotes = """
+    if True or model_name and model_name in anthropic_mapping:
+        # NOTE: enabled generally for now, seems to help generally
+        triple_quotes_start = """
+    <all_documents>
+    """
+        triple_quotes_finish = """
+    </all_documents>
+    """
+    else:
+        triple_quotes_start = triple_quotes_finish = """
 \"\"\"
 """
 
@@ -8912,7 +8924,7 @@ def get_template(query, iinput,
                                                 'information in the web search sources (and their source dates and website source)')
 
     if doc_json_mode:
-        triple_quotes = '\n\n'
+        triple_quotes_start = triple_quotes_finish = '\n\n'
         question_fstring = """{{"question": "{question}".  Respond absolutely only in valid JSON.}}"""
         if got_any_docs:
             if query_action:
@@ -8940,7 +8952,8 @@ def get_template(query, iinput,
                 template_if_no_docs = """%s%s%s%s%s""" % (question_fstring, sys_context_no_docs, '', fstring, '')
             else:
                 template = """%s%s%s%s%s\n%s""" % (
-                    pre_prompt_query, triple_quotes, fstring, triple_quotes, prompt_query, question_fstring)
+                    pre_prompt_query, triple_quotes_start, fstring, triple_quotes_finish, prompt_query,
+                    question_fstring)
                 if doc_json_mode:
                     template_if_no_docs = """{context}{{"question": {question}}}"""
                 else:
@@ -8959,7 +8972,8 @@ def get_template(query, iinput,
         else:
             fstring = '{input_documents}'
         # triple_quotes includes \n before """ and after """
-        template = """%s%s%s%s%s\n""" % (pre_prompt_summary, triple_quotes, fstring, triple_quotes, prompt_summary)
+        template = """%s%s%s%s%s\n""" % (
+        pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused

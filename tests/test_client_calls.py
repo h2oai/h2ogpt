@@ -6293,13 +6293,13 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
     if use_instruction:
         old_prompt = kwargs.get('instruction_nochat')
         old_prompt2 = old_prompt
-        new_prompt2 = "Give me another one, ensure it has a totally different name and totally different age."
+        new_prompt2 = "Give me another example, ensure it has a totally different name and totally different age."
         new_prompt_summary = kwargs.get('prompt_summary')
     else:
         old_prompt = ""
         old_prompt2 = kwargs.get('prompt_summary')
         new_prompt2 = ""
-        new_prompt_summary = "Give me another one, ensure it has a totally different name and totally different age."
+        new_prompt_summary = "Give me another example, ensure it has a totally different name and totally different age."
 
     messages = [{
         "role": "system",
