@@ -56,8 +56,14 @@ ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /de
 	@echo "Image already pushed to Harbor: $(DOCKER_TEST_IMAGE)"
 else
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -t h2ogpt:current -f Dockerfile .
-	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_VLLM) -f Dockerfile-vllm .
 	docker push $(DOCKER_TEST_IMAGE)
+endif
+ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image-vllm/artifacts/$(BUILD_TAG)/tags),200)
+	@echo "VLLM Image already pushed to Harbor: $(DOCKER_TEST_IMAGE_VLLM)"
+else
+	-docker pull $(DOCKER_TEST_IMAGE)
+	docker tag $(DOCKER_TEST_IMAGE) h2ogpt:current
+	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_VLLM) -f Dockerfile-vllm .
 	docker push $(DOCKER_TEST_IMAGE_VLLM)
 endif
 
