@@ -195,7 +195,14 @@ def _convert_delta_to_message_chunk(
         return HumanMessageChunk(content=content)
     elif role == "assistant" or default_class == AIMessageChunk:
         additional_kwargs: Dict = {}
-        if raw_tool_calls := _delta.get("tool_calls"):
+
+        raw_tool_calls = _delta.get("tool_calls")
+        tool_call_chunks = []
+
+        # JSON mode using function calling
+        if raw_tool_calls and _delta['tool_calls'][-1]['function']['name'] == 'JSON':
+            content = _delta['tool_calls'][-1]['function']['arguments']
+        elif raw_tool_calls:
             additional_kwargs["tool_calls"] = raw_tool_calls
             try:
                 tool_call_chunks = []
@@ -214,8 +221,6 @@ def _convert_delta_to_message_chunk(
                     )
             except KeyError:
                 pass
-        else:
-            tool_call_chunks = []
         return AIMessageChunk(
             content=content,
             additional_kwargs=additional_kwargs,
