@@ -63,6 +63,7 @@ conda activate open-webui-run
 conda install -y python==3.11
 # pip install open-webui  # for Open Web UI's RAG and file ingestion
 pip install git+https://github.com/h2oai/h2ogpt.git  # for h2oGPT file ingestion
+export H2OGPT_LOADERS=1  # for h2oGPT file ingestion
 # ensure certain things not set
 unset OPENAI_API_BASE_URLS
 # bash ENVs
