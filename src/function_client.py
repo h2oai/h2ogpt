@@ -82,4 +82,5 @@ def get_data_h2ogpt(file, file_type, file_path, verbose=False):
                                    use_disk=use_disk, use_pickle=use_pickle,
                                    function_api_key=function_api_key,
                                    verbose=verbose)
-    return sources
+    known_type = len(sources) > 0
+    return sources, known_type
