@@ -65,7 +65,7 @@ def get_data_h2ogpt(file, file_type, file_path, verbose=False):
     Simple function for Open Web UI
     """
     function_server_host = os.getenv('H2OGPT_FUNCTION_SERVER_HOST', '0.0.0.0')
-    function_server_port = int(os.getenv('H2OGPT_FUNCTION_SERVER_PORT', '7860'))
+    function_server_port = int(os.getenv('H2OGPT_FUNCTION_SERVER_PORT', '5003'))
     function_api_key = os.getenv('H2OGPT_FUNCTION_SERVER_API_KEY', 'EMPTY')
 
     # could set other things:
