@@ -34,9 +34,6 @@ Add these if using h2oGPT for file ingestion:
 
 Then run the Open Web UI docker command
 ```bash
-
-Then run the Open Web UI docker command
-```bash
 export api_key='EMPTY'
 docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct \
