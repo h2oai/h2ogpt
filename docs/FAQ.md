@@ -48,12 +48,47 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e AUDIO_OPENAI_API_MODEL='microsoft/speecht5_tts' \
 -e RAG_EMBEDDING_ENGINE='openai' \
 -e RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1' \
--e OLLAMA_BASE_URL=http://0.0.0.0 \
--e OLLAMA_HOST=0.0.0.0:5000 \
 -e ENABLE_LITELLM=False \
+-e ENABLE_OPENAI_API=True \
+-e ENABLE_OLLAMA_API=False \
 --network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
+
+Or run as:
+```bash
+# python env
+conda create -n open-webui-run -y
+conda activate open-webui-run
+conda install -y python==3.11
+# pip install open-webui  # for Open Web UI's RAG and file ingestion
+pip install git+https://github.com/h2oai/h2ogpt.git  # for h2oGPT file ingestion
+# ensure certain things not set
+unset OPENAI_API_BASE_URLS
+# bash ENVs
+export api_key='EMPTY'
+export WEBUI_NAME='h2oGPT'
+export DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct
+export OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
+export GLOBAL_LOG_LEVEL=INFO
+export OPENAI_API_KEY=$api_key
+export ENABLE_IMAGE_GENERATION=True
+export IMAGE_GENERATION_ENGINE='openai'
+export IMAGES_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
+export IMAGE_GENERATION_MODEL='sdxl_turbo'
+export IMAGES_OPENAI_API_KEY=$api_key
+export AUDIO_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
+export AUDIO_OPENAI_API_KEY=$api_key
+export AUDIO_OPENAI_API_VOICE='SLT (female)'
+export AUDIO_OPENAI_API_MODEL='microsoft/speecht5_tts'
+export RAG_EMBEDDING_ENGINE='openai'
+export RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
+export ENABLE_LITELLM=False
+export ENABLE_OLLAMA_API=False
+export ENABLE_OPENAI_API=True
+# run
+open-webui serve
+```
 
 Note:  The first time you login to Open Web UI, that user will be admin user who can set defaults for various admin things, have admin panel to control user behavior and settings, etc.  Additional users will take the role the admin sets (by default, pending, which can be changed to user for anyone to login).
 
