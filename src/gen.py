@@ -3836,10 +3836,14 @@ def get_score_model(score_model: str = None,
 
 
 def evaluate_fake(*args, **kwargs):
-    yield dict(response=invalid_key_msg, sources=[],
+    if kwargs.get('langchain_action', LangChainAction.QUERY.value) == LangChainAction.EXTRACT.value:
+        response = [invalid_key_msg]
+    else:
+        response = invalid_key_msg
+    yield dict(response=response, sources=[],
                save_dict=dict(prompt='INVALID', extra_dict=dict(num_prompt_tokens=0, base_model='')),
-               llm_answers=dict(response_raw=invalid_key_msg), response_no_refs=invalid_key_msg,
-               sources_str='', audio=None, prompt_raw='INVALID')
+               llm_answers=dict(response_raw=response), response_no_refs=response,
+               sources_str='', audio=None, prompt_raw='INVALID', error=invalid_key_msg)
     return
 
 

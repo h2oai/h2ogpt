@@ -675,7 +675,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
         return dummy_return
 
     from src.gen import evaluate, evaluate_fake
-    evaluate_local = evaluate if valid_key else evaluate_fake
+    evaluate_local = evaluate if valid_key else functools.partial(evaluate_fake, langchain_action=langchain_action1)
 
     # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
     prompt_type1, prompt_dict1 = update_prompt(prompt_type1, prompt_dict1, model_state1,
