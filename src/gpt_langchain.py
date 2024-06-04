@@ -9435,6 +9435,10 @@ def _update_user_db(file,
             raise ValueError("Public instance only allows up to"
                              " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
+    if is_url is None and is_url is None and file:
+        # assume add_button action if not set
+        is_url = True
+
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None, {}
 
