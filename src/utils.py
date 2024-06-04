@@ -2277,7 +2277,9 @@ def repair_json_by_type(response, json_schema_type=None):
         if match:
             response0 = match.group(0)  # Extract the matched JSON string
         else:
-            raise ValueError("No JSON string found in the input")
+            # best can do
+            from json_repair import repair_json
+            return repair_json(response)
         if response0.strip().startswith('{'):
             # then seems like good json object so far, can try to repair
             from json_repair.json_repair import JSONParser
