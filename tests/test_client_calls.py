@@ -6341,6 +6341,7 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
         print("Bad response1: %s" % response, file=sys.stderr)
         raise
     print(response, file=sys.stderr)
+    assert isinstance(response, dict), response
     response1 = response.copy()
 
     check_response(response, base_model, kwargs.get('guided_json'))
@@ -6383,6 +6384,7 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
     except:
         print("Bad response: %s" % response, file=sys.stderr)
         raise
+    assert isinstance(response, dict), response
     print(response, file=sys.stderr)
     response2 = response.copy()
 
