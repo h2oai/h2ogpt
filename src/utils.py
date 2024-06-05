@@ -2264,15 +2264,69 @@ def get_json(response, fixup=True, json_schema_type=None):
     return response_new
 
 
-# Regular expression to find the first JSON block
-json_pattern = re.compile(r'{[\s\S]*?}')
+def extract_values(data):
+    if isinstance(data, dict):
+        if 'type' in data and 'value' in data:
+            return data['value']
+        elif 'items' in data:
+            return [extract_values(item) for item in data['items']]
+        elif 'properties' in data:
+            return {key: extract_values(value) for key, value in data['properties'].items()}
+        elif 'enum' in data:
+            return data['enum']  # return the enum values
+        elif 'const' in data:
+            return data['const']  # return the const value
+        elif 'oneOf' in data:
+            return [extract_values(item) for item in data['oneOf']]
+        elif 'anyOf' in data:
+            return [extract_values(item) for item in data['anyOf']]
+        elif 'allOf' in data:
+            return [extract_values(item) for item in data['allOf']]
+        else:
+            return {key: extract_values(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [extract_values(item) for item in data]
+    else:
+        return data
+
+
+# Function to check if JSON contains schema information
+def contains_schema(data):
+    if isinstance(data, dict):
+        if 'type' in data and 'value' in data:
+            return True
+        for key, value in data.items():
+            if contains_schema(value):
+                return True
+    elif isinstance(data, list):
+        for item in data:
+            if contains_schema(item):
+                return True
+    return False
+
+
+# Main function to handle both schema and regular JSON
+def handle_json(data):
+    if contains_schema(data):
+        return extract_values(data)
+    else:
+        return data
 
 
 def repair_json_by_type(response, json_schema_type=None):
     # WIP for later
-    # if json_schema_type == 'object':
-    from json_repair import repair_json
-    return repair_json(response)
+    if json_schema_type == 'object':
+        from json_repair import repair_json
+        response = repair_json(response)
+        try:
+            # assumes already dict
+            return handle_json(json.loads(response))
+        except Exception as e:
+            print("Did not extract_values: %s" % str(e))
+            return response
+    else:
+        from json_repair import repair_json
+        return repair_json(response)
 
 
 def _get_json(response, fixup=True, json_schema_type=None):
