@@ -2320,7 +2320,7 @@ def repair_json_by_type(response, json_schema_type=None):
         response = repair_json(response)
         try:
             # assumes already dict
-            return handle_json(json.loads(response))
+            return json.dumps(handle_json(json.loads(response)))
         except Exception as e:
             print("Did not extract_values: %s" % str(e))
             return response
