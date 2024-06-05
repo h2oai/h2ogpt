@@ -568,8 +568,9 @@ def test_extract_code_block_content():
     assert extract_code_block_content(example_stream_8) == expected8
 
 
+@pytest.mark.parametrize("method", ['repair_json', 'get_json'])
 @wrap_test_forked
-def test_repair_json():
+def test_repair_json(method):
     a = """{
     "Supplementary Leverage Ratio": [7.0, 5.8, 5.7],
     "Liquidity Metrics": {
@@ -608,7 +609,10 @@ def test_repair_json():
     for i in range(len(a)):
         text = a[:i]
         t0 = time.time()
-        good_json_string = repair_json(text)
+        if method == 'repair_json':
+            good_json_string = repair_json(text)
+        else:
+            good_json_string = get_json(text)
         if i > 50:
             assert len(good_json_string) > 5
         tdelta = time.time() - t0
