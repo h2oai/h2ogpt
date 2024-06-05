@@ -67,7 +67,7 @@ conda create -n open-webui-run -y
 conda activate open-webui-run
 conda install -y python==3.11
 # pip install open-webui  # for Open Web UI's RAG and file ingestion
-pip install git+https://github.com/h2oai/h2ogpt.git  # for h2oGPT file ingestion
+pip install git+https://github.com/h2oai/open-webui.git  # for h2oGPT file ingestion
 export H2OGPT_LOADERS=1  # for h2oGPT file ingestion
 # ensure certain things not set
 unset OPENAI_API_BASE_URLS
@@ -107,12 +107,11 @@ If one wants to choose a specific model, that is not currently possible through 
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
 ```
 
-For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, one can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but they would be like:
-```bash
--e AUDIO_GENERATION_ENGINE='openai' \
--e AUDIO_GENERATION_VOICE='SLT (female)' \
--e OPENAI_API_USER='user:password' \
-```
+For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, one can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but the h2oai version of open-webui chooses OpenAI as default for STT and TTS so can use h2oGPT by default.
+
+#```bash
+#-e OPENAI_API_USER='user:password' \
+#```
 See https://github.com/open-webui/open-webui/issues/2312.  The `OPENAI_API_USER` is not currently required since not using user-specific files at moment, but would be required if the Gradio server had authentication setup if h2oGPT was allowing access to files by Open Web UI.
 
 Flaws with Open Web UI:
