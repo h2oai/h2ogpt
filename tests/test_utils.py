@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names
+    deduplicate_names, handle_json
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
@@ -733,3 +733,91 @@ def test_dedup():
     # Example usage:
     names_list = ['Alice', 'Bob', 'Alice', 'Charlie', 'Bob', 'Alice']
     assert deduplicate_names(names_list) == ['Alice', 'Bob', 'Alice_1', 'Charlie', 'Bob_1', 'Alice_2']
+
+
+# Test cases
+def test_handle_json_normal():
+    normal_json = {
+        "name": "Henry",
+        "age": 35,
+        "skills": ["AI", "Machine Learning", "Data Science"],
+        "workhistory": [
+            {"company": "TechCorp", "duration": "2015-2020", "position": "Senior AI Scientist"},
+            {"company": "AI Solutions", "duration": "2010-2015", "position": "AI Scientist"}
+        ]
+    }
+    assert handle_json(normal_json) == normal_json
+
+
+def test_handle_json_schema():
+    schema_json = {
+        "name": {"type": "string", "value": "Henry"},
+        "age": {"type": "integer", "value": 35},
+        "skills": {"type": "array", "items": [
+            {"type": "string", "value": "AI", "maxLength": 10},
+            {"type": "string", "value": "Machine Learning", "maxLength": 10},
+            {"type": "string", "value": "Data Science", "maxLength": 10}
+        ], "minItems": 3},
+        "workhistory": {"type": "array", "items": [
+            {"type": "object", "properties": {
+                "company": {"type": "string", "value": "TechCorp"},
+                "duration": {"type": "string", "value": "2015-2020"},
+                "position": {"type": "string", "value": "Senior AI Scientist"}
+            }, "required": ["company", "position"]},
+            {"type": "object", "properties": {
+                "company": {"type": "string", "value": "AI Solutions"},
+                "duration": {"type": "string", "value": "2010-2015"},
+                "position": {"type": "string", "value": "AI Scientist"}
+            }, "required": ["company", "position"]}
+        ]}
+    }
+    expected_result = {
+        "name": "Henry",
+        "age": 35,
+        "skills": ["AI", "Machine Learning", "Data Science"],
+        "workhistory": [
+            {"company": "TechCorp", "duration": "2015-2020", "position": "Senior AI Scientist"},
+            {"company": "AI Solutions", "duration": "2010-2015", "position": "AI Scientist"}
+        ]
+    }
+    assert handle_json(schema_json) == expected_result
+
+
+def test_handle_json_mixed():
+    mixed_json = {
+        "name": "Henry",
+        "age": {"type": "integer", "value": 35},
+        "skills": ["AI", {"type": "string", "value": "Machine Learning"}, "Data Science"],
+        "workhistory": {"type": "array", "items": [
+            {"type": "object", "properties": {
+                "company": {"type": "string", "value": "TechCorp"},
+                "duration": {"type": "string", "value": "2015-2020"},
+                "position": {"type": "string", "value": "Senior AI Scientist"}
+            }, "required": ["company", "position"]},
+            {"company": "AI Solutions", "duration": "2010-2015", "position": "AI Scientist"}
+        ]}
+    }
+    expected_result = {
+        "name": "Henry",
+        "age": 35,
+        "skills": ["AI", "Machine Learning", "Data Science"],
+        "workhistory": [
+            {"company": "TechCorp", "duration": "2015-2020", "position": "Senior AI Scientist"},
+            {"company": "AI Solutions", "duration": "2010-2015", "position": "AI Scientist"}
+        ]
+    }
+    assert handle_json(mixed_json) == expected_result
+
+
+def test_handle_json_empty():
+    empty_json = {}
+    assert handle_json(empty_json) == empty_json
+
+
+def test_handle_json_no_schema():
+    no_schema_json = {
+        "name": {"first": "Henry", "last": "Smith"},
+        "age": 35,
+        "skills": ["AI", "Machine Learning", "Data Science"]
+    }
+    assert handle_json(no_schema_json) == no_schema_json
