@@ -613,6 +613,8 @@ def text_to_audio(model, voice, input, stream, response_format, **kwargs):
 
 
 def audio_str_to_bytes(audio_str1, response_format='wav'):
+    if audio_str1 is None:
+        return b''
     # Parse the input string to a dictionary
     audio_dict = ast.literal_eval(audio_str1)
 
