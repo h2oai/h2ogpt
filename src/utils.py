@@ -2269,30 +2269,10 @@ json_pattern = re.compile(r'{[\s\S]*?}')
 
 
 def repair_json_by_type(response, json_schema_type=None):
-    if json_schema_type == 'object':
-        # try to assume object exists
-
-        # Find the first match
-        match = json_pattern.search(response)
-        if match:
-            response0 = match.group(0)  # Extract the matched JSON string
-        else:
-            # best can do
-            from json_repair import repair_json
-            return repair_json(response)
-        if response0.strip().startswith('{'):
-            # then seems like good json object so far, can try to repair
-            from json_repair.json_repair import JSONParser
-            a = JSONParser(response0, None, None)
-            return json.dumps(a.parse_object())
-        else:
-            # nothing can be done, just generic repair
-            from json_repair import repair_json
-            return repair_json(response)
-    else:
-        # rest are safe
-        from json_repair import repair_json
-        return repair_json(response)
+    # WIP for later
+    # if json_schema_type == 'object':
+    from json_repair import repair_json
+    return repair_json(response)
 
 
 def _get_json(response, fixup=True, json_schema_type=None):
