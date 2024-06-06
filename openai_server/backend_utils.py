@@ -86,6 +86,7 @@ def handle_content(content, structure):
                 structure['image_files'].append(item['image_url']['url'])
         return "\n".join(text_content)
 
+
 def structure_to_messages(instruction, system_message, history, image_files):
     """
     Convert an instruction, system message, history, and image files back into a list of messages.
@@ -98,6 +99,8 @@ def structure_to_messages(instruction, system_message, history, image_files):
     list of dicts: A list where each dict contains 'role' and 'content' keys.
     """
     messages = []
+    if image_files is None:
+        image_files = []
 
     # Add the system message first if it exists.
     if system_message:

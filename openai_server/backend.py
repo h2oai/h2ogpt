@@ -264,11 +264,12 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     resp_list = 'choices'
 
     gen_kwargs = body
-    instruction, system_message, history = convert_messages_to_structure(messages)
+    instruction, system_message, history, image_files = convert_messages_to_structure(messages)
     gen_kwargs.update({
         'system_prompt': system_message,
         'chat_conversation': history,
-        'stream_output': stream_output
+        'stream_output': stream_output,
+        'image_file': image_files,
     })
 
     def chat_streaming_chunk(content):

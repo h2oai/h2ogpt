@@ -4554,7 +4554,7 @@ def evaluate(
                                  ))
         data_point = dict(context=context, instruction=instruction, input=iinput)
         # no longer stuff chat history directly into context this early
-        prompt_basic = prompter.generate_prompt(data_point, context_from_history=False)
+        prompt_basic = prompter.generate_prompt(data_point, context_from_history=False, image_file=image_file)
         prompt = prompt_basic
         num_prompt_tokens = 0
         llm_answers = {}
@@ -4760,6 +4760,7 @@ def evaluate(
                            attention_sinks=attention_sinks,
                            hyde_level=hyde_level,
                            gradio_errors_to_chatbot=gradio_errors_to_chatbot,
+                           image_file=image_file,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -6318,6 +6319,7 @@ def get_limited_prompt(instruction,
                        gradio_server=False,
                        attention_sinks=False,
                        doing_grounding=False,
+                       image_file=[],
                        ):
     """
     Take instruction (estimated_instruction for counting token purposes), iinput, system_prompt, context, chat_conversation, text_context_list as inputs
@@ -6382,7 +6384,8 @@ def get_limited_prompt(instruction,
 
     if use_chat_template:
         # see if chat template handles system prompt
-        if system_prompt in apply_chat_template("Test", system_prompt, [], tokenizer,
+        if system_prompt in apply_chat_template("Test", system_prompt, [], [],
+                                                tokenizer,
                                                 test_only=True, user_prompt_for_fake_system_prompt=None):
             can_handle_system_prompt = True
 
@@ -6455,7 +6458,8 @@ def get_limited_prompt(instruction,
         # first limit history
         context2_fake, history = history_to_context_func(history)
         # now apply chat template
-        context2 = apply_chat_template(instruction, system_prompt_to_use, history, tokenizer,
+        context2 = apply_chat_template(instruction, system_prompt_to_use, history, image_file,
+                                       tokenizer,
                                        user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         iinput = ''
         context1 = ''
@@ -6550,7 +6554,8 @@ def get_limited_prompt(instruction,
                 if use_chat_template:
                     instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                             max_prompt_length=non_doc_max_length)
-                    context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, tokenizer,
+                    context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, image_file,
+                                                   tokenizer,
                                                    user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
                 else:
                     context2, history_to_use = history_to_context_func(history_to_use)
@@ -6580,7 +6585,8 @@ def get_limited_prompt(instruction,
             if use_chat_template:
                 instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                         max_prompt_length=non_doc_max_length)
-                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, tokenizer,
+                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final,  image_file,
+                                               tokenizer,
                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
             else:
                 context2, history_to_use_final = history_to_context_func(history_to_use_final)
@@ -6661,7 +6667,7 @@ def get_limited_prompt(instruction,
         context_from_history = len(history) > 0
         # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
         reduced = context_from_history
-        prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced)
+        prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced, image_file=image_file)
     else:
         # assume inner gradio server handles.  if we point to gradio server (i.e. gradio_server=True) then we just pass instruction
         prompt = instruction if gradio_server else context2
@@ -6686,10 +6692,12 @@ def count_overhead_tokens(tokenizer, doing_grounding=False):
         system_prompt = ''
         instruction = 'foo'
         chat_conversation = []
+        image_file = []
         prompt = tokenizer.apply_grounded_generation_template(
             structure_to_messages(instruction,
                                   system_prompt if system_prompt not in [None, '', 'auto'] else None,
-                                  chat_conversation),
+                                  chat_conversation,
+                                  image_file),
             documents=[dict(text='foo')],
             citation_mode="accurate",  # or "fast"
             tokenize=False,

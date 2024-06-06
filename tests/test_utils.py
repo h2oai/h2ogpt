@@ -224,6 +224,7 @@ def test_chat_template():
     instruction = "Who are you?"
     system_prompt = "Be kind"
     history_to_use = [('Are you awesome?', "Yes I'm awesome.")]
+    image_file = []
     other_base_models = ['h2oai/mixtral-gm-rag-experimental-v2']
     supports_system_prompt = ['meta-llama/Llama-2-7b-chat-hf', 'openchat/openchat-3.5-1210', 'SeaLLMs/SeaLLM-7B-v2',
                               'h2oai/h2ogpt-gm-experimental']
@@ -233,7 +234,8 @@ def test_chat_template():
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(base_model)
 
-        prompt = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer,
+        prompt = apply_chat_template(instruction, system_prompt, history_to_use, image_file,
+                                     tokenizer,
                                      user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt0,
                                      verbose=True)
 
