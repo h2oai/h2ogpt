@@ -12,7 +12,7 @@ from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTyp
     DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset
 from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
-    get_accordion_named
+    get_accordion_named, check_input_type, download_image
 from src.db_utils import length_db1
 from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides
 
@@ -89,13 +89,27 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         else:
             image_files = [user_kwargs['image_file']]
         b2imgs = []
+        image_files_to_delete = []
         for img_file_one in image_files:
-            img_file_b2img = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
-            # assume is bytes
-            from src.vision.utils_vision import base64_to_img
-            img_file_b2img_one = base64_to_img(img_file_one, img_file_b2img)
-            b2imgs.append(img_file_b2img_one)
-        image_files_to_delete = b2imgs
+            str_type = check_input_type(img_file_one)
+            if str_type == 'unknown':
+                continue
+
+            img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
+            if str_type == 'url':
+                img_file_one = download_image(img_file_one, img_file_path)
+                # only delete if was made by us
+                image_files_to_delete.append(img_file_one)
+            elif str_type == 'base64':
+                from src.vision.utils_vision import base64_to_img
+                img_file_one = base64_to_img(img_file_one, img_file_path)
+                # only delete if was made by us
+                image_files_to_delete.append(img_file_one)
+            else:
+                # str_type='file'
+                pass
+            if img_file_one is not None:
+                b2imgs.append(img_file_one)
         user_kwargs['image_file'] = b2imgs  # always just make list
 
     # only used for submit_nochat_api
@@ -836,7 +850,6 @@ def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, db_type=None, dbs=Non
     save_dict['which_api'] = 'bot'
     save_dict['save_dir'] = kwargs['save_dir']
     save_generate_output(**save_dict)
-
 
 
 def is_from_ui(requests_state1):

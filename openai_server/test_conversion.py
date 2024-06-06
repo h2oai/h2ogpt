@@ -1,4 +1,7 @@
+import os
 import sys
+
+from src.utils import download_image
 
 sys.path.append('openai_server')
 from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages
@@ -314,3 +317,11 @@ def test_convert_messages_to_structure():
     assert system_message is None
     assert history == []
     assert image_files == ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+
+
+def test_image_download():
+    # Example usage:
+    image_url = "https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg"
+    save_path = "/tmp/downloaded_image.jpeg"
+    result = download_image(image_url, save_path)
+    assert result and os.path.isfile(result)

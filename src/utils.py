@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import base64
 import contextlib
 import functools
 import gc
@@ -25,6 +26,7 @@ from datetime import datetime
 from typing import Tuple, Callable, Dict
 from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 import filelock
 import fire
@@ -2551,3 +2553,77 @@ def deduplicate_names(names):
             deduplicated_names.append(name)
 
     return deduplicated_names
+
+
+def download_image(image_url, save_dir):
+    """
+    Download an image from a URL and save it to a specified directory.
+
+    Parameters:
+    image_url (str): The URL of the image to download.
+    save_dir (str): The directory path where the image will be saved.
+
+    Returns:
+    str or None: The file path where the image was saved, or None if an error occurred.
+    """
+    try:
+        response = requests.get(image_url)
+        response.raise_for_status()  # Check if the request was successful
+
+        # Extract the file name from the URL
+        parsed_url = urlparse(image_url)
+        file_name = os.path.basename(parsed_url.path)
+
+        # Create the full save path
+        save_path = os.path.join(save_dir, file_name)
+
+        # Save the image
+        with open(save_path, 'wb') as file:
+            file.write(response.content)
+        return save_path
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading the image: {e}")
+        return None
+
+
+# Check if the input is a URL
+url_pattern = re.compile(
+    r'^(?:http|ftp)s?://'  # http:// or https://
+    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+    r'localhost|'  # localhost...
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|'  # ...or ipv4
+    r'\[?[A-F0-9]*:[A-F0-9:]+\]?)'  # ...or ipv6
+    r'(?::\d+)?'  # optional port
+    r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+
+
+def check_input_type(input_string):
+    """
+    Check if the input string is a file path, URL, or a base64 encoded image.
+
+    Parameters:
+    input_string (str): The input string to check.
+
+    Returns:
+    str: 'file', 'url', 'base64', or 'unknown' based on the input type.
+    """
+    if not isinstance(input_string, str):
+        return 'unknown'
+
+    # Check if the input string looks like a base64 encoded image
+    if input_string.startswith('data:image/'):
+        try:
+            meta, base64_data = input_string.split(",", 1)
+            base64.b64decode(base64_data)
+            return 'base64'
+        except (ValueError, IndexError):
+            pass
+
+    if re.match(url_pattern, input_string):
+        return 'url'
+
+    # Check if the input is a file path
+    if os.path.isfile(input_string):
+        return 'file'
+
+    return 'unknown'
