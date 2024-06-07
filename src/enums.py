@@ -256,6 +256,9 @@ gpt4image_num_max = 10
 # can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
 llava_num_max = 10
 
+# really just limited by GPU memory, beyond 5 fails for single 80GB H100
+internvl_num_max = 5
+
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
 google_mapping = {
