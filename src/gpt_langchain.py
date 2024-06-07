@@ -5577,7 +5577,7 @@ def path_to_docs(path_or_paths,
     fork_lots_ok = 'name' in kwargs['hf_embedding_model'] and kwargs['hf_embedding_model']['name'].startswith('tei')
     if not fork_lots_ok:
         # else can hit OSError: [Errno 12] Cannot allocate memory
-        n_jobs = max(0, min(4, n_jobs))
+        n_jobs = max(0, min(8, n_jobs))
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         kwargs['hf_embedding_model'] = None  # can't fork and use CUDA
