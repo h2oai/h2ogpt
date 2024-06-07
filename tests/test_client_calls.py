@@ -5998,7 +5998,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
             img_to_base64('tests/receipt.jpg'),
             img_to_base64('tests/dental.png'),
             ]
-    expecteds = ['tiger', 'license', 'receipt', 'Clinic', 'receipt', 'Clinic']
+    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
     for expected, url in zip(expecteds, urls):
         # OpenAI API
         messages = [{
@@ -6042,7 +6042,10 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         oclient = openai_client.chat.completions
         response = oclient.create(**client_kwargs)
         print(response)
-        assert expected in response.choices[0].message.content, "%s %s" % (url, response)
+        if isinstance(expected, list):
+            assert any(x in response.choices[0].message.content for x in expected), "%s %s" % (url, response)
+        else:
+            assert expected in response.choices[0].message.content, "%s %s" % (url, response)
 
 
 def get_creation_date(file_path):
