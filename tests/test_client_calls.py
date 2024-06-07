@@ -5993,13 +5993,15 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
     urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
-            'tests/driverslicense.jpeg',
-            'tests/receipt.jpg',
-            'tests/dental.png',
+            img_to_base64('tests/driverslicense.jpeg'),
+            # only if on local host:
+            # 'tests/receipt.jpg',
+            # 'tests/dental.png',
             img_to_base64('tests/receipt.jpg'),
             img_to_base64('tests/dental.png'),
             ]
-    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
+    # expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
+    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic']]
     for expected, url in zip(expecteds, urls):
         # OpenAI API
         messages = [{
@@ -6020,7 +6022,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         if 'localhost:7860' in client.api_url:
             base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
         elif '192.168.1.172:7860' in client.api_url:
-                base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+            base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
         else:
             base_url = client.api_url.replace('/api/predict', ':5000/v1')
 
