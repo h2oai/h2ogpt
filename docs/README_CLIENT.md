@@ -54,6 +54,7 @@ just as with OpenAI, and related API for text completion (non-chat) mode.
 from src.vision.utils_vision import img_to_base64
 
 # local files would only work if server on same system as client
+# for img_to_base64, str_bytes=True or False will work.  True is for internal use for LLaVa gradio communication only
 urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
         img_to_base64('tests/driverslicense.jpeg'),
         img_to_base64('tests/receipt.jpg'),
