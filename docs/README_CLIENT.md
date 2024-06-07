@@ -108,6 +108,23 @@ for expected, url in zip(expecteds, urls):
         assert expected in response.choices[0].message.content, "%s %s" % (url, response)
 ```
 
+That that `str_bytes=True` leads to something like:
+```text
+b'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...'
+```
+which includes the b prefix indicating it's a byte string.
+while `str_bytes=False` leads to something like
+```text
+data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...
+```
+without the b prefix, indicating it's a plain string.
+
+Ensure the bytes encoded part does *not* itself have `b' '` around it.  i.e. if used:
+```python
+f"data:image/{iformat.lower()};base64,{img_str.decode('utf-8')}"
+```
+and `img_str = str(bytes_object)` that will not be correct.
+
 #### Authentication
 
 If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the `username:password` as a string to access.  E.g.:
