@@ -5385,7 +5385,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
            'natural language' in text or \
            'Summarize' in text or \
            'summarizing' in text or \
-           'summarization' in text
+           'summarization' in text or \
+           'large language model' in text
 
     # MyData
     # get file for client to upload
@@ -5989,6 +5990,44 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
     else:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    # OpenAI API
+    messages = [{
+        'role':
+            'user',
+        'content': [{
+            'type': 'text',
+            'text': 'Describe the image please',
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url':
+                    'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
+            },
+        }],
+    }]
+
+    if 'localhost:7860' in client.api_url:
+        base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+    else:
+        base_url = client.api_url.replace('/api/predict', ':5000/v1')
+
+    # try UserData
+    from openai import OpenAI
+    model = base_model
+    client_args = dict(base_url=base_url,
+                       api_key=kwargs.get('h2ogpt_key', 'EMPTY'))
+    openai_client = OpenAI(**client_args)
+
+    client_kwargs = dict(model=model,
+                         max_tokens=200,
+                         stream=False,
+                         messages=messages,
+                         user='%s:%s' % (client.auth[0], client.auth[1]),
+                         )
+    client = openai_client.chat.completions
+    response = client.create(**client_kwargs)
+    print(response)
 
 
 def get_creation_date(file_path):
