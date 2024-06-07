@@ -50,6 +50,10 @@ def img_to_base64(image_file, str_bytes=True):
 
 
 def base64_to_img(img_str, output_path):
+    if img_str.startswith("b'"):
+        # check if was a string of bytes joined like when str_bytes=True in above function
+        img_str = img_str[2:-1]  # This removes the first b' and the last '
+
     # Split the string on "," to separate the metadata from the base64 data
     meta, base64_data = img_str.split(",", 1)
     # Extract the format from the metadata

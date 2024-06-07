@@ -5934,7 +5934,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
 
 
-vision_models = ['gpt-4-vision-preview',
+vision_models = ['gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
                  'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                  'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
                  'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
