@@ -2576,6 +2576,7 @@ def download_image(image_url, save_dir):
 
         # Create the full save path
         save_path = os.path.join(save_dir, file_name)
+        makedirs(save_dir, exist_ok=True)
 
         # Save the image
         with open(save_path, 'wb') as file:
