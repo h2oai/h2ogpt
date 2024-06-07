@@ -8,7 +8,7 @@ import pytest
 from tests.utils import wrap_test_forked
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names, handle_json
+    deduplicate_names, handle_json, check_input_type
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
@@ -224,6 +224,7 @@ def test_chat_template():
     instruction = "Who are you?"
     system_prompt = "Be kind"
     history_to_use = [('Are you awesome?', "Yes I'm awesome.")]
+    image_file = []
     other_base_models = ['h2oai/mixtral-gm-rag-experimental-v2']
     supports_system_prompt = ['meta-llama/Llama-2-7b-chat-hf', 'openchat/openchat-3.5-1210', 'SeaLLMs/SeaLLM-7B-v2',
                               'h2oai/h2ogpt-gm-experimental']
@@ -233,7 +234,8 @@ def test_chat_template():
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(base_model)
 
-        prompt = apply_chat_template(instruction, system_prompt, history_to_use, tokenizer,
+        prompt = apply_chat_template(instruction, system_prompt, history_to_use, image_file,
+                                     tokenizer,
                                      user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt0,
                                      verbose=True)
 
@@ -825,3 +827,32 @@ def test_handle_json_no_schema():
         "skills": ["AI", "Machine Learning", "Data Science"]
     }
     assert handle_json(no_schema_json) == no_schema_json
+
+
+# Example usage converted to pytest test cases
+def test_check_input_type():
+    # Valid URL
+    assert check_input_type("https://example.com") == 'url'
+
+    # Valid file path (Note: Adjust the path to match an actual file on your system for the test to pass)
+    assert check_input_type("tests/receipt.jpg") == 'file'
+
+    # Valid base64 encoded image
+    assert check_input_type("b'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...") == 'base64'
+
+    # Non-string inputs
+    assert check_input_type(b"bytes data") == 'unknown'
+    assert check_input_type(12345) == 'unknown'
+    assert check_input_type(["list", "of", "strings"]) == 'unknown'
+
+    # Invalid base64 encoded image
+    assert check_input_type("b'data:image/png;base64,invalid_base64") == 'unknown'
+
+    # Invalid URL
+    assert check_input_type("invalid://example.com") == 'unknown'
+
+    # Invalid file path
+    assert check_input_type("/path/to/invalid/file.txt") == 'unknown'
+
+    # Plain string
+    assert check_input_type("just a string") == 'unknown'

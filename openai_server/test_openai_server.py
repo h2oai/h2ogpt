@@ -109,6 +109,9 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     model_list = openai_client.models.list()
     assert model_list.data[0].id == base_model
 
+    os.system('pkill -f server_start.py --signal 9')
+    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
+
 
 def test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
               prompt, client_kwargs, stream_output, verbose, base_model):

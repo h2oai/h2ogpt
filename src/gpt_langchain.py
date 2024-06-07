@@ -1861,6 +1861,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
         prompt = self.prompter.generate_prompt(data_point,
                                                chat_conversation=self.chat_conversation,
                                                user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               image_file=self.image_file,
                                                )
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
@@ -1993,10 +1994,12 @@ class H2OTextGenOpenAI:
             # NOTE: OpenAI/vLLM server does not add prompting, so must do here
             data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
             context_from_history = len(self.chat_conversation) > 0
+            image_file = []  # FIXME: not supported, should use chat API for images via OpenAI API
             prompt = self.prompter.generate_prompt(data_point,
                                                    chat_conversation=self.chat_conversation,
                                                    user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
                                                    context_from_history=context_from_history,
+                                                   image_file=image_file,
                                                    )
             prompts[prompti] = prompt
 
@@ -2215,9 +2218,11 @@ class H2OReplicate(Replicate):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
         # Note Replicate handles the prompting of the specific model, but not if history, so just do it all on our side
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
+        image_file = []
         prompt = self.prompter.generate_prompt(data_point,
                                                chat_conversation=self.chat_conversation,
                                                user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               image_file=image_file,
                                                )
 
         response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
@@ -5569,6 +5574,11 @@ def path_to_docs(path_or_paths,
     my_tqdm = no_tqdm if not verbose else tqdm
     filei0 = filei
 
+    fork_lots_ok = 'name' in kwargs['hf_embedding_model'] and kwargs['hf_embedding_model']['name'].startswith('tei')
+    if not fork_lots_ok:
+        # else can hit OSError: [Errno 12] Cannot allocate memory
+        n_jobs = max(0, min(8, n_jobs))
+
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         kwargs['hf_embedding_model'] = None  # can't fork and use CUDA
         # avoid nesting, e.g. upload 1 zip and then inside many files
@@ -7721,6 +7731,7 @@ def get_chain(query=None,
               summarize_action=None,
 
               doing_grounding=False,
+              image_file=[],
               ):
     if inference_server is None:
         inference_server = ''
@@ -8460,6 +8471,7 @@ def get_chain(query=None,
                                                 attention_sinks=attention_sinks,
                                                 hyde_level=hyde_level,
                                                 doing_grounding=doing_grounding,
+                                                image_file=image_file,
                                                 )
 
     # NOTE: if map_reduce, then no need to auto reduce chunks
@@ -8696,7 +8708,8 @@ def get_chain(query=None,
             while True:
                 conversation = structure_to_messages(query,
                                                      system_prompt if system_prompt not in [None, '', 'auto'] else None,
-                                                     chat_conversation)
+                                                     chat_conversation,
+                                                     image_file)
                 documents = [merge_dict(dict(text=x.page_content),
                                         {k: v for k, v in x.metadata.items() if
                                          v and k in metadata_in_context_set}) for x in docs]
@@ -9438,6 +9451,10 @@ def _update_user_db(file,
     if is_url is None and is_url is None and file:
         # assume add_button action if not set
         is_url = True
+    if isinstance(file, str) and os.path.isfile(file):
+        is_url = False
+    if isinstance(file, list) and len(file) > 0 and os.path.isfile(file[0]):
+        is_url = False
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None, {}

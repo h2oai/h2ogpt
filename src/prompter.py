@@ -1681,7 +1681,7 @@ class Prompter(object):
         stop_sequences = [x for x in stop_sequences if x]
         return stop_sequences
 
-    def generate_prompt(self, data_point, reduced=False, context_from_history=None, chat_conversation=[],
+    def generate_prompt(self, data_point, reduced=False, context_from_history=None, chat_conversation=[], image_file=[],
                         user_prompt_for_fake_system_prompt=None):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
@@ -1697,7 +1697,8 @@ class Prompter(object):
             from src.gen import apply_chat_template
             instruction = data_point['instruction']
             # ignore context and iinput when using chat template
-            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, self.tokenizer,
+            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, image_file,
+                                         self.tokenizer,
                                          user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          test_only=False, verbose=self.verbose)
             return prompt
@@ -2374,7 +2375,8 @@ def get_llm_history(history, only_text=False):
     return history_new
 
 
-def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
+def apply_chat_template(instruction, system_prompt, history, image_file,
+                        tokenizer, user_prompt_for_fake_system_prompt=None,
                         test_only=False, verbose=False):
     history = get_llm_history(history, only_text=True)
     prompt = ''
@@ -2387,7 +2389,9 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, user_pro
         try:
             messages = structure_to_messages(instruction,
                                              system_prompt_to_use,
-                                             history)
+                                             history,
+                                             image_file,
+                                             )
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             break
         except Exception as e:

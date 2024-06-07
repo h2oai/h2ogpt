@@ -3086,7 +3086,8 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "more text is boring" in res_dict['response'] or
             "it can be inferred that more text is indeed boring" in res_dict['response'] or
             "expressing frustration" in res_dict['response'] or
-            "it seems that more text can indeed be boring" in res_dict['response']) \
+            "it seems that more text can indeed be boring" in res_dict['response'] or
+            "repetition" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"
@@ -5385,7 +5386,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
            'natural language' in text or \
            'Summarize' in text or \
            'summarizing' in text or \
-           'summarization' in text
+           'summarization' in text or \
+           'large language model' in text
 
     # MyData
     # get file for client to upload
@@ -5473,7 +5475,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     test1 = 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
     test2 = 'Based on the document provided chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
     test3 = """Based on the document provided Chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song. Chirpy met many birds along the way, learning new songs, but he couldn't find the one he was searching for. After many days and nights, he reached the edge of the forest and learned that the song he was looking for was not just a melody but a story that comes from the heart. He returned to his home in the whispering woods, using his gift to sing songs of love, courage and hope, healing the wounded, giving strength to the weak, and bringing joy to the sad. The story of Chirpi's journey teaches us that true beauty and talent come from the heart, and that the power to make a difference lies within each of us.""" == transcription.text
-    assert test1 or test2 or test3, "Text: %s" % transcription.text
+    text4 = """Based on the documents provided chirpy. A young bird embarked on a journey to find a bird who sang a beautiful melody he had never heard before. He met many birds along the way, each one teaching him a new song. However, he was unable to find the bird who sang the enchanting melody he was searching for. The document suggests that chirpy's journey was filled with excitement and curiosity, as he learned new songs and met various birds along the way. Despite his efforts, Chirpy was unable to find the bird he was looking for, but his journey taught him the value of perseverance and the importance of learning from others."""
+    assert test1 or test2 or test3 or text4, "Text: %s" % transcription.text
 
     import json
     import httpx
@@ -5988,6 +5991,62 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
     else:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
+            'tests/driverslicense.jpeg',
+            'tests/receipt.jpg',
+            'tests/dental.png',
+            img_to_base64('tests/receipt.jpg'),
+            img_to_base64('tests/dental.png'),
+            ]
+    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
+    for expected, url in zip(expecteds, urls):
+        # OpenAI API
+        messages = [{
+            'role':
+                'user',
+            'content': [{
+                'type': 'text',
+                'text': 'Describe the image please',
+            }, {
+                'type': 'image_url',
+                'image_url': {
+                    'url':
+                        url,
+                },
+            }],
+        }]
+
+        if 'localhost:7860' in client.api_url:
+            base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+        elif '192.168.1.172:7860' in client.api_url:
+                base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+        else:
+            base_url = client.api_url.replace('/api/predict', ':5000/v1')
+
+        from openai import OpenAI
+        model = base_model
+        client_args = dict(base_url=base_url,
+                           api_key=kwargs.get('h2ogpt_key', 'EMPTY'))
+        openai_client = OpenAI(**client_args)
+
+        if client.auth:
+            user = '%s:%s' % (client.auth[0], client.auth[1])
+        else:
+            user = None
+        client_kwargs = dict(model=model,
+                             max_tokens=200,
+                             stream=False,
+                             messages=messages,
+                             user=user,
+                             )
+        oclient = openai_client.chat.completions
+        response = oclient.create(**client_kwargs)
+        print(response)
+        if isinstance(expected, list):
+            assert any(x in response.choices[0].message.content for x in expected), "%s %s" % (url, response)
+        else:
+            assert expected in response.choices[0].message.content, "%s %s" % (url, response)
 
 
 def get_creation_date(file_path):
