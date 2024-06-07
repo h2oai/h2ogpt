@@ -980,45 +980,24 @@ For h2oGPT, run:
 ```bash
 python generate.py --base_model=THUDM/cogvlm2-llama3-chat-19B --inference_server='vllm_chat:http://0.0.0.0:30030/v1'
 ```
-where by using `vllm_chat` we trigger use of the OpenAI chat like API for InternalVL models, using the GPT-4V like API.
+where by using `vllm_chat` we trigger use of the OpenAI chat like API for internvl models, using the GPT-4V like API.
 
 ### LMDeploy for InternVL-Chat-V1.5 or LLaVa 1.5 or 1.6 (Next) vision models
 
-Make the file `Dockerfile.internalvl`:
-```text
-FROM openmmlab/lmdeploy:latest
-
-RUN apt-get update && apt-get install -y python3 python3-pip git
-
-WORKDIR /app
-
-RUN pip3 uninstall pkg_resources -y
-RUN pip3 install --upgrade pip
-RUN pip3 install --upgrade setuptools==66.1.1
-RUN pip3 uninstall -y ninja && pip3 install ninja
-RUN CUDA_HOME=/usr/local/cuda-11.8/ PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu118 pip3 install timm xformers triton==2.1.0
-RUN MAX_JOBS=4 CUDA_HOME=/usr/local/cuda-11.8/ PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu118 FLASH_ATTENTION_FORCE_BUILD=TRUE pip3 install flash-attn==2.5.2 --no-build-isolation
-RUN pip3 install git+https://github.com/haotian-liu/LLaVA.git --no-deps
-
-COPY . .
-
-CMD ["lmdeploy", "serve", "api_server", "OpenGVLab/InternVL-Chat-V1-5"]
-```
-One can remote the flash_attn parts if they cause troubles, not all models required it.  With the `MAX_JOBS=4` used above, it takes about 4600 seconds to build fast attention part.
-
-Then run:
 ```bash
-docker build - < Dockerfile.internalvl -t internalvl
+docker build - < docs/Dockerfile.internvl -t internvl
 ```
-then to launch server run:
+Inside that file, one can remove the flash_attn parts if they cause troubles, not all models required it.  With the `MAX_JOBS=4` used inside, it takes about 4600 seconds to build fast attention part.
+
+Then to launch server run:
 ```bash
 docker run -d --runtime nvidia --gpus '"device=0"' \
     -v $HOME/.cache/huggingface:/root/.cache/huggingface \
     --env "HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN" \
     -p 23333:23333 \
     --ipc=host \
-    --name internalvl-chat-v1-5_lmdeploy \
-    internalvl \
+    --name internvl-chat-v1-5_lmdeploy \
+    internvl \
     lmdeploy serve api_server OpenGVLab/InternVL-Chat-V1-5 --model-name OpenGVLab/InternVL-Chat-V1-5
 ```
 or for 34b llava next
@@ -1029,7 +1008,7 @@ docker run -d --runtime nvidia --gpus '"device=1"' \
     -p 30020:23333 \
     --ipc=host \
     --name llava-v1.6-34b_lmdeploy \
-    internalvl \
+    internvl \
     lmdeploy serve api_server liuhaotian/llava-v1.6-34b --model-name liuhaotian/llava-v1.6-34b
 ```
 
@@ -1066,7 +1045,7 @@ For h2oGPT, run:
 ```bash
 python generate.py --base_model=OpenGVLab/InternVL-Chat-V1-5 --inference_server='vllm_chat:http://0.0.0.0:23333/v1'
 ```
-where by using `vllm_chat` we trigger use of the OpenAI chat like API for InternalVL models, using the GPT-4V like API.
+where by using `vllm_chat` we trigger use of the OpenAI chat like API for internvl models, using the GPT-4V like API.
 
 or for both models:
 ```bash
