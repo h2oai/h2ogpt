@@ -255,7 +255,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
     if base_model == 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2':
         # 7b has 71 heads, not divisible
         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0")
+    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1")
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting vLLM inference %s..." % datetime_str
     print(msg, flush=True)
@@ -277,7 +277,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '%s/.cache/huggingface/hub:/workspace/.cache/huggingface/hub' % home_dir,
               '-v', '%s/.cache/huggingface/modules:/workspace/.cache/huggingface/modules' % home_dir,
               # '--network', 'host',
-              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0',
+              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
               # 'docker.io/library/h2ogpt',  # use when built locally with vLLM just freshly added
               '-m', 'vllm.entrypoints.openai.api_server',
@@ -310,7 +310,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
 
 
 def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=None):
-    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0")
+    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1")
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting h2oGPT %s..." % datetime_str
     print(msg, flush=True)
@@ -331,7 +331,7 @@ def run_h2ogpt_docker(port, base_model, inference_server=None, max_new_tokens=No
               '-u', '%s:%s' % (os.getuid(), os.getgid()),
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
               '--network', 'host',
-              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0',
+              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
               '/workspace/generate.py',
                     '--base_model=%s' % base_model,

@@ -491,22 +491,23 @@ The vLLMs/TGIs are started with these options on various machines.
 
 For 8*A100 80GB, `go_VLLM.12.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
-
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=0,1,2,3"' \
     --shm-size=10.24gb \
     -p 5000:5000 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat \
@@ -517,19 +518,23 @@ docker run -d \
 	--max-num-batched-tokens 8192 \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.70.txt
 
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=4"' \
     --shm-size=10.24gb \
     -p 5002:5002 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0-180 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5002 \
         --host=0.0.0.0 \
         --model=HuggingFaceH4/zephyr-7b-beta \
@@ -541,19 +546,23 @@ docker run -d \
 	--max-num-batched-tokens 32768 \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.zephyrbeta.txt
 
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=4"' \
     --shm-size=10.24gb \
     -p 5001:5001 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5001 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-13b-chat \
@@ -564,19 +573,23 @@ docker run -d \
 	--gpu-memory-utilization 0.8 \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.13.txt
 
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=5,6"' \
     --shm-size=10.24gb \
     -p 5003:5003 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5003 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-32k-codellama-34b-instruct \
@@ -587,19 +600,23 @@ docker run -d \
 	--max-num-batched-tokens 32768 \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.code32k.txt
 
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=7"' \
     --shm-size=10.24gb \
     -p 5004:5004 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5004 \
         --host=0.0.0.0 \
         --model=mistralai/Mistral-7B-Instruct-v0.2 \
@@ -613,25 +630,29 @@ and run `bash ./go_VLLM.12.sh` on that machine.
 
 On another 4*A100 80GB, `go_VLLM.28.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1
 mkdir -p $HOME/.cache/huggingface/hub
 
 # TGI
 docker run -d --gpus '"device=0,1"' --shm-size 12g -v $HOME/.cache/huggingface/hub/:/data -p 5002:80 ghcr.io/huggingface/text-generation-inference:1.3 --model-id mistralai/Mixtral-8x7B-Instruct-v0.1 --trust-remote-code --max-stop-sequences=6 --max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 --max-batch-total-tokens 131072 --sharded true --num-shard 2
 
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=3"' \
     --shm-size=10.24gb \
     -p 5001:5001 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5001 \
         --host=0.0.0.0 \
         --model=Nexusflow/NexusRaven-V2-13B \
@@ -641,19 +662,23 @@ docker run -d \
 	--max-model-len=16384 \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.func13b.txt
 
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=2"' \
     --shm-size=10.24gb \
     -p 5005:5005 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5005 \
         --host=0.0.0.0 \
         --model=openchat/openchat-3.5-1210 \
@@ -665,22 +690,23 @@ and run `bash ./go_VLLM.28.sh`.
 
 For another 4*A100 80GB, `go_VLLM.22.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
-
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=0,1,2,3"' \
     --shm-size=10.24gb \
     -p 5000:5000 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5000 \
         --host=0.0.0.0 \
         --model=NousResearch/Nous-Capybara-34B \
@@ -693,20 +719,23 @@ and run `bash ./go_VLLM.22.sh`
 
 For another 1*A100 80GB, `go_VLLM.144.sh` has:
 ```bash
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=2"' \
     --shm-size=10.24gb \
     -p 5014:5014 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
-    -e HUGGING_FACE_HUB_TOKEN=aaa \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5016 \
         --host=0.0.0.0 \
         --model=google/gemma-7b-it \
@@ -722,22 +751,23 @@ and run `bash ./go_VLLM.144.sh`.
 
 For another 2*A10G, `go_VLLM.199.sh` has:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 mkdir -p $HOME/.cache/huggingface/hub
-
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=2,3"' \
     --shm-size=10.24gb \
     -p 5014:5014 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5014 \
         --host=0.0.0.0 \
         --model=h2oai/h2o-danube-1.8b-chat \
@@ -974,7 +1004,7 @@ COPY . .
 
 CMD ["lmdeploy", "serve", "api_server", "OpenGVLab/InternVL-Chat-V1-5"]
 ```
-One can remote the flash_attn parts if they cause troubles, not all models required it.
+One can remote the flash_attn parts if they cause troubles, not all models required it.  With the `MAX_JOBS=4` used above, it takes about 4600 seconds to build fast attention part.
 
 Then run:
 ```bash
@@ -1453,7 +1483,7 @@ docker run \
       -u `id -u`:`id -g` \
       -v "${HOME}"/.cache:/workspace/.cache \
       -v "${HOME}"/save:/workspace/save \
-      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/generate.py \
+      gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/generate.py \
          --base_model=HuggingFaceH4/zephyr-7b-beta \
          --use_safetensors=True \
          --prompt_type=zephyr \
