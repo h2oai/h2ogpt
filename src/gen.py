@@ -2127,6 +2127,7 @@ def main(
                                     langchain_mode1, langchain_mode_paths, langchain_mode_types,
                                     hf_embedding_model,
                                     migrate_embedding_model,
+                                    n_jobs=n_jobs,
                                     embedding_gpu_id=embedding_gpu_id,
                                     kwargs_make_db=locals().copy(),
                                     verbose=verbose)
