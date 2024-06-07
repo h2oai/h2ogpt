@@ -256,7 +256,7 @@ gpt4image_num_max = 10
 # can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
 llava_num_max = 10
 
-# really just limited by GPU memory, beyond 5 fails for single 80GB H100
+# really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
 internvl_num_max = 5
 
 # https://ai.google.dev/models/gemini

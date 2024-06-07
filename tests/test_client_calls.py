@@ -6082,7 +6082,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     from src.vision.utils_vision import img_to_base64
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
     # DEBUGGING how many images can be handled before bad results, OOM, failures, etc.
-    # image_files = image_files[:5]
+    # image_files = image_files[:8]
 
     print("Doing base_model=%s" % base_model)
     use_instruction = langchain_action == LangChainAction.QUERY.value
