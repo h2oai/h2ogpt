@@ -5992,13 +5992,13 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
     urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
-            'tests/driverslicense.jpeg'
+            'tests/driverslicense.jpeg',
             'tests/receipt.jpg',
             'tests/dental.png',
             img_to_base64('tests/receipt.jpg'),
             img_to_base64('tests/dental.png'),
             ]
-    expecteds = ['tiger', 'license', 'receipt', 'dental', 'recipe', 'dental']
+    expecteds = ['tiger', 'license', 'receipt', 'Clinic', 'receipt', 'Clinic']
     for expected, url in zip(expecteds, urls):
         # OpenAI API
         messages = [{
@@ -6018,6 +6018,8 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
 
         if 'localhost:7860' in client.api_url:
             base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+        elif '192.168.1.172:7860' in client.api_url:
+                base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
         else:
             base_url = client.api_url.replace('/api/predict', ':5000/v1')
 
@@ -6027,16 +6029,20 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
                            api_key=kwargs.get('h2ogpt_key', 'EMPTY'))
         openai_client = OpenAI(**client_args)
 
+        if client.auth:
+            user = '%s:%s' % (client.auth[0], client.auth[1])
+        else:
+            user = None
         client_kwargs = dict(model=model,
                              max_tokens=200,
                              stream=False,
                              messages=messages,
-                             user='%s:%s' % (client.auth[0], client.auth[1]),
+                             user=user,
                              )
-        client = openai_client.chat.completions
-        response = client.create(**client_kwargs)
+        oclient = openai_client.chat.completions
+        response = oclient.create(**client_kwargs)
         print(response)
-        assert expected in response, response
+        assert expected in response.choices[0].message.content, "%s %s" % (url, response)
 
 
 def get_creation_date(file_path):
