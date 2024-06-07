@@ -9451,6 +9451,10 @@ def _update_user_db(file,
     if is_url is None and is_url is None and file:
         # assume add_button action if not set
         is_url = True
+    if isinstance(file, str) and os.path.isfile(file):
+        is_url = False
+    if isinstance(file, list) and len(file) > 0 and os.path.isfile(file[0]):
+        is_url = False
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None, {}
