@@ -838,7 +838,7 @@ def test_check_input_type():
     assert check_input_type("tests/receipt.jpg") == 'file'
 
     # Valid base64 encoded image
-    assert check_input_type("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...") == 'base64'
+    assert check_input_type("b'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...") == 'base64'
 
     # Non-string inputs
     assert check_input_type(b"bytes data") == 'unknown'
@@ -846,7 +846,7 @@ def test_check_input_type():
     assert check_input_type(["list", "of", "strings"]) == 'unknown'
 
     # Invalid base64 encoded image
-    assert check_input_type("data:image/png;base64,invalid_base64") == 'unknown'
+    assert check_input_type("b'data:image/png;base64,invalid_base64") == 'unknown'
 
     # Invalid URL
     assert check_input_type("invalid://example.com") == 'unknown'
