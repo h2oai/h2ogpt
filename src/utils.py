@@ -2613,13 +2613,8 @@ def check_input_type(input_string):
         return 'unknown'
 
     # Check if the input string looks like a base64 encoded image
-    if input_string.startswith("b'data:image/"):
-        try:
-            meta, base64_data = input_string.split(",", 1)
-            base64.b64decode(base64_data)
-            return 'base64'
-        except (ValueError, IndexError):
-            pass
+    if input_string.startswith("data:image/") or input_string.startswith("b'data:image/"):
+        return 'base64'
 
     if re.match(url_pattern, input_string):
         return 'url'
