@@ -943,3 +943,67 @@ def test_process_youtube():
         print(file, file=sys.stderr)
         assert os.path.isfile(file)
     assert len(processed_files) == len(test_files) - 1 + 10  # 10 is the number of images generated from the video file
+
+
+def test_process_animated_gif():
+    # Create a list of test files
+    test_files = [
+        "tests/test_animated_gif.gif",
+        "tests/screenshot.png"
+    ]
+
+    output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    print(output_dir, file=sys.stderr)
+
+    # Process the files
+    processed_files = process_file_list(test_files, output_dir, resolution=(640, 480), image_format="jpg",
+                                        video_frame_period=0, extract_frames=10, verbose=True)
+
+    # Print the resulting list of image files
+    print("Processed files:")
+    for file in processed_files:
+        print(file, file=sys.stderr)
+        assert os.path.isfile(file)
+    assert len(processed_files) == len(test_files) - 1 + 3  # 3 is the number of images generated from the animated gif
+
+
+def test_process_animated_gif2():
+    # Create a list of test files
+    test_files = [
+        "tests/test_animated_gif.gif",
+        "tests/screenshot.png"
+    ]
+
+    output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    print(output_dir, file=sys.stderr)
+
+    # Process the files
+    processed_files = process_file_list(test_files, output_dir, verbose=True)
+
+    # Print the resulting list of image files
+    print("Processed files:")
+    for file in processed_files:
+        print(file, file=sys.stderr)
+        assert os.path.isfile(file)
+    assert len(processed_files) == len(test_files) - 1 + 3  # 3 is the number of images generated from the animated gif
+
+
+def test_process_animated_gif3():
+    # Create a list of test files
+    test_files = [
+        "tests/test_animated_gif.gif",
+        "tests/screenshot.png"
+    ]
+
+    output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    print(output_dir, file=sys.stderr)
+
+    # Process the files
+    processed_files = process_file_list(test_files, output_dir, video_frame_period=1, verbose=True)
+
+    # Print the resulting list of image files
+    print("Processed files:")
+    for file in processed_files:
+        print(file, file=sys.stderr)
+        assert os.path.isfile(file)
+    assert len(processed_files) == len(test_files) - 1 + 60  # 60 is the number of images generated from the animated gif

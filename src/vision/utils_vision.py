@@ -32,14 +32,33 @@ VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}
 
 
 def is_animated_gif(file_path):
-    from PIL import Image
-    gif = Image.open(file_path)
+    if not file_path.endswith('.gif'):
+        return False
+    from PIL import Image, UnidentifiedImageError
+    try:
+        gif = Image.open(file_path)
+    except (FileNotFoundError, UnidentifiedImageError):
+        return False
     try:
         gif.seek(1)
     except EOFError:
         return False
     else:
         return True
+
+
+def gif_to_mp4(gif_path):
+    from moviepy.editor import VideoFileClip
+    """
+    Convert an animated GIF to an MP4 video.
+
+    :param gif_path: Path to the input GIF file.
+    :param mp4_path: Path to the output MP4 file.
+    """
+    clip = VideoFileClip(gif_path)
+    mp4_path = gif_path.replace('.gif', '.mp4')
+    clip.write_videofile(mp4_path, codec='libx264')
+    return mp4_path
 
 
 def is_video_file(file_path):
@@ -228,6 +247,12 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
     for file in file_list:
         # i.e. if not file, then maybe youtube url
         is_maybe_video = os.path.isfile(file) and is_video_file(file) or not os.path.isfile(file) or is_animated_gif(file)
+        if is_animated_gif(file):
+            # FIXME: could convert gif -> mp4 with gif_to_mp4(gif_path)()
+            # fiftyone can't handle animated gifs
+            extract_frames = None
+            if video_frame_period is not None and video_frame_period < 1:
+                video_frame_period = None
 
         if is_maybe_video:
             # If it's a valid video, extract frames
