@@ -118,6 +118,13 @@ def img_to_base64(image_file, resolution=None, output_format=None, str_bytes=Tru
 
 
 def base64_to_img(img_str, output_path):
+    """
+    Convert a base64 string to an image or video file.
+
+    :param img_str: The base64 encoded string with the image or video data.
+    :param output_path: The path (without extension) where the output file will be saved.
+    :return: The path to the saved file.
+    """
     if img_str.startswith("b'"):
         # check if was a string of bytes joined like when str_bytes=True in above function
         img_str = img_str[2:-1]  # This removes the first b' and the last '
@@ -239,6 +246,8 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
     :param verbose: Boolean to control whether to print progress messages.
     :return: Updated list of file names containing only image files.
     """
+    if file_list is None:
+        file_list = []
     if image_format is None:
         image_format = 'jpg'
 

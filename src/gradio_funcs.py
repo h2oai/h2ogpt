@@ -88,38 +88,6 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     kwargs1['top_k_docs_max_show'] = 30
 
     ###########################################
-    # deal with image files
-    image_files_to_delete = []
-    if 'image_file' in user_kwargs and user_kwargs['image_file']:
-        if isinstance(user_kwargs['image_file'], list):
-            image_files = user_kwargs['image_file']
-        else:
-            image_files = [user_kwargs['image_file']]
-        b2imgs = []
-        image_files_to_delete = []
-        for img_file_one in image_files:
-            str_type = check_input_type(img_file_one)
-            if str_type == 'unknown':
-                continue
-
-            img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
-            if str_type == 'url':
-                img_file_one = download_image(img_file_one, img_file_path)
-                # only delete if was made by us
-                image_files_to_delete.append(img_file_one)
-            elif str_type == 'base64':
-                from src.vision.utils_vision import base64_to_img
-                img_file_one = base64_to_img(img_file_one, img_file_path)
-                # only delete if was made by us
-                image_files_to_delete.append(img_file_one)
-            else:
-                # str_type='file' or 'youtube'
-                pass
-            if img_file_one is not None:
-                b2imgs.append(img_file_one)
-        user_kwargs['image_file'] = b2imgs  # always just make list
-
-    ###########################################
     # modify some user_kwargs
     # only used for submit_nochat_api
     user_kwargs['chat'] = False
@@ -217,6 +185,36 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         assert isinstance(model_state1['h2ogpt_key'], str)
         args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
+    ###########################################
+    # deal with image files
+    image_files = args_list[eval_func_param_names.index('image_file')]
+    if isinstance(image_files, str):
+        image_files = [image_files]
+
+    image_files_to_delete = []
+    b2imgs = []
+    for img_file_one in image_files:
+        str_type = check_input_type(img_file_one)
+        if str_type == 'unknown':
+            continue
+
+        img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
+        if str_type == 'url':
+            img_file_one = download_image(img_file_one, img_file_path)
+            # only delete if was made by us
+            image_files_to_delete.append(img_file_one)
+        elif str_type == 'base64':
+            from src.vision.utils_vision import base64_to_img
+            img_file_one = base64_to_img(img_file_one, img_file_path)
+            # only delete if was made by us
+            image_files_to_delete.append(img_file_one)
+        else:
+            # str_type='file' or 'youtube'
+            pass
+        if img_file_one is not None:
+            b2imgs.append(img_file_one)
+    # always just make list
+    args_list[eval_func_param_names.index('image_file')] = b2imgs
     ###########################################
     # deal with videos in image list
     images_file_path = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
