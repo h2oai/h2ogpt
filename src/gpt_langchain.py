@@ -227,8 +227,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                 else:
                     max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
                 # limit embedding memory use
-                max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '512')))
-                print('max_batch_size', max_batch_size)
+                max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
                 sources_batches = split_list(sources, max_batch_size)
                 for sources_batch in sources_batches:
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
@@ -290,6 +289,7 @@ def del_from_db(db, sources, db_type=None):
                 max_batch_size = client_collection._producer.max_batch_size
             else:
                 max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+            max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
             metadatas = list(set(sources))
             sources_batches = split_list(metadatas, max_batch_size)
             for sources_batch in sources_batches:
