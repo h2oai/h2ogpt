@@ -524,6 +524,9 @@ def main(
         image_file: str = None,
         image_control: str = None,
         images_num_max: int = None,
+        image_resolution: tuple = None,
+        image_format: str = None,
+        video_frame_period: int = None,
 
         response_format: str = 'text',
         guided_json: str = '',
@@ -1279,6 +1282,9 @@ def main(
     :param images_num_max: Maximum number of images in any LLM call.
         if None, then checks images_num_max and uses that value for defined models (assumes 80GB GPU), else uses 1
         If set here or in model_lock, then that model uses the set value
+    :param image_resolution: Resolution of any images
+    :param image_format: Preferred format of images, esp. for video output
+    :param video_frame_period: Period of frames to use from video
 
     :param response_format: text or json_object or json_code
         json_object means always try to use best mechanism to make JSON.
@@ -1959,6 +1965,9 @@ def main(
                             image_file,
                             image_control,
                             images_num_max,
+                            image_resolution,
+                            image_format,
+                            video_frame_period,
 
                             response_format,
                             guided_json,
@@ -2187,6 +2196,9 @@ def main(
                             trust_remote_code=None,
                             json_vllm=None,
                             images_num_max=None,
+                            image_resolution=None,
+                            image_format=None,
+                            video_frame_period=None,
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
@@ -3952,6 +3964,9 @@ def evaluate(
         image_file,
         image_control,
         images_num_max,
+        image_resolution,
+        image_format,
+        video_frame_period,
 
         response_format,
         guided_json,
@@ -4221,6 +4236,9 @@ def evaluate(
         prompt_dict = chosen_model_state['prompt_dict']
     # prefer use input from API over model state (see prep_bot())
     images_num_max = images_num_max or chosen_model_state['images_num_max']
+    image_resolution = image_resolution or chosen_model_state['image_resolution']
+    image_format = image_format or chosen_model_state['image_format']
+    video_frame_period = video_frame_period or chosen_model_state['video_frame_period']
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
@@ -4691,6 +4709,9 @@ def evaluate(
                 image_file=image_file,
                 image_control=image_control,
                 images_num_max=images_num_max,
+                image_resolution=image_resolution,
+                image_format=image_format,
+                video_frame_period=video_frame_period,
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -4991,7 +5012,7 @@ def evaluate(
                 # NOTE: llava doesn't handle context or system prompt directly
                 from image_utils import get_image_file
                 # comes out as list
-                img_file = get_image_file(image_file, image_control, document_choice, base_model=base_model, images_num_max=images_num_max)
+                img_file = get_image_file(image_file, image_control, document_choice, base_model=base_model, images_num_max=images_num_max, image_resolution=image_resolution, image_format=image_format)
                 # if images_num_max is None
                 img_file = img_file[:llava_num_max]
                 num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
@@ -5094,7 +5115,7 @@ def evaluate(
                     # ensure image in correct format
                     from image_utils import get_image_file
                     img_file = get_image_file(image_file, image_control, document_choice,
-                                              base_model=base_model, images_num_max=images_num_max,
+                                              base_model=base_model, images_num_max=images_num_max, image_resolution=image_resolution, image_format=image_format,
                                               convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
@@ -5172,6 +5193,9 @@ def evaluate(
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
                                          images_num_max=None,  # already set number
+                                         image_resolution=None,  # already changed
+                                         image_format=None,  # already changed
+                                         video_frame_period=None,  # already changed
 
                                          response_format=response_format,
                                          guided_json=guided_json,
@@ -5741,6 +5765,9 @@ def get_generate_params(model_lower,
                         image_file,
                         image_control,
                         images_num_max,
+                        image_resolution,
+                        image_format,
+                        video_frame_period,
 
                         response_format,
                         guided_json,
@@ -5973,6 +6000,9 @@ y = np.random.randint(0, 1, 100)
                     image_file,
                     image_control,
                     images_num_max,
+                    image_resolution,
+                    image_format,
+                    video_frame_period,
 
                     response_format,
                     guided_json,

@@ -945,6 +945,9 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     image_file: Any = None
     image_control: Any = None
     images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    video_frame_period: Any = None
 
     response_format: Any = None
     guided_json: Any = None
@@ -1093,6 +1096,9 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              image_file=self.image_file,
                              image_control=self.image_control,
                              images_num_max=self.images_num_max,
+                             image_resolution=self.image_resolution,
+                             image_format=self.image_format,
+                             video_frame_period=self.video_frame_period,
 
                              response_format=self.response_format,
                              guided_json=self.guided_json,
@@ -1531,6 +1537,9 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     image_file: Any = None
     image_control: Any = None
     images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    video_frame_period: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1859,6 +1868,9 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     image_file: Any = None
     image_control: Any = None
     images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    video_frame_period: Any = None
 
     def prep_prompt(self, prompt, stop, kwargs):
         if stop is None:
@@ -2816,6 +2828,10 @@ def get_llm(use_openai_model=False,
             image_file=None,
             image_control=None,
             images_num_max=None,
+            image_resolution=None,
+            image_format=None,
+            video_frame_period=None,
+
             document_choice=None,
 
             response_format=None,
@@ -3067,7 +3083,9 @@ def get_llm(use_openai_model=False,
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
         if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=True, str_bytes=False)
             if img_file:
                 # gpt4imagetag also applies to lmdeploy use of OpenAI via vllm_chat
                 chat_conversation.append((img_file, gpt4imagetag))
@@ -3115,7 +3133,9 @@ def get_llm(use_openai_model=False,
             cls = H2OChatAnthropic3Sys
 
             if is_vision_model(model_name):
-                img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=True, str_bytes=False)
+                img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                          images_num_max=images_num_max, image_resolution=image_resolution,
+                                          image_format=image_format, convert=True, str_bytes=False)
                 if img_file:
                     chat_conversation.append((img_file, claude3imagetag))
 
@@ -3173,7 +3193,9 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=True, str_bytes=False)
             if img_file:
                 tag = geminiimagetag if model_name == 'gemini-pro-vision' else gemini15imagetag
                 chat_conversation.append((img_file, tag))
@@ -3337,7 +3359,9 @@ def get_llm(use_openai_model=False,
             # https://github.com/sgl-project/sglang/issues/212#issuecomment-1973432493
             convert = True
             str_bytes = False
-            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3430,7 +3454,9 @@ def get_llm(use_openai_model=False,
                 convert = True
                 str_bytes = True
             # Gradio uses str_bytes=True
-            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3528,6 +3554,9 @@ def get_llm(use_openai_model=False,
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
                 images_num_max=None,  # already set
+                image_resolution=None,  # already changed
+                image_format=None,  # already changed
+                video_frame_period=None,  # already changed
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -3571,6 +3600,9 @@ def get_llm(use_openai_model=False,
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
                 images_num_max=None,  # already set
+                image_resolution=None,  # already changed
+                image_format=None,  # already changed
+                video_frame_period=None,  # already changed
             )
         else:
             raise RuntimeError("No defined client")
@@ -3657,7 +3689,9 @@ def get_llm(use_openai_model=False,
         if is_vision_model(model_name):
             convert = True
             str_bytes = False
-            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3736,6 +3770,9 @@ def get_llm(use_openai_model=False,
                                          image_file=img_file,
                                          image_control=image_control,
                                          images_num_max=images_num_max,
+                                         image_resolution=image_resolution,
+                                         image_format=image_format,
+                                         video_frame_period=video_frame_period,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -6603,6 +6640,9 @@ def run_qa_db(**kwargs):
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
     kwargs['images_num_max'] = kwargs.get('images_num_max')
+    kwargs['image_resolution'] = kwargs.get('image_resolution')
+    kwargs['image_format'] = kwargs.get('image_format')
+    kwargs['video_frame_period'] = kwargs.get('video_frame_period')
     kwargs['load_awq'] = kwargs.get('load_awq', '')
 
     kwargs['response_format'] = kwargs.get('response_format', 'text')
@@ -6777,6 +6817,9 @@ def _run_qa_db(query=None,
                image_file=None,
                image_control=None,
                images_num_max=None,
+               image_resolution=None,
+               image_format=None,
+               video_frame_period=None,
 
                response_format=None,
                guided_json=None,
@@ -6986,6 +7029,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       image_file=image_file,
                       image_control=image_control,
                       images_num_max=images_num_max,
+                      image_resolution=image_resolution,
+                      image_format=image_format,
+                      video_frame_period=video_frame_period,
+
                       document_choice=document_choice,
 
                       response_format=response_format,
@@ -9017,7 +9064,7 @@ def get_template(query, iinput,
             fstring = '{input_documents}'
         # triple_quotes includes \n before """ and after """
         template = """%s%s%s%s%s\n""" % (
-        pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
+            pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused

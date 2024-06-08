@@ -25,6 +25,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  image_file=None,
                  image_control=None,
                  images_num_max=None,
+                 image_resolution=None,
+                 image_format=None,
+                 video_frame_period=None,
 
                  verbose=False,
                  **kwargs):
@@ -80,6 +83,9 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.image_file = image_file
         self.image_control = image_control
         self.images_num_max = images_num_max
+        self.image_resolution = image_resolution
+        self.image_format = image_format
+        self.video_frame_period = video_frame_period
 
     @staticmethod
     def get_token_count(x, tokenizer):
@@ -173,15 +179,15 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                                 **generate_kwargs)
 
     def _preprocess(
-        self,
-        prompt_text,
-        prefix="",
-        handle_long_generation=None,
-        add_special_tokens=False,
-        truncation=None,
-        padding=False,
-        max_length=None,
-        **generate_kwargs,
+            self,
+            prompt_text,
+            prefix="",
+            handle_long_generation=None,
+            add_special_tokens=False,
+            truncation=None,
+            padding=False,
+            max_length=None,
+            **generate_kwargs,
     ):
         if self.image_file:
             from transformers.image_utils import load_image

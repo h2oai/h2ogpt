@@ -55,9 +55,9 @@ def file_to_cv2(img_file):
         pil_image_file = img_file + '.pil.png'
         pil_image.save(pil_image_file)
         image = cv2.imread(pil_image_file)
-        #open_cv_image = np.array(pil_image, dtype=np.unit8)
+        # open_cv_image = np.array(pil_image, dtype=np.unit8)
         ## Convert RGB to BGR
-        #image = open_cv_image[:, :, ::-1].copy()
+        # image = open_cv_image[:, :, ::-1].copy()
 
     # Check if image is loaded
     if image is None:
@@ -120,7 +120,7 @@ def correct_rotation(img_file, border_size=50):
     edges = cv2.Canny(gray, 50, 150, apertureSize=3)
 
     # Detect points that form a line using HoughLinesP
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80, minLineLength=100, maxLineGap=10)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=80, minLineLength=100, maxLineGap=10)
     if lines is None or len(lines) == 0:
         return img_file
 
@@ -201,7 +201,8 @@ def pad_resize_image(image, return_none_if_no_change=False):
         # Padding
         padding_x = (L - Li) // 2
         padding_y = (H - Hi) // 2
-        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT,
+                                   value=[0, 0, 0])
     elif Li > L and Hi > H:
         # Resizing
         if aspect_ratio_original < aspect_ratio_final:
@@ -226,7 +227,8 @@ def pad_resize_image(image, return_none_if_no_change=False):
         image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
         padding_x = (L - new_width) // 2
         padding_y = (H - new_height) // 2
-        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT,
+                                   value=[0, 0, 0])
 
     # debug, to see effect of pad-resize
     # import cv2
@@ -263,14 +265,18 @@ def get_image_types():
     return image_types0
 
 
-def get_image_file(image_file, image_control, document_choice, base_model=None, images_num_max=None, convert=False, str_bytes=True):
+def get_image_file(image_file, image_control, document_choice, base_model=None, images_num_max=None,
+                   image_resolution=None, image_format=None,
+                   convert=False,
+                   str_bytes=True):
     if image_control is not None:
         img_file = image_control
     elif image_file is not None:
         img_file = image_file
     else:
         image_types = get_image_types()
-        img_file = [x for x in document_choice if any(x.endswith('.' + y) for y in image_types)] if document_choice else []
+        img_file = [x for x in document_choice if
+                    any(x.endswith('.' + y) for y in image_types)] if document_choice else []
 
     if not isinstance(img_file, list):
         img_file = [img_file]
@@ -282,7 +288,8 @@ def get_image_file(image_file, image_control, document_choice, base_model=None, 
         if convert:
             if img_file1 and os.path.isfile(img_file1):
                 from src.vision.utils_vision import img_to_base64
-                img_file1 = img_to_base64(img_file1, str_bytes=str_bytes)
+                img_file1 = img_to_base64(img_file1, str_bytes=str_bytes, resolution=image_resolution,
+                                          output_format=image_format)
             elif isinstance(img_file1, str):
                 # assume already bytes
                 img_file1 = img_file1

@@ -104,6 +104,9 @@ def run_eval(  # for local function:
         image_file=None,
         image_control=None,
         images_num_max=None,
+        image_resolution=None,
+        image_format=None,
+        video_frame_period=None,
 
         response_format=None,
         guided_json=None,

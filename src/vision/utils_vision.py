@@ -5,14 +5,15 @@ import types
 import uuid
 from io import BytesIO
 import numpy as np
+from PIL.Image import Resampling
 
 from gradio_utils.grclient import check_job
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
     llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
-from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text
+from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs
 
 
-def img_to_base64(image_file, str_bytes=True):
+def img_to_base64(image_file, resolution=None, output_format=None, str_bytes=True):
     # assert image_file.lower().endswith('jpg') or image_file.lower().endswith('jpeg')
     from PIL import Image
 
@@ -31,20 +32,31 @@ def img_to_base64(image_file, str_bytes=True):
 
     from pathlib import Path
     ext = Path(image_file).suffix
-    if ext in EXTENSIONS:
-        iformat = EXTENSIONS[ext]
-    else:
-        raise ValueError("Invalid file extension %s for file %s" % (ext, image_file))
+    iformat = EXTENSIONS.get(ext)
+    assert iformat is not None, "Invalid file extension %s for file %s" % (ext, image_file)
 
     image = Image.open(image_file)
+
+    if resolution:
+        image = image.resize(resolution, resample=Resampling.BICUBIC)
+
+    if output_format:
+        oformat = output_format.upper()
+    elif iformat not in ['JPEG', 'PNG']:
+        # use jpeg by default if nothing set, so most general format allowed
+        oformat = 'JPEG'
+    else:
+        oformat = iformat
+
     buffered = BytesIO()
-    image.save(buffered, format=iformat)
+    image.save(buffered, format=oformat)
     img_str = base64.b64encode(buffered.getvalue())
+
     # FIXME: unsure about below
     if str_bytes:
-        img_str = str(bytes("data:image/%s;base64," % iformat.lower(), encoding='utf-8') + img_str)
+        img_str = str(bytes("data:image/%s;base64," % oformat.lower(), encoding='utf-8') + img_str)
     else:
-        img_str = f"data:image/{iformat.lower()};base64,{img_str.decode('utf-8')}"
+        img_str = f"data:image/{oformat.lower()};base64,{img_str.decode('utf-8')}"
 
     return img_str
 
@@ -67,6 +79,110 @@ def base64_to_img(img_str, output_path):
         f.write(img_bytes)
     print(f"Image saved to {output_file} with format {img_format}")
     return output_file
+
+
+def video_to_base64frames(video_path):
+    import cv2
+    video = cv2.VideoCapture(video_path)
+
+    base64Frames = []
+    while video.isOpened():
+        success, frame = video.read()
+        if not success:
+            break
+        _, buffer = cv2.imencode(".jpg", frame)
+        base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+
+    video.release()
+    print(len(base64Frames), "frames read.")
+    return base64Frames
+
+
+def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
+                    verbose=False):
+    import cv2
+    """
+    Convert video to frames, save them as image files in the specified format, and return the list of file names.
+
+    :param video_path: Path to the input video file.
+    :param output_dir: Directory where the output frames will be saved.
+    :param resolution: Tuple specifying the desired resolution (width, height) or None to keep the original resolution.
+    :param image_format: String specifying the desired image format (e.g., "jpg", "png").
+    :param video_frame_period: How often to sample frames from the video. If None, every 20th frame is saved.
+      e.g. if pass non-real-time video, can set to 1 to save all frames, to mimic passing actual frames separately otherwise
+    :param verbose: Boolean to control whether to print progress messages.
+    :return: List of file names for the saved frames.
+
+    Example usage:
+    file_names = video_to_frames("input_video.mp4", "output_frames", resolution=(640, 480), image_format="png", verbose=True)
+    print(file_names)
+    """
+    if video_frame_period is None:
+        video_frame_period = 20
+    if video_frame_period < 1:
+        video_frame_period = 1
+
+    video = cv2.VideoCapture(video_path)
+    makedirs(output_dir)
+
+    frame_count = 0
+    file_names = []
+    while video.isOpened():
+        success, frame = video.read()
+        # keep first frame, then keep a frame every video_frame_resolution frames
+        if frame_count % video_frame_period != 0:
+            frame_count += 1
+            continue
+        if not success:
+            continue
+        if resolution:
+            frame = cv2.resize(frame, resolution)
+
+        frame_filename = os.path.join(output_dir, f"frame_{frame_count:04d}.{image_format}")
+        cv2.imwrite(frame_filename, frame)
+        file_names.append(frame_filename)
+        frame_count += 1
+    video.release()
+
+    if verbose:
+        print(f"{frame_count} frames saved to {output_dir}.")
+
+    return file_names
+
+
+def process_file_list(file_list, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
+                      verbose=False):
+    import cv2
+    """
+    Process a list of files, converting any videos to frames and updating the list to only contain image files.
+
+    :param file_list: List of file paths to be processed.
+    :param output_dir: Directory where the output frames will be saved.
+    :param resolution: Tuple specifying the desired resolution (width, height) or None to keep the original resolution.
+    :param image_format: String specifying the desired image format (e.g., "jpg", "png").
+    :param verbose: Boolean to control whether to print progress messages.
+    :return: Updated list of file names containing only image files.
+    """
+    if image_format is None:
+        image_format = 'jpg'
+
+    image_files = []
+
+    for file in file_list:
+        # Try to open the file as a video
+        video = cv2.VideoCapture(file)
+        if video.isOpened() and video.get(cv2.CAP_PROP_FRAME_COUNT) > 0:
+            # If it's a valid video, extract frames
+            if verbose:
+                print(f"Processing video file: {file}")
+            frame_files = video_to_frames(file, output_dir, resolution, image_format, video_frame_period, verbose)
+            image_files.extend(frame_files)
+        else:
+            # If it's not a valid video, add it to the image file list
+            image_files.append(file)
+        video.release()
+
+    return image_files
 
 
 def fix_llava_prompt(file,

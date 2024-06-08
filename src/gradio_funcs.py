@@ -15,6 +15,7 @@ from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_gen
     get_accordion_named, check_input_type, download_image
 from src.db_utils import length_db1
 from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides
+from src.vision.utils_vision import process_file_list
 
 
 def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, kwargs={},
@@ -202,6 +203,17 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         # i.e. may be '' and used to override overall local key
         assert isinstance(model_state1['h2ogpt_key'], str)
         args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
+
+    # deal with videos in image list
+    images_file_path = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    # don't try to convert resolution here, do later as images
+    image_files = args_list[eval_func_param_names.index('image_file')]
+    image_resolution = args_list[eval_func_param_names.index('image_resolution')]
+    image_format = args_list[eval_func_param_names.index('image_format')]
+    video_frame_period = args_list[eval_func_param_names.index('video_frame_period')]
+    image_files = process_file_list(image_files, images_file_path, resolution=image_resolution,
+                                    image_format=image_format, video_frame_period=video_frame_period, verbose=verbose)
+    args_list[eval_func_param_names.index('image_file')] = image_files
 
     # final full bot() like input for prep_bot etc.
     instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')] or \
@@ -718,7 +730,8 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     args_list[2] = context1
 
     for k in eval_func_param_names:
-        if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max']:
+        if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max', 'image_resolution',
+                 'image_format', 'video_frame_period']:
             # already handled
             continue
         # allow override of expert/user input for other parameters
