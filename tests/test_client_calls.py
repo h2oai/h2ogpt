@@ -3391,6 +3391,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                               ['MyData2', 'personal', ''],
                               ]
 
+    os.system('pkill -f server_start.py --signal 9')
+    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
+
 
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("model_choice", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated)
