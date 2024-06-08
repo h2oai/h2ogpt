@@ -4219,6 +4219,8 @@ def evaluate(
     if prompt_type == unknown_prompt_type and chosen_model_state['prompt_type'] not in [None, '', unknown_prompt_type]:
         prompt_type = chosen_model_state['prompt_type']
         prompt_dict = chosen_model_state['prompt_dict']
+    # prefer use input from API over model state
+    images_num_max = images_num_max or chosen_model_state['images_num_max']
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
