@@ -722,7 +722,7 @@ class GradioClient(Client):
         metadata_in_context: list = [],
         image_file: Union[str, list] = None,
         image_control: str = None,
-        image_control: int = None,
+        images_num_max: int = None,
         response_format: str = "text",
         guided_json: Union[str, dict] = "",
         guided_regex: str = "",
