@@ -1,17 +1,23 @@
 import functools
 import json
+import os
 import sys
+import tempfile
 import time
+import uuid
 
 import pytest
 
+from src.vision.utils_vision import process_file_list
 from tests.utils import wrap_test_forked
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names, handle_json, check_input_type
+    deduplicate_names, handle_json, check_input_type, start_faulthandler
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
+
+start_faulthandler()
 
 
 @wrap_test_forked
@@ -856,3 +862,60 @@ def test_check_input_type():
 
     # Plain string
     assert check_input_type("just a string") == 'unknown'
+
+
+def test_process_file_list():
+    # Create a list of test files
+    test_files = [
+        "tests/videotest.mp4",
+        "tests/dental.png",
+        "tests/fastfood.jpg",
+        "tests/ocr2.png",
+        "tests/receipt.jpg",
+        "tests/revenue.png",
+        "tests/jon.png",
+        "tests/ocr1.png",
+        "tests/ocr3.png",
+        "tests/screenshot.png"
+    ]
+
+    output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    print(output_dir, file=sys.stderr)
+
+    # Process the files
+    processed_files = process_file_list(test_files, output_dir, resolution=(640, 480), image_format="jpg", verbose=True)
+
+    # Print the resulting list of image files
+    print("Processed files:")
+    for file in processed_files:
+        print(file, file=sys.stderr)
+    assert len(processed_files) == len(test_files) - 1 + 17  # 17 is the number of images generated from the video file
+
+
+def test_process_file_list_extract_frames():
+    # Create a list of test files
+    test_files = [
+        "tests/videotest.mp4",
+        "tests/dental.png",
+        "tests/fastfood.jpg",
+        "tests/ocr2.png",
+        "tests/receipt.jpg",
+        "tests/revenue.png",
+        "tests/jon.png",
+        "tests/ocr1.png",
+        "tests/ocr3.png",
+        "tests/screenshot.png"
+    ]
+
+    output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    print(output_dir, file=sys.stderr)
+
+    # Process the files
+    processed_files = process_file_list(test_files, output_dir, resolution=(640, 480), image_format="jpg",
+                                        video_frame_period=0, extract_frames=10, verbose=True)
+
+    # Print the resulting list of image files
+    print("Processed files:")
+    for file in processed_files:
+        print(file, file=sys.stderr)
+    assert len(processed_files) == len(test_files) - 1 + 10  # 10 is the number of images generated from the video file

@@ -107,7 +107,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 # only delete if was made by us
                 image_files_to_delete.append(img_file_one)
             else:
-                # str_type='file'
+                # str_type='file' or 'youtube'
                 pass
             if img_file_one is not None:
                 b2imgs.append(img_file_one)
@@ -211,8 +211,12 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     image_resolution = args_list[eval_func_param_names.index('image_resolution')]
     image_format = args_list[eval_func_param_names.index('image_format')]
     video_frame_period = args_list[eval_func_param_names.index('video_frame_period')]
+    extract_frames = args_list[eval_func_param_names.index('extract_frames')] or kwargs.get('extract_frames', 20)
     image_files = process_file_list(image_files, images_file_path, resolution=image_resolution,
-                                    image_format=image_format, video_frame_period=video_frame_period, verbose=verbose)
+                                    image_format=image_format,
+                                    video_frame_period=video_frame_period,
+                                    extract_frames=extract_frames,
+                                    verbose=verbose)
     args_list[eval_func_param_names.index('image_file')] = image_files
 
     # final full bot() like input for prep_bot etc.
