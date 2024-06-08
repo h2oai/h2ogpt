@@ -232,6 +232,7 @@ anthropic_mapping_outputs = {
 claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
+gemini15imagetag = 'gemini15-image'
 
 claude3_image_tokens = 1334
 gemini_image_tokens = 5000
@@ -245,12 +246,16 @@ llava16_image_fudge = 50
 #  Invalid argument provided to Gemini: 400 Please use fewer than 16 images in your request to models/gemini-pro-vision
 # 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
 geminiimage_num_max = 15
+# For gemini-1.5-pro, you can specify any combination and number of text, image, video, and audio files. The token limit is 1,000,000.
+# no real limit, just set at 30
+gemini15image_num_max = 30
+
 # https://docs.anthropic.com/claude/docs/vision#image-best-practices
 # https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
 # 5MB per image
 claude3image_num_max = 20
 # https://platform.openai.com/docs/guides/vision
-# 20MB per image
+# 20MB per image request (they say per image but that's wrong)
 gpt4image_num_max = 10
 
 # can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
@@ -261,8 +266,9 @@ internvl_num_max = 5
 
 images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                  'gpt-4-turbo-2024-04-09': gpt4image_num_max, 'gpt-4o': gpt4image_num_max,
-                 'gemini-pro-vision': geminiimage_num_max, 'gemini-1.5-pro-latest': geminiimage_num_max,
-                 'gemini-1.5-flash-latest': geminiimage_num_max,
+                 'gemini-pro-vision': geminiimage_num_max,
+                 'gemini-1.5-pro-latest': gemini15image_num_max,
+                 'gemini-1.5-flash-latest': gemini15image_num_max,
                  'claude-3-opus-20240229': claude3image_num_max, 'claude-3-sonnet-20240229': claude3image_num_max,
                  'claude-3-haiku-20240307': claude3image_num_max,
                  'liuhaotian/llava-v1.6-34b': llava_num_max, 'liuhaotian/llava-v1.6-vicuna-13b': llava_num_max,

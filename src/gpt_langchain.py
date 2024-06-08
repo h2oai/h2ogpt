@@ -81,7 +81,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
-    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping
+    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -2278,7 +2278,7 @@ class ExtraChat:
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
                     continue
-                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag]:
+                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag, gemini15imagetag]:
                     img_tag = messages1[1]
                     img_base64 = messages1[0]
                     continue
@@ -2314,7 +2314,7 @@ class ExtraChat:
                     content = []
                     num_images = 0
                     for img_base64_one in img_base64:
-                        if img_tag in [geminiimagetag]:
+                        if img_tag in [geminiimagetag, gemini15imagetag]:
                             img_url = img_base64_one
                         else:
                             img_url = {
@@ -2333,7 +2333,7 @@ class ExtraChat:
                             # https://docs.anthropic.com/claude/docs/vision#image-costs
                             # for roughly 1kx1k image
                             self.count_input_tokens += claude3_image_tokens
-                        if img_tag in [geminiimagetag]:
+                        if img_tag in [geminiimagetag, gemini15imagetag]:
                             # https://cloud.google.com/vertex-ai/generative-ai/pricing
                             # gemini gives $ cost per image, not by tokens, just estimate
                             # $0.0025 per image and $0.000125/1k tokens, 4 chars/token, so image like 20k chars or 5k tokens
@@ -2345,6 +2345,8 @@ class ExtraChat:
 
                         num_images += 1
                         if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
+                            break
+                        if img_tag in [gemini15imagetag] and num_images >= gemini15image_num_max:
                             break
                         if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
                             break
@@ -3170,7 +3172,8 @@ def get_llm(use_openai_model=False,
         if is_vision_model(model_name):
             img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name, images_num_max=images_num_max, convert=True, str_bytes=False)
             if img_file:
-                chat_conversation.append((img_file, geminiimagetag))
+                tag = geminiimagetag if model_name == 'gemini-pro-vision' else gemini15imagetag
+                chat_conversation.append((img_file, tag))
                 # https://github.com/langchain-ai/langchain/issues/19115
                 stream_output = False  # BUG IN GOOGLE/LANGCHAIN
             else:
