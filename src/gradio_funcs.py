@@ -190,6 +190,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     image_files = args_list[eval_func_param_names.index('image_file')]
     if isinstance(image_files, str):
         image_files = [image_files]
+    if image_files is None:
+        image_files = []
 
     image_files_to_delete = []
     b2imgs = []
