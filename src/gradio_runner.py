@@ -1720,6 +1720,7 @@ def go_gradio(**kwargs):
                             label="guided_whitespace_pattern, emptry string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=True)
+                        images_num_max = gr.Number(label='Number of Images per LLM call')
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:

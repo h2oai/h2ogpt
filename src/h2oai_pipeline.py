@@ -24,6 +24,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
                  image_file=None,
                  image_control=None,
+                 images_num_max=None,
 
                  verbose=False,
                  **kwargs):
@@ -78,6 +79,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
 
         self.image_file = image_file
         self.image_control = image_control
+        self.images_num_max = images_num_max
 
     @staticmethod
     def get_token_count(x, tokenizer):

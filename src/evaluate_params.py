@@ -98,6 +98,7 @@ eval_func_param_names = (
         "tts_speed",
         "image_file",
         "image_control",
+        "images_num_max",
         "response_format",
         "guided_json",
         "guided_regex",

@@ -4,6 +4,7 @@ import numpy as np
 from scipy.stats import mode
 
 from src.utils import have_cv2, have_pillow
+from src.enums import images_num_max, images_num_max_dict
 
 
 def largest_contour(contours):
@@ -262,7 +263,7 @@ def get_image_types():
     return image_types0
 
 
-def get_image_file(image_file, image_control, document_choice, convert=False, str_bytes=True):
+def get_image_file(image_file, image_control, document_choice, base_model=None, images_num_max=None, convert=False, str_bytes=True):
     if image_control is not None:
         img_file = image_control
     elif image_file is not None:
@@ -289,4 +290,9 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
                 img_file1 = None
         final_img_files.append(img_file1)
     final_img_files = [x for x in final_img_files if x]
+    if base_model and images_num_max is None:
+        images_num_max = images_num_max_dict.get(base_model, 1)
+    if images_num_max is None:
+        images_num_max = 1
+    final_img_files = final_img_files[:images_num_max]
     return final_img_files

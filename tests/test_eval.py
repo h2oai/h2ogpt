@@ -174,6 +174,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'tts_speed': 1.0,
                  'image_file': None,
                  'image_control': None,
+                 'images_num_max': None,
                  'response_format': 'text',
                  'guided_json': '',
                  'guided_regex': '',

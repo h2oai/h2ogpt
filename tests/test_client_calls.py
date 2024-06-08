@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full, noop_prompt_type, git_hash_unset, images_num_max
+    db_types_full, noop_prompt_type, git_hash_unset, images_num_max_dict
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4, get_hf_server
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
@@ -6082,8 +6082,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     from src.vision.utils_vision import img_to_base64
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
     # FIXME: Should be able to send any number
-    if base_model in images_num_max:
-        image_files = image_files[:images_num_max[base_model]]
+    image_files = image_files[:images_num_max_dict.get(base_model, 1)]
     # DEBUGGING how many images can be handled before bad results, OOM, failures, etc.
     #image_files = image_files[:8]
 

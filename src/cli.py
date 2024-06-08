@@ -84,6 +84,7 @@ def run_cli(  # for local function:
         tts_speed=None,
         image_file=None,
         image_control=None,
+        images_num_max=None,
 
         response_format=None,
         guided_json=None,

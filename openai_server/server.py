@@ -110,6 +110,7 @@ class H2oGPTParams(BaseModel):
 
     image_file: str | None = None
     image_control: str | None = None
+    images_num_max: int | None = None
 
     response_format: Optional[ResponseFormat] = Field(
         default=None,

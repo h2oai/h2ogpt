@@ -259,7 +259,7 @@ llava_num_max = 10
 # really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
 internvl_num_max = 5
 
-images_num_max = {'gpt-4-vision-preview': gpt4image_num_max,
+images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                  'gpt-4-turbo-2024-04-09': gpt4image_num_max, 'gpt-4o': gpt4image_num_max,
                  'gemini-pro-vision': geminiimage_num_max, 'gemini-1.5-pro-latest': geminiimage_num_max,
                  'gemini-1.5-flash-latest': geminiimage_num_max,

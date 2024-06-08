@@ -181,6 +181,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
 
                          image_file=None,
                          image_control=None,
+                         images_num_max=None,
 
                          response_format=None,
                          guided_json=None,

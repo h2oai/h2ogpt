@@ -80,7 +80,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
-    is_json_model
+    is_json_model, images_num_max_dict, is_vision_model
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -523,6 +523,7 @@ def main(
 
         image_file: str = None,
         image_control: str = None,
+        images_num_max: int = None,
 
         response_format: str = 'text',
         guided_json: str = '',
@@ -1275,6 +1276,9 @@ def main(
 
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
+    :param images_num_max: Maximum number of images in any LLM call.
+        if None, then checks images_num_max and uses that value for defined models (assumes 80GB GPU), else uses 1
+        If set here or in model_lock, then that model uses the set value
 
     :param response_format: text or json_object or json_code
         json_object means always try to use best mechanism to make JSON.
@@ -1954,6 +1958,7 @@ def main(
                             tts_speed,
                             image_file,
                             image_control,
+                            images_num_max,
 
                             response_format,
                             guided_json,
@@ -2181,6 +2186,7 @@ def main(
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
                             json_vllm=None,
+                            images_num_max=None,
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
@@ -2365,6 +2371,10 @@ def main(
         model_state_trial.update(model_dict)
         model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
                                                       model_state_trial['inference_server'], verbose=verbose)
+        if is_vision_model(model_state_trial['base_model']):
+            model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'], images_num_max or 1)
+        else:
+            model_state_trial['images_num_max'] = 0
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
         print("Model %s" % model_dict, flush=True)
@@ -3941,6 +3951,7 @@ def evaluate(
 
         image_file,
         image_control,
+        images_num_max,
 
         response_format,
         guided_json,
@@ -4677,6 +4688,7 @@ def evaluate(
 
                 image_file=image_file,
                 image_control=image_control,
+                images_num_max=images_num_max,
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -4976,7 +4988,9 @@ def evaluate(
 
                 # NOTE: llava doesn't handle context or system prompt directly
                 from image_utils import get_image_file
-                img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
+                # comes out as list
+                img_file = get_image_file(image_file, image_control, document_choice, base_model=base_model, images_num_max=images_num_max)
+                # if images_num_max is None
                 img_file = img_file[:llava_num_max]
                 num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
                 llava_kwargs = dict(file=img_file,
@@ -5078,6 +5092,7 @@ def evaluate(
                     # ensure image in correct format
                     from image_utils import get_image_file
                     img_file = get_image_file(image_file, image_control, document_choice,
+                                              base_model=base_model, images_num_max=images_num_max,
                                               convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
@@ -5154,6 +5169,7 @@ def evaluate(
 
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
+                                         images_num_max=None,  # already set number
 
                                          response_format=response_format,
                                          guided_json=guided_json,
@@ -5722,6 +5738,7 @@ def get_generate_params(model_lower,
                         tts_speed,
                         image_file,
                         image_control,
+                        images_num_max,
 
                         response_format,
                         guided_json,
@@ -5953,6 +5970,7 @@ y = np.random.randint(0, 1, 100)
                     tts_speed,
                     image_file,
                     image_control,
+                    images_num_max,
 
                     response_format,
                     guided_json,
