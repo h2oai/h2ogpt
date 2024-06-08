@@ -52,7 +52,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         if k in kwargs1:
             kwargs1.pop(k)
 
-    image_files_to_delete = []
+    ###########################################
+    # fill args_list with states
     args_list = list(args1)
     if str_api:
         if plain_api:
@@ -71,6 +72,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     else:
         assert not plain_api
         user_kwargs = {k: v for k, v in zip(eval_func_param_names, args_list[len(input_args_list):])}
+
+    ###########################################
     # control kwargs1 for evaluate
     if 'answer_with_sources' not in user_kwargs:
         kwargs1['answer_with_sources'] = -1  # just text chunk, not URL etc.
@@ -84,6 +87,9 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         kwargs1['show_link_in_sources'] = False
     kwargs1['top_k_docs_max_show'] = 30
 
+    ###########################################
+    # deal with image files
+    image_files_to_delete = []
     if 'image_file' in user_kwargs and user_kwargs['image_file']:
         if isinstance(user_kwargs['image_file'], list):
             image_files = user_kwargs['image_file']
@@ -113,6 +119,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 b2imgs.append(img_file_one)
         user_kwargs['image_file'] = b2imgs  # always just make list
 
+    ###########################################
+    # modify some user_kwargs
     # only used for submit_nochat_api
     user_kwargs['chat'] = False
     if 'stream_output' not in user_kwargs:
@@ -165,6 +173,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     set2 = set(eval_func_param_names)
     assert set1 == set2, "Set diff: %s %s: %s" % (set1, set2, set1.symmetric_difference(set2))
 
+    ###########################################
     # correct ordering.  Note some things may not be in default_kwargs, so can't be default of user_kwargs.get()
     model_state1 = args_list[0]
     my_db_state1 = args_list[1]
@@ -175,6 +184,9 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     args_list = [user_kwargs[k] if k in user_kwargs and user_kwargs[k] is not None else default_kwargs1[k] for k
                  in eval_func_param_names]
     assert len(args_list) == len(eval_func_param_names)
+
+    ###########################################
+    # select model
     stream_output1 = args_list[eval_func_param_names.index('stream_output')]
     if len(model_states) >= 1:
         visible_models1 = args_list[eval_func_param_names.index('visible_models')]
@@ -191,6 +203,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 args_list[eval_func_param_names.index('max_new_tokens')],
                 model_state1['tokenizer'].model_max_length - buffer)
 
+    ###########################################
     # override overall visible_models and h2ogpt_key if have model_specific one
     # NOTE: only applicable if len(model_states) > 1 at moment
     # else controlled by evaluate()
@@ -204,6 +217,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         assert isinstance(model_state1['h2ogpt_key'], str)
         args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
+    ###########################################
     # deal with videos in image list
     images_file_path = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
     # don't try to convert resolution here, do later as images
@@ -219,6 +233,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                                     verbose=verbose)
     args_list[eval_func_param_names.index('image_file')] = image_files
 
+    ###########################################
     # final full bot() like input for prep_bot etc.
     instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')] or \
                           args_list[eval_func_param_names.index('instruction')]
