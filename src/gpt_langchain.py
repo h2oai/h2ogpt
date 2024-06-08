@@ -227,7 +227,7 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                 else:
                     max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
                 # limit embedding memory use
-                max_batch_size = min(max_batch_size, 4096)
+                max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
                 print('max_batch_size', max_batch_size)
                 sources_batches = split_list(sources, max_batch_size)
                 for sources_batch in sources_batches:

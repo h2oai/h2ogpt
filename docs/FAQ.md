@@ -2273,6 +2273,7 @@ Related to transformers.  There are two independent ways to do this (choose one)
 * For GGUF models limit number of model layers put onto GPU (`--n_gpu_layers=10`)
 * Avoid metadata in context (`--metadata_in_context=None`)
 * Lower chunks (`--chunk-size=128`)
+* Small batch sizes for embedding: (ENV `CHROMA_MAX_BATCH_SIZE=100`)
 * Lower number of documetns in context (`--top_k_docs=3`)
 * Use smaller quantized model like Q4 instead of Q5 or Q6 from TheBloke (`--base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=mistral`)
 
