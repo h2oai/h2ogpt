@@ -234,7 +234,7 @@ docker run \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
        gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/src/make_db.py --verbose --use_unstructured_pdf=False --enable_pdf_ocr=False --hf_embedding_model=BAAI/bge-small-en-v1.5 --cut_distance=10000
 ```
-This will consume about 100 PDFs per minute on average, and embedding part takes about 5 minutes for 300 PDFs.  For multilingual, use `BAAI/bge-m3` that uses more memory, so you may need to set ENV `CHROMA_MAX_BATCH_SIZE=128` or similar values to avoid GPU OOM.
+This will consume about 100 PDFs per minute on average, and embedding part takes about 5 minutes for 300 PDFs.  For multilingual, use `BAAI/bge-m3` that uses more memory, so you may need to set ENV `CHROMA_MAX_BATCH_SIZE=1` or similar values to avoid GPU OOM.
 
 
 ### Multiple embeddings and sources

@@ -527,7 +527,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
-            from langchain_community.embeddings import HuggingFaceEmbeddings
+            from langchain_community.embeddings import HuggingFaceEmbeddings, HuggingFaceBgeEmbeddings
 
             if isinstance(gpu_id, int) or gpu_id == 'auto':
                 device, torch_dtype, context_class = get_device_dtype()
@@ -535,7 +535,18 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             else:
                 # use gpu_id as device name
                 model_kwargs = dict(device=gpu_id)
-            if 'instructor' in hf_embedding_model:
+            if hf_embedding_model.startswith("BAAI/bge"):
+                encode_kwargs = {'normalize_embeddings': True}
+                if hf_embedding_model == "BAAI/bge-m3":
+                    query_kwargs = dict(query_instruction="")
+                else:
+                    query_kwargs = dict()
+                embedding = HuggingFaceBgeEmbeddings(model_name=hf_embedding_model,
+                                                     model_kwargs=model_kwargs,
+                                                     encode_kwargs=encode_kwargs,
+                                                     **query_kwargs)
+                embedding.client.eval()
+            elif 'instructor' in hf_embedding_model:
                 encode_kwargs = {'normalize_embeddings': True}
                 embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
                                                           model_kwargs=model_kwargs,
