@@ -164,9 +164,10 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
         file = video_path if os.path.isfile(video_path) else None
         kwargs = {'urls': urls, 'file': file, 'download_dir': None, 'export_dir': output_dir,
                   'extract_frames': extract_frames}
+        # fifty one is complex program and leaves around processes
         func_new = partial(call_subprocess_onetask, extract_unique_frames, args, kwargs)
         export_dir = func_new()
-        return os.listdir(export_dir)
+        return [os.path.join(export_dir, x) for x in os.listdir(export_dir)]
 
     if video_frame_period is None:
         video_frame_period = 20
@@ -205,14 +206,17 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
 def process_file_list(file_list, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
                       extract_frames=None,
                       verbose=False):
-    import cv2
+    # FIXME: resolution is not used unless video, could use for every case, but resolution is set later when byte encoding for LLMs
     """
     Process a list of files, converting any videos to frames and updating the list to only contain image files.
 
     :param file_list: List of file paths to be processed.
     :param output_dir: Directory where the output frames will be saved.
     :param resolution: Tuple specifying the desired resolution (width, height) or None to keep the original resolution.
+      Does not affect images as inputs, handled elsewhere when converting to base64 for LLM
     :param image_format: String specifying the desired image format (e.g., "jpg", "png").
+    :param video_frame_period: Period to save frames, if <1 then automatic
+    :param extract_frames: how many frames to extract if automatic period mode
     :param verbose: Boolean to control whether to print progress messages.
     :return: Updated list of file names containing only image files.
     """
@@ -222,11 +226,10 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
     image_files = []
 
     for file in file_list:
-        ext = os.path.splitext(file)[-1].lower()
         # i.e. if not file, then maybe youtube url
-        is_maybe_vide = os.path.isfile(file) and is_video_file(file) or not os.path.isfile(file) or is_animated_gif(file)
+        is_maybe_video = os.path.isfile(file) and is_video_file(file) or not os.path.isfile(file) or is_animated_gif(file)
 
-        if is_maybe_vide:
+        if is_maybe_video:
             # If it's a valid video, extract frames
             if verbose:
                 print(f"Processing video file: {file}")
