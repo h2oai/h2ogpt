@@ -278,7 +278,7 @@ These are not part of normal installation instructions and are experimental.
     conda install -c conda-forge gst-python -y
     sudo apt-get install gstreamer-1.0
     pip install pygame
-    pytest --instafail -s -v tests
+    CONCURRENCY_COUNT=1 pytest --instafail -s -v tests
     # for openai server test on already-running local server
     pytest -s -v -n 4 openai_server/test_openai_server.py::test_openai_client
     ```
