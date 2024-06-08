@@ -259,6 +259,19 @@ llava_num_max = 10
 # really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
 internvl_num_max = 5
 
+images_num_max = {'gpt-4-vision-preview': gpt4image_num_max,
+                 'gpt-4-turbo-2024-04-09': gpt4image_num_max, 'gpt-4o': gpt4image_num_max,
+                 'gemini-pro-vision': geminiimage_num_max, 'gemini-1.5-pro-latest': geminiimage_num_max,
+                 'gemini-1.5-flash-latest': geminiimage_num_max,
+                 'claude-3-opus-20240229': claude3image_num_max, 'claude-3-sonnet-20240229': claude3image_num_max,
+                 'claude-3-haiku-20240307': claude3image_num_max,
+                 'liuhaotian/llava-v1.6-34b': llava_num_max, 'liuhaotian/llava-v1.6-vicuna-13b': llava_num_max,
+                 'HuggingFaceM4/idefics2-8b-chatty': 10,
+                 'lmms-lab/llama3-llava-next-8b': 2,
+                 'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
+                 'THUDM/cogvlm2-llama3-chat-19B': 2,
+                 }
+
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
 google_mapping = {
@@ -357,7 +370,8 @@ def is_vision_model(base_model):
         return False
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
-        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o', 'gpt-4o-2024-05-13'] or \
+        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+                       'gpt-4o-2024-05-13'] or \
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest",
                        "gemini-1.5-flash-latest"] or \
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
