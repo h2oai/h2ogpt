@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats import mode
 
 from src.utils import have_cv2, have_pillow
-from src.enums import images_num_max, images_num_max_dict
+from src.enums import images_num_max_dict
 
 
 def largest_contour(contours):
