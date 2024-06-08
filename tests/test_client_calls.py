@@ -6094,6 +6094,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
+                  # images_num_max=len(image_files),
                   stream_output=False,
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,

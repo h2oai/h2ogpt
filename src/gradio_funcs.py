@@ -718,7 +718,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     args_list[2] = context1
 
     for k in eval_func_param_names:
-        if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key']:
+        if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max']:
             # already handled
             continue
         # allow override of expert/user input for other parameters

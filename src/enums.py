@@ -256,7 +256,10 @@ gemini15image_num_max = 30
 claude3image_num_max = 20
 # https://platform.openai.com/docs/guides/vision
 # 20MB per image request (they say per image but that's wrong)
+# gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 10.', 'param': None, 'type': None}}
 gpt4image_num_max = 10
+# gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 20.', 'param': None, 'type': None}}
+gpt4turbo_image_num_max = 20
 
 # can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
 llava_num_max = 10
@@ -265,7 +268,7 @@ llava_num_max = 10
 internvl_num_max = 5
 
 images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
-                 'gpt-4-turbo-2024-04-09': gpt4image_num_max, 'gpt-4o': gpt4image_num_max,
+                 'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max, 'gpt-4o': gpt4turbo_image_num_max,
                  'gemini-pro-vision': geminiimage_num_max,
                  'gemini-1.5-pro-latest': gemini15image_num_max,
                  'gemini-1.5-flash-latest': gemini15image_num_max,

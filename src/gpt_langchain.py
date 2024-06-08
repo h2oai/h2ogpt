@@ -2344,14 +2344,17 @@ class ExtraChat:
                             self.count_input_tokens += gpt4_image_tokens
 
                         num_images += 1
-                        if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
-                            break
-                        if img_tag in [gemini15imagetag] and num_images >= gemini15image_num_max:
-                            break
-                        if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
-                            break
-                        if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
-                            break
+                        hard_truncate = False
+                        # do this elsewhere to allow API flexibility as well
+                        if hard_truncate:
+                            if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
+                                break
+                            if img_tag in [gemini15imagetag] and num_images >= gemini15image_num_max:
+                                break
+                            if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
+                                break
+                            if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
+                                break
                     # https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/design-multimodal-prompts
                     # gemini recommends images come first before text
                     content.append({"type": "text", "text": prompt_text})
