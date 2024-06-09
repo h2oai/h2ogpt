@@ -529,17 +529,17 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
         instruction = instruction or instruction_nochat
         prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
-        inst_mod = '\n\nDo not make up an answer, if no direct answer exists, just say there is no relevant answer in this image.\n\n'
-        final_mod = '\n\nYou have been given answers from several images, one of which may contain the answer.  Choose among those documents that give the answer, and ignore those image answers that suggest no answer is present.\n\n'
+        inst_mod = 'According to the text and other content in the image, '
+        final_mod = 'According to the text and answers from the images (ignoring image answers that had no answer), '
         if langchain_action1 == LangChainAction.QUERY.value:
-            instruction_batch = instruction + inst_mod
+            instruction_batch = inst_mod + instruction
             instruction_final = final_mod + instruction
             prompt_summary_batch = prompt_summary
             prompt_summary_final = prompt_summary
         elif langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
             instruction_batch = instruction
             instruction_final = instruction
-            prompt_summary_batch = prompt_summary + inst_mod
+            prompt_summary_batch = inst_mod + prompt_summary
             prompt_summary_final = final_mod + prompt_summary
         else:
             instruction_batch = instruction

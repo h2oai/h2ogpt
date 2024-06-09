@@ -5934,15 +5934,21 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
 
 
-vision_models = ['gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
-                 'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-                 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
-                 'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
-                 'HuggingFaceM4/idefics2-8b-chatty',
-                 'lmms-lab/llama3-llava-next-8b',
-                 'OpenGVLab/InternVL-Chat-V1-5',
-                 'THUDM/cogvlm2-llama3-chat-19B',
-                 ]
+close_vision_models = [
+    'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+    'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+    'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
+]
+open_vision_models = [
+    'liuhaotian/llava-v1.6-34b',
+    'liuhaotian/llava-v1.6-vicuna-13b',
+    'HuggingFaceM4/idefics2-8b-chatty',
+    'lmms-lab/llama3-llava-next-8b',
+    'OpenGVLab/InternVL-Chat-V1-5',
+    'THUDM/cogvlm2-llama3-chat-19B',
+]
+
+vision_models = close_vision_models + open_vision_models
 
 
 @wrap_test_forked
@@ -6094,7 +6100,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
-                  # images_num_max=len(image_files),
+                  images_num_max=2 if base_model in open_vision_models else None,  # seems optimal even for InternVL
                   stream_output=False,
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
@@ -6112,6 +6118,9 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     assert 'REINFORCE'.lower() in response.lower()
 
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    if base_model == 'OpenGVLab/InternVL-Chat-V1-5':
+        assert len(res_dict['sources']) >= 10
 
 
 @wrap_test_forked
