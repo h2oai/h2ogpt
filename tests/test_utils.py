@@ -876,7 +876,7 @@ def test_process_file_list():
         "tests/jon.png",
         "tests/ocr1.png",
         "tests/ocr3.png",
-        "tests/screenshot.png"
+        "tests/screenshot.png",
     ]
 
     output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
@@ -905,7 +905,7 @@ def test_process_file_list_extract_frames():
         "tests/jon.png",
         "tests/ocr1.png",
         "tests/ocr3.png",
-        "tests/screenshot.png"
+        "tests/screenshot.png",
     ]
 
     output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
@@ -949,7 +949,7 @@ def test_process_animated_gif():
     # Create a list of test files
     test_files = [
         "tests/test_animated_gif.gif",
-        "tests/screenshot.png"
+        "tests/screenshot.png",
     ]
 
     output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
@@ -1007,3 +1007,27 @@ def test_process_animated_gif3():
         print(file, file=sys.stderr)
         assert os.path.isfile(file)
     assert len(processed_files) == len(test_files) - 1 + 60  # 60 is the number of images generated from the animated gif
+
+
+def test_process_mixed():
+    # Create a list of test files
+    test_files = [
+        "tests/videotest.mp4",
+        "https://www.youtube.com/shorts/fRkZCriQQNU",
+        "tests/screenshot.png",
+        "tests/test_animated_gif.gif",
+    ]
+
+    output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    print(output_dir, file=sys.stderr)
+
+    # Process the files
+    processed_files = process_file_list(test_files, output_dir, resolution=(640, 480), image_format="jpg",
+                                        video_frame_period=0, extract_frames=10, verbose=True)
+
+    # Print the resulting list of image files
+    print("Processed files:")
+    for file in processed_files:
+        print(file, file=sys.stderr)
+        assert os.path.isfile(file)
+    assert len(processed_files) == len(test_files) - 1 + 29  # 28 is the number of images generated from the video files
