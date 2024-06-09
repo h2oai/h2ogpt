@@ -4236,6 +4236,10 @@ def evaluate(
         prompt_dict = chosen_model_state['prompt_dict']
     # prefer use input from API over model state (see prep_bot())
     images_num_max = images_num_max or chosen_model_state['images_num_max']
+    if isinstance(image_resolution, str) and image_resolution.strip():
+        # from gradio was string of tuple
+        image_resolution = ast.literal_eval(image_resolution.strip())
+        assert isinstance(image_resolution, (list, tuple))
     image_resolution = image_resolution or chosen_model_state['image_resolution']
     image_format = image_format or chosen_model_state['image_format']
     video_frame_period = video_frame_period or chosen_model_state['video_frame_period']

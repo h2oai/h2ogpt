@@ -8131,14 +8131,6 @@ def get_chain(query=None,
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
 
-    if hasattr(db, '_persist_directory'):
-        lock_file = get_db_lock_file(db, lock_type='sim')
-    else:
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        name_path = "sim.lock"
-        lock_file = os.path.join(base_path, name_path)
-
     # GET FILTER
 
     if not is_chroma_db(db):
@@ -8550,10 +8542,6 @@ def get_chain(query=None,
         # FIXME: report to user bad query that uses too many common words
         if verbose:
             print("frac_common: %s" % frac_common, flush=True)
-
-    if len(docs) == 0:
-        # avoid context == in prompt then
-        template = template_if_no_docs
 
     got_any_docs = len(docs) > 0
     # update template in case situation changed or did get docs

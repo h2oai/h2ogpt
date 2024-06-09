@@ -506,16 +506,21 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_a
 
 def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                  langchain_action1, kwargs={}, api=False, verbose=False):
-    image_files = fun1.args[len(input_args_list) + eval_func_param_names.index('image_file')].copy()
-    instruction = fun1.args[len(input_args_list) + eval_func_param_names.index('instruction')]
-    instruction_nochat = fun1.args[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
-    instruction = instruction or instruction_nochat
-    base_model = fun1.args[input_args_list.index('model_state')].get('base_model')
-    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
-    if images_num_max is None:
-        images_num_max = images_num_max_dict.get(base_model, 1)
+    image_files = fun1.args[len(input_args_list) + eval_func_param_names.index('image_file')]
+    if image_files is None:
+        image_files = []
+    else:
+        image_files = image_files.copy()
 
-    if image_files and images_num_max <= len(image_files):
+    chosen_model_state = fun1.args[input_args_list.index('model_state')]
+    base_model = chosen_model_state.get('base_model')
+    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+    images_num_max = images_num_max or chosen_model_state.get('images_num_max', images_num_max)
+    if images_num_max is None:
+        # in case not coming from api
+        images_num_max = images_num_max_dict.get(base_model, 0)
+
+    if not image_files or images_num_max <= len(image_files):
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                                  langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
     else:

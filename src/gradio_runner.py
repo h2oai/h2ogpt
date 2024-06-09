@@ -1720,10 +1720,10 @@ def go_gradio(**kwargs):
                             label="guided_whitespace_pattern, emptry string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=True)
-                        images_num_max = gr.Number(label='Number of Images per LLM call')
-                        image_resolution = gr.Textbox(label='Resolution in (nx, ny)')
-                        image_format = gr.Textbox(label='Image format')
-                        video_frame_period = gr.Number(label="Period of frames to use from video.")
+                        images_num_max = gr.Number(label='Number of Images per LLM call', value=kwargs['images_num_max'])
+                        image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'])
+                        image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
+                        video_frame_period = gr.Number(label="Period of frames to use from video.", value=kwargs['video_frame_period'])
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
