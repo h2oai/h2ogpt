@@ -6082,9 +6082,9 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     from src.vision.utils_vision import img_to_base64
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
     # FIXME: Should be able to send any number
-    image_files = image_files[:images_num_max_dict.get(base_model, 1)]
+    # image_files = image_files[:images_num_max_dict.get(base_model, 1)]
     # DEBUGGING how many images can be handled before bad results, OOM, failures, etc.
-    #image_files = image_files[:8]
+    # image_files = image_files[:8]
 
     # cogvlm2 hurt by system prompt, so could nuke for this test, but unstable and not always case
     print("Doing base_model=%s" % base_model)
