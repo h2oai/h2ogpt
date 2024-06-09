@@ -528,12 +528,24 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         instruction = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction')]
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
         instruction = instruction or instruction_nochat
+        prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
+        inst_mod = '\n\nDo not make up an answer, if no direct answer exists, just say there is no relevant answer in this image.\n\n'
+        final_mod = '\n\nYou have been given answers from several images, one of which may contain the answer.  Choose among those documents that give the answer, and ignore those image answers that suggest no answer is present.\n\n'
         if langchain_action1 == LangChainAction.QUERY.value:
-            instruction_batch = '\n\nIf the image is not relevant, do not make up an answer, just say there is no relevant answer in this image.\n\n' + instruction
-            instruction_final = '\n\nYou have been given answers from several images, one of which may contain the answer.  Choose among those documents that give the answer, and ignore those image answers that suggest no answer is present.\n\n' + instruction
+            instruction_batch = instruction + inst_mod
+            instruction_final = final_mod + instruction
+            prompt_summary_batch = prompt_summary
+            prompt_summary_final = prompt_summary
+        elif langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
+            instruction_batch = instruction
+            instruction_final = instruction
+            prompt_summary_batch = prompt_summary + inst_mod
+            prompt_summary_final = final_mod + prompt_summary
         else:
             instruction_batch = instruction
             instruction_final = instruction
+            prompt_summary_batch = prompt_summary
+            prompt_summary_final = prompt_summary
 
         batch_tokens = 0
         responses = []
@@ -545,6 +557,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
                                                                                                batch:batch + images_num_max]
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
             text = ''
@@ -568,6 +581,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         fun1_args_list2 = fun1_args_list_copy.copy()
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = []
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
         fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
         for response in _get_response(fun2, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                       tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
