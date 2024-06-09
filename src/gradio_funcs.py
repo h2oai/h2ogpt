@@ -530,7 +530,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         instruction = instruction or instruction_nochat
         prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
         inst_mod = 'According to the text and other content in the image, '
-        final_mod = 'According to the text and answers from the images (ignoring image answers that had no answer), '
+        final_mod = 'According to the text and answers from the images (ignoring image answers that had no answer, but giving details from images that did have an answer), give a well-structured response to: '
         if langchain_action1 == LangChainAction.QUERY.value:
             instruction_batch = inst_mod + instruction
             instruction_final = final_mod + instruction
