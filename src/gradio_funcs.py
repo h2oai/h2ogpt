@@ -9,7 +9,8 @@ import uuid
 import filelock
 
 from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
-    DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset
+    DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset, \
+    images_num_max_dict
 from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
     get_accordion_named, check_input_type, download_image
@@ -505,6 +506,45 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_a
 
 def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                  langchain_action1, kwargs={}, api=False, verbose=False):
+    image_files = fun1.args[len(input_args_list) + eval_func_param_names.index('image_file')].copy()
+    instruction = fun1.args[len(input_args_list) + eval_func_param_names.index('instruction')]
+    instruction_nochat = fun1.args[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
+    instruction = instruction or instruction_nochat
+    base_model = fun1.args[input_args_list.index('model_state')].get('base_model')
+    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+    if images_num_max is None:
+        images_num_max = images_num_max_dict.get(base_model, 1)
+
+    if image_files and images_num_max <= len(image_files):
+        yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
+                                 langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
+    else:
+        responses = []
+        for batch in range(0, len(image_files), images_num_max):
+            # then handle images in batches
+            fun1.args[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
+                                                                                          batch:batch + images_num_max]
+
+            text = ''
+            for response in _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+                                          tts_speed1,
+                                          langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
+                yield response
+                text = response
+            responses.append(text)
+
+        text_context_list = fun1.args[len(input_args_list) + eval_func_param_names.index('text_context_list')]
+        # should be in-place
+        text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
+
+        # last response with no images
+        fun1.args[len(input_args_list) + eval_func_param_names.index('image_file')] = []
+        yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+                                 tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
+
+
+def _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
+                  langchain_action1, kwargs={}, api=False, verbose=False):
     """
     bot that consumes history for user input
     instruction (from input_list) itself is not consumed by bot
