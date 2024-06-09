@@ -525,14 +525,27 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                                  langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
     else:
+        instruction = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction')]
+        instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
+        instruction = instruction or instruction_nochat
+        if langchain_action1 == LangChainAction.QUERY.value:
+            instruction_batch = '\n\nIf the image is not relevant, do not make up an answer, just say there is no relevant answer in this image.\n\n' + instruction
+            instruction_final = '\n\nYou have been given answers from several images, one of which may contain the answer.  Choose among those documents that give the answer, and ignore those image answers that suggest no answer is present.\n\n' + instruction
+        else:
+            instruction_batch = instruction
+            instruction_final = instruction
+
         batch_tokens = 0
         responses = []
         history_copy = copy.deepcopy(history)
+        fun1_args_list_copy = fun1_args_list.copy()
         for batch in range(0, len(image_files), images_num_max):
+            fun1_args_list2 = fun1_args_list_copy.copy()
             # then handle images in batches
-            fun1_args_list[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
                                                                                                batch:batch + images_num_max]
-            fun2 = functools.partial(fun1.func, *tuple(fun1_args_list), **fun1.keywords)
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
+            fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
             text = ''
             save_dict1_saved = None
@@ -552,9 +565,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
 
         # last response with no images
-        fun1_args_list[len(input_args_list) + eval_func_param_names.index('image_file')] = []
-        fun2 = functools.partial(fun1.func, *tuple(fun1_args_list), **fun1.keywords)
-        response_list = []
+        fun1_args_list2 = fun1_args_list_copy.copy()
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = []
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
+        fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
         for response in _get_response(fun2, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                       tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
             response_list = list(response)
@@ -564,6 +578,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             if 'num_prompt_tokens' not in save_dict1['extra_dict']:
                 save_dict1['extra_dict']['num_prompt_tokens'] = 0
             save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
+            save_dict1['extra_dict']['batch_responses'] = responses
             yield tuple(response_list)
 
 

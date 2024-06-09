@@ -4256,8 +4256,10 @@ def evaluate(
 
     # choose chat or non-chat mode
     if not chat:
-        instruction = instruction_nochat
-        iinput = iinput_nochat
+        if not instruction and instruction_nochat:
+            instruction = instruction_nochat
+        if not iinput and iinput_nochat:
+            iinput = iinput_nochat
 
     # avoid instruction in chat_conversation itself, since always used as additional context to prompt in what follows
     if isinstance(chat_conversation, list) and \
