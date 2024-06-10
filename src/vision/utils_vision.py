@@ -11,6 +11,7 @@ from PIL.Image import Resampling
 from gradio_utils.grclient import check_job
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
     llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
+from src.image_utils import fix_image_file
 from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
     have_fiftyone
 
@@ -272,7 +273,8 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
             image_files.extend(frame_files)
         else:
             # If it's not a valid video, add it to the image file list
-            image_files.append(file)
+            file_fixed = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False, relaxed_resize=True)
+            image_files.append(file_fixed)
 
     return image_files
 

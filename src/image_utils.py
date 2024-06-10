@@ -163,11 +163,14 @@ def correct_rotation(img_file, border_size=50):
     return out_file
 
 
-def pad_resize_image_file(img_file):
+def pad_resize_image_file(img_file, relaxed_resize=False):
     import cv2
 
     image = file_to_cv2(img_file)
-    image = pad_resize_image(image, return_none_if_no_change=True)
+    if relaxed_resize:
+        image = resize_image(image, return_none_if_no_change=True, max_dimension=2048)
+    else:
+        image = pad_resize_image(image, return_none_if_no_change=True)
     if image is None:
         new_file = img_file
     else:
@@ -177,11 +180,35 @@ def pad_resize_image_file(img_file):
     return new_file
 
 
-def pad_resize_image(image, return_none_if_no_change=False):
+def resize_image(image, return_none_if_no_change=True, max_dimension=2048):
+    import cv2
+    height, width = image.shape[:2]
+
+    # Calculate the scaling factor
+    if max(height, width) > max_dimension:
+        if height > width:
+            scale_factor = max_dimension / height
+        else:
+            scale_factor = max_dimension / width
+
+        # Compute new dimensions
+        new_dimensions = (int(width * scale_factor), int(height * scale_factor))
+
+        # Resize the image
+        resized_image = cv2.resize(image, new_dimensions, interpolation=cv2.INTER_AREA)
+    else:
+        # No resizing needed if the image is already within the desired dimensions
+        if return_none_if_no_change:
+            return None
+        resized_image = image
+    return resized_image
+
+
+def pad_resize_image(image, return_none_if_no_change=False, max_dimension=1024):
     import cv2
 
-    L = 1024
-    H = 1024
+    L = max_dimension
+    H = max_dimension
 
     # Load the image
     Li, Hi = image.shape[1], image.shape[0]
@@ -237,7 +264,7 @@ def pad_resize_image(image, return_none_if_no_change=False):
     return image
 
 
-def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
+def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False, relaxed_resize=False):
     # always try to fix rotation/alignment since OCR better etc. in that case
     if have_cv2:
         if do_align:
@@ -249,7 +276,7 @@ def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
             if derotated_image is not None and os.path.isfile(derotated_image):
                 file = derotated_image
         if do_pad:
-            file = pad_resize_image_file(file)
+            file = pad_resize_image_file(file, relaxed_resize=relaxed_resize)
     return file
 
 
