@@ -80,7 +80,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
-    is_json_model, images_num_max_dict, is_vision_model
+    is_json_model, images_num_max_dict, is_vision_model, image_batch_image_prompt0, image_batch_final_prompt0
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -527,6 +527,8 @@ def main(
         image_resolution: tuple = None,
         image_format: str = None,
         video_frame_period: int = None,
+        image_batch_image_prompt: str = None,
+        image_batch_final_prompt: str = None,
 
         response_format: str = 'text',
         guided_json: str = '',
@@ -1285,6 +1287,8 @@ def main(
     :param image_resolution: Resolution of any images
     :param image_format: Preferred format of images, esp. for video output
     :param video_frame_period: Period of frames to use from video
+    :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
+    :param image_batch_final_prompt: Prompt used to query result of batching of images
 
     :param response_format: text or json_object or json_code
         json_object means always try to use best mechanism to make JSON.
@@ -1968,6 +1972,8 @@ def main(
                             image_resolution,
                             image_format,
                             video_frame_period,
+                            image_batch_image_prompt,
+                            image_batch_final_prompt,
 
                             response_format,
                             guided_json,
@@ -2199,6 +2205,8 @@ def main(
                             image_resolution=None,
                             image_format=None,
                             video_frame_period=None,
+                            image_batch_image_prompt=None,
+                            image_batch_final_prompt=None,
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
@@ -2339,6 +2347,9 @@ def main(
         json_code_prompt = json_code_prompt or json_code_prompt0
         json_code_prompt_if_no_schema = json_code_prompt_if_no_schema or json_code_prompt_if_no_schema0
         json_schema_instruction = json_schema_instruction or json_schema_instruction0
+
+        image_batch_image_prompt = image_batch_image_prompt or image_batch_image_prompt0
+        image_batch_final_prompt = image_batch_final_prompt or image_batch_final_prompt0
 
         # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
         if prompt_type_infer:
@@ -3967,6 +3978,8 @@ def evaluate(
         image_resolution,
         image_format,
         video_frame_period,
+        image_batch_image_prompt,
+        image_batch_final_prompt,
 
         response_format,
         guided_json,
@@ -4718,6 +4731,8 @@ def evaluate(
                 image_resolution=image_resolution,
                 image_format=image_format,
                 video_frame_period=video_frame_period,
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -5202,6 +5217,8 @@ def evaluate(
                                          image_resolution=None,  # already changed
                                          image_format=None,  # already changed
                                          video_frame_period=None,  # already changed
+                                         image_batch_image_prompt=image_batch_image_prompt,
+                                         image_batch_final_prompt=image_batch_final_prompt,
 
                                          response_format=response_format,
                                          guided_json=guided_json,
@@ -5774,6 +5791,8 @@ def get_generate_params(model_lower,
                         image_resolution,
                         image_format,
                         video_frame_period,
+                        image_batch_image_prompt,
+                        image_batch_final_prompt,
 
                         response_format,
                         guided_json,
@@ -6009,6 +6028,8 @@ y = np.random.randint(0, 1, 100)
                     image_resolution,
                     image_format,
                     video_frame_period,
+                    image_batch_image_prompt,
+                    image_batch_final_prompt,
 
                     response_format,
                     guided_json,

@@ -482,18 +482,18 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
         instruction = instruction or instruction_nochat
         prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
-        inst_mod = 'According to the text and other content in the image, '
-        final_mod = 'According to the text and answers from the images (ignoring image answers that had no answer, but giving details from images that did have an answer), give a well-structured response to: '
+        image_batch_image_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index('image_batch_image_prompt')] or kwargs['image_batch_image_prompt']
+        image_batch_final_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index('image_batch_final_prompt')] or kwargs['image_batch_final_prompt']
         if langchain_action1 == LangChainAction.QUERY.value:
-            instruction_batch = inst_mod + instruction
-            instruction_final = final_mod + instruction
+            instruction_batch = image_batch_image_prompt + instruction
+            instruction_final = image_batch_final_prompt + instruction
             prompt_summary_batch = prompt_summary
             prompt_summary_final = prompt_summary
         elif langchain_action1 == LangChainAction.SUMMARIZE_MAP.value:
             instruction_batch = instruction
             instruction_final = instruction
-            prompt_summary_batch = inst_mod + prompt_summary
-            prompt_summary_final = final_mod + prompt_summary
+            prompt_summary_batch = image_batch_image_prompt + prompt_summary
+            prompt_summary_final = image_batch_final_prompt + prompt_summary
         else:
             instruction_batch = instruction
             instruction_final = instruction

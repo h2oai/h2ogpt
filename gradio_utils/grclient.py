@@ -727,6 +727,8 @@ class GradioClient(Client):
         image_resolution: tuple = None,
         image_format: str = None,
         video_frame_period: int = None,
+        image_batch_image_prompt: str = None,
+        image_batch_final_prompt: str = None,
         response_format: str = "text",
         guided_json: Union[str, dict] = "",
         guided_regex: str = "",
@@ -876,6 +878,8 @@ class GradioClient(Client):
             :param image_resolution: Resolution of any images
             :param image_format: Image format
             :param video_frame_period: Period of frames to use from video
+            :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
+            :param image_batch_final_prompt: Prompt used to query result of batching of images
 
             :param response_format: text or json_object or json_code
             # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135

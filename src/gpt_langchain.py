@@ -948,6 +948,8 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     image_resolution: Any = None
     image_format: Any = None
     video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
 
     response_format: Any = None
     guided_json: Any = None
@@ -1099,6 +1101,8 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              image_resolution=self.image_resolution,
                              image_format=self.image_format,
                              video_frame_period=self.video_frame_period,
+                             image_batch_image_prompt=self.image_batch_image_prompt,
+                             image_batch_final_prompt=self.image_batch_final_prompt,
 
                              response_format=self.response_format,
                              guided_json=self.guided_json,
@@ -1540,6 +1544,8 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     image_resolution: Any = None
     image_format: Any = None
     video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1871,6 +1877,8 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     image_resolution: Any = None
     image_format: Any = None
     video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
 
     def prep_prompt(self, prompt, stop, kwargs):
         if stop is None:
@@ -2831,6 +2839,8 @@ def get_llm(use_openai_model=False,
             image_resolution=None,
             image_format=None,
             video_frame_period=None,
+            image_batch_image_prompt=None,
+            image_batch_final_prompt=None,
 
             document_choice=None,
 
@@ -3557,6 +3567,8 @@ def get_llm(use_openai_model=False,
                 image_resolution=None,  # already changed
                 image_format=None,  # already changed
                 video_frame_period=None,  # already changed
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -3603,6 +3615,8 @@ def get_llm(use_openai_model=False,
                 image_resolution=None,  # already changed
                 image_format=None,  # already changed
                 video_frame_period=None,  # already changed
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
             )
         else:
             raise RuntimeError("No defined client")
@@ -3773,6 +3787,8 @@ def get_llm(use_openai_model=False,
                                          image_resolution=image_resolution,
                                          image_format=image_format,
                                          video_frame_period=video_frame_period,
+                                         image_batch_image_prompt=image_batch_image_prompt,
+                                         image_batch_final_prompt=image_batch_final_prompt,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -6635,6 +6651,8 @@ def _run_qa_db(query=None,
                image_resolution=None,
                image_format=None,
                video_frame_period=None,
+               image_batch_image_prompt=None,
+               image_batch_final_prompt=None,
 
                response_format=None,
                guided_json=None,
@@ -6847,6 +6865,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       image_resolution=image_resolution,
                       image_format=image_format,
                       video_frame_period=video_frame_period,
+                      image_batch_image_prompt=image_batch_image_prompt,
+                      image_batch_final_prompt=image_batch_final_prompt,
 
                       document_choice=document_choice,
 

@@ -1725,6 +1725,9 @@ def go_gradio(**kwargs):
                         image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
                         video_frame_period = gr.Number(label="Period of frames to use from video.", value=kwargs['video_frame_period'])
 
+                        image_batch_image_prompt = gr.Textbox(label="Image batch prompt", value=kwargs['image_batch_image_prompt'])
+                        image_batch_final_prompt = gr.Textbox(label="Image batch prompt", value=kwargs['image_batch_final_prompt'])
+
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
                         markdown_label = "Speech Control and Voice Cloning"

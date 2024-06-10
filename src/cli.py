@@ -89,6 +89,8 @@ def run_cli(  # for local function:
         image_resolution=None,
         image_format=None,
         video_frame_period=None,
+        image_batch_image_prompt=None,
+        image_batch_final_prompt=None,
 
         response_format=None,
         guided_json=None,

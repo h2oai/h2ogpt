@@ -114,6 +114,8 @@ class H2oGPTParams(BaseModel):
     image_resolution: tuple | None = None
     image_format: str | None = None
     video_frame_period: int | None = None
+    image_batch_image_prompt: str | None = None
+    image_batch_final_prompt: str | None = None
 
     response_format: Optional[ResponseFormat] = Field(
         default=None,

@@ -28,6 +28,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  image_resolution=None,
                  image_format=None,
                  video_frame_period=None,
+                 image_batch_image_prompt=None,
+                 image_batch_final_prompt=None,
 
                  verbose=False,
                  **kwargs):
@@ -86,6 +88,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.image_resolution = image_resolution
         self.image_format = image_format
         self.video_frame_period = video_frame_period
+        self.image_batch_image_prompt = image_batch_image_prompt
+        self.image_batch_final_prompt = image_batch_final_prompt
 
     @staticmethod
     def get_token_count(x, tokenizer):

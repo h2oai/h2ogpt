@@ -102,6 +102,8 @@ eval_func_param_names = (
         "image_resolution",
         "image_format",
         "video_frame_period",
+        "image_batch_image_prompt",
+        "image_batch_final_prompt",
         "response_format",
         "guided_json",
         "guided_regex",
