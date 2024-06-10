@@ -187,54 +187,6 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         args_list[eval_func_param_names.index('h2ogpt_key')] = model_state1['h2ogpt_key']
 
     ###########################################
-    # deal with image files
-    image_files = args_list[eval_func_param_names.index('image_file')]
-    if isinstance(image_files, str):
-        image_files = [image_files]
-    if image_files is None:
-        image_files = []
-
-    image_files_to_delete = []
-    b2imgs = []
-    for img_file_one in image_files:
-        str_type = check_input_type(img_file_one)
-        if str_type == 'unknown':
-            continue
-
-        img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
-        if str_type == 'url':
-            img_file_one = download_image(img_file_one, img_file_path)
-            # only delete if was made by us
-            image_files_to_delete.append(img_file_one)
-        elif str_type == 'base64':
-            from src.vision.utils_vision import base64_to_img
-            img_file_one = base64_to_img(img_file_one, img_file_path)
-            # only delete if was made by us
-            image_files_to_delete.append(img_file_one)
-        else:
-            # str_type='file' or 'youtube'
-            pass
-        if img_file_one is not None:
-            b2imgs.append(img_file_one)
-    # always just make list
-    args_list[eval_func_param_names.index('image_file')] = b2imgs
-    ###########################################
-    # deal with videos in image list
-    images_file_path = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
-    # don't try to convert resolution here, do later as images
-    image_files = args_list[eval_func_param_names.index('image_file')]
-    image_resolution = args_list[eval_func_param_names.index('image_resolution')]
-    image_format = args_list[eval_func_param_names.index('image_format')]
-    video_frame_period = args_list[eval_func_param_names.index('video_frame_period')]
-    extract_frames = args_list[eval_func_param_names.index('extract_frames')] or kwargs.get('extract_frames', 20)
-    image_files = process_file_list(image_files, images_file_path, resolution=image_resolution,
-                                    image_format=image_format,
-                                    video_frame_period=video_frame_period,
-                                    extract_frames=extract_frames,
-                                    verbose=verbose)
-    args_list[eval_func_param_names.index('image_file')] = image_files
-
-    ###########################################
     # final full bot() like input for prep_bot etc.
     instruction_nochat1 = args_list[eval_func_param_names.index('instruction_nochat')] or \
                           args_list[eval_func_param_names.index('instruction')]
@@ -251,7 +203,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     history, fun1, langchain_mode1, db1, requests_state1, \
         valid_key, h2ogpt_key1, \
         max_time1, stream_output1, \
-        chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1 = \
+        chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1, \
+        image_files_to_delete = \
         prep_bot(*args_list_bot, kwargs_eval=kwargs1, plain_api=plain_api, kwargs=kwargs, verbose=verbose)
 
     save_dict = dict()
@@ -844,15 +797,66 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
         # only do if key not already set by user
         args_list[eval_func_param_names.index('h2ogpt_key')] = kwargs['h2ogpt_key']
 
-    args_list[0] = instruction1  # override original instruction with history from user
+    ###########################################
+    # deal with image files
+    image_files = args_list[eval_func_param_names.index('image_file')]
+    if isinstance(image_files, str):
+        image_files = [image_files]
+    if image_files is None:
+        image_files = []
+
+    image_files_to_delete = []
+    b2imgs = []
+    for img_file_one in image_files:
+        str_type = check_input_type(img_file_one)
+        if str_type == 'unknown':
+            continue
+
+        img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
+        if str_type == 'url':
+            img_file_one = download_image(img_file_one, img_file_path)
+            # only delete if was made by us
+            image_files_to_delete.append(img_file_one)
+        elif str_type == 'base64':
+            from src.vision.utils_vision import base64_to_img
+            img_file_one = base64_to_img(img_file_one, img_file_path)
+            # only delete if was made by us
+            image_files_to_delete.append(img_file_one)
+        else:
+            # str_type='file' or 'youtube'
+            pass
+        if img_file_one is not None:
+            b2imgs.append(img_file_one)
+    # always just make list
+    args_list[eval_func_param_names.index('image_file')] = b2imgs
+    ###########################################
+    # deal with videos in image list
+    images_file_path = os.path.join(tempfile.gettempdir(), 'image_path_%s' % str(uuid.uuid4()))
+    # don't try to convert resolution here, do later as images
+    image_files = args_list[eval_func_param_names.index('image_file')]
+    image_resolution = args_list[eval_func_param_names.index('image_resolution')]
+    image_format = args_list[eval_func_param_names.index('image_format')]
+    video_frame_period = args_list[eval_func_param_names.index('video_frame_period')]
+    extract_frames = args_list[eval_func_param_names.index('extract_frames')] or kwargs.get('extract_frames', 20)
+    image_files = process_file_list(image_files, images_file_path, resolution=image_resolution,
+                                    image_format=image_format,
+                                    video_frame_period=video_frame_period,
+                                    extract_frames=extract_frames,
+                                    verbose=verbose)
+    args_list[eval_func_param_names.index('image_file')] = image_files
+
+    ###########################################
+    # override original instruction with history from user
+    args_list[0] = instruction1
     args_list[2] = context1
 
+    ###########################################
+    # allow override of expert/user input for other parameters
     for k in eval_func_param_names:
         if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max', 'image_resolution',
                  'image_format', 'video_frame_period']:
             # already handled
             continue
-        # allow override of expert/user input for other parameters
         if k in model_state1 and model_state1[k] is not None:
             args_list[eval_func_param_names.index(k)] = model_state1[k]
 
@@ -864,7 +868,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
         valid_key, h2ogpt_key1, \
         max_time1, stream_output1, \
         chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
-        langchain_action1
+        langchain_action1, image_files_to_delete
 
 
 def choose_exc(x, is_public=True):
@@ -880,6 +884,7 @@ def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, db_type=None, dbs=Non
         valid_key, h2ogpt_key1, \
         max_time1, stream_output1, \
         chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
+        image_files_to_delete, \
         langchain_action1 = prep_bot(*args, retry=retry, kwargs_eval=kwargs_evaluate, kwargs=kwargs, verbose=verbose)
     save_dict = dict()
     error = ''
@@ -966,6 +971,9 @@ def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, db_type=None, dbs=Non
     finally:
         clear_torch_cache(allow_skip=True)
         clear_embeddings(langchain_mode1, db_type, db1, dbs)
+        for image_file1 in image_files_to_delete:
+            if os.path.isfile(image_file1):
+                remove(image_file1)
 
     # save
     if 'extra_dict' not in save_dict:

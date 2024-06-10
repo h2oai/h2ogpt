@@ -4272,6 +4272,8 @@ def go_gradio(**kwargs):
 
             langchain_action1 = args_list[eval_func_param_names.index('langchain_action')]
 
+            image_files_to_delete = []
+
             isize = len(input_args_list) + 1  # states + chat history
             db1s = None
             requests_state1 = None
@@ -4305,7 +4307,8 @@ def go_gradio(**kwargs):
                         valid_key, h2ogpt_key1, \
                         max_time1, stream_output1, \
                         chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
-                        langchain_action1 = \
+                        langchain_action1, \
+                        image_files_to_delete = \
                         prep_bot(*tuple(args_list1), retry=retry, which_model=chatboti, kwargs_eval=kwargs_evaluate,
                                  kwargs=kwargs, verbose=verbose)
                     if num_visible_bots == 1:
@@ -4473,6 +4476,9 @@ def go_gradio(**kwargs):
             finally:
                 clear_torch_cache(allow_skip=True)
                 clear_embeddings(langchain_mode1, db_type, db1s, dbs)
+            for image_file1 in image_files_to_delete:
+                if os.path.isfile(image_file1):
+                    remove(image_file1)
 
             # save
             for sources, error, save_dict, model_name in zip(sources_all, exceptions, save_dicts,
