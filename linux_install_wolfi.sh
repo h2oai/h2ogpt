@@ -161,3 +161,6 @@ print('Done!')
 
 # mitigate CVE-2024-22423
 pip install yt-dlp==2024.4.9 --no-deps --no-cache-dir
+
+# mitigate CVE-2024-22195, CVE-2024-34064
+pip install jinja2==3.1.4 --no-cache-dir -c reqs_optional/reqs_constraints.txt
