@@ -497,9 +497,17 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         model_states1 = kwargs['model_states']
         # choose batching model
         if visible_vision_models:
-            model_batch_choice = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
+            model_batch_choice1 = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
+            model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
+
+            images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+            images_num_max = images_num_max or model_batch_choice.get('images_num_max', images_num_max)
+            if images_num_max is None:
+                # in case not coming from api
+                images_num_max = images_num_max_dict.get(base_model, 0)
         else:
             model_batch_choice = None
+        images_num_max = max(1, images_num_max)
 
         instruction = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction')]
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
@@ -529,6 +537,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         responses = []
         history_copy = copy.deepcopy(history)
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
+        text_context_list = str_to_list(text_context_list)
         text_context_list_copy = copy.deepcopy(text_context_list)
         fun1_args_list_copy = fun1_args_list.copy()
         for batch in range(0, len(image_files), images_num_max):
@@ -547,7 +556,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             if model_batch_choice:
                 # override for batch model
                 fun1_args_list2[0] = model_batch_choice
-                fun1_args_list2[len(input_args_list) + eval_func_param_names.index('visible_models')] = visible_vision_models
+                fun1_args_list2[
+                    len(input_args_list) + eval_func_param_names.index('visible_models')] = visible_vision_models
 
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
