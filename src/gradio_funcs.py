@@ -550,6 +550,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         batch_tokens = 0
         responses = []
         history_copy = copy.deepcopy(history)
+        text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
+        text_context_list_copy = copy.deepcopy(text_context_list)
         fun1_args_list_copy = fun1_args_list.copy()
         for batch in range(0, len(image_files), images_num_max):
             fun1_args_list2 = fun1_args_list_copy.copy()
@@ -558,6 +560,11 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                                                                                                batch:batch + images_num_max]
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch
+            # don't include context list, just do image only
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
+            # no docs from DB, just image
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('langchain_mode')] = LangChainMode.LLM.value
+
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
             text = ''
@@ -573,15 +580,14 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             batch_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
             responses.append(text)
 
-        text_context_list = fun1.args[len(input_args_list) + eval_func_param_names.index('text_context_list')]
-        # should be in-place
-        text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
-
         # last response with no images
         fun1_args_list2 = fun1_args_list_copy.copy()
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = []
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
+        text_context_list = text_context_list_copy
+        text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = text_context_list
         fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
         for response in _get_response(fun2, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                       tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
