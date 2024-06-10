@@ -109,6 +109,7 @@ def run_eval(  # for local function:
         video_frame_period=None,
         image_batch_image_prompt=None,
         image_batch_final_prompt=None,
+        visible_vision_models=None,
 
         response_format=None,
         guided_json=None,

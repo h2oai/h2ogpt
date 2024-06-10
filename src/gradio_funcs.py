@@ -180,6 +180,10 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         assert isinstance(model_state1['visible_models'], (int, str, list, tuple))
         which_model = visible_models_to_model_choice(model_state1['visible_models'], model_states)
         args_list[eval_func_param_names.index('visible_models')] = which_model
+    if 'visible_vision_models' in model_state1 and model_state1['visible_vision_models'] is not None:
+        assert isinstance(model_state1['visible_vision_models'], (int, str, list, tuple))
+        which_model = visible_models_to_model_choice(model_state1['visible_vision_models'], model_states)
+        args_list[eval_func_param_names.index('visible_vision_models')] = which_model
     if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
         # remote server key if present
         # i.e. may be '' and used to override overall local key
@@ -468,22 +472,43 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     fun1_args_list = list(fun1.args)
     chosen_model_state = fun1.args[input_args_list.index('model_state')]
     base_model = chosen_model_state.get('base_model')
+    display_name = chosen_model_state.get('display_name')
+
+    visible_models = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_models')]
+    # by here these are just single names, not integers or list
+    visible_vision_models = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_vision_models')]
+
     images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
     images_num_max = images_num_max or chosen_model_state.get('images_num_max', images_num_max)
     if images_num_max is None:
         # in case not coming from api
         images_num_max = images_num_max_dict.get(base_model, 0)
 
-    if not image_files or images_num_max >= len(image_files):
+    do_batching = image_files and len(image_files) > images_num_max or \
+                  image_files and \
+                  visible_vision_models and \
+                  visible_vision_models != display_name and \
+                  display_name not in kwargs['all_possible_vision_display_names']
+
+    if not do_batching:
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                                  langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
     else:
+        model_states1 = kwargs['model_states']
+        # choose batching model
+        if visible_vision_models:
+            model_batch_choice = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
+        else:
+            model_batch_choice = None
+
         instruction = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction')]
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
         instruction = instruction or instruction_nochat
         prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
-        image_batch_image_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index('image_batch_image_prompt')] or kwargs['image_batch_image_prompt']
-        image_batch_final_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index('image_batch_final_prompt')] or kwargs['image_batch_final_prompt']
+        image_batch_image_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index(
+            'image_batch_image_prompt')] or kwargs['image_batch_image_prompt']
+        image_batch_final_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index(
+            'image_batch_final_prompt')] or kwargs['image_batch_final_prompt']
         if langchain_action1 == LangChainAction.QUERY.value:
             instruction_batch = image_batch_image_prompt + instruction
             instruction_final = image_batch_final_prompt + instruction
@@ -510,13 +535,19 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             fun1_args_list2 = fun1_args_list_copy.copy()
             # then handle images in batches
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
-                                                                                               batch:batch + images_num_max]
+                                                                                                batch:batch + images_num_max]
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch
             # don't include context list, just do image only
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
             # no docs from DB, just image
-            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('langchain_mode')] = LangChainMode.LLM.value
+            fun1_args_list2[
+                len(input_args_list) + eval_func_param_names.index('langchain_mode')] = LangChainMode.LLM.value
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
+            if model_batch_choice:
+                # override for batch model
+                fun1_args_list2[0] = model_batch_choice
+                fun1_args_list2[len(input_args_list) + eval_func_param_names.index('visible_models')] = visible_vision_models
 
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
@@ -788,6 +819,9 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     if 'visible_models' in model_state1 and model_state1['visible_models'] is not None:
         assert isinstance(model_state1['visible_models'], (int, str))
         args_list[eval_func_param_names.index('visible_models')] = model_state1['visible_models']
+    if 'visible_vision_models' in model_state1 and model_state1['visible_vision_models'] is not None:
+        assert isinstance(model_state1['visible_vision_models'], (int, str))
+        args_list[eval_func_param_names.index('visible_vision_models')] = model_state1['visible_vision_models']
     if 'h2ogpt_key' in model_state1 and model_state1['h2ogpt_key'] is not None:
         # i.e. may be '' and used to override overall local key
         assert isinstance(model_state1['h2ogpt_key'], str)
@@ -854,7 +888,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     # allow override of expert/user input for other parameters
     for k in eval_func_param_names:
         if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max', 'image_resolution',
-                 'image_format', 'video_frame_period']:
+                 'image_format', 'video_frame_period', 'visible_vision_models']:
             # already handled
             continue
         if k in model_state1 and model_state1[k] is not None:

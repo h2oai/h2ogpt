@@ -303,6 +303,7 @@ def go_gradio(**kwargs):
     score_model_state0 = kwargs['score_model_state0']
     selection_docs_state0 = kwargs['selection_docs_state0']
     visible_models_state0 = kwargs['visible_models_state0']
+    visible_vision_models_state0 = kwargs['visible_vision_models_state0']
     visible_image_models_state0 = kwargs['visible_image_models_state0']
     roles_state0 = kwargs['roles_state0']
     # For Heap analytics
@@ -713,8 +714,10 @@ def go_gradio(**kwargs):
 
     if kwargs['model_lock']:
         have_vision_models = any([is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
+        vision_models = [x for x in kwargs['model_lock'] if is_vision_model(x.get('base_model', ''))]
     else:
         have_vision_models = is_vision_model(kwargs['base_model'])
+        vision_models = kwargs['base_model'] if is_vision_model(kwargs['base_model']) else []
 
     is_gradio_h2oai = get_is_gradio_h2oai()
 
@@ -1727,6 +1730,15 @@ def go_gradio(**kwargs):
 
                         image_batch_image_prompt = gr.Textbox(label="Image batch prompt", value=kwargs['image_batch_image_prompt'])
                         image_batch_final_prompt = gr.Textbox(label="Image batch prompt", value=kwargs['image_batch_final_prompt'])
+
+                        visible_vision_models = gr.Dropdown(kwargs['all_possible_vision_display_names'],
+                                                             label="Visible Image Models",
+                                                             value=visible_vision_models_state0,  # not changing yet
+                                                             interactive=True,
+                                                             multiselect=False,
+                                                             visible=visible_model_choice,
+                                                             filterable=len(kwargs['all_possible_vision_display_names']) > 5
+                                                             )
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
