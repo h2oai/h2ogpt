@@ -168,13 +168,15 @@ def pad_resize_image_file(img_file, relaxed_resize=False):
 
     image = file_to_cv2(img_file)
     if relaxed_resize:
+        postfix = "_resized.png"
         image = resize_image(image, return_none_if_no_change=True, max_dimension=2048)
     else:
+        postfix = "_pad_resized.png"
         image = pad_resize_image(image, return_none_if_no_change=True)
     if image is None:
         new_file = img_file
     else:
-        new_file = img_file + "_pad_resized.png"
+        new_file = img_file + postfix
         cv2.imwrite(new_file, image)
 
     return new_file
@@ -275,7 +277,7 @@ def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False, relaxed_
             derotated_image = correct_rotation(file)
             if derotated_image is not None and os.path.isfile(derotated_image):
                 file = derotated_image
-        if do_pad:
+        if do_pad or relaxed_resize:
             file = pad_resize_image_file(file, relaxed_resize=relaxed_resize)
     return file
 

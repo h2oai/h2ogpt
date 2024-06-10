@@ -742,7 +742,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     dummy_return = history, None, langchain_mode1, my_db_state1, requests_state1, \
         valid_key, h2ogpt_key1, \
         max_time1, stream_output1, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, \
-        langchain_action1
+        langchain_action1, []
 
     if not plain_api and (model_state1['model'] is None or model_state1['model'] == no_model_str):
         # plain_api has no state, let evaluate() handle switch
