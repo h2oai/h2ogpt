@@ -482,18 +482,21 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     visible_models = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_models')]
     # by here these are just single names, not integers or list
     visible_vision_models = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_vision_models')]
+    if visible_vision_models is None:
+        visible_vision_models = ''
 
     images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
     images_num_max = images_num_max or chosen_model_state.get('images_num_max', images_num_max)
-    if images_num_max is None:
-        # in case not coming from api
+    if images_num_max in [None, 0]:
+        # in case not coming from api or UI
         images_num_max = images_num_max_dict.get(base_model, 0)
 
-    do_batching = image_files and len(image_files) > images_num_max or \
-                  image_files and \
-                  visible_vision_models and \
+    do_batching = len(image_files) > images_num_max or \
+                  visible_vision_models != '' and \
                   visible_vision_models != display_name and \
                   display_name not in kwargs['all_possible_vision_display_names']
+    do_batching &= len(image_files) > 0
+    do_batching &= images_num_max  # not 0 or None, maybe some unknown model, don't do batching
 
     if not do_batching:
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,

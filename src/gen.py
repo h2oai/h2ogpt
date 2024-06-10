@@ -65,7 +65,6 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -2442,6 +2441,8 @@ def main(
     if visible_vision_models_state0:
         # only single choice
         visible_vision_models_state0 = visible_vision_models_state0[0]
+    else:
+        visible_vision_models_state0 = ''
 
     # update to be consistent with what is passed from CLI and model chose
     # do after go over all models if multi-model, so don't contaminate
