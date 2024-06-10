@@ -463,6 +463,11 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_a
 
 def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                  langchain_action1, kwargs={}, api=False, verbose=False):
+    if fun1 is None:
+        yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
+                                 langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
+        return
+
     image_files = fun1.args[len(input_args_list) + eval_func_param_names.index('image_file')]
     if image_files is None:
         image_files = []
@@ -493,6 +498,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if not do_batching:
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                                  langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
+        return
     else:
         model_states1 = kwargs['model_states']
         # choose batching model
@@ -594,6 +600,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
             save_dict1['extra_dict']['batch_responses'] = responses
             yield tuple(response_list)
+        return
 
 
 def _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
