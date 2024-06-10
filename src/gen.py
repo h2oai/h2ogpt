@@ -2434,7 +2434,7 @@ def main(
     visible_vision_models = str_to_list(visible_vision_models, allow_none=True)  # None means first model
     all_possible_vision_display_names = [x for x in all_possible_display_names if is_vision_model(x)]
     vision_display_names = deduplicate_names([x for x in all_possible_vision_display_names])
-    all_possible_display_names = vision_display_names
+    all_possible_vision_display_names = vision_display_names
     visible_vision_models_state0 = [x for xi, x in enumerate(all_possible_vision_display_names) if
                                     visible_vision_models is None or
                                     x in visible_vision_models or
