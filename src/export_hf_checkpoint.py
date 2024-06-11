@@ -220,11 +220,13 @@ def do_export():
 def do_copy(OUTPUT_NAME):
     dest_file = os.path.join(OUTPUT_NAME, "h2oai_pipeline.py")
     shutil.copyfile("src/h2oai_pipeline.py", dest_file)
-    os.system("""sed -i 's/from enums.*//g' %s""" % dest_file)
     os.system("""sed -i 's/from stopping.*//g' %s""" % dest_file)
     os.system("""sed -i 's/from prompter.*//g' %s""" % dest_file)
-    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('src/enums.py', dest_file))
-    os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('src/prompter.py', dest_file))
+    os.system("""sed -i 's/from prompter_utils.*//g' %s""" % dest_file)
+    os.system("""cat %s >> %s""" % ('src/enums.py', dest_file))
+    os.system("""cat %s >> %s""" % ('src/prompter_utils.py', dest_file))
+    os.system("""cat %s >> %s""" % ('src/utils.py', dest_file))
+    os.system("""cat %s|grep -v "from enums import PromptType"|grep -v "from stopping" | grep -v "from prompter_utils" | grep -v "from utils" >> %s""" % ('src/prompter.py', dest_file))
     os.system("""cat %s|grep -v "from enums import PromptType" >> %s""" % ('src/stopping.py', dest_file))
 
 

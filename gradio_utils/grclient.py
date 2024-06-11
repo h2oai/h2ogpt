@@ -13,6 +13,7 @@ import warnings
 from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Generator, Any, Union, List, Dict, Optional, Literal
 import ast
@@ -722,10 +723,19 @@ class GradioClient(Client):
         metadata_in_context: list = [],
         image_file: Union[str, list] = None,
         image_control: str = None,
+        images_num_max: int = None,
+        image_resolution: tuple = None,
+        image_format: str = None,
+        video_frame_period: int = None,
+        image_batch_image_prompt: str = None,
+        image_batch_final_prompt: str = None,
+        image_batch_stream: bool = None,
+        visible_vision_models: Union[str, int, list] = None,
+        video_file: Union[str, list] = None,
         response_format: str = "text",
         guided_json: Union[str, dict] = "",
         guided_regex: str = "",
-        guided_choice: str = "",
+        guided_choice: List[str] | None = None,
         guided_grammar: str = "",
         guided_whitespace_pattern: str = None,
         prompt_type: Union[int, str] = None,
@@ -867,6 +877,15 @@ class GradioClient(Client):
 
             :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
             :param image_control: Initial image for UI Image Control
+            :param images_num_max: Max. number of images per LLM call
+            :param image_resolution: Resolution of any images
+            :param image_format: Image format
+            :param video_frame_period: Period of frames to use from video
+            :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
+            :param image_batch_final_prompt: Prompt used to query result of batching of images
+            :param image_batch_stream: Whether to stream batching of images.
+            :param visible_vision_models: Model to use for vision, e.g. if base LLM has no vision
+            :param video_file: DO NOT USE FOR API, put images, videos, urls, and youtube urls in image_file as list
 
             :param response_format: text or json_object or json_code
             # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
@@ -1276,24 +1295,45 @@ class GradioClient(Client):
                     f"0 and {len(valid_llms) - 1} or one of the following values: {valid_llms}.{did_you_mean}"
                 )
 
-    def get_models_full(self) -> list[dict[str, Any]]:
+    @staticmethod
+    def _get_ttl_hash(seconds=10):
+        """Return the same value within `seconds` time period"""
+        return round(time.time() / seconds)
+
+    @lru_cache()
+    def _get_models_full(self, ttl_hash=None) -> List[Dict[str, Any]]:
         """
-        Full model info in list if dict
+        Full model info in list if dict (cached)
         """
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
         if self.config is None:
             self.setup()
         return ast.literal_eval(self.predict(api_name="/model_names"))
 
-    def list_models(self) -> list[str]:
+    @lru_cache()
+    def _list_models(self, ttl_hash=None) -> List[str]:
         """
-        Model names available from endpoint
+        Model names available from endpoint (cached)
         """
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
         if self.config is None:
             self.setup()
         return [
             x["display_name"]
             for x in ast.literal_eval(self.predict(api_name="/model_names"))
         ]
+
+    def get_models_full(self) -> List[Dict[str, Any]]:
+        """
+        Full model info in list if dict
+        """
+        return self._get_models_full(ttl_hash=self._get_ttl_hash())
+
+    def list_models(self) -> List[str]:
+        """
+        Model names available from endpoint
+        """
+        return self._list_models(ttl_hash=self._get_ttl_hash())
 
     def simple_stream(
         self,

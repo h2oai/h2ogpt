@@ -212,8 +212,8 @@ def test_structure_to_messages_with_system_message():
         {"role": "assistant", "content": "2+2 is 4."}
     ]
 
-    instruction, system_message, history, _ = convert_messages_to_structure(messages_with_system)
-    reconstructed_messages = structure_to_messages(instruction, system_message, history)
+    instruction, system_message, history, image_files = convert_messages_to_structure(messages_with_system)
+    reconstructed_messages = structure_to_messages(instruction, system_message, history, image_files)
 
     assert reconstructed_messages == messages_with_system, "Test with system message failed."
 

@@ -28,7 +28,7 @@ def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=No
     results = fob.compute_similarity(frame_view, brain_key="frame_sim")
 
     # Find maximally unique frames
-    num_unique = extract_frames  # Scale this to whatever you want
+    num_unique = min(extract_frames, frame_view.count())  # Scale this to whatever you want
     results.find_unique(num_unique)
     unique_view = frame_view.select(results.unique_ids)
 

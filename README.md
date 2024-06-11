@@ -263,10 +263,8 @@ These are not part of normal installation instructions and are experimental.
 
 ### Roadmap
 
-- Integration of code and resulting LLMs with downstream applications and low/no-code platforms
-- Complement h2oGPT chatbot with other APIs like [ToolBench](https://github.com/OpenBMB/ToolBench)
-- Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
-- Add better agents for SQL and CSV question/answer
+- Complement h2oGPT chatbot with other APIs like [ToolBench](https://github.com/OpenBMB/ToolBench), Wolfram Alpha, Semantic Scholar, etc.
+- Enhance h2oGPT with reliable agentic control
 
 ### Development
 
@@ -278,7 +276,7 @@ These are not part of normal installation instructions and are experimental.
     conda install -c conda-forge gst-python -y
     sudo apt-get install gstreamer-1.0
     pip install pygame
-    pytest --instafail -s -v tests
+    GPT_H2O_AI=0 CONCURRENCY_COUNT=1 pytest --instafail -s -v tests
     # for openai server test on already-running local server
     pytest -s -v -n 4 openai_server/test_openai_server.py::test_openai_client
     ```
