@@ -14,17 +14,14 @@ fi
 if [[ -z "${WOLFI_OS}" ]]; then
   conda install weasyprint pygobject -c conda-forge -y
   # Avoids library mismatch.
+  # fix any bad env
+  pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
 else
   echo "pandoc is part of base wolfi-os image"
 fi
 
 # upgrade pip
 pip install --upgrade pip wheel
-
-#* Install primary dependencies
-#
-# fix any bad env
-pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
 
 # broad support, but no training-time or data creation dependencies
 pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
