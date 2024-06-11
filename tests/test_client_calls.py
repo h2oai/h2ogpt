@@ -6050,11 +6050,12 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
                              )
         oclient = openai_client.chat.completions
         response = oclient.create(**client_kwargs)
+        response = response.choices[0].message.content
         print(response)
         if isinstance(expected, list):
-            assert any(x in response.choices[0].message.content for x in expected), "%s %s" % (url, response)
+            assert any(x in  for x in expected), "%s %s" % (url, response)
         else:
-            assert expected in response.choices[0].message.content, "%s %s" % (url, response)
+            assert expected in response, "%s %s" % (url, response)
 
 
 def get_creation_date(file_path):
