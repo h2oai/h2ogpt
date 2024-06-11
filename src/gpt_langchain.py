@@ -5494,7 +5494,10 @@ def path_to_docs(path_or_paths,
     my_tqdm = no_tqdm if not verbose else tqdm
     filei0 = filei
 
-    fork_lots_ok = 'name' in kwargs['hf_embedding_model'] and kwargs['hf_embedding_model']['name'].startswith('tei')
+    fork_lots_ok = kwargs['hf_embedding_model'] and \
+                   'name' in kwargs['hf_embedding_model'] and \
+                   kwargs['hf_embedding_model']['name'] and \
+                   kwargs['hf_embedding_model']['name'].startswith('tei')
     if not fork_lots_ok:
         # else can hit OSError: [Errno 12] Cannot allocate memory
         n_jobs = max(1, min(8, n_jobs))
