@@ -14,18 +14,15 @@ fi
 if [[ -z "${WOLFI_OS}" ]]; then
   conda install weasyprint pygobject -c conda-forge -y
   # Avoids library mismatch.
-
-  # upgrade pip
-  pip install --upgrade pip wheel
-
-  #
-  #* Install primary dependencies
-  #
   # fix any bad env
   pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
 else
   echo "pandoc is part of base wolfi-os image"
 fi
+
+# upgrade pip
+pip install --upgrade pip wheel
+
 # broad support, but no training-time or data creation dependencies
 pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
 
@@ -81,14 +78,11 @@ else
   echo "playwright is part of the base wolfi-os image"
 fi
 
-# Audio transcription from Youtube videos and local mp3 files:
-pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt-dlp>=2024.5.27 wavio==0.0.8 -c reqs_optional/reqs_constraints.txt
 # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
 if [[ -z "${WOLFI_OS}" ]]; then
   sudo apt-get install -y rubberband-cli
+  pip install pyrubberband==0.3.0 -c reqs_optional/reqs_constraints.txt
 fi
-pip install pyrubberband==0.3.0 -c reqs_optional/reqs_constraints.txt
-
 # https://stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
 pip uninstall -y pysoundfile soundfile
 
