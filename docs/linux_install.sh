@@ -263,3 +263,8 @@ if [[ -z "${WOLFI_OS}" ]]; then
       # pick version 11
   fi
 fi
+
+if [[ -n "${WOLFI_OS}" ]]; then
+ # mitigate CVE-2024-22195, CVE-2024-34064
+ pip install jinja2==3.1.4 --no-cache-dir -c reqs_optional/reqs_constraints.txt
+fi
