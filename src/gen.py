@@ -2912,7 +2912,7 @@ def get_model(
         reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: Union[str, bool] = False,
+        use_auth_token: Union[str, bool] = None,
         trust_remote_code: bool = True,
         offload_folder: str = None,
         rope_scaling: dict = None,
@@ -2974,6 +2974,8 @@ def get_model(
     """
     print("Starting get_model: %s %s" % (base_model, inference_server), flush=True)
     model = None
+    if use_auth_token is None:
+        use_auth_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
 
     triton_attn = False
     long_sequence = True

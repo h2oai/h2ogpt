@@ -3736,11 +3736,15 @@ def get_llm(use_openai_model=False,
             assert tokenizer is None or isinstance(tokenizer, FakeTokenizer)
             prompt_type = 'human_bot'
             if model_name is None:
-                model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+                # model_name = 'h2oai/h2ogpt-oasst1-512-12b'
                 # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
                 # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
+                model_name = 'meta-llama/Meta-Llama-3-8B-Instruct'
+                load_4bit = False
+            else:
+                load_4bit = True
             inference_server = ''
-            model, tokenizer, device = get_model_retry(load_8bit=True, base_model=model_name,
+            model, tokenizer, device = get_model_retry(load_4bit=load_4bit, base_model=model_name,
                                                        inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
