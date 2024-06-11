@@ -1,6 +1,7 @@
 import ast
 import time
 import os
+import traceback
 
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type # keep single line
@@ -2393,16 +2394,17 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             break
         except Exception as e:
+            ex = traceback.format_exc()
             if test_only:
                 return ''
             # try no direct system prompt, but add as conversation history
             user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
             history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
 
-            exceptions.append(e)
+            exceptions.append(ex)
             if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
                 if verbose:
-                    print("No system prompt supported: %s" % str(e))
+                    print("No system prompt supported: %s" % str(ex))
             elif os.getenv('HARD_ASSERTS'):
                 raise
     assert prompt, "Prompt was not set: %s" % str(exceptions)
