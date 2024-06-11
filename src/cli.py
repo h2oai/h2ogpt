@@ -93,6 +93,7 @@ def run_cli(  # for local function:
         image_batch_final_prompt=None,
         image_batch_stream=None,
         visible_vision_models=None,
+        video_file=None,
 
         response_format=None,
         guided_json=None,

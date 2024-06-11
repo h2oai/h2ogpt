@@ -952,6 +952,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     image_batch_final_prompt: Any = None
     image_batch_stream: Any = None
     visible_vision_models: Any = None
+    video_file: Any = None
 
     response_format: Any = None
     guided_json: Any = None
@@ -1107,6 +1108,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              image_batch_final_prompt=self.image_batch_final_prompt,
                              image_batch_stream=self.image_batch_stream,
                              visible_vision_models=self.visible_vision_models,
+                             video_file=self.video_file,
 
                              response_format=self.response_format,
                              guided_json=self.guided_json,
@@ -1552,6 +1554,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     image_batch_final_prompt: Any = None
     image_batch_stream: Any = None
     visible_vision_models: Any = None
+    video_file: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1887,6 +1890,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     image_batch_final_prompt: Any = None
     image_batch_stream: Any = None
     visible_vision_models: Any = None
+    video_file: Any = None
 
     def prep_prompt(self, prompt, stop, kwargs):
         if stop is None:
@@ -2851,6 +2855,7 @@ def get_llm(use_openai_model=False,
             image_batch_final_prompt=None,
             image_batch_stream=None,
             visible_vision_models=None,
+            video_file=None,
 
             document_choice=None,
 
@@ -3581,6 +3586,7 @@ def get_llm(use_openai_model=False,
                 image_batch_final_prompt=image_batch_final_prompt,
                 image_batch_stream=image_batch_stream,
                 visible_vision_models=visible_vision_models,
+                video_file=None,  # already handled in image list
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -3631,6 +3637,7 @@ def get_llm(use_openai_model=False,
                 image_batch_final_prompt=image_batch_final_prompt,
                 image_batch_stream=image_batch_stream,
                 visible_vision_models=visible_vision_models,
+                video_file=video_file,
             )
         else:
             raise RuntimeError("No defined client")
@@ -3805,6 +3812,7 @@ def get_llm(use_openai_model=False,
                                          image_batch_final_prompt=image_batch_final_prompt,
                                          image_batch_stream=image_batch_stream,
                                          visible_vision_models=visible_vision_models,
+                                         video_file=video_file,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -6671,6 +6679,7 @@ def _run_qa_db(query=None,
                image_batch_final_prompt=None,
                image_batch_stream=None,
                visible_vision_models=None,
+               video_file=None,
 
                response_format=None,
                guided_json=None,
@@ -6887,6 +6896,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       image_batch_final_prompt=image_batch_final_prompt,
                       image_batch_stream=image_batch_stream,
                       visible_vision_models=visible_vision_models,
+                      video_file=video_file,
 
                       document_choice=document_choice,
 

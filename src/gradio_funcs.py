@@ -578,7 +578,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             save_dict1_saved = None
             history1 = copy.deepcopy(history_copy)
             history2 = copy.deepcopy(history_copy)
-            image_batch_stream = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_batch_stream')]
+            image_batch_stream = fun1_args_list2[
+                len(input_args_list) + eval_func_param_names.index('image_batch_stream')]
             if image_batch_stream is None:
                 image_batch_stream = kwargs['image_batch_stream']
             for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
@@ -590,7 +591,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 else:
                     if not api:
                         history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
-                        history2[-1][1] = 'Processing image batch %s/%s' % (1 + batch, 1 + int(len(image_files)/images_num_max_batch))
+                        if len(image_files) > images_num_max_batch:
+                            history2[-1][1] = 'Querying image %s/%s' % (1 + batch, 1 + len(image_files))
+                        else:
+                            history2[-1][1] = 'Querying image(s)'
                         yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
@@ -873,6 +877,13 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
         image_files = [image_files]
     if image_files is None:
         image_files = []
+    video_files = args_list[eval_func_param_names.index('video_file')]
+    if isinstance(video_files, str):
+        video_files = [video_files]
+    if video_files is None:
+        video_files = []
+    # NOTE: Once done with gradio, image_file and video_file are all in same list
+    image_files.extend(video_files)
 
     image_files_to_delete = []
     b2imgs = []

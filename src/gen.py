@@ -530,6 +530,7 @@ def main(
         image_batch_final_prompt: str = None,
         image_batch_stream: bool = False,
         visible_vision_models: Union[str, int, list] = None,
+        video_file: str = None,
 
         response_format: str = 'text',
         guided_json: str = '',
@@ -1292,6 +1293,7 @@ def main(
     :param image_batch_final_prompt: Prompt used to query result of batching of images
     :param image_batch_stream: Whether to stream batching of images.
     :param visible_vision_models: Model to use for vision, e.g. if base LLM has no vision
+    :param video_file: Video file for gradio to start with
 
     :param response_format: text or json_object or json_code
         json_object means always try to use best mechanism to make JSON.
@@ -1979,6 +1981,7 @@ def main(
                             image_batch_final_prompt,
                             image_batch_stream,
                             visible_vision_models,
+                            video_file,
 
                             response_format,
                             guided_json,
@@ -2214,6 +2217,7 @@ def main(
                             image_batch_final_prompt=None,
                             image_batch_stream=None,
                             visible_vision_models=None,
+                            video_file=None,
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
@@ -4006,6 +4010,7 @@ def evaluate(
         image_batch_final_prompt,
         image_batch_stream,
         visible_vision_models,
+        video_file,
 
         response_format,
         guided_json,
@@ -4761,6 +4766,7 @@ def evaluate(
                 image_batch_final_prompt=image_batch_final_prompt,
                 image_batch_stream=image_batch_stream,
                 visible_vision_models=visible_vision_models,
+                video_file=video_file,
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -5252,6 +5258,7 @@ def evaluate(
                                          image_batch_final_prompt=image_batch_final_prompt,
                                          image_batch_stream=image_batch_stream,
                                          visible_vision_models=visible_vision_models,
+                                         video_file=video_file,
 
                                          response_format=response_format,
                                          guided_json=guided_json,
@@ -5828,6 +5835,7 @@ def get_generate_params(model_lower,
                         image_batch_final_prompt,
                         image_batch_stream,
                         visible_vision_models,
+                        video_file,
 
                         response_format,
                         guided_json,
@@ -6067,6 +6075,7 @@ y = np.random.randint(0, 1, 100)
                     image_batch_final_prompt,
                     image_batch_stream,
                     visible_vision_models,
+                    video_file,
 
                     response_format,
                     guided_json,

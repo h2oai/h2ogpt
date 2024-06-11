@@ -106,6 +106,7 @@ eval_func_param_names = (
             "image_batch_final_prompt",
             "image_batch_stream",
             "visible_vision_models",
+            "video_file",
             "response_format",
             "guided_json",
             "guided_regex",

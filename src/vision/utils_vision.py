@@ -1,4 +1,5 @@
 import base64
+import functools
 import os
 import time
 import types
@@ -16,18 +17,17 @@ from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, mak
     have_fiftyone
 
 IMAGE_EXTENSIONS = {'.png': 'PNG', '.apng': 'PNG', '.blp': 'BLP', '.bmp': 'BMP', '.dib': 'DIB', '.bufr': 'BUFR',
-              '.cur': 'CUR', '.pcx': 'PCX', '.dcx': 'DCX', '.dds': 'DDS', '.ps': 'EPS', '.eps': 'EPS',
-              '.fit': 'FITS', '.fits': 'FITS', '.fli': 'FLI', '.flc': 'FLI', '.fpx': 'FPX', '.ftc': 'FTEX',
-              '.ftu': 'FTEX', '.gbr': 'GBR', '.gif': 'GIF', '.grib': 'GRIB', '.h5': 'HDF5', '.hdf': 'HDF5',
-              '.jp2': 'JPEG2000', '.j2k': 'JPEG2000', '.jpc': 'JPEG2000', '.jpf': 'JPEG2000', '.jpx': 'JPEG2000',
-              '.j2c': 'JPEG2000', '.icns': 'ICNS', '.ico': 'ICO', '.im': 'IM', '.iim': 'IPTC', '.jfif': 'JPEG',
-              '.jpe': 'JPEG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.tif': 'TIFF', '.tiff': 'TIFF', '.mic': 'MIC',
-              '.mpg': 'MPEG', '.mpeg': 'MPEG', '.mpo': 'MPO', '.msp': 'MSP', '.palm': 'PALM', '.pcd': 'PCD',
-              '.pdf': 'PDF', '.pxr': 'PIXAR', '.pbm': 'PPM', '.pgm': 'PPM', '.ppm': 'PPM', '.pnm': 'PPM',
-              '.psd': 'PSD', '.qoi': 'QOI', '.bw': 'SGI', '.rgb': 'SGI', '.rgba': 'SGI', '.sgi': 'SGI',
-              '.ras': 'SUN', '.tga': 'TGA', '.icb': 'TGA', '.vda': 'TGA', '.vst': 'TGA', '.webp': 'WEBP',
-              '.wmf': 'WMF', '.emf': 'WMF', '.xbm': 'XBM', '.xpm': 'XPM'}
-
+                    '.cur': 'CUR', '.pcx': 'PCX', '.dcx': 'DCX', '.dds': 'DDS', '.ps': 'EPS', '.eps': 'EPS',
+                    '.fit': 'FITS', '.fits': 'FITS', '.fli': 'FLI', '.flc': 'FLI', '.fpx': 'FPX', '.ftc': 'FTEX',
+                    '.ftu': 'FTEX', '.gbr': 'GBR', '.gif': 'GIF', '.grib': 'GRIB', '.h5': 'HDF5', '.hdf': 'HDF5',
+                    '.jp2': 'JPEG2000', '.j2k': 'JPEG2000', '.jpc': 'JPEG2000', '.jpf': 'JPEG2000', '.jpx': 'JPEG2000',
+                    '.j2c': 'JPEG2000', '.icns': 'ICNS', '.ico': 'ICO', '.im': 'IM', '.iim': 'IPTC', '.jfif': 'JPEG',
+                    '.jpe': 'JPEG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.tif': 'TIFF', '.tiff': 'TIFF', '.mic': 'MIC',
+                    '.mpg': 'MPEG', '.mpeg': 'MPEG', '.mpo': 'MPO', '.msp': 'MSP', '.palm': 'PALM', '.pcd': 'PCD',
+                    '.pdf': 'PDF', '.pxr': 'PIXAR', '.pbm': 'PPM', '.pgm': 'PPM', '.ppm': 'PPM', '.pnm': 'PPM',
+                    '.psd': 'PSD', '.qoi': 'QOI', '.bw': 'SGI', '.rgb': 'SGI', '.rgba': 'SGI', '.sgi': 'SGI',
+                    '.ras': 'SUN', '.tga': 'TGA', '.icb': 'TGA', '.vda': 'TGA', '.vst': 'TGA', '.webp': 'WEBP',
+                    '.wmf': 'WMF', '.emf': 'WMF', '.xbm': 'XBM', '.xpm': 'XPM'}
 
 VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}
 
@@ -183,7 +183,10 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
     file_names = video_to_frames("input_video.mp4", "output_frames", resolution=(640, 480), image_format="png", verbose=True)
     print(file_names)
     """
-    if have_fiftyone and (video_frame_period is not None and video_frame_period < 1 or not os.path.isfile(video_path)):
+    enable_fiftyone = False  # WIP cuda mp issue
+    if enable_fiftyone and \
+            have_fiftyone and \
+            (video_frame_period is not None and video_frame_period < 1 or not os.path.isfile(video_path)):
         # handles either automatic period or urls
         from src.vision.extract_movie import extract_unique_frames
         args = ()
@@ -192,17 +195,24 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
         kwargs = {'urls': urls, 'file': file, 'download_dir': None, 'export_dir': output_dir,
                   'extract_frames': extract_frames}
         # fifty one is complex program and leaves around processes
-        func_new = partial(call_subprocess_onetask, extract_unique_frames, args, kwargs)
+        if False: # FIXME: but can't fork cuda
+            func_new = partial(call_subprocess_onetask, extract_unique_frames, args, kwargs)
+        else:
+            func_new = functools.partial(extract_unique_frames, *args, **kwargs)
         export_dir = func_new()
         return [os.path.join(export_dir, x) for x in os.listdir(export_dir)]
 
-    if video_frame_period is None:
-        video_frame_period = 20
+    if video_frame_period in [None, 0]:
+        # e.g. if no fiftyone and so can't do 0 case, then assume ok to do period based
+        total_frames = count_frames(video_path)
+        video_frame_period = total_frames // 20  # no more than 20 frames total for now
     if video_frame_period < 1:
         video_frame_period = 1
 
     video = cv2.VideoCapture(video_path)
     makedirs(output_dir)
+
+    image_format = image_format or '.jpg'
 
     frame_count = 0
     file_names = []
@@ -228,6 +238,25 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
         print(f"{frame_count} frames saved to {output_dir}.")
 
     return file_names
+
+
+def count_frames(video_path):
+    import cv2
+    # Open the video file
+    video = cv2.VideoCapture(video_path)
+
+    # Check if video opened successfully
+    if not video.isOpened():
+        print("Error: Could not open video.")
+        return -1
+
+    # Get the total number of frames
+    total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Release the video capture object
+    video.release()
+
+    return total_frames
 
 
 def process_file_list(file_list, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
@@ -256,7 +285,8 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
 
     for file in file_list:
         # i.e. if not file, then maybe youtube url
-        is_maybe_video = os.path.isfile(file) and is_video_file(file) or not os.path.isfile(file) or is_animated_gif(file)
+        is_maybe_video = os.path.isfile(file) and is_video_file(file) or not os.path.isfile(file) or is_animated_gif(
+            file)
         if is_animated_gif(file):
             # FIXME: could convert gif -> mp4 with gif_to_mp4(gif_path)()
             # fiftyone can't handle animated gifs

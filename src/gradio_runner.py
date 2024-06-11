@@ -31,6 +31,7 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
 
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user
 from src.tts_utils import combine_audios
+from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -1088,11 +1089,17 @@ def go_gradio(**kwargs):
                                                 visible=False)
                     text_viewable_doc_count = gr.Textbox(lines=2, label=None, visible=False)
 
-                with gr.Accordion("Vision Models", open=False, visible=have_vision_models):
-                    image_file = gr.Image(value=kwargs['image_file'],
+                with gr.Accordion("Image/Video Query", open=False, visible=have_vision_models):
+                    image_file = gr.Image(value=kwargs['image_file'] if kwargs['image_file'] and any(
+                        kwargs['image_file'].endswith(y) for y in IMAGE_EXTENSIONS) else None,
                                           label='Upload',
                                           show_label=False,
                                           type='filepath',
+                                          elem_id="warning", elem_classes="feedback",
+                                          )
+                    video_file = gr.Video(value=None,
+                                          label='Upload',
+                                          show_label=False,
                                           elem_id="warning", elem_classes="feedback",
                                           )
 
@@ -1723,23 +1730,29 @@ def go_gradio(**kwargs):
                             label="guided_whitespace_pattern, emptry string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=True)
-                        images_num_max = gr.Number(label='Number of Images per LLM call, 0 is auto mode', value=kwargs['images_num_max'] or 0)
+                        images_num_max = gr.Number(label='Number of Images per LLM call, 0 is auto mode',
+                                                   value=kwargs['images_num_max'] or 0)
                         image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'])
                         image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
-                        video_frame_period = gr.Number(label="Period of frames to use from video.", value=kwargs['video_frame_period'])
+                        video_frame_period = gr.Number(label="Period of frames to use from video.",
+                                                       value=kwargs['video_frame_period'] or 0)
 
-                        image_batch_image_prompt = gr.Textbox(label="Image batch prompt", value=kwargs['image_batch_image_prompt'])
-                        image_batch_final_prompt = gr.Textbox(label="Image batch prompt", value=kwargs['image_batch_final_prompt'])
+                        image_batch_image_prompt = gr.Textbox(label="Image batch prompt",
+                                                              value=kwargs['image_batch_image_prompt'])
+                        image_batch_final_prompt = gr.Textbox(label="Image batch prompt",
+                                                              value=kwargs['image_batch_final_prompt'])
 
                         visible_vision_models = gr.Dropdown(kwargs['all_possible_vision_display_names'],
-                                                             label="Visible Image Models",
-                                                             value=visible_vision_models_state0,  # not changing yet
-                                                             interactive=True,
-                                                             multiselect=False,
-                                                             visible=visible_model_choice,
-                                                             filterable=len(kwargs['all_possible_vision_display_names']) > 5
-                                                             )
-                        image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.", value=kwargs['image_batch_stream'])
+                                                            label="Visible Image Models",
+                                                            value=visible_vision_models_state0,  # not changing yet
+                                                            interactive=True,
+                                                            multiselect=False,
+                                                            visible=visible_model_choice,
+                                                            filterable=len(
+                                                                kwargs['all_possible_vision_display_names']) > 5
+                                                            )
+                        image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.",
+                                                         value=kwargs['image_batch_stream'])
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:
@@ -5291,7 +5304,8 @@ def go_gradio(**kwargs):
 
         def chatbot_list(x, model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
                          model_label_prefix_in=''):
-            chat_name = get_chatbot_name(model_used_in, model_used_in, model_path_llama_in, inference_server_in, prompt_type_in,
+            chat_name = get_chatbot_name(model_used_in, model_used_in, model_path_llama_in, inference_server_in,
+                                         prompt_type_in,
                                          model_label_prefix=model_label_prefix_in)
             return gr.Textbox(label=chat_name)
 
@@ -5604,17 +5618,17 @@ def go_gradio(**kwargs):
                 chat1 = chat1 + [['user_message1', None]]
                 model_max_length1 = tokenizer.model_max_length
                 context1, chat1 = history_to_context(chat1,
-                                              langchain_mode=langchain_mode1,
-                                              add_chat_history_to_context=add_chat_history_to_context1,
-                                              prompt_type=prompt_type1,
-                                              prompt_dict=prompt_dict1,
-                                              model_max_length=model_max_length1,
-                                              memory_restriction_level=memory_restriction_level1,
-                                              keep_sources_in_context=keep_sources_in_context1,
-                                              system_prompt=system_prompt1,
-                                              chat_conversation=chat_conversation1,
-                                              hyde_level=None,
-                                              gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'])
+                                                     langchain_mode=langchain_mode1,
+                                                     add_chat_history_to_context=add_chat_history_to_context1,
+                                                     prompt_type=prompt_type1,
+                                                     prompt_dict=prompt_dict1,
+                                                     model_max_length=model_max_length1,
+                                                     memory_restriction_level=memory_restriction_level1,
+                                                     keep_sources_in_context=keep_sources_in_context1,
+                                                     system_prompt=system_prompt1,
+                                                     chat_conversation=chat_conversation1,
+                                                     hyde_level=None,
+                                                     gradio_errors_to_chatbot=kwargs['gradio_errors_to_chatbot'])
                 tokens = tokenizer(context1, return_tensors="pt")['input_ids']
                 if len(tokens.shape) == 1:
                     return str(tokens.shape[0])
