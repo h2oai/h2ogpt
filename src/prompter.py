@@ -3,12 +3,10 @@ import time
 import os
 
 # also supports imports from this file from other files
-from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, \
-    unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type
-from src.prompter_utils import get_use_chat_template
-from src.stopping import update_terminate_responses
-from src.utils import get_gradio_tmp
+from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type # keep single line
+from prompter_utils import get_use_chat_template
+from stopping import update_terminate_responses
+from utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 

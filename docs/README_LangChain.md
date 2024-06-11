@@ -213,6 +213,29 @@ Similar commands can be used for Azure OpenAI, e.g.
 OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<deployment_name>:<base_url>:<api_version>" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
 ```
 
+To speed-up ingestion of PDFs (skip complex PDFs that fail with pymupdf) and to use faster embedding model, can run differently.  Can also use docker to avoid installing dependencies:
+```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+docker run \
+       --gpus all \
+       --runtime=nvidia \
+       --shm-size=2g \
+       --rm --init \
+       --network host \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
+       -v "${HOME}"/.cache:/workspace/.cache \
+       -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/src/make_db.py --verbose --use_unstructured_pdf=False --enable_pdf_ocr=False --hf_embedding_model=BAAI/bge-small-en-v1.5 --cut_distance=10000
+```
+This will consume about 100 PDFs per minute on average, and embedding part takes about 5 minutes for 300 PDFs.  For multilingual, use `BAAI/bge-m3` that uses more memory, so you may need to set ENV `CHROMA_MAX_BATCH_SIZE=1` or similar values to avoid GPU OOM.
+
 
 ### Multiple embeddings and sources
 

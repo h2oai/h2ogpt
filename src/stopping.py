@@ -5,7 +5,6 @@ import torch
 from transformers import StoppingCriteria, StoppingCriteriaList, GenerationConfig
 
 from enums import PromptType, t5_type
-from src.prompter_utils import get_use_chat_template
 
 
 def update_terminate_responses(terminate_response, tokenizer=None, trust_remote_code=True):

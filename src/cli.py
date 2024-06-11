@@ -8,7 +8,8 @@ from utils import clear_torch_cache, NullContext, get_kwargs
 
 
 def run_cli(  # for local function:
-        base_model=None, lora_weights=None, inference_server=None, regenerate_clients=None, regenerate_gradio_clients=None,
+        base_model=None, lora_weights=None, inference_server=None, regenerate_clients=None,
+        regenerate_gradio_clients=None,
         debug=None,
         examples=None, memory_restriction_level=None,
         # evaluate kwargs
@@ -84,6 +85,15 @@ def run_cli(  # for local function:
         tts_speed=None,
         image_file=None,
         image_control=None,
+        images_num_max=None,
+        image_resolution=None,
+        image_format=None,
+        video_frame_period=None,
+        image_batch_image_prompt=None,
+        image_batch_final_prompt=None,
+        image_batch_stream=None,
+        visible_vision_models=None,
+        video_file=None,
 
         response_format=None,
         guided_json=None,

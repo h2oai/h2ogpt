@@ -16,7 +16,7 @@ torchaudio
 soundfile>=0.12.1
 # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
 # relaxed versions to avoid conflicts
-#TTS
+# TTS
 #deepspeed
 noisereduce
 emoji
@@ -32,3 +32,5 @@ jamo>=0.4.1
 gruut[de,es,fr]>=2.2.3
 jieba>=0.42.1
 # librosa==0.10.1
+# For faster whisper:
+# git+https://github.com/SYSTRAN/faster-whisper.git

@@ -71,7 +71,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -81,7 +81,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
-    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping
+    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -226,6 +226,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                     max_batch_size = api._producer.max_batch_size
                 else:
                     max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+                # limit embedding memory use
+                max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
                 sources_batches = split_list(sources, max_batch_size)
                 for sources_batch in sources_batches:
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
@@ -287,6 +289,7 @@ def del_from_db(db, sources, db_type=None):
                 max_batch_size = client_collection._producer.max_batch_size
             else:
                 max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+            max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
             metadatas = list(set(sources))
             sources_batches = split_list(metadatas, max_batch_size)
             for sources_batch in sources_batches:
@@ -524,7 +527,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
-            from langchain_community.embeddings import HuggingFaceEmbeddings
+            from langchain_community.embeddings import HuggingFaceEmbeddings, HuggingFaceBgeEmbeddings
 
             if isinstance(gpu_id, int) or gpu_id == 'auto':
                 device, torch_dtype, context_class = get_device_dtype()
@@ -532,7 +535,18 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             else:
                 # use gpu_id as device name
                 model_kwargs = dict(device=gpu_id)
-            if 'instructor' in hf_embedding_model:
+            if hf_embedding_model.startswith("BAAI/bge"):
+                encode_kwargs = {'normalize_embeddings': True}
+                if hf_embedding_model == "BAAI/bge-m3":
+                    query_kwargs = dict(query_instruction="")
+                else:
+                    query_kwargs = dict()
+                embedding = HuggingFaceBgeEmbeddings(model_name=hf_embedding_model,
+                                                     model_kwargs=model_kwargs,
+                                                     encode_kwargs=encode_kwargs,
+                                                     **query_kwargs)
+                embedding.client.eval()
+            elif 'instructor' in hf_embedding_model:
                 encode_kwargs = {'normalize_embeddings': True}
                 embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
                                                           model_kwargs=model_kwargs,
@@ -930,6 +944,15 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     image_file: Any = None
     image_control: Any = None
+    images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
+    visible_vision_models: Any = None
+    video_file: Any = None
 
     response_format: Any = None
     guided_json: Any = None
@@ -1077,6 +1100,15 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
                              image_file=self.image_file,
                              image_control=self.image_control,
+                             images_num_max=self.images_num_max,
+                             image_resolution=self.image_resolution,
+                             image_format=self.image_format,
+                             video_frame_period=self.video_frame_period,
+                             image_batch_image_prompt=self.image_batch_image_prompt,
+                             image_batch_final_prompt=self.image_batch_final_prompt,
+                             image_batch_stream=self.image_batch_stream,
+                             visible_vision_models=self.visible_vision_models,
+                             video_file=self.video_file,
 
                              response_format=self.response_format,
                              guided_json=self.guided_json,
@@ -1514,6 +1546,15 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     image_file: Any = None
     image_control: Any = None
+    images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
+    visible_vision_models: Any = None
+    video_file: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1841,6 +1882,15 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     base_model: Any = ''
     image_file: Any = None
     image_control: Any = None
+    images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
+    visible_vision_models: Any = None
+    video_file: Any = None
 
     def prep_prompt(self, prompt, stop, kwargs):
         if stop is None:
@@ -2260,7 +2310,7 @@ class ExtraChat:
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
                     continue
-                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag]:
+                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag, gemini15imagetag]:
                     img_tag = messages1[1]
                     img_base64 = messages1[0]
                     continue
@@ -2296,7 +2346,7 @@ class ExtraChat:
                     content = []
                     num_images = 0
                     for img_base64_one in img_base64:
-                        if img_tag in [geminiimagetag]:
+                        if img_tag in [geminiimagetag, gemini15imagetag]:
                             img_url = img_base64_one
                         else:
                             img_url = {
@@ -2315,7 +2365,7 @@ class ExtraChat:
                             # https://docs.anthropic.com/claude/docs/vision#image-costs
                             # for roughly 1kx1k image
                             self.count_input_tokens += claude3_image_tokens
-                        if img_tag in [geminiimagetag]:
+                        if img_tag in [geminiimagetag, gemini15imagetag]:
                             # https://cloud.google.com/vertex-ai/generative-ai/pricing
                             # gemini gives $ cost per image, not by tokens, just estimate
                             # $0.0025 per image and $0.000125/1k tokens, 4 chars/token, so image like 20k chars or 5k tokens
@@ -2326,12 +2376,17 @@ class ExtraChat:
                             self.count_input_tokens += gpt4_image_tokens
 
                         num_images += 1
-                        if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
-                            break
-                        if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
-                            break
-                        if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
-                            break
+                        hard_truncate = False
+                        # do this elsewhere to allow API flexibility as well
+                        if hard_truncate:
+                            if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
+                                break
+                            if img_tag in [gemini15imagetag] and num_images >= gemini15image_num_max:
+                                break
+                            if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
+                                break
+                            if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
+                                break
                     # https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/design-multimodal-prompts
                     # gemini recommends images come first before text
                     content.append({"type": "text", "text": prompt_text})
@@ -2792,6 +2847,16 @@ def get_llm(use_openai_model=False,
 
             image_file=None,
             image_control=None,
+            images_num_max=None,
+            image_resolution=None,
+            image_format=None,
+            video_frame_period=None,
+            image_batch_image_prompt=None,
+            image_batch_final_prompt=None,
+            image_batch_stream=None,
+            visible_vision_models=None,
+            video_file=None,
+
             document_choice=None,
 
             response_format=None,
@@ -3043,7 +3108,9 @@ def get_llm(use_openai_model=False,
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
         if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=True, str_bytes=False)
             if img_file:
                 # gpt4imagetag also applies to lmdeploy use of OpenAI via vllm_chat
                 chat_conversation.append((img_file, gpt4imagetag))
@@ -3091,7 +3158,9 @@ def get_llm(use_openai_model=False,
             cls = H2OChatAnthropic3Sys
 
             if is_vision_model(model_name):
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+                img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                          images_num_max=images_num_max, image_resolution=image_resolution,
+                                          image_format=image_format, convert=True, str_bytes=False)
                 if img_file:
                     chat_conversation.append((img_file, claude3imagetag))
 
@@ -3149,9 +3218,12 @@ def get_llm(use_openai_model=False,
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
         if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=True, str_bytes=False)
             if img_file:
-                chat_conversation.append((img_file, geminiimagetag))
+                tag = geminiimagetag if model_name == 'gemini-pro-vision' else gemini15imagetag
+                chat_conversation.append((img_file, tag))
                 # https://github.com/langchain-ai/langchain/issues/19115
                 stream_output = False  # BUG IN GOOGLE/LANGCHAIN
             else:
@@ -3312,7 +3384,9 @@ def get_llm(use_openai_model=False,
             # https://github.com/sgl-project/sglang/issues/212#issuecomment-1973432493
             convert = True
             str_bytes = False
-            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3405,7 +3479,9 @@ def get_llm(use_openai_model=False,
                 convert = True
                 str_bytes = True
             # Gradio uses str_bytes=True
-            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3502,6 +3578,15 @@ def get_llm(use_openai_model=False,
 
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
+                images_num_max=None,  # already set
+                image_resolution=None,  # already changed
+                image_format=None,  # already changed
+                video_frame_period=None,  # already changed
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
+                visible_vision_models=visible_vision_models,
+                video_file=None,  # already handled in image list
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -3544,6 +3629,15 @@ def get_llm(use_openai_model=False,
                 base_model=model_name,
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
+                images_num_max=None,  # already set
+                image_resolution=None,  # already changed
+                image_format=None,  # already changed
+                video_frame_period=None,  # already changed
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
+                visible_vision_models=visible_vision_models,
+                video_file=video_file,
             )
         else:
             raise RuntimeError("No defined client")
@@ -3630,7 +3724,9 @@ def get_llm(use_openai_model=False,
         if is_vision_model(model_name):
             convert = True
             str_bytes = False
-            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3640,11 +3736,15 @@ def get_llm(use_openai_model=False,
             assert tokenizer is None or isinstance(tokenizer, FakeTokenizer)
             prompt_type = 'human_bot'
             if model_name is None:
-                model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+                # model_name = 'h2oai/h2ogpt-oasst1-512-12b'
                 # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
                 # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
+                model_name = 'meta-llama/Meta-Llama-3-8B-Instruct'
+                load_4bit = False
+            else:
+                load_4bit = True
             inference_server = ''
-            model, tokenizer, device = get_model_retry(load_8bit=True, base_model=model_name,
+            model, tokenizer, device = get_model_retry(load_4bit=load_4bit, base_model=model_name,
                                                        inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
@@ -3708,6 +3808,15 @@ def get_llm(use_openai_model=False,
                                          truncation_generation=truncation_generation,
                                          image_file=img_file,
                                          image_control=image_control,
+                                         images_num_max=images_num_max,
+                                         image_resolution=image_resolution,
+                                         image_format=image_format,
+                                         video_frame_period=video_frame_period,
+                                         image_batch_image_prompt=image_batch_image_prompt,
+                                         image_batch_final_prompt=image_batch_final_prompt,
+                                         image_batch_stream=image_batch_stream,
+                                         visible_vision_models=visible_vision_models,
+                                         video_file=video_file,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -4026,191 +4135,6 @@ class Crawler:
                 depth += 1
         self.final_urls = sorted(set(self.urls_to_visit + self.visited_urls))
         return self.final_urls
-
-
-def get_youtube_urls():
-    # https://www.netify.ai/resources/applications/youtube
-    base = ['googlevideo.com',
-            'video.google.com',
-            'video.l.google.com',
-            'wide-youtube.l.google.com',
-            'youtu.be',
-            'youtube.ae',
-            'youtube.al',
-            'youtube.am',
-            'youtube.at',
-            'youtube.az',
-            'youtube.ba',
-            'youtube.be',
-            'youtube.bg',
-            'youtube.bh',
-            'youtube.bo',
-            'youtube.by',
-            'youtube.ca',
-            'youtube.cat',
-            'youtube.ch',
-            'youtube.cl',
-            'youtube.co',
-            'youtube.co.ae',
-            'youtube.co.at',
-            'youtube.co.cr',
-            'youtube.co.hu',
-            'youtube.co.id',
-            'youtube.co.il',
-            'youtube.co.in',
-            'youtube.co.jp',
-            'youtube.co.ke',
-            'youtube.co.kr',
-            'youtube.com',
-            'youtube.co.ma',
-            'youtube.com.ar',
-            'youtube.com.au',
-            'youtube.com.az',
-            'youtube.com.bd',
-            'youtube.com.bh',
-            'youtube.com.bo',
-            'youtube.com.br',
-            'youtube.com.by',
-            'youtube.com.co',
-            'youtube.com.do',
-            'youtube.com.ec',
-            'youtube.com.ee',
-            'youtube.com.eg',
-            'youtube.com.es',
-            'youtube.com.gh',
-            'youtube.com.gr',
-            'youtube.com.gt',
-            'youtube.com.hk',
-            'youtube.com.hn',
-            'youtube.com.hr',
-            'youtube.com.jm',
-            'youtube.com.jo',
-            'youtube.com.kw',
-            'youtube.com.lb',
-            'youtube.com.lv',
-            'youtube.com.ly',
-            'youtube.com.mk',
-            'youtube.com.mt',
-            'youtube.com.mx',
-            'youtube.com.my',
-            'youtube.com.ng',
-            'youtube.com.ni',
-            'youtube.com.om',
-            'youtube.com.pa',
-            'youtube.com.pe',
-            'youtube.com.ph',
-            'youtube.com.pk',
-            'youtube.com.pt',
-            'youtube.com.py',
-            'youtube.com.qa',
-            'youtube.com.ro',
-            'youtube.com.sa',
-            'youtube.com.sg',
-            'youtube.com.sv',
-            'youtube.com.tn',
-            'youtube.com.tr',
-            'youtube.com.tw',
-            'youtube.com.ua',
-            'youtube.com.uy',
-            'youtube.com.ve',
-            'youtube.co.nz',
-            'youtube.co.th',
-            'youtube.co.tz',
-            'youtube.co.ug',
-            'youtube.co.uk',
-            'youtube.co.ve',
-            'youtube.co.za',
-            'youtube.co.zw',
-            'youtube.cr',
-            'youtube.cz',
-            'youtube.de',
-            'youtube.dk',
-            'youtubeeducation.com',
-            'youtube.ee',
-            'youtubeembeddedplayer.googleapis.com',
-            'youtube.es',
-            'youtube.fi',
-            'youtube.fr',
-            'youtube.ge',
-            'youtube.googleapis.com',
-            'youtube.gr',
-            'youtube.gt',
-            'youtube.hk',
-            'youtube.hr',
-            'youtube.hu',
-            'youtube.ie',
-            'youtubei.googleapis.com',
-            'youtube.in',
-            'youtube.iq',
-            'youtube.is',
-            'youtube.it',
-            'youtube.jo',
-            'youtube.jp',
-            'youtubekids.com',
-            'youtube.kr',
-            'youtube.kz',
-            'youtube.la',
-            'youtube.lk',
-            'youtube.lt',
-            'youtube.lu',
-            'youtube.lv',
-            'youtube.ly',
-            'youtube.ma',
-            'youtube.md',
-            'youtube.me',
-            'youtube.mk',
-            'youtube.mn',
-            'youtube.mx',
-            'youtube.my',
-            'youtube.ng',
-            'youtube.ni',
-            'youtube.nl',
-            'youtube.no',
-            'youtube-nocookie.com',
-            'youtube.pa',
-            'youtube.pe',
-            'youtube.ph',
-            'youtube.pk',
-            'youtube.pl',
-            'youtube.pr',
-            'youtube.pt',
-            'youtube.qa',
-            'youtube.ro',
-            'youtube.rs',
-            'youtube.ru',
-            'youtube.sa',
-            'youtube.se',
-            'youtube.sg',
-            'youtube.si',
-            'youtube.sk',
-            'youtube.sn',
-            'youtube.soy',
-            'youtube.sv',
-            'youtube.tn',
-            'youtube.tv',
-            'youtube.ua',
-            'youtube.ug',
-            'youtube-ui.l.google.com',
-            'youtube.uy',
-            'youtube.vn',
-            'yt3.ggpht.com',
-            'yt.be',
-            'ytimg.com',
-            'ytimg.l.google.com',
-            'ytkids.app.goo.gl',
-            'yt-video-upload.l.google.com']
-
-    url_prefixes_youtube1 = []
-    for x in base:
-        url_prefixes_youtube1.extend([
-            # '%s/watch?v=' % x,
-            '%s' % x,
-            # '%s/shorts/' % x,
-        ])
-    return set(url_prefixes_youtube1)
-
-
-url_prefixes_youtube = get_youtube_urls()
 
 
 def file_to_doc(file,
@@ -5574,10 +5498,13 @@ def path_to_docs(path_or_paths,
     my_tqdm = no_tqdm if not verbose else tqdm
     filei0 = filei
 
-    fork_lots_ok = 'name' in kwargs['hf_embedding_model'] and kwargs['hf_embedding_model']['name'].startswith('tei')
+    fork_lots_ok = kwargs['hf_embedding_model'] and \
+                   'name' in kwargs['hf_embedding_model'] and \
+                   kwargs['hf_embedding_model']['name'] and \
+                   kwargs['hf_embedding_model']['name'].startswith('tei')
     if not fork_lots_ok:
         # else can hit OSError: [Errno 12] Cannot allocate memory
-        n_jobs = max(0, min(8, n_jobs))
+        n_jobs = max(1, min(8, n_jobs))
 
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         kwargs['hf_embedding_model'] = None  # can't fork and use CUDA
@@ -6574,6 +6501,10 @@ def run_qa_db(**kwargs):
     kwargs['force_t5_type'] = False  # shouldn't be required unless from test using _run_qa_db
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
+    kwargs['images_num_max'] = kwargs.get('images_num_max')
+    kwargs['image_resolution'] = kwargs.get('image_resolution')
+    kwargs['image_format'] = kwargs.get('image_format')
+    kwargs['video_frame_period'] = kwargs.get('video_frame_period')
     kwargs['load_awq'] = kwargs.get('load_awq', '')
 
     kwargs['response_format'] = kwargs.get('response_format', 'text')
@@ -6747,6 +6678,15 @@ def _run_qa_db(query=None,
 
                image_file=None,
                image_control=None,
+               images_num_max=None,
+               image_resolution=None,
+               image_format=None,
+               video_frame_period=None,
+               image_batch_image_prompt=None,
+               image_batch_final_prompt=None,
+               image_batch_stream=None,
+               visible_vision_models=None,
+               video_file=None,
 
                response_format=None,
                guided_json=None,
@@ -6955,6 +6895,16 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
                       image_file=image_file,
                       image_control=image_control,
+                      images_num_max=images_num_max,
+                      image_resolution=image_resolution,
+                      image_format=image_format,
+                      video_frame_period=video_frame_period,
+                      image_batch_image_prompt=image_batch_image_prompt,
+                      image_batch_final_prompt=image_batch_final_prompt,
+                      image_batch_stream=image_batch_stream,
+                      visible_vision_models=visible_vision_models,
+                      video_file=video_file,
+
                       document_choice=document_choice,
 
                       response_format=response_format,
@@ -8238,14 +8188,6 @@ def get_chain(query=None,
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
 
-    if hasattr(db, '_persist_directory'):
-        lock_file = get_db_lock_file(db, lock_type='sim')
-    else:
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        name_path = "sim.lock"
-        lock_file = os.path.join(base_path, name_path)
-
     # GET FILTER
 
     if not is_chroma_db(db):
@@ -8658,10 +8600,6 @@ def get_chain(query=None,
         if verbose:
             print("frac_common: %s" % frac_common, flush=True)
 
-    if len(docs) == 0:
-        # avoid context == in prompt then
-        template = template_if_no_docs
-
     got_any_docs = len(docs) > 0
     # update template in case situation changed or did get docs
     # then no new documents from database or not used, redo template
@@ -8986,7 +8924,7 @@ def get_template(query, iinput,
             fstring = '{input_documents}'
         # triple_quotes includes \n before """ and after """
         template = """%s%s%s%s%s\n""" % (
-        pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
+            pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused

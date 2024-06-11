@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full, noop_prompt_type, git_hash_unset
+    db_types_full, noop_prompt_type, git_hash_unset, images_num_max_dict
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4, get_hf_server
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
@@ -3391,6 +3391,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                               ['MyData2', 'personal', ''],
                               ]
 
+    os.system('pkill -f server_start.py --signal 9')
+    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
+
 
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("model_choice", ['h2oai/h2ogpt-oig-oasst1-512-6_9b'] + model_names_curated)
@@ -5934,15 +5937,21 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
 
 
-vision_models = ['gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
-                 'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-                 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
-                 'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
-                 'HuggingFaceM4/idefics2-8b-chatty',
-                 'lmms-lab/llama3-llava-next-8b',
-                 'OpenGVLab/InternVL-Chat-V1-5',
-                 'THUDM/cogvlm2-llama3-chat-19B',
-                 ]
+close_vision_models = [
+    'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+    'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+    'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
+]
+open_vision_models = [
+    'liuhaotian/llava-v1.6-34b',
+    'liuhaotian/llava-v1.6-vicuna-13b',
+    'HuggingFaceM4/idefics2-8b-chatty',
+    'lmms-lab/llama3-llava-next-8b',
+    'OpenGVLab/InternVL-Chat-V1-5',
+    'THUDM/cogvlm2-llama3-chat-19B',
+]
+
+vision_models = close_vision_models + open_vision_models
 
 
 @wrap_test_forked
@@ -5993,13 +6002,15 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
     urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
-            'tests/driverslicense.jpeg',
-            'tests/receipt.jpg',
-            'tests/dental.png',
+            img_to_base64('tests/driverslicense.jpeg'),
+            # only if on local host:
+            # 'tests/receipt.jpg',
+            # 'tests/dental.png',
             img_to_base64('tests/receipt.jpg'),
             img_to_base64('tests/dental.png'),
             ]
-    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
+    # expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
+    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic']]
     for expected, url in zip(expecteds, urls):
         # OpenAI API
         messages = [{
@@ -6020,7 +6031,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         if 'localhost:7860' in client.api_url:
             base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
         elif '192.168.1.172:7860' in client.api_url:
-                base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+            base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
         else:
             base_url = client.api_url.replace('/api/predict', ':5000/v1')
 
@@ -6042,11 +6053,12 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
                              )
         oclient = openai_client.chat.completions
         response = oclient.create(**client_kwargs)
+        response = response.choices[0].message.content
         print(response)
         if isinstance(expected, list):
-            assert any(x in response.choices[0].message.content for x in expected), "%s %s" % (url, response)
+            assert any(x in response for x in expected), "%s %s" % (url, response)
         else:
-            assert expected in response.choices[0].message.content, "%s %s" % (url, response)
+            assert expected in response, "%s %s" % (url, response)
 
 
 def get_creation_date(file_path):
@@ -6079,7 +6091,12 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
 
     from src.vision.utils_vision import img_to_base64
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
+    # FIXME: Should be able to send any number
+    # image_files = image_files[:images_num_max_dict.get(base_model, 1)]
+    # DEBUGGING how many images can be handled before bad results, OOM, failures, etc.
+    # image_files = image_files[:8]
 
+    # cogvlm2 hurt by system prompt, so could nuke for this test, but unstable and not always case
     print("Doing base_model=%s" % base_model)
     use_instruction = langchain_action == LangChainAction.QUERY.value
     kwargs = dict(instruction_nochat=prompt if use_instruction else '',
@@ -6087,6 +6104,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
+                  images_num_max=2 if base_model in open_vision_models else None,  # seems optimal even for InternVL
                   stream_output=False,
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
@@ -6104,6 +6122,9 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     assert 'REINFORCE'.lower() in response.lower()
 
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    if base_model == 'OpenGVLab/InternVL-Chat-V1-5':
+        assert len(res_dict['sources']) >= 10
 
 
 @wrap_test_forked

@@ -75,6 +75,8 @@ for i in 1 2 3 4; do python -m nltk.downloader all && break || sleep 1; done  # 
 # Optional: Required for PlayWright
 if [[ -z "${WOLFI_OS}" ]]; then
   playwright install --with-deps
+  # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
+  sudo apt-get install -y rubberband-cli
 else
   echo "playwright is part of the base wolfi-os image"
 fi
@@ -86,42 +88,30 @@ if [[ -z "${WOLFI_OS}" ]]; then
   sudo apt-get install -y rubberband-cli
 fi
 pip install pyrubberband==0.3.0 -c reqs_optional/reqs_constraints.txt
+
 # https://stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
 pip uninstall -y pysoundfile soundfile
-pip install soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
-# Optional: Only for testing for now
-pip install playsound==1.3.0 -c reqs_optional/reqs_constraints.txt
-# STT from microphone (may not be required if ffmpeg installed above)
+
 if [[ -z "${WOLFI_OS}" ]]; then
   sudo apt-get install ffmpeg -y
 else
   echo "ffmpeg is part of the base wolfi-os image"
 fi
-# for any TTS:
-pip install torchaudio soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
-# GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
-# relaxed versions to avoid conflicts
-pip install TTS deepspeed noisereduce emoji ffmpeg-python==0.2.0 trainer pysbd coqpit -c reqs_optional/reqs_constraints.txt
-# for Coqui XTTS language helpers (specific versions probably not required)
-pip install cutlet==0.3.0 langid==1.1.6 g2pkk==0.1.2 jamo==0.4.1 gruut[de,es,fr]==2.2.3 jieba==0.42.1 -c reqs_optional/reqs_constraints.txt
-# For faster whisper:
-#pip install git+https://github.com/SYSTRAN/faster-whisper.git -c reqs_optional/reqs_constraints.txt
+
+# Audio deps
+# install TTS separately to avoid conflicts
+pip install TTS deepspeed -c reqs_optional/reqs_constraints.txt
+# install rest of deps
+pip install -r reqs_optional/requirements_optional_audio.txt -c reqs_optional/reqs_constraints.txt
+
 # needed for librosa/soundfile to work, but violates TTS, but that's probably just too strict as we have seen before)
 pip install numpy==1.23.0 --no-deps --upgrade -c reqs_optional/reqs_constraints.txt
 # TTS or other deps load old librosa, fix:
 pip install librosa==0.10.1 --no-deps --upgrade -c reqs_optional/reqs_constraints.txt
 
-
-#
-#* STT and TTS Notes:
-#
-# STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
-# TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 # Vision/Image packages
 pip install -r reqs_optional/requirements_optional_image.txt -c reqs_optional/reqs_constraints.txt
 
-
-#
 #* HNSW issue:
 #
 # In some cases old chroma migration package will install old hnswlib and that may cause issues when making a database, then do:

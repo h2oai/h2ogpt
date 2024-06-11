@@ -65,7 +65,6 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-import numpy as np
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
 from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mapping, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
@@ -80,7 +79,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, model_token_mappin
     groq_mapping_outputs, llava_num_max, response_formats, noop_prompt_type, unknown_prompt_type, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
-    is_json_model
+    is_json_model, images_num_max_dict, is_vision_model, image_batch_image_prompt0, image_batch_final_prompt0
 
 from loaders import get_loaders
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
@@ -523,6 +522,15 @@ def main(
 
         image_file: str = None,
         image_control: str = None,
+        images_num_max: int = None,
+        image_resolution: tuple = None,
+        image_format: str = None,
+        video_frame_period: int = None,
+        image_batch_image_prompt: str = None,
+        image_batch_final_prompt: str = None,
+        image_batch_stream: bool = False,
+        visible_vision_models: Union[str, int, list] = None,
+        video_file: str = None,
 
         response_format: str = 'text',
         guided_json: str = '',
@@ -1275,6 +1283,17 @@ def main(
 
     :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
     :param image_control: Initial image for UI Image Control
+    :param images_num_max: Maximum number of images in any LLM call.
+        if None, then checks images_num_max and uses that value for defined models (assumes 80GB GPU), else uses 1
+        If set here or in model_lock, then that model uses the set value
+    :param image_resolution: Resolution of any images
+    :param image_format: Preferred format of images, esp. for video output
+    :param video_frame_period: Period of frames to use from video
+    :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
+    :param image_batch_final_prompt: Prompt used to query result of batching of images
+    :param image_batch_stream: Whether to stream batching of images.
+    :param visible_vision_models: Model to use for vision, e.g. if base LLM has no vision
+    :param video_file: Video file for gradio to start with
 
     :param response_format: text or json_object or json_code
         json_object means always try to use best mechanism to make JSON.
@@ -1954,6 +1973,15 @@ def main(
                             tts_speed,
                             image_file,
                             image_control,
+                            images_num_max,
+                            image_resolution,
+                            image_format,
+                            video_frame_period,
+                            image_batch_image_prompt,
+                            image_batch_final_prompt,
+                            image_batch_stream,
+                            visible_vision_models,
+                            video_file,
 
                             response_format,
                             guided_json,
@@ -2181,6 +2209,15 @@ def main(
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
                             json_vllm=None,
+                            images_num_max=None,
+                            image_resolution=None,
+                            image_format=None,
+                            video_frame_period=None,
+                            image_batch_image_prompt=None,
+                            image_batch_final_prompt=None,
+                            image_batch_stream=None,
+                            visible_vision_models=None,
+                            video_file=None,
                             display_name=None,
                             )
     model_state_none.update(other_model_state_defaults)
@@ -2322,6 +2359,9 @@ def main(
         json_code_prompt_if_no_schema = json_code_prompt_if_no_schema or json_code_prompt_if_no_schema0
         json_schema_instruction = json_schema_instruction or json_schema_instruction0
 
+        image_batch_image_prompt = image_batch_image_prompt or image_batch_image_prompt0
+        image_batch_final_prompt = image_batch_final_prompt or image_batch_final_prompt0
+
         # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
         if prompt_type_infer:
             prompt_type1_trial = model_name_to_prompt_type(model_dict['base_model'],
@@ -2365,6 +2405,11 @@ def main(
         model_state_trial.update(model_dict)
         model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
                                                       model_state_trial['inference_server'], verbose=verbose)
+        if is_vision_model(model_state_trial['base_model']):
+            model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
+                                                                          images_num_max or 1)
+        else:
+            model_state_trial['images_num_max'] = 0
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
         print("Model %s" % model_dict, flush=True)
@@ -2377,6 +2422,7 @@ def main(
             model_state0 = model_state_trial.copy()
         assert len(model_state_none) == len(model_state0)
 
+    # get lists of visible models
     visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
     all_possible_display_names = [
         x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
@@ -2390,6 +2436,21 @@ def main(
                              visible_models is None or
                              x in visible_models or
                              xi in visible_models]
+
+    # get list of visible vision models
+    visible_vision_models = str_to_list(visible_vision_models, allow_none=True)  # None means first model
+    all_possible_vision_display_names = [x for x in all_possible_display_names if is_vision_model(x)]
+    vision_display_names = deduplicate_names([x for x in all_possible_vision_display_names])
+    all_possible_vision_display_names = vision_display_names
+    visible_vision_models_state0 = [x for xi, x in enumerate(all_possible_vision_display_names) if
+                                    visible_vision_models is None or
+                                    x in visible_vision_models or
+                                    xi in visible_vision_models]
+    if visible_vision_models_state0:
+        # only single choice
+        visible_vision_models_state0 = visible_vision_models_state0[0]
+    else:
+        visible_vision_models_state0 = ''
 
     # update to be consistent with what is passed from CLI and model chose
     # do after go over all models if multi-model, so don't contaminate
@@ -2851,7 +2912,7 @@ def get_model(
         reward_type: bool = None,
         local_files_only: bool = False,
         resume_download: bool = True,
-        use_auth_token: Union[str, bool] = False,
+        use_auth_token: Union[str, bool] = None,
         trust_remote_code: bool = True,
         offload_folder: str = None,
         rope_scaling: dict = None,
@@ -2913,6 +2974,8 @@ def get_model(
     """
     print("Starting get_model: %s %s" % (base_model, inference_server), flush=True)
     model = None
+    if use_auth_token is None:
+        use_auth_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
 
     triton_attn = False
     long_sequence = True
@@ -3941,6 +4004,15 @@ def evaluate(
 
         image_file,
         image_control,
+        images_num_max,
+        image_resolution,
+        image_format,
+        video_frame_period,
+        image_batch_image_prompt,
+        image_batch_final_prompt,
+        image_batch_stream,
+        visible_vision_models,
+        video_file,
 
         response_format,
         guided_json,
@@ -4208,6 +4280,15 @@ def evaluate(
     if prompt_type == unknown_prompt_type and chosen_model_state['prompt_type'] not in [None, '', unknown_prompt_type]:
         prompt_type = chosen_model_state['prompt_type']
         prompt_dict = chosen_model_state['prompt_dict']
+    # prefer use input from API over model state (see prep_bot())
+    images_num_max = images_num_max or chosen_model_state['images_num_max']
+    if isinstance(image_resolution, str) and image_resolution.strip():
+        # from gradio was string of tuple
+        image_resolution = ast.literal_eval(image_resolution.strip())
+        assert isinstance(image_resolution, (list, tuple))
+    image_resolution = image_resolution or chosen_model_state['image_resolution']
+    image_format = image_format or chosen_model_state['image_format']
+    video_frame_period = video_frame_period or chosen_model_state['video_frame_period']
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
@@ -4221,8 +4302,10 @@ def evaluate(
 
     # choose chat or non-chat mode
     if not chat:
-        instruction = instruction_nochat
-        iinput = iinput_nochat
+        if not instruction and instruction_nochat:
+            instruction = instruction_nochat
+        if not iinput and iinput_nochat:
+            iinput = iinput_nochat
 
     # avoid instruction in chat_conversation itself, since always used as additional context to prompt in what follows
     if isinstance(chat_conversation, list) and \
@@ -4677,6 +4760,15 @@ def evaluate(
 
                 image_file=image_file,
                 image_control=image_control,
+                images_num_max=images_num_max,
+                image_resolution=image_resolution,
+                image_format=image_format,
+                video_frame_period=video_frame_period,
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
+                visible_vision_models=visible_vision_models,
+                video_file=video_file,
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -4976,7 +5068,11 @@ def evaluate(
 
                 # NOTE: llava doesn't handle context or system prompt directly
                 from image_utils import get_image_file
-                img_file = get_image_file(image_file, image_control, document_choice)  # comes out as list
+                # comes out as list
+                img_file = get_image_file(image_file, image_control, document_choice, base_model=base_model,
+                                          images_num_max=images_num_max, image_resolution=image_resolution,
+                                          image_format=image_format)
+                # if images_num_max is None
                 img_file = img_file[:llava_num_max]
                 num_prompt_tokens += 1500 * len(img_file)  # estimate for single image
                 llava_kwargs = dict(file=img_file,
@@ -5078,6 +5174,8 @@ def evaluate(
                     # ensure image in correct format
                     from image_utils import get_image_file
                     img_file = get_image_file(image_file, image_control, document_choice,
+                                              base_model=base_model, images_num_max=images_num_max,
+                                              image_resolution=image_resolution, image_format=image_format,
                                               convert=True)  # comes out as list
 
                     client_kwargs = dict(instruction=gr_prompt if chat_client else '',  # only for chat=True
@@ -5154,6 +5252,15 @@ def evaluate(
 
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
+                                         images_num_max=None,  # already set number
+                                         image_resolution=None,  # already changed
+                                         image_format=None,  # already changed
+                                         video_frame_period=None,  # already changed
+                                         image_batch_image_prompt=image_batch_image_prompt,
+                                         image_batch_final_prompt=image_batch_final_prompt,
+                                         image_batch_stream=image_batch_stream,
+                                         visible_vision_models=visible_vision_models,
+                                         video_file=video_file,
 
                                          response_format=response_format,
                                          guided_json=guided_json,
@@ -5720,8 +5827,18 @@ def get_generate_params(model_lower,
                         speaker,
                         tts_language,
                         tts_speed,
+
                         image_file,
                         image_control,
+                        images_num_max,
+                        image_resolution,
+                        image_format,
+                        video_frame_period,
+                        image_batch_image_prompt,
+                        image_batch_final_prompt,
+                        image_batch_stream,
+                        visible_vision_models,
+                        video_file,
 
                         response_format,
                         guided_json,
@@ -5953,6 +6070,15 @@ y = np.random.randint(0, 1, 100)
                     tts_speed,
                     image_file,
                     image_control,
+                    images_num_max,
+                    image_resolution,
+                    image_format,
+                    video_frame_period,
+                    image_batch_image_prompt,
+                    image_batch_final_prompt,
+                    image_batch_stream,
+                    visible_vision_models,
+                    video_file,
 
                     response_format,
                     guided_json,
@@ -6586,7 +6712,7 @@ def get_limited_prompt(instruction,
             if use_chat_template:
                 instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                                         max_prompt_length=non_doc_max_length)
-                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final,  image_file,
+                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, image_file,
                                                tokenizer,
                                                user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
             else:
@@ -6668,7 +6794,8 @@ def get_limited_prompt(instruction,
         context_from_history = len(history) > 0
         # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
         reduced = context_from_history
-        prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced, image_file=image_file)
+        prompt = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced,
+                                          image_file=image_file)
     else:
         # assume inner gradio server handles.  if we point to gradio server (i.e. gradio_server=True) then we just pass instruction
         prompt = instruction if gradio_server else context2

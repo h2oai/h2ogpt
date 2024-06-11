@@ -52,11 +52,14 @@ All available public h2oGPT docker images can be found in [Google Container Regi
 
 Ensure image is up-to-date by running:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
+docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1
 ```
 
 An example running h2oGPT via docker using Zephyr 7B Beta model is:
 ```bash
+mkdir -p ~/.cache/huggingface/hub/
+mkdir -p ~/.triton/cache/
+mkdir -p ~/.config/vllm/
 mkdir -p ~/.cache
 mkdir -p ~/save
 mkdir -p ~/user_path
@@ -79,7 +82,9 @@ docker run \
        -v /etc/passwd:/etc/passwd:ro \
        -v /etc/group:/etc/group:ro \
        -u `id -u`:`id -g` \
-       -v "${HOME}"/.cache:/workspace/.cache \
+       -v "${HOME}"/.cache/huggingface/hub/:/workspace/.cache/huggingface/hub \
+       -v "${HOME}"/.config:/workspace/.config/ \
+       -v "${HOME}"/.triton:/workspace/.triton/  \
        -v "${HOME}"/save:/workspace/save \
        -v "${HOME}"/user_path:/workspace/user_path \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
@@ -88,13 +93,14 @@ docker run \
        -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
        -v "${HOME}"/h2ogpt_auth:/workspace/h2ogpt_auth \
        -e GRADIO_SERVER_PORT=$GRADIO_SERVER_PORT \
-       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/generate.py \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/generate.py \
           --base_model=HuggingFaceH4/zephyr-7b-beta \
           --use_safetensors=True \
           --prompt_type=zephyr \
           --save_dir='/workspace/save/' \
-          --auth_filename='/workspace/h2ogpt_auth/auth.json'
-          --h2ogpt_api_keys='/workspace/h2ogpt_auth/h2ogpt_api_keys.json'
+          --auth_filename='/workspace/h2ogpt_auth/auth.db' \
+          --h2ogpt_api_keys='/workspace/h2ogpt_auth/h2ogpt_api_keys.json' \
+          --auth='/workspace/h2ogpt_auth/h2ogpt_api_keys.json' \
           --use_gpu_id=False \
           --user_path=/workspace/user_path \
           --langchain_mode="LLM" \
@@ -146,7 +152,7 @@ docker run --gpus all \
 -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
 -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
 -e GRADIO_SERVER_PORT=$GRADIO_SERVER_PORT \
- gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 \
+ gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 \
  /workspace/generate.py \
  --base_model=mistralai/Mistral-7B-Instruct-v0.2 \
  --use_safetensors=False \
@@ -180,24 +186,25 @@ One can run an inference server in one docker and h2oGPT in another docker.
 
 For the vLLM server running on 2 GPUs using h2oai/h2ogpt-4096-llama2-7b-chat model, run:
 ```bash
-docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0
 unset CUDA_VISIBLE_DEVICES
 mkdir -p $HOME/.cache/huggingface/hub
-mkdir -p $HOME/save
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run \
     --runtime=nvidia \
     --gpus '"device=0,1"' \
     --shm-size=10.24gb \
     -p 5000:5000 \
     --rm --init \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-7b-chat \
@@ -220,19 +227,23 @@ INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit
 
 For LLaMa-2 70B AWQ in docker using vLLM run:
 ```bash
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=0,1"' \
     --shm-size=10.24gb \
     -p 5000:5000 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
@@ -250,19 +261,23 @@ We add `--enforce-eager` to avoid excess memory usage by CUDA graphs.
 
 For 4*A10G on AWS using LLaMa-2 70B AWQ run:
 ```bash
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=0,1,2,3"' \
     --shm-size=10.24gb \
     -p 5000:5000 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \
@@ -402,7 +417,7 @@ docker run \
        -v "${HOME}"/save:/workspace/save \
        -v "${HOME}"/user_path:/workspace/user_path \
        -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
-       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/src/make_db.py
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/src/make_db.py
 ```
 
 Once db is made, can use in generate.py like:
@@ -431,7 +446,7 @@ docker run \
        -v "${HOME}"/users:/workspace/users \
        -v "${HOME}"/db_nonusers:/workspace/db_nonusers \
        -v "${HOME}"/llamacpp_path:/workspace/llamacpp_path \
-       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 /workspace/generate.py \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/generate.py \
           --base_model=h2oai/h2ogpt-4096-llama2-7b-chat \
           --use_safetensors=True \
           --prompt_type=llama2 \
@@ -452,7 +467,7 @@ For a more detailed description of other parameters of the make_db script, check
 touch build_info.txt
 docker build -t h2ogpt .
 ```
-then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0` with `h2ogpt:latest` in above run command.
+then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1` with `h2ogpt:latest` in above run command.
 
 ## Docker Compose Setup & Inference
 

@@ -232,6 +232,7 @@ anthropic_mapping_outputs = {
 claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
+gemini15imagetag = 'gemini15-image'
 
 claude3_image_tokens = 1334
 gemini_image_tokens = 5000
@@ -245,16 +246,40 @@ llava16_image_fudge = 50
 #  Invalid argument provided to Gemini: 400 Please use fewer than 16 images in your request to models/gemini-pro-vision
 # 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
 geminiimage_num_max = 15
+# For gemini-1.5-pro, you can specify any combination and number of text, image, video, and audio files. The token limit is 1,000,000.
+# no real limit, just set at 30
+gemini15image_num_max = 30
+
 # https://docs.anthropic.com/claude/docs/vision#image-best-practices
 # https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
 # 5MB per image
 claude3image_num_max = 20
 # https://platform.openai.com/docs/guides/vision
-# 20MB per image
+# 20MB per image request (they say per image but that's wrong)
+# gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 10.', 'param': None, 'type': None}}
 gpt4image_num_max = 10
+# gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 20.', 'param': None, 'type': None}}
+gpt4turbo_image_num_max = 20
 
 # can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
 llava_num_max = 10
+
+# really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
+internvl_num_max = 5
+
+images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
+                 'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max, 'gpt-4o': gpt4turbo_image_num_max,
+                 'gemini-pro-vision': geminiimage_num_max,
+                 'gemini-1.5-pro-latest': gemini15image_num_max,
+                 'gemini-1.5-flash-latest': gemini15image_num_max,
+                 'claude-3-opus-20240229': claude3image_num_max, 'claude-3-sonnet-20240229': claude3image_num_max,
+                 'claude-3-haiku-20240307': claude3image_num_max,
+                 'liuhaotian/llava-v1.6-34b': llava_num_max, 'liuhaotian/llava-v1.6-vicuna-13b': llava_num_max,
+                 'HuggingFaceM4/idefics2-8b-chatty': 10,
+                 'lmms-lab/llama3-llava-next-8b': 2,
+                 'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
+                 'THUDM/cogvlm2-llama3-chat-19B': 2,
+                 }
 
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
@@ -354,7 +379,8 @@ def is_vision_model(base_model):
         return False
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
-        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o', 'gpt-4o-2024-05-13'] or \
+        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+                       'gpt-4o-2024-05-13'] or \
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest",
                        "gemini-1.5-flash-latest"] or \
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
@@ -659,6 +685,9 @@ json_object_prompt_simpler0 = 'Ensure your response is strictly valid JSON text.
 json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JSON inside a code block with the json language identifier.'
 json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
 json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to use the same key names as the schema:\n```json\n{properties_schema}\n```'
+
+image_batch_image_prompt0 = 'According to the text and other content in the image, '
+image_batch_final_prompt0 = 'According to the text and answers from the images (ignoring image answers that had no answer, but giving details from images that did have an answer), give a well-structured response to: '
 
 coqui_lock_name = 'coqui'
 
