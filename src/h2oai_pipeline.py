@@ -5,7 +5,7 @@ from transformers import TextGenerationPipeline
 from transformers.pipelines.text_generation import ReturnType, Chat
 
 from stopping import get_stopping
-from prompter import Prompter, convert_messages_and_extract_images
+from prompter import Prompter, convert_messages_and_extract_images, get_prompt  # keep for export_hf_checkpoint.py
 
 
 class H2OTextGenerationPipeline(TextGenerationPipeline):
