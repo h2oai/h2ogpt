@@ -80,7 +80,7 @@ else
 fi
 
 # Audio transcription from Youtube videos and local mp3 files:
-pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8 -c reqs_optional/reqs_constraints.txt
+pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt-dlp>=2024.5.27 wavio==0.0.8 -c reqs_optional/reqs_constraints.txt
 # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
 if [[ -z "${WOLFI_OS}" ]]; then
   sudo apt-get install -y rubberband-cli
@@ -118,9 +118,7 @@ pip install librosa==0.10.1 --no-deps --upgrade -c reqs_optional/reqs_constraint
 # STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
 # TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 # Vision/Image packages
-pip install fiftyone -c reqs_optional/reqs_constraints.txt
-pip install pytube -c reqs_optional/reqs_constraints.txt
-pip install diffusers==0.24.0 -c reqs_optional/reqs_constraints.txt
+pip install -r reqs_optional/requirements_optional_image.txt -c reqs_optional/reqs_constraints.txt
 
 
 #
