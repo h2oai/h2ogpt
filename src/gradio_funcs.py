@@ -595,7 +595,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                             history2[-1][1] = 'Querying image %s/%s' % (1 + batch, 1 + len(image_files))
                         else:
                             history2[-1][1] = 'Querying image(s)'
-                        yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2
+                        audio3 = b''  # don't yield audio if not streaming batches
+                        yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio3
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or ''
