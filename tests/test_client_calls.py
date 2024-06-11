@@ -2549,7 +2549,10 @@ def test_autogptq(base_model):
     load_gptq = 'model'
     use_safetensors = True
     prompt_type = ''
-    max_seq_len = 4096  # mistral will use 32k if don't specify, go OOM on typical system
+    if base_model == 'TheBloke/em_german_leo_mistral-GPTQ':
+        max_seq_len = 4096  # mistral will use 32k if don't specify, go OOM on typical system
+    else:
+        max_seq_len = 2048
     langchain_mode = 'Disabled'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []

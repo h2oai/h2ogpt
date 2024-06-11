@@ -715,10 +715,8 @@ def go_gradio(**kwargs):
 
     if kwargs['model_lock']:
         have_vision_models = any([is_vision_model(x.get('base_model', '')) for x in kwargs['model_lock']])
-        vision_models = [x for x in kwargs['model_lock'] if is_vision_model(x.get('base_model', ''))]
     else:
         have_vision_models = is_vision_model(kwargs['base_model'])
-        vision_models = kwargs['base_model'] if is_vision_model(kwargs['base_model']) else []
 
     is_gradio_h2oai = get_is_gradio_h2oai()
 
@@ -5586,8 +5584,10 @@ def go_gradio(**kwargs):
                 inference_server = model_state3.get('inference_server', '')
                 model_state3['llm'] = True
                 model_state3['rag'] = True
-                model_state3['image'] = is_vision_model(base_model)
-                model_state3['video'] = is_video_model(base_model)
+                model_state3['image'] = model_state3.get('is_vision_model', False)
+                model_state3['actually_image'] = model_state3.get('is_actually_vision_model', False)
+                model_state3['video'] = is_video_model(base_model) or model_state3['image']
+                model_state3['actually_video'] = is_video_model(base_model)
                 json_vllm = model_state3.get('json_vllm', False)
                 model_state3['json'] = is_json_model(base_model, inference_server, json_vllm=json_vllm)
             key_list.extend(['llm', 'rag', 'image', 'video', 'json'])
