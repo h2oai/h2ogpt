@@ -2692,9 +2692,9 @@ def get_non_lora_model(base_model, model_loader, load_half,
             args = tuple([base_model, load_awq])
         else:
             args = tuple([base_model])
+        model_kwargs['use_safetensors'] = use_safetensors
         model = model_loader(
             *args,
-            use_safetensors=use_safetensors,
             **model_kwargs,
         )
     elif load_in_8bit or load_in_4bit or not load_half:
