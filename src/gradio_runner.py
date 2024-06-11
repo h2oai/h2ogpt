@@ -1739,6 +1739,7 @@ def go_gradio(**kwargs):
                                                              visible=visible_model_choice,
                                                              filterable=len(kwargs['all_possible_vision_display_names']) > 5
                                                              )
+                        image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.", value=kwargs['image_batch_stream'])
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:

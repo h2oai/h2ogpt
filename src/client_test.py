@@ -187,6 +187,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          video_frame_period=None,
                          image_batch_image_prompt=None,
                          image_batch_final_prompt=None,
+                         image_batch_stream=None,
                          visible_vision_models=None,
 
                          response_format=None,

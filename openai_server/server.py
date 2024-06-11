@@ -116,6 +116,7 @@ class H2oGPTParams(BaseModel):
     video_frame_period: int | None = None
     image_batch_image_prompt: str | None = None
     image_batch_final_prompt: str | None = None
+    image_batch_stream: bool | None = None
     visible_vision_models: Union[str, int] | None = None
 
     response_format: Optional[ResponseFormat] = Field(

@@ -528,6 +528,7 @@ def main(
         video_frame_period: int = None,
         image_batch_image_prompt: str = None,
         image_batch_final_prompt: str = None,
+        image_batch_stream: bool = False,
         visible_vision_models: Union[str, int, list] = None,
 
         response_format: str = 'text',
@@ -1289,6 +1290,7 @@ def main(
     :param video_frame_period: Period of frames to use from video
     :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
     :param image_batch_final_prompt: Prompt used to query result of batching of images
+    :param image_batch_stream: Whether to stream batching of images.
     :param visible_vision_models: Model to use for vision, e.g. if base LLM has no vision
 
     :param response_format: text or json_object or json_code
@@ -1975,6 +1977,7 @@ def main(
                             video_frame_period,
                             image_batch_image_prompt,
                             image_batch_final_prompt,
+                            image_batch_stream,
                             visible_vision_models,
 
                             response_format,
@@ -2209,6 +2212,7 @@ def main(
                             video_frame_period=None,
                             image_batch_image_prompt=None,
                             image_batch_final_prompt=None,
+                            image_batch_stream=None,
                             visible_vision_models=None,
                             display_name=None,
                             )
@@ -4000,6 +4004,7 @@ def evaluate(
         video_frame_period,
         image_batch_image_prompt,
         image_batch_final_prompt,
+        image_batch_stream,
         visible_vision_models,
 
         response_format,
@@ -4754,6 +4759,7 @@ def evaluate(
                 video_frame_period=video_frame_period,
                 image_batch_image_prompt=image_batch_image_prompt,
                 image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
                 visible_vision_models=visible_vision_models,
 
                 response_format=response_format,
@@ -5244,6 +5250,7 @@ def evaluate(
                                          video_frame_period=None,  # already changed
                                          image_batch_image_prompt=image_batch_image_prompt,
                                          image_batch_final_prompt=image_batch_final_prompt,
+                                         image_batch_stream=image_batch_stream,
                                          visible_vision_models=visible_vision_models,
 
                                          response_format=response_format,
@@ -5819,6 +5826,7 @@ def get_generate_params(model_lower,
                         video_frame_period,
                         image_batch_image_prompt,
                         image_batch_final_prompt,
+                        image_batch_stream,
                         visible_vision_models,
 
                         response_format,
@@ -6057,6 +6065,7 @@ y = np.random.randint(0, 1, 100)
                     video_frame_period,
                     image_batch_image_prompt,
                     image_batch_final_prompt,
+                    image_batch_stream,
                     visible_vision_models,
 
                     response_format,

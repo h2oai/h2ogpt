@@ -950,6 +950,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     video_frame_period: Any = None
     image_batch_image_prompt: Any = None
     image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
     visible_vision_models: Any = None
 
     response_format: Any = None
@@ -1104,6 +1105,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              video_frame_period=self.video_frame_period,
                              image_batch_image_prompt=self.image_batch_image_prompt,
                              image_batch_final_prompt=self.image_batch_final_prompt,
+                             image_batch_stream=self.image_batch_stream,
                              visible_vision_models=self.visible_vision_models,
 
                              response_format=self.response_format,
@@ -1548,6 +1550,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     video_frame_period: Any = None
     image_batch_image_prompt: Any = None
     image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
     visible_vision_models: Any = None
 
     async_sem: Any = None
@@ -1882,6 +1885,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     video_frame_period: Any = None
     image_batch_image_prompt: Any = None
     image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
     visible_vision_models: Any = None
 
     def prep_prompt(self, prompt, stop, kwargs):
@@ -2845,6 +2849,7 @@ def get_llm(use_openai_model=False,
             video_frame_period=None,
             image_batch_image_prompt=None,
             image_batch_final_prompt=None,
+            image_batch_stream=None,
             visible_vision_models=None,
 
             document_choice=None,
@@ -3574,6 +3579,7 @@ def get_llm(use_openai_model=False,
                 video_frame_period=None,  # already changed
                 image_batch_image_prompt=image_batch_image_prompt,
                 image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
                 visible_vision_models=visible_vision_models,
 
                 response_format=response_format,
@@ -3623,6 +3629,7 @@ def get_llm(use_openai_model=False,
                 video_frame_period=None,  # already changed
                 image_batch_image_prompt=image_batch_image_prompt,
                 image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
                 visible_vision_models=visible_vision_models,
             )
         else:
@@ -3796,6 +3803,7 @@ def get_llm(use_openai_model=False,
                                          video_frame_period=video_frame_period,
                                          image_batch_image_prompt=image_batch_image_prompt,
                                          image_batch_final_prompt=image_batch_final_prompt,
+                                         image_batch_stream=image_batch_stream,
                                          visible_vision_models=visible_vision_models,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
@@ -6661,6 +6669,7 @@ def _run_qa_db(query=None,
                video_frame_period=None,
                image_batch_image_prompt=None,
                image_batch_final_prompt=None,
+               image_batch_stream=None,
                visible_vision_models=None,
 
                response_format=None,
@@ -6876,6 +6885,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       video_frame_period=video_frame_period,
                       image_batch_image_prompt=image_batch_image_prompt,
                       image_batch_final_prompt=image_batch_final_prompt,
+                      image_batch_stream=image_batch_stream,
                       visible_vision_models=visible_vision_models,
 
                       document_choice=document_choice,

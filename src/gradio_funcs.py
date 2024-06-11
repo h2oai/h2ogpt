@@ -492,34 +492,36 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if images_num_max in [None, 0]:
         # in case not coming from api or UI
         images_num_max = images_num_max_dict.get(base_model, 0)
+    images_num_max = max(1, images_num_max)
 
     do_batching = len(image_files) > images_num_max or \
                   visible_vision_models != '' and \
                   visible_vision_models != display_name and \
                   display_name not in kwargs['all_possible_vision_display_names']
     do_batching &= len(image_files) > 0
-    do_batching &= images_num_max not in [0, None]  # not 0 or None, maybe some unknown model, don't do batching
+
+    # choose batching model
+    if do_batching and visible_vision_models:
+        model_states1 = kwargs['model_states']
+        model_batch_choice1 = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
+        model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
+
+        images_num_max_batch = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+        images_num_max_batch = images_num_max_batch or model_batch_choice.get('images_num_max', images_num_max_batch)
+        if images_num_max_batch is None:
+            # in case not coming from api
+            images_num_max_batch = images_num_max_dict.get(visible_vision_models, 0)
+    else:
+        model_batch_choice = None
+        images_num_max_batch = images_num_max
+
+    do_batching &= images_num_max_batch not in [0, None]  # not 0 or None, maybe some unknown model, don't do batching
 
     if not do_batching:
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                                  langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
         return
     else:
-        model_states1 = kwargs['model_states']
-        # choose batching model
-        if visible_vision_models:
-            model_batch_choice1 = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
-            model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
-
-            images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
-            images_num_max = images_num_max or model_batch_choice.get('images_num_max', images_num_max)
-            if images_num_max is None:
-                # in case not coming from api
-                images_num_max = images_num_max_dict.get(base_model, 0)
-        else:
-            model_batch_choice = None
-        images_num_max = max(1, images_num_max)
-
         instruction = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction')]
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
         instruction = instruction or instruction_nochat
@@ -546,16 +548,16 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
         batch_tokens = 0
         responses = []
-        history_copy = copy.deepcopy(history)
+        history_copy = copy.deepcopy(history)  # FIXME: is this ok?  What if byte images?
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
         text_context_list = str_to_list(text_context_list)
         text_context_list_copy = copy.deepcopy(text_context_list)
         fun1_args_list_copy = fun1_args_list.copy()
-        for batch in range(0, len(image_files), images_num_max):
+        for batch in range(0, len(image_files), images_num_max_batch):
             fun1_args_list2 = fun1_args_list_copy.copy()
             # then handle images in batches
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
-                                                                                                batch:batch + images_num_max]
+                                                                                                batch:batch + images_num_max_batch]
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch
             # don't include context list, just do image only
@@ -575,10 +577,21 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             text = ''
             save_dict1_saved = None
             history1 = copy.deepcopy(history_copy)
+            history2 = copy.deepcopy(history_copy)
+            image_batch_stream = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_batch_stream')]
+            if image_batch_stream is None:
+                image_batch_stream = kwargs['image_batch_stream']
             for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                           tts_speed1,
                                           langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
-                yield response
+
+                if image_batch_stream:
+                    yield response
+                else:
+                    if not api:
+                        history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
+                        history2[-1][1] = 'Processing image batch %s/%s' % (1 + batch, 1 + int(len(image_files)/images_num_max_batch))
+                        yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or ''

@@ -104,6 +104,7 @@ eval_func_param_names = (
             "video_frame_period",
             "image_batch_image_prompt",
             "image_batch_final_prompt",
+            "image_batch_stream",
             "visible_vision_models",
             "response_format",
             "guided_json",
