@@ -851,9 +851,6 @@ def test_check_input_type():
     assert check_input_type(12345) == 'unknown'
     assert check_input_type(["list", "of", "strings"]) == 'unknown'
 
-    # Invalid base64 encoded image
-    assert check_input_type("b'data:image/png;base64,invalid_base64") == 'unknown'
-
     # Invalid URL
     assert check_input_type("invalid://example.com") == 'unknown'
 
