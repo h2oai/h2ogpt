@@ -374,9 +374,12 @@ def is_gradio_vision_model(base_model):
         base_model.startswith('Qwen/Qwen-VL')
 
 
-def is_vision_model(base_model):
+def is_vision_model(base_model, visible_models=[], visible_vision_models=[]):
     if not base_model:
         return False
+    if visible_vision_models and visible_models and visible_vision_models[0] in visible_models:
+        # all models are vision models by proxy
+        return True
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
         base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',

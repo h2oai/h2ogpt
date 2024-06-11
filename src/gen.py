@@ -1406,6 +1406,8 @@ def main(
     visible_image_models = str_to_list(visible_image_models)
     image_gpu_ids = str_to_list(image_gpu_ids)
     document_choice = str_to_list(document_choice)
+    visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
+    visible_vision_models = str_to_list(visible_vision_models, allow_none=True)  # None means first model
     if image_gpu_ids:
         assert len(image_gpu_ids) == len(visible_image_models)
     if isinstance(metadata_in_context, str) and metadata_in_context == 'None':
@@ -2209,6 +2211,8 @@ def main(
                             visible_models=None, h2ogpt_key=None,
                             trust_remote_code=None,
                             json_vllm=None,
+                            is_vision_model=None,
+                            is_actually_vision_model=None,
                             images_num_max=None,
                             image_resolution=None,
                             image_format=None,
@@ -2405,7 +2409,14 @@ def main(
         model_state_trial.update(model_dict)
         model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
                                                       model_state_trial['inference_server'], verbose=verbose)
-        if is_vision_model(model_state_trial['base_model']):
+        model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
+        model_visible_vision_models = model_state_trial.get('visible_vision_models', visible_vision_models)
+        if isinstance(model_visible_vision_models, str):
+            model_visible_vision_models = [model_visible_vision_models]
+        model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
+                                                               visible_models=visible_models,
+                                                               visible_vision_models=model_visible_vision_models)
+        if model_state_trial['is_vision_model']:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
                                                                           images_num_max or 1)
         else:
@@ -2423,7 +2434,6 @@ def main(
         assert len(model_state_none) == len(model_state0)
 
     # get lists of visible models
-    visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
     all_possible_display_names = [
         x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
                                    not x.get('llamacpp_dict').get('model_path_llama', '')
@@ -2438,7 +2448,6 @@ def main(
                              xi in visible_models]
 
     # get list of visible vision models
-    visible_vision_models = str_to_list(visible_vision_models, allow_none=True)  # None means first model
     all_possible_vision_display_names = [x for x in all_possible_display_names if is_vision_model(x)]
     vision_display_names = deduplicate_names([x for x in all_possible_vision_display_names])
     all_possible_vision_display_names = vision_display_names
