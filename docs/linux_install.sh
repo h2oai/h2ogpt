@@ -11,31 +11,40 @@ fi
 #
 #* Optional: For document Q/A and use of DocTR.  Install before other pips to avoid long conflict checks.
 #
-conda install weasyprint pygobject -c conda-forge -y
-# Avoids library mismatch.
+if [[ -z "${WOLFI_OS}" ]]; then
+  conda install weasyprint pygobject -c conda-forge -y
+  # Avoids library mismatch.
 
-# upgrade pip
-pip install --upgrade pip wheel
+  # upgrade pip
+  pip install --upgrade pip wheel
 
-#
-#* Install primary dependencies
-#
-# fix any bad env
-pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
+  #
+  #* Install primary dependencies
+  #
+  # fix any bad env
+  pip uninstall -y pandoc pypandoc pypandoc-binary flash-attn
+else
+  echo "pandoc is part of base wolfi-os image"
+fi
 # broad support, but no training-time or data creation dependencies
 pip install -r requirements.txt -c reqs_optional/reqs_constraints.txt
 
-
-#
-#* Optional: Install document question-answer dependencies:
-#
-# May be required for jq package:
-sudo apt-get update -y
-sudo apt-get -y install autoconf libtool
+if [[ -z "${WOLFI_OS}" ]]; then
+  #
+  #* Optional: Install document question-answer dependencies:
+  #
+  # May be required for jq package:
+  sudo apt-get update -y
+  sudo apt-get -y install autoconf libtool
+fi
 # Required for Doc Q/A: LangChain:
 pip install -r reqs_optional/requirements_optional_langchain.txt -c reqs_optional/reqs_constraints.txt
 # Required for CPU: LLaMa/GPT4All:
-pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
+if [[ -z "${WOLFI_OS}" ]]; then
+  pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
+else
+  C=gcc-11 CXX=g++-11 pip install -r reqs_optional/requirements_optional_llamacpp_gpt4all.txt -c reqs_optional/reqs_constraints.txt --no-cache-dir
+fi
 # Optional: PyMuPDF/ArXiv:
 #   Note!! that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
 if [ "${GPLOK}" -eq "1" ]
@@ -48,8 +57,11 @@ pip install -r reqs_optional/requirements_optional_gpu_only.txt -c reqs_optional
 pip install -r reqs_optional/requirements_optional_langchain.urls.txt -c reqs_optional/reqs_constraints.txt
 
 # Optional: support docx, pptx, ArXiv, etc. required by some python packages
-sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
-
+if [[ -z "${WOLFI_OS}" ]]; then
+  sudo apt-get install -y libmagic-dev poppler-utils tesseract-ocr libtesseract-dev libreoffice
+else
+  echo "libmagic, tesseract, libreoffice are part of base wolfi-os image, but no poppler"
+fi
 # Optional: For DocTR
 pip install -r reqs_optional/requirements_optional_doctr.txt -c reqs_optional/reqs_constraints.txt
 # For DocTR: go back to older onnx so Tesseract OCR still works
@@ -59,12 +71,20 @@ pip install onnxruntime-gpu==1.15.0 -c reqs_optional/reqs_constraints.txt
 
 # Optional: for supporting unstructured package
 for i in 1 2 3 4; do python -m nltk.downloader all && break || sleep 1; done  # retry as frequently fails with github downloading issues
+
 # Optional: Required for PlayWright
-playwright install --with-deps
+if [[ -z "${WOLFI_OS}" ]]; then
+  playwright install --with-deps
+else
+  echo "playwright is part of the base wolfi-os image"
+fi
+
 # Audio transcription from Youtube videos and local mp3 files:
-pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt_dlp==2023.10.13 wavio==0.0.8 -c reqs_optional/reqs_constraints.txt
+pip install pydub==0.25.1 librosa==0.10.1 ffmpeg==1.4 yt-dlp>=2024.5.27 wavio==0.0.8 -c reqs_optional/reqs_constraints.txt
 # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
-sudo apt-get install -y rubberband-cli
+if [[ -z "${WOLFI_OS}" ]]; then
+  sudo apt-get install -y rubberband-cli
+fi
 pip install pyrubberband==0.3.0 -c reqs_optional/reqs_constraints.txt
 # https://stackoverflow.com/questions/75813603/python-working-with-sound-librosa-and-pyrubberband-conflict
 pip uninstall -y pysoundfile soundfile
@@ -72,7 +92,11 @@ pip install soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
 # Optional: Only for testing for now
 pip install playsound==1.3.0 -c reqs_optional/reqs_constraints.txt
 # STT from microphone (may not be required if ffmpeg installed above)
-sudo apt-get install ffmpeg -y
+if [[ -z "${WOLFI_OS}" ]]; then
+  sudo apt-get install ffmpeg -y
+else
+  echo "ffmpeg is part of the base wolfi-os image"
+fi
 # for any TTS:
 pip install torchaudio soundfile==0.12.1 -c reqs_optional/reqs_constraints.txt
 # GPU Only: for Coqui XTTS (ensure CUDA_HOME set and consistent with added postfix for extra-index):
@@ -94,9 +118,7 @@ pip install librosa==0.10.1 --no-deps --upgrade -c reqs_optional/reqs_constraint
 # STT: Ensure microphone is on and in browser go to http://localhost:7860 instead of http://0.0.0.0:7860 for microphone to be possible to allow in browser.
 # TTS: For XTT models, ensure `CUDA_HOME` is set correctly, because deepspeed compiles at runtime using torch and nvcc.  Those must match CUDA version.  E.g. if used `--extra-index https://download.pytorch.org/whl/cu118`, then must have ENV `CUDA_HOME=/usr/local/cuda-11.7` or ENV from conda must be that version.  Since conda only has up to cuda 11.7 for dev toolkit, but H100+ need cuda 11.8, for those cases one should download the toolkit from NVIDIA.
 # Vision/Image packages
-pip install fiftyone -c reqs_optional/reqs_constraints.txt
-pip install pytube -c reqs_optional/reqs_constraints.txt
-pip install diffusers==0.24.0 -c reqs_optional/reqs_constraints.txt
+pip install -r reqs_optional/requirements_optional_image.txt -c reqs_optional/reqs_constraints.txt
 
 
 #
@@ -108,52 +130,57 @@ pip uninstall -y hnswlib chroma-hnswlib
 pip install chroma-hnswlib==0.7.3 --upgrade -c reqs_optional/reqs_constraints.txt
 
 
-#
-#* Selenium needs to have chrome installed, e.g. on Ubuntu:
-#
-sudo apt install -y unzip xvfb libxi6 libgconf-2-4 libu2f-udev
-
-javaVersion=$(java --version)
-if [ -z "$javaVersion" ]; then
-  sudo apt install -y default-jdk
+if [[ -z "${WOLFI_OS}" ]]; then
+  #
+  #* Selenium needs to have chrome installed, e.g. on Ubuntu:
+  #
+  sudo apt install -y unzip xvfb libxi6 libgconf-2-4 libu2f-udev
 fi
 
-#if [ 1 -eq 0 ]; then
-#    sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
-#    sudo bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
-#    sudo apt -y update
-#    sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
-#fi
+if [[ -z "${WOLFI_OS}" ]]; then
+  javaVersion=$(java --version)
+  if [ -z "$javaVersion" ]; then
+    sudo apt install -y default-jdk
+  fi
 
-# upgrade chrome to latest
-sudo mkdir -p /etc/apt/keyrings/
-sudo rm -rf /tmp/google.pub
-sudo wget https://dl-ssl.google.com/linux/linux_signing_key.pub -O /tmp/google.pub
-sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --import /tmp/google.pub
-sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
-sudo apt-get update -y
+  #if [ 1 -eq 0 ]; then
+  #    sudo bash -c 'curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add'
+  #    sudo bash -c "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' >> /etc/apt/sources.list.d/google-chrome.list"
+  #    sudo apt -y update
+  #    sudo apt -y install google-chrome-stable  # e.g. Google Chrome 114.0.5735.198
+  #fi
 
-sudo apt-get install google-chrome-stable -y
-chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
-# visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
-# E.g.
-sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
+  # upgrade chrome to latest
+  sudo mkdir -p /etc/apt/keyrings/
+  sudo rm -rf /tmp/google.pub
+  sudo wget https://dl-ssl.google.com/linux/linux_signing_key.pub -O /tmp/google.pub
+  sudo gpg --no-default-keyring --keyring /etc/apt/keyrings/google-chrome.gpg --import /tmp/google.pub
+  sudo echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list
+  sudo apt-get update -y
 
-# Attempt to download matching version of ChromeDriver
-sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
-if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${chromeVersion}/linux64/chromedriver-linux64.zip"; then
-    echo "Failed to download ChromeDriver for version ${chromeVersion}, attempting to download known working version 124.0.6367.91."
-    if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.91/linux64/chromedriver-linux64.zip"; then
-        echo "Failed to download fallback ChromeDriver version 124.0.6367.91."
-        exit 1
-    fi
+  sudo apt-get install google-chrome-stable -y
+  chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
+  # visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
+  # E.g.
+  sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
+
+  # Attempt to download matching version of ChromeDriver
+  sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
+  if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${chromeVersion}/linux64/chromedriver-linux64.zip"; then
+      echo "Failed to download ChromeDriver for version ${chromeVersion}, attempting to download known working version 124.0.6367.91."
+      if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.91/linux64/chromedriver-linux64.zip"; then
+          echo "Failed to download fallback ChromeDriver version 124.0.6367.91."
+          exit 1
+      fi
+  fi
+
+  sudo unzip -o chromedriver-linux64.zip
+  sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
+  sudo chown root:root /usr/bin/chromedriver
+  sudo chmod +x /usr/bin/chromedriver
+else
+  echo "wolfi-os base image uses chromium with playwright support"
 fi
-
-sudo unzip -o chromedriver-linux64.zip
-sudo mv chromedriver-linux64/chromedriver /usr/bin/chromedriver
-sudo chown root:root /usr/bin/chromedriver
-sudo chmod +x /usr/bin/chromedriver
-
 
 #
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
@@ -236,17 +263,19 @@ pip install flash_attn autoawq autoawq-kernels --no-cache-dir -c reqs_optional/r
 bash ./docs/run_patches.sh
 
 
-#
-#* Compile Install Issues
-#
-#  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
-#    * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:
-if [ 1 -eq 0 ]
-then
-    MAX_GCC_VERSION=11
-    sudo apt install gcc-$MAX_GCC_VERSION g++-$MAX_GCC_VERSION
-    sudo update-alternatives --config gcc
-    # pick version 11
-    sudo update-alternatives --config g++
-    # pick version 11
+if [[ -z "${WOLFI_OS}" ]]; then
+  #
+  #* Compile Install Issues
+  #
+  #  * `/usr/local/cuda/include/crt/host_config.h:132:2: error: #error -- unsupported GNU version! gcc versions later than 11 are not supported!`
+  #    * gcc > 11 is not currently supported by nvcc.  Install GCC with a maximum version:
+  if [ 1 -eq 0 ]
+  then
+      MAX_GCC_VERSION=11
+      sudo apt install gcc-$MAX_GCC_VERSION g++-$MAX_GCC_VERSION
+      sudo update-alternatives --config gcc
+      # pick version 11
+      sudo update-alternatives --config g++
+      # pick version 11
+  fi
 fi
