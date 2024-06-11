@@ -122,6 +122,9 @@ pip uninstall flash_attn autoawq autoawq-kernels -y
 pip install flash_attn autoawq autoawq-kernels --no-cache-dir -c reqs_optional/reqs_constraints.txt
 
 
+pip install -r reqs_optional/requirements_optional_image.txt -c reqs_optional/reqs_constraints.txt
+
+
 bash ./docs/run_patches.sh
 
 # setup tiktoken cache
@@ -157,10 +160,3 @@ for enc in model_encodings:
     encoding = tiktoken.encoding_for_model(enc)
 print('Done!')
 "
-
-
-# mitigate CVE-2024-22423
-pip install yt-dlp==2024.4.9 --no-deps --no-cache-dir
-
-# mitigate CVE-2024-22195, CVE-2024-34064
-pip install jinja2==3.1.4 --no-cache-dir -c reqs_optional/reqs_constraints.txt
