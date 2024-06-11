@@ -5825,6 +5825,7 @@ def get_generate_params(model_lower,
                         speaker,
                         tts_language,
                         tts_speed,
+
                         image_file,
                         image_control,
                         images_num_max,
