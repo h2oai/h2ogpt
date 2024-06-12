@@ -6516,10 +6516,10 @@ def run_qa_db(**kwargs):
     kwargs['load_awq'] = kwargs.get('load_awq', '')
 
     kwargs['response_format'] = kwargs.get('response_format', 'text')
-    kwargs['guided_json'] = kwargs.get('guided_json', '')
-    kwargs['guided_regex'] = kwargs.get('guided_regex', '')
-    kwargs['guided_choice'] = kwargs.get('guided_choice', '')
-    kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+    kwargs['guided_json'] = kwargs.get('guided_json', None)
+    kwargs['guided_regex'] = kwargs.get('guided_regex', None)
+    kwargs['guided_choice'] = kwargs.get('guided_choice', None)
+    kwargs['guided_grammar'] = kwargs.get('guided_grammar', None)
     kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', None)
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 

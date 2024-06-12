@@ -534,9 +534,9 @@ def main(
         video_file: str = None,
 
         response_format: str = 'text',
-        guided_json: str = '',
+        guided_json: Union[str, dict] = '',
         guided_regex: str = '',
-        guided_choice: str = '',
+        guided_choice: typing.List[str] = None,
         guided_grammar: str = '',
         guided_whitespace_pattern: str = None,
 
@@ -1301,9 +1301,9 @@ def main(
         json_object means always try to use best mechanism to make JSON.
         json_code means use code block method, not guided_json or built-in json mode
     # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
-    :param guided_json:
+    :param guided_json: str or dict of JSON schema
     :param guided_regex:
-    :param guided_choice:
+    :param guided_choice: list of strings to have LLM choose from
     :param guided_grammar:
     :param guided_whitespace_pattern:
 
@@ -1419,10 +1419,10 @@ def main(
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)
-    assert isinstance(guided_json, str)
-    assert isinstance(guided_regex, str)
-    assert isinstance(guided_choice, str)
-    assert isinstance(guided_grammar, str)
+    assert isinstance(guided_json, (str, dict, type(None)))
+    assert isinstance(guided_regex, (type(None), str))
+    assert isinstance(guided_choice, (type(None), list))
+    assert isinstance(guided_grammar, (type(None), str))
     assert isinstance(guided_whitespace_pattern, (type(None), str))
 
     # defaults, but not keep around if not used so can use model_path_llama for prompt_type auto-setting
@@ -4429,6 +4429,13 @@ def evaluate(
             isinstance(model, GradioClient) or isinstance(model, Client))
     h2ogpt_gradio_server = gradio_server and not is_gradio_vision_model(base_model)
 
+    if guided_json == '':
+        guided_json = None
+    if guided_regex == '':
+        guided_regex = None
+    if guided_grammar == '':
+        guided_grammar = None
+
     # don't repeat prompting if doing gradio server since inner prompting will handle
     json_vllm = False
     json_schema_type = None
@@ -4448,11 +4455,11 @@ def evaluate(
 
         if isinstance(guided_json, str):
             try:
-                guided_json_properties = json.loads(guided_json)
+                guided_json = guided_json_properties = json.loads(guided_json)
             except (json.decoder.JSONDecodeError, TypeError):
-                guided_json_properties = {}
+                guided_json = guided_json_properties = {}
         else:
-            guided_json_properties = guided_json or {}
+            guided_json = guided_json_properties = guided_json or {}
         assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
         if 'properties' in guided_json_properties:
             guided_json_properties = guided_json_properties['properties']

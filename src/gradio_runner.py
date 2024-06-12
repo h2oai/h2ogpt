@@ -1710,7 +1710,7 @@ def go_gradio(**kwargs):
                                                    visible=True,
                                                    )
                         guided_json = gr.components.Textbox(value=kwargs['guided_json'],
-                                                            label="guided_json",
+                                                            label="guided_json as string, will be converted to dict via json.loads",
                                                             info="https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api",
                                                             visible=True)
                         guided_regex = gr.components.Textbox(value=kwargs['guided_regex'],
