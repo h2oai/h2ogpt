@@ -1727,7 +1727,7 @@ def go_gradio(**kwargs):
                                                                visible=True)
                         guided_whitespace_pattern = gr.components.Textbox(
                             value=kwargs['guided_whitespace_pattern'] or '',
-                            label="guided_whitespace_pattern, emptry string means None",
+                            label="guided_whitespace_pattern, empty string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=True)
                         images_num_max = gr.Number(label='Number of Images per LLM call, 0 is auto mode',
