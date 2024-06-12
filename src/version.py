@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-__version__ = "95ca79d65808b75f2e4cabcb21008765edc10ac8"
-=======
-__version__ = "95ca79d65808b75f2e4cabcb21008765edc10ac8"
->>>>>>> main
+__version__ = "edc9d8d204cf43474caacdecb525cb2e664cefb8"
