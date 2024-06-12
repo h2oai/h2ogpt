@@ -495,9 +495,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     images_num_max = max(1, images_num_max)
 
     do_batching = len(image_files) > images_num_max or \
-                  visible_vision_models != '' and \
                   visible_vision_models != display_name and \
                   display_name not in kwargs['all_possible_vision_display_names']
+    do_batching &= visible_vision_models != ''
     do_batching &= len(image_files) > 0
 
     # choose batching model
