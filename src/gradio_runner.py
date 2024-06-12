@@ -5253,6 +5253,7 @@ def go_gradio(**kwargs):
                                    # FIXME: not typically required, unless want to expose adding h2ogpt endpoint in UI
                                    visible_models=None, h2ogpt_key=None,
                                    )
+            [model_state_new.update({k: v}) for k, v in kwargs['model_state_none'].items() if k not in model_state_new]
             max_seq_len1new = get_model_max_length_from_tokenizer(tokenizer1)
 
             max_max_new_tokens1 = get_max_max_new_tokens(model_state_new, **kwargs)
