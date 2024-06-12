@@ -749,20 +749,22 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
 
         model_state_cb = dict(callback=model_state_done) if support_state_callbacks else {}
-        model_state = gr.State(
-            value=dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
-                       base_model=kwargs['base_model'],
-                       display_name=kwargs['base_model'],
-                       tokenizer_base_model=kwargs['tokenizer_base_model'],
-                       lora_weights=kwargs['lora_weights'],
-                       inference_server=kwargs['inference_server'],
-                       prompt_type=kwargs['prompt_type'],
-                       prompt_dict=kwargs['prompt_dict'],
-                       visible_models=visible_models_to_model_choice(kwargs['visible_models'], model_states),
-                       h2ogpt_key=None,  # only apply at runtime when doing API call with gradio inference server
-                       ),
-            **model_state_cb,
-        )
+        model_state_default = dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
+                                   base_model=kwargs['base_model'],
+                                   display_name=kwargs['base_model'],
+                                   tokenizer_base_model=kwargs['tokenizer_base_model'],
+                                   lora_weights=kwargs['lora_weights'],
+                                   inference_server=kwargs['inference_server'],
+                                   prompt_type=kwargs['prompt_type'],
+                                   prompt_dict=kwargs['prompt_dict'],
+                                   visible_models=visible_models_to_model_choice(kwargs['visible_models'],
+                                                                                 model_states),
+                                   h2ogpt_key=None,
+                                   # only apply at runtime when doing API call with gradio inference server
+                                   )
+        [model_state_default.update({k: v}) for k, v in kwargs['model_state_none'].items() if
+         k not in model_state_default]
+        model_state = gr.State(value=model_state_default, **model_state_cb)
 
         my_db_state_cb = dict(callback=my_db_state_done) if support_state_callbacks else {}
 
