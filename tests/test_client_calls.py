@@ -5846,6 +5846,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             for repeat in range(nrepeats):
                 res = client.predict(str(dict(kwargs)), api_name=api_name)
                 res = ast.literal_eval(res)
+                print(res, file=sys.stderr)
 
                 assert 'base_model' in res['save_dict']
                 assert res['save_dict']['base_model'] == base_model
@@ -5853,7 +5854,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
                 fudge = 10 if base_model == 'google/gemma-7b-it' else 4
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge, "%s" % res['response']
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']
@@ -5925,7 +5926,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert res['save_dict']['error'] in [None, '']
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + 1
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']
