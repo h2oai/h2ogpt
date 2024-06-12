@@ -31,6 +31,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  image_batch_image_prompt=None,
                  image_batch_final_prompt=None,
                  image_batch_stream=None,
+                 visible_vision_models=None,
+                 video_file=None,
 
                  verbose=False,
                  **kwargs):
@@ -92,6 +94,8 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.image_batch_image_prompt = image_batch_image_prompt
         self.image_batch_final_prompt = image_batch_final_prompt
         self.image_batch_stream = image_batch_stream
+        self.visible_vision_models = visible_vision_models
+        self.video_file = video_file
 
     @staticmethod
     def get_token_count(x, tokenizer):

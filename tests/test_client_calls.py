@@ -5787,7 +5787,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
 
     from src.gen import get_inf_models
     base_models = get_inf_models(inference_server)
-    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+    h2ogpt_key = os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')
     model_lock = []
     model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
     for base_model in base_models:

@@ -50,7 +50,7 @@ from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult, RunInfo
 from langchain_experimental.tools import PythonREPLTool
-from langchain.tools.json.tool import JsonSpec
+from langchain_community.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
 # from langchain_mistralai import ChatMistralAI
 from src.langchain_mistralai.chat_models import ChatMistralAI
