@@ -6363,6 +6363,8 @@ def check_response(response, base_model, guided_json):
 def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
     if 'localhost:7860' in gradio_client.api_url:
         base_url = gradio_client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+    elif 'localhost:7863' in gradio_client.api_url:
+        base_url = gradio_client.api_url.replace('localhost:7863/api/predict/', 'localhost:5000/v1')
     else:
         base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
 
