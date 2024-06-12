@@ -9396,13 +9396,19 @@ def _update_user_db(file,
             raise ValueError("Public instance only allows up to"
                              " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
-    if is_url is None and is_url is None and file:
-        # assume add_button action if not set
-        is_url = True
-    if isinstance(file, str) and os.path.isfile(file):
-        is_url = False
-    if isinstance(file, list) and len(file) > 0 and os.path.isfile(file[0]):
-        is_url = False
+    add_text_called = is_txt and is_url is False
+    # Upload file button = add_file has is_txt=is_url=None
+    # Ingest button = add_url is True and add_text may be True or False (that is used for add_button for any text, url, or file)
+    if not add_text_called:
+        # is_url will do extra checks of if good url, want to avoid if just text
+        # if file, also want to avoid if possible extra checks
+        if is_url is None and file:
+            # assume add_button action if not set
+            is_url = True
+        if isinstance(file, str) and os.path.isfile(file):
+            is_url = False
+        if isinstance(file, list) and len(file) > 0 and all(os.path.isfile(x) for x in file):
+            is_url = False
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None, {}

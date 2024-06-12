@@ -2551,7 +2551,7 @@ def go_gradio(**kwargs):
         eventdb2a_btn2 = eventdb2a_btn.then(**user_text_submit_kwargs)
         eventdb2_btn = eventdb2a_btn2.then(**add_url_kwargs_btn, show_progress='full')
 
-        update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
+        update_user_db_txt_func = functools.partial(update_db_func, is_txt=True, is_url=False)
         add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
                                inputs=[user_text_text, my_db_state, selection_docs_state, requests_state,
