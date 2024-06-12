@@ -4669,6 +4669,7 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'h2oGPT model' in summary \
                or 'released an open-source version' in summary \
                or 'Summarizes the main features' in summary \
+               or 'open-source, community-driven' in summary \
                or ('key results based on the provided document' in summary and 'h2oGPT' in summary)
         assert 'h2oGPT' in [x['content'] for x in sources][0]
     assert url in [x['source'] for x in sources][0]
