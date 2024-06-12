@@ -525,6 +525,7 @@ def main(
         images_num_max: int = None,
         image_resolution: tuple = None,
         image_format: str = None,
+        rotate_align_resize_image: bool = None,
         video_frame_period: int = None,
         image_batch_image_prompt: str = None,
         image_batch_final_prompt: str = None,
@@ -1288,6 +1289,7 @@ def main(
         If set here or in model_lock, then that model uses the set value
     :param image_resolution: Resolution of any images
     :param image_format: Preferred format of images, esp. for video output
+    :param rotate_align_resize_image: Whether to apply rotation, alignment, resize before giving to LLM
     :param video_frame_period: Period of frames to use from video
     :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
     :param image_batch_final_prompt: Prompt used to query result of batching of images
@@ -1978,6 +1980,7 @@ def main(
                             images_num_max,
                             image_resolution,
                             image_format,
+                            rotate_align_resize_image,
                             video_frame_period,
                             image_batch_image_prompt,
                             image_batch_final_prompt,
@@ -2216,6 +2219,7 @@ def main(
                             images_num_max=None,
                             image_resolution=None,
                             image_format=None,
+                            rotate_align_resize_image=None,
                             video_frame_period=None,
                             image_batch_image_prompt=None,
                             image_batch_final_prompt=None,
@@ -4016,6 +4020,7 @@ def evaluate(
         images_num_max,
         image_resolution,
         image_format,
+        rotate_align_resize_image,
         video_frame_period,
         image_batch_image_prompt,
         image_batch_final_prompt,
@@ -4772,6 +4777,7 @@ def evaluate(
                 images_num_max=images_num_max,
                 image_resolution=image_resolution,
                 image_format=image_format,
+                rotate_align_resize_image=rotate_align_resize_image,
                 video_frame_period=video_frame_period,
                 image_batch_image_prompt=image_batch_image_prompt,
                 image_batch_final_prompt=image_batch_final_prompt,
@@ -4862,7 +4868,8 @@ def evaluate(
                            attention_sinks=attention_sinks,
                            hyde_level=hyde_level,
                            gradio_errors_to_chatbot=gradio_errors_to_chatbot,
-                           image_file=image_file,
+                           # gradio is pass through, we don't make prompt with images here
+                           image_file=image_file if not gradio_server else [],
                            )
 
     if inference_server.startswith('vllm') or \
@@ -5264,6 +5271,7 @@ def evaluate(
                                          images_num_max=None,  # already set number
                                          image_resolution=None,  # already changed
                                          image_format=None,  # already changed
+                                         rotate_align_resize_image=None,  # already changed
                                          video_frame_period=None,  # already changed
                                          image_batch_image_prompt=image_batch_image_prompt,
                                          image_batch_final_prompt=image_batch_final_prompt,
@@ -5842,6 +5850,7 @@ def get_generate_params(model_lower,
                         images_num_max,
                         image_resolution,
                         image_format,
+                        rotate_align_resize_image,
                         video_frame_period,
                         image_batch_image_prompt,
                         image_batch_final_prompt,
@@ -6082,6 +6091,7 @@ y = np.random.randint(0, 1, 100)
                     images_num_max,
                     image_resolution,
                     image_format,
+                    rotate_align_resize_image,
                     video_frame_period,
                     image_batch_image_prompt,
                     image_batch_final_prompt,

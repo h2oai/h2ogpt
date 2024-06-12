@@ -726,6 +726,7 @@ class GradioClient(Client):
         images_num_max: int = None,
         image_resolution: tuple = None,
         image_format: str = None,
+        rotate_align_resize_image: bool = None,
         video_frame_period: int = None,
         image_batch_image_prompt: str = None,
         image_batch_final_prompt: str = None,
@@ -880,6 +881,7 @@ class GradioClient(Client):
             :param images_num_max: Max. number of images per LLM call
             :param image_resolution: Resolution of any images
             :param image_format: Image format
+            :param rotate_align_resize_image: Whether to apply rotation, alignment, resize before giving to LLM
             :param video_frame_period: Period of frames to use from video
             :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
             :param image_batch_final_prompt: Prompt used to query result of batching of images

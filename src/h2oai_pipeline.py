@@ -27,6 +27,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                  images_num_max=None,
                  image_resolution=None,
                  image_format=None,
+                 rotate_align_resize_image=None,
                  video_frame_period=None,
                  image_batch_image_prompt=None,
                  image_batch_final_prompt=None,
@@ -90,6 +91,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
         self.images_num_max = images_num_max
         self.image_resolution = image_resolution
         self.image_format = image_format
+        self.rotate_align_resize_image = rotate_align_resize_image
         self.video_frame_period = video_frame_period
         self.image_batch_image_prompt = image_batch_image_prompt
         self.image_batch_final_prompt = image_batch_final_prompt

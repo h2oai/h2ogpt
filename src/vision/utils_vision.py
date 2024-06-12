@@ -259,7 +259,9 @@ def count_frames(video_path):
     return total_frames
 
 
-def process_file_list(file_list, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
+def process_file_list(file_list, output_dir, resolution=None, image_format="jpg",
+                      rotate_align_resize_image=True,
+                      video_frame_period=None,
                       extract_frames=None,
                       verbose=False):
     # FIXME: resolution is not used unless video, could use for every case, but resolution is set later when byte encoding for LLMs
@@ -271,6 +273,7 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
     :param resolution: Tuple specifying the desired resolution (width, height) or None to keep the original resolution.
       Does not affect images as inputs, handled elsewhere when converting to base64 for LLM
     :param image_format: String specifying the desired image format (e.g., "jpg", "png").
+    :param rotate_align_resize_image:  Whether to apply rotation, alignment, resize before giving to LLM
     :param video_frame_period: Period to save frames, if <1 then automatic
     :param extract_frames: how many frames to extract if automatic period mode
     :param verbose: Boolean to control whether to print progress messages.
@@ -303,7 +306,10 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
             image_files.extend(frame_files)
         else:
             # If it's not a valid video, add it to the image file list
-            file_fixed = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False, relaxed_resize=True)
+            if rotate_align_resize_image:
+                file_fixed = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False, relaxed_resize=True)
+            else:
+                file_fixed = file
             image_files.append(file_fixed)
 
     return image_files
