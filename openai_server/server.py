@@ -113,6 +113,7 @@ class H2oGPTParams(BaseModel):
     images_num_max: int | None = None
     image_resolution: tuple | None = None
     image_format: str | None = None
+    rotate_align_resize_image: bool | None = None
     video_frame_period: int | None = None
     image_batch_image_prompt: str | None = None
     image_batch_final_prompt: str | None = None

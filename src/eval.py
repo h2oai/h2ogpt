@@ -106,6 +106,7 @@ def run_eval(  # for local function:
         images_num_max=None,
         image_resolution=None,
         image_format=None,
+        rotate_align_resize_image=None,
         video_frame_period=None,
         image_batch_image_prompt=None,
         image_batch_final_prompt=None,

@@ -101,6 +101,7 @@ eval_func_param_names = (
             "images_num_max",
             "image_resolution",
             "image_format",
+            "rotate_align_resize_image",
             "video_frame_period",
             "image_batch_image_prompt",
             "image_batch_final_prompt",

@@ -1727,13 +1727,15 @@ def go_gradio(**kwargs):
                                                                visible=True)
                         guided_whitespace_pattern = gr.components.Textbox(
                             value=kwargs['guided_whitespace_pattern'] or '',
-                            label="guided_whitespace_pattern, emptry string means None",
+                            label="guided_whitespace_pattern, empty string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=True)
                         images_num_max = gr.Number(label='Number of Images per LLM call, 0 is auto mode',
                                                    value=kwargs['images_num_max'] or 0)
                         image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'])
                         image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
+                        rotate_align_resize_image = gr.Checkbox(label="Whether to apply rotation, align, resize before giving to LLM.",
+                                                                value=kwargs['rotate_align_resize_image'])
                         video_frame_period = gr.Number(label="Period of frames to use from video.",
                                                        value=kwargs['video_frame_period'] or 0)
 
