@@ -1105,7 +1105,7 @@ def go_gradio(**kwargs):
 
             col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
-                if kwargs['chat_tables']:
+                if kwargs['chat_tabless']:
                     chat_tab = gr.Row(visible=True)
                 else:
                     chat_tab = gr.TabItem("Chat", visible=kwargs['visible_chat_tab'])
@@ -2951,6 +2951,8 @@ def go_gradio(**kwargs):
                 else:
                     real_name = username
                 label_instruction1 = 'Ask or Ingest, %s' % real_name
+            if kwargs['chat_tabless']:
+                chat_tab_text1 = 'on'
             return db1s, selection_docs_state1, requests_state1, roles_state1, \
                 model_options_state1, lora_options_state1, server_options_state1, \
                 chat_state1, \
