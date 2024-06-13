@@ -2423,14 +2423,15 @@ def main(
             model_visible_vision_models = visible_vision_models
         if isinstance(model_visible_vision_models, str):
             model_visible_vision_models = [model_visible_vision_models]
+        all_visible_models = [x.get('visible_models') or x.get('base_model') for x in model_lock]
         model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
-                                                               visible_models=visible_models,
+                                                               all_visible_models=all_visible_models,
                                                                visible_vision_models=model_visible_vision_models)
         if model_state_trial['is_actually_vision_model']:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
                                                                           images_num_max or 1) or 1
         elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(model_visible_vision_models) > 0:
-            model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models,
+            model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models[0],
                                                                           images_num_max or 1) or 1
         else:
             model_state_trial['images_num_max'] = 0

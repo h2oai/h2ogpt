@@ -374,10 +374,10 @@ def is_gradio_vision_model(base_model):
         base_model.startswith('Qwen/Qwen-VL')
 
 
-def is_vision_model(base_model, visible_models=[], visible_vision_models=[]):
+def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[]):
     if not base_model:
         return False
-    if visible_vision_models and visible_models and visible_vision_models[0] in visible_models:
+    if visible_vision_models and all_visible_models and visible_vision_models[0] in all_visible_models:
         # all models are vision models by proxy
         return True
     return is_gradio_vision_model(base_model) or \
