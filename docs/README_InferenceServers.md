@@ -456,6 +456,10 @@ Issues:
 * Sometimes Replicate sends back bad json, seems randomly occurs.
 
 
+### LLama.cpp HTTP server
+
+If you have any other OpenAI compatible chat completion endpoint, you should use vllm_chat way.  E.g. llama.cpp http server: https://github.com/ggerganov/llama.cpp/tree/master/examples/server
+
 ## AWS SageMaker Endpoint
 
 h2oGPT code is based upon [LangChain Code](https://python.langchain.com/docs/integrations/llms/sagemaker) but with various fixes, handling of access keys, and handling for LLama-2 Chat type model.  See also https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html .

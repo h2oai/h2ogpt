@@ -6989,6 +6989,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                              hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                              map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                              show_link_in_sources=show_link_in_sources,
+                             docs_ordering_type=docs_ordering_type,
                              top_k_docs_max_show=top_k_docs_max_show,
                              verbose=verbose,
                              )
@@ -8997,6 +8998,7 @@ def get_sources_answer(query, docs, answer,
                        hyde_show_intermediate_in_accordion=True,
                        map_reduce_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
+                       docs_ordering_type=None,
                        top_k_docs_max_show=10,
                        verbose=False,
                        t_run=None,
@@ -9019,8 +9021,12 @@ def get_sources_answer(query, docs, answer,
         return answer_with_acc, sources, answer, ''
 
     sources = [dict(score=score, content=get_doc(x), source=get_source(x), orig_index=x.metadata.get('orig_index', 0))
-               for score, x in zip(scores, docs)][
-              :top_k_docs_max_show]
+               for score, x in zip(scores, docs)]
+    if docs_ordering_type in ['best_first']:
+        sources = sources[:top_k_docs_max_show]
+    else:
+        # sources as usually most important near prompt that comes last in sources list
+        sources = sources[-top_k_docs_max_show:]
     if answer_with_sources == -1:
         sources_str = [str(x) for x in sources]
         sources_str = '\n'.join(sources_str)
@@ -9049,7 +9055,10 @@ def get_sources_answer(query, docs, answer,
         # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
         # sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
         answer_sources = ['%s' % url for rank, (score, url, _) in enumerate(answer_sources)]
-        answer_sources = answer_sources[:top_k_docs_max_show]
+        if docs_ordering_type in ['best_first']:
+            answer_sources = answer_sources[:top_k_docs_max_show]
+        else:
+            answer_sources = answer_sources[-top_k_docs_max_show:]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
         if sources_show_text_in_accordion:
@@ -9066,7 +9075,10 @@ def get_sources_answer(query, docs, answer,
             else:
                 answer_sources = ['<font size="%s"><li>%.2g</li></font>' % (font_size, score)
                                   for score, url, accordion in answer_sources]
-        answer_sources = answer_sources[:top_k_docs_max_show]
+        if docs_ordering_type in ['best_first']:
+            answer_sources = answer_sources[:top_k_docs_max_show]
+        else:
+            answer_sources = answer_sources[-top_k_docs_max_show:]
         if sources_show_text_in_accordion:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
         else:
