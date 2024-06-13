@@ -86,7 +86,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         kwargs1['append_sources_to_answer'] = False
     if 'show_link_in_sources' not in user_kwargs:
         kwargs1['show_link_in_sources'] = False
-    kwargs1['top_k_docs_max_show'] = 30
+    # kwargs1['top_k_docs_max_show'] = 30
 
     ###########################################
     # modify some user_kwargs
