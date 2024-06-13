@@ -119,7 +119,8 @@ def run(wait=True, **kwargs):
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
         if not kwargs['multiple_workers_gunicorn']:
             # popen now, so launch uvicorn with string app
-            print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
+            if kwargs.get('verbose', False):
+                print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
             # avoid CUDA forking
             command = ['python', 'openai_server/server_start.py']
             # Convert the kwargs to command line arguments
@@ -141,12 +142,14 @@ def run(wait=True, **kwargs):
     elif wait:
         kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
         # launch uvicorn in this thread/process
-        print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
+        if kwargs.get('verbose', False):
+            print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
     else:
         kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
         # launch uvicorn in this process in new thread
-        print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
+        if kwargs.get('verbose', False):
+            print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
         Thread(target=run_server, kwargs=kwargs, daemon=True).start()
 
 

@@ -6089,6 +6089,7 @@ def go_gradio(**kwargs):
                           auth_access=kwargs['auth_access'],
                           guest_name=kwargs['guest_name'],
                           main_kwargs=json.dumps(kwargs['main_kwargs']),
+                          verbose=verbose,
                           )
 
         if kwargs['openai_server']:
