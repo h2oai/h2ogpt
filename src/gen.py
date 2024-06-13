@@ -3084,6 +3084,7 @@ def get_model(
         else:
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
             if max_seq_len is None and hasattr(tokenizer, 'model_max_length'):
+                print("Using max_seq_len=%s defined by tokenizer" % tokenizer.model_max_length)
                 max_seq_len = tokenizer.model_max_length
             # sets raw (no cushion) limit
             # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
