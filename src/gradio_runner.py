@@ -6093,7 +6093,8 @@ def go_gradio(**kwargs):
                           )
 
         if kwargs['openai_server']:
-            print("Starting up OpenAI proxy server")
+            if verbose:
+                print("Starting up OpenAI proxy server")
             if kwargs['openai_workers'] == 1:
                 from openai_server.server import app as openai_app
             else:
@@ -6103,7 +6104,8 @@ def go_gradio(**kwargs):
                 )
 
         if kwargs['function_server']:
-            print("Starting up Function server")
+            if verbose:
+                print("Starting up Function server")
             if kwargs['function_server_workers'] == 1:
                 from openai_server.function_server import app as function_app
             else:

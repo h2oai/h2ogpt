@@ -114,7 +114,8 @@ def run_server(host: str = '0.0.0.0',
 def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
     name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
-    print(kwargs)
+    if kwargs.get('verbose', False):
+        print(kwargs)
 
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
         if not kwargs['multiple_workers_gunicorn']:
