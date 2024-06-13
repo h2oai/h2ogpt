@@ -655,6 +655,8 @@ def main(
                                  vllm_chat:https://vllm.h2o.ai:5001:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
 
+                            If you have any other OpenAI compatible chat completion endpoint, you should use vllm_chat way.  E.g. llama.cpp http server: https://github.com/ggerganov/llama.cpp/tree/master/examples/server
+
                             For sglang, text models are supported via OpenAI API and can use vllm_chat or vllm as usual.
                             For sglang and vision models, need to specify sglang so we use http requests API via generate endpoint.  Use "sglang" prefix and otherwise it is like vllm endpoint
                             Currently it's not clear how to make an API key work: https://github.com/sgl-project/sglang/issues/466, so one should rely upon firewalls
