@@ -1041,7 +1041,7 @@ def go_gradio(**kwargs):
                             allowed_actions,
                             value=default_action,
                             label="Action",
-                            visible=len(allowed_actions) > 1)
+                            visible=len(allowed_actions) > 1 and kwargs['visible_langchain_action_radio'])
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     if os.getenv('OPENAI_API_KEY') is None and LangChainAgent.JSON.value in allowed_agents:
                         allowed_agents.remove(LangChainAgent.JSON.value)
@@ -1105,7 +1105,7 @@ def go_gradio(**kwargs):
 
             col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
-                if kwargs['chat_tables']:
+                if kwargs['chat_tabless']:
                     chat_tab = gr.Row(visible=True)
                 else:
                     chat_tab = gr.TabItem("Chat", visible=kwargs['visible_chat_tab'])
@@ -1181,7 +1181,7 @@ def go_gradio(**kwargs):
                                             value=default_action,
                                             label='Action',
                                             show_label=visible_model_choice,
-                                            visible=True,
+                                            visible=kwargs['visible_langchain_action_radio'],
                                             min_width=mw0)
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
@@ -2551,7 +2551,7 @@ def go_gradio(**kwargs):
         eventdb2a_btn2 = eventdb2a_btn.then(**user_text_submit_kwargs)
         eventdb2_btn = eventdb2a_btn2.then(**add_url_kwargs_btn, show_progress='full')
 
-        update_user_db_txt_func = functools.partial(update_db_func, is_txt=True)
+        update_user_db_txt_func = functools.partial(update_db_func, is_txt=True, is_url=False)
         add_text_outputs = [user_text_text, langchain_mode]
         add_text_kwargs = dict(fn=update_user_db_txt_func,
                                inputs=[user_text_text, my_db_state, selection_docs_state, requests_state,
@@ -2951,6 +2951,8 @@ def go_gradio(**kwargs):
                 else:
                     real_name = username
                 label_instruction1 = 'Ask or Ingest, %s' % real_name
+            if kwargs['chat_tabless']:
+                chat_tab_text1 = 'on'
             return db1s, selection_docs_state1, requests_state1, roles_state1, \
                 model_options_state1, lora_options_state1, server_options_state1, \
                 chat_state1, \
@@ -6089,10 +6091,12 @@ def go_gradio(**kwargs):
                           auth_access=kwargs['auth_access'],
                           guest_name=kwargs['guest_name'],
                           main_kwargs=json.dumps(kwargs['main_kwargs']),
+                          verbose=verbose,
                           )
 
         if kwargs['openai_server']:
-            print("Starting up OpenAI proxy server")
+            if verbose:
+                print("Starting up OpenAI proxy server")
             if kwargs['openai_workers'] == 1:
                 from openai_server.server import app as openai_app
             else:
@@ -6102,7 +6106,8 @@ def go_gradio(**kwargs):
                 )
 
         if kwargs['function_server']:
-            print("Starting up Function server")
+            if verbose:
+                print("Starting up Function server")
             if kwargs['function_server_workers'] == 1:
                 from openai_server.function_server import app as function_app
             else:

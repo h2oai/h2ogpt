@@ -363,8 +363,9 @@ def main(
         visible_tos_tab: bool = False,
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
+        visible_langchain_action_radio: bool = True,
 
-        chat_tables: bool = False,
+        chat_tabless: bool = False,
         visible_h2ogpt_links: bool = True,
         visible_h2ogpt_qrcode: bool = True,
         visible_h2ogpt_logo: bool = True,
@@ -653,6 +654,8 @@ def main(
                               Or for example:
                                  vllm_chat:https://vllm.h2o.ai:5001:/1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1:1234ABCD
                                  where vllm.h2o.ai is the DNS name of the IP, 5001 is the port, /1b1219f7-4bb4-43e9-881f-fa8fa9fe6e04/v1 is the url of the "page" to access, and 1234ABCD is the api key
+
+                            If you have any other OpenAI compatible chat completion endpoint, you should use vllm_chat way.  E.g. llama.cpp http server: https://github.com/ggerganov/llama.cpp/tree/master/examples/server
 
                             For sglang, text models are supported via OpenAI API and can use vllm_chat or vllm as usual.
                             For sglang and vision models, need to specify sglang so we use http requests API via generate endpoint.  Use "sglang" prefix and otherwise it is like vllm endpoint
@@ -1002,7 +1005,7 @@ def main(
     :param visible_tos_tab: "" for ToS tab
     :param visible_login_tab: "" for Login tab (needed for persistence or to enter key for UI access to models and ingestion)
     :param visible_hosts_tab: "" for hosts tab
-    :param chat_tables: Just show Chat as block without tab (useful if want only chat view)
+    :param chat_tabless: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_links: Whether github stars, URL are visible
     :param visible_h2ogpt_qrcode: Whether QR code is visible
     :param visible_h2ogpt_logo: Whether central logo is visible
@@ -2427,7 +2430,8 @@ def main(
             model_state_trial['images_num_max'] = 0
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
-        print("Model %s" % model_dict, flush=True)
+        if verbose:
+            print("Model %s" % model_dict, flush=True)
         if model_lock:
             # last in iteration will be first
             model_states.insert(0, model_state_trial)
@@ -3050,7 +3054,10 @@ def get_model(
         # get tokenizer specific objects
         config_tokenizer, _, max_seq_len_tokenizer = get_config(tokenizer_base_model, **config_kwargs,
                                                                 raise_exception=False)
-        if config is None:
+        if max_seq_len_tokenizer is not None:
+            print("Using max_seq_len=%s defined by config for tokenizer %s" % (max_seq_len_tokenizer, tokenizer_base_model))
+            max_seq_len = max_seq_len_tokenizer
+        if config is None and max_seq_len is None:
             assert max_seq_len, "Must set max_seq_len if passing different tokenizer than model that cannot be found (config is None) e.g. because a private model"
 
         loader_kwargs_tokenizer = loader_kwargs.copy()
@@ -3080,6 +3087,9 @@ def get_model(
             tokenizer = tokenizer_loader
         else:
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
+            if max_seq_len is None and hasattr(tokenizer, 'model_max_length'):
+                print("Using max_seq_len=%s defined by tokenizer" % tokenizer.model_max_length)
+                max_seq_len = tokenizer.model_max_length
             # sets raw (no cushion) limit
             # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
             #  then config -> tokenizer will set model_max_length correctly

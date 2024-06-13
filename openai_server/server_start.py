@@ -36,6 +36,7 @@ def run_server(host: str = '0.0.0.0',
                is_openai_server: bool = True,
                multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
+               verbose=False,
                ):
     if workers == 0:
         workers = min(16, os.cpu_count() * 2 + 1)
@@ -114,12 +115,14 @@ def run_server(host: str = '0.0.0.0',
 def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
     name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
-    print(kwargs)
+    if kwargs.get('verbose', False):
+        print(kwargs)
 
     if kwargs['workers'] > 1 or kwargs['workers'] == 0:
         if not kwargs['multiple_workers_gunicorn']:
             # popen now, so launch uvicorn with string app
-            print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
+            if kwargs.get('verbose', False):
+                print(f"Multi-worker {name} Proxy uvicorn: {kwargs['workers']}")
             # avoid CUDA forking
             command = ['python', 'openai_server/server_start.py']
             # Convert the kwargs to command line arguments
@@ -141,12 +144,14 @@ def run(wait=True, **kwargs):
     elif wait:
         kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
         # launch uvicorn in this thread/process
-        print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
+        if kwargs.get('verbose', False):
+            print(f"Single-worker {name} Proxy uvicorn in this thread: {kwargs['workers']}")
         run_server(**kwargs)
     else:
         kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
         # launch uvicorn in this process in new thread
-        print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
+        if kwargs.get('verbose', False):
+            print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
         Thread(target=run_server, kwargs=kwargs, daemon=True).start()
 
 

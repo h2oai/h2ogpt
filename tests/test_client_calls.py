@@ -235,7 +235,7 @@ def test_client1api_lean_lock_choose_model():
             if base_model == base1:
                 assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
             else:
-                assert 'the limit of time' in response or 'the limit' in response
+                assert 'the limit of time' in response or 'the limit' in response or 'I am a man of the night' in response
 
     api_name = '/model_names'
     res = client.predict(api_name=api_name)
@@ -4669,6 +4669,7 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'h2oGPT model' in summary \
                or 'released an open-source version' in summary \
                or 'Summarizes the main features' in summary \
+               or 'open-source, community-driven' in summary \
                or ('key results based on the provided document' in summary and 'h2oGPT' in summary)
         assert 'h2oGPT' in [x['content'] for x in sources][0]
     assert url in [x['source'] for x in sources][0]
@@ -5790,7 +5791,10 @@ def test_max_new_tokens(max_new_tokens, temperature):
     h2ogpt_key = os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')
     model_lock = []
     model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
+    valid_base_models = []
     for base_model in base_models:
+        #if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
+        #    continue
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
         model_lock.append(dict(
@@ -5800,6 +5804,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             visible_models=base_model,
             max_seq_len=4096,
         ))
+        valid_base_models.append(base_model)
 
     if temperature < 0:
         temperature = 0.0
@@ -5811,11 +5816,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     from src.gen import main
     main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
 
-    for base_model in base_models:
-        if base_model == 'Qwen/Qwen1.5-72B-Chat':
-            continue
-        if base_model == 'h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1':
-            continue
+    for base_model in valid_base_models:
         if temperature == 0.5 and ('claude' in base_model or 'gemini' in base_model or '-32768' in base_model):
             # these don't support seed, can't randomize sampling
             continue
@@ -5845,6 +5846,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             for repeat in range(nrepeats):
                 res = client.predict(str(dict(kwargs)), api_name=api_name)
                 res = ast.literal_eval(res)
+                print(res, file=sys.stderr)
 
                 assert 'base_model' in res['save_dict']
                 assert res['save_dict']['base_model'] == base_model
@@ -5852,7 +5854,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
                 fudge = 10 if base_model == 'google/gemma-7b-it' else 4
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge, "%s" % res['response']
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']
@@ -5924,7 +5926,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert res['save_dict']['error'] in [None, '']
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + 1
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']

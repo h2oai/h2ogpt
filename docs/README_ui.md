@@ -228,12 +228,12 @@ Requires admin password if in public mode (i.e. env HUGGINGFACE_SPACES=1 or GPT_
 
 The sidebar and submit buttons can be toggled in UI or CLI.  The tabs can be controlled by CLI options.  If one only wants to see the chat view, do:
 ```bash
-python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --visible_submit_buttons=False --visible_side_bar=False --visible_submit_buttons=False --visible_side_bar=False --visible_chat_tab=False --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --chat_tabless=True
+python generate.py --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --visible_submit_buttons=False --visible_side_bar=False --visible_submit_buttons=False --visible_side_bar=False --visible_chat_tab=False --visible_doc_selection_tab=False --visible_doc_view_tab=False --visible_chat_history_tab=False --visible_expert_tab=False --visible_models_tab=False --visible_system_tab=False --visible_tos_tab=False --visible_hosts_tab=False --chat_tabless=True --visible_login_tab=False --visible_langchain_action_radio=False --allow_upload_to_user_data=False --allow_upload_to_my_data=False --langchain_mode=UserData
 ```
 where one can still at least hit enter to submit queries. This looks like:
 ![chat_tabless.png](chat_tabless.png)
 
-One can add `--visible_h2ogpt_links=False --visible_h2ogpt_links=False --visible_h2ogpt_qrcode=False` to remove the h2oGPT header, which looks like:
+One can add `--visible_h2ogpt_logo=False --visible_h2ogpt_links=False --visible_h2ogpt_qrcode=False` to remove the h2oGPT header, which looks like:
 ![chat_headerless.png](chat_headerless.png)
 
 
@@ -252,5 +252,6 @@ which looks like:
 
 To remove the login tab, you can add `--visible_login_tab=False`.
 
+## Entire UI
 
-
+Change `--chat_tabless=True` back to `False` in the above, and then entire UI will be gone.  This is useful for running in API-only mode.
