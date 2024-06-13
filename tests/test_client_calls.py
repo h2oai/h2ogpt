@@ -5791,7 +5791,10 @@ def test_max_new_tokens(max_new_tokens, temperature):
     h2ogpt_key = os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')
     model_lock = []
     model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
+    valid_base_models = []
     for base_model in base_models:
+        #if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
+        #    continue
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
         model_lock.append(dict(
@@ -5801,6 +5804,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             visible_models=base_model,
             max_seq_len=4096,
         ))
+        valid_base_models.append(base_model)
 
     if temperature < 0:
         temperature = 0.0
@@ -5812,11 +5816,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     from src.gen import main
     main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
 
-    for base_model in base_models:
-        if base_model == 'Qwen/Qwen1.5-72B-Chat':
-            continue
-        if base_model == 'h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1':
-            continue
+    for base_model in valid_base_models:
         if temperature == 0.5 and ('claude' in base_model or 'gemini' in base_model or '-32768' in base_model):
             # these don't support seed, can't randomize sampling
             continue
