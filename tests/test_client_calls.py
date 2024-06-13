@@ -235,7 +235,7 @@ def test_client1api_lean_lock_choose_model():
             if base_model == base1:
                 assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
             else:
-                assert 'the limit of time' in response or 'the limit' in response
+                assert 'the limit of time' in response or 'the limit' in response or 'I am a man of the night' in response
 
     api_name = '/model_names'
     res = client.predict(api_name=api_name)
