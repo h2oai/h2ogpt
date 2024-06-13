@@ -36,6 +36,7 @@ def run_server(host: str = '0.0.0.0',
                is_openai_server: bool = True,
                multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
+               verbose=False,
                ):
     if workers == 0:
         workers = min(16, os.cpu_count() * 2 + 1)
