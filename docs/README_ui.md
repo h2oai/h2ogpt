@@ -252,5 +252,6 @@ which looks like:
 
 To remove the login tab, you can add `--visible_login_tab=False`.
 
+## Entire UI
 
-
+Change `--chat_tabless=True` back to `False` in the above, and then entire UI will be gone.  This is useful for running in API-only mode.
