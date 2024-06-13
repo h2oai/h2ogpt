@@ -2418,14 +2418,20 @@ def main(
                                                       model_state_trial['inference_server'], verbose=verbose)
         model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
         model_visible_vision_models = model_state_trial.get('visible_vision_models', visible_vision_models)
+        if model_visible_vision_models is None:
+            # '' would mean use no vision model, so don't use CLI in that case
+            model_visible_vision_models = visible_vision_models
         if isinstance(model_visible_vision_models, str):
             model_visible_vision_models = [model_visible_vision_models]
         model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
                                                                visible_models=visible_models,
                                                                visible_vision_models=model_visible_vision_models)
-        if model_state_trial['is_vision_model']:
+        if model_state_trial['is_actually_vision_model']:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
-                                                                          images_num_max or 1)
+                                                                          images_num_max or 1) or 1
+        elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(model_visible_vision_models) > 0:
+            model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models,
+                                                                          images_num_max or 1) or 1
         else:
             model_state_trial['images_num_max'] = 0
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
