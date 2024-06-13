@@ -363,6 +363,7 @@ def main(
         visible_tos_tab: bool = False,
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
+        visible_langchain_action_radio: bool = True,
 
         chat_tabless: bool = False,
         visible_h2ogpt_links: bool = True,

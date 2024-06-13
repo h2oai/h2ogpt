@@ -1041,7 +1041,7 @@ def go_gradio(**kwargs):
                             allowed_actions,
                             value=default_action,
                             label="Action",
-                            visible=len(allowed_actions) > 1)
+                            visible=len(allowed_actions) > 1 and kwargs['visible_langchain_action_radio'])
                     allowed_agents = [x for x in langchain_agents_list if x in visible_langchain_agents]
                     if os.getenv('OPENAI_API_KEY') is None and LangChainAgent.JSON.value in allowed_agents:
                         allowed_agents.remove(LangChainAgent.JSON.value)
@@ -1181,7 +1181,7 @@ def go_gradio(**kwargs):
                                             value=default_action,
                                             label='Action',
                                             show_label=visible_model_choice,
-                                            visible=True,
+                                            visible=kwargs['visible_langchain_action_radio'],
                                             min_width=mw0)
 
                             text_output, text_output2, text_outputs = make_chatbots(output_label0, output_label0_model2,
