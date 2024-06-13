@@ -2427,7 +2427,8 @@ def main(
             model_state_trial['images_num_max'] = 0
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
-        print("Model %s" % model_dict, flush=True)
+        if verbose:
+            print("Model %s" % model_dict, flush=True)
         if model_lock:
             # last in iteration will be first
             model_states.insert(0, model_state_trial)
