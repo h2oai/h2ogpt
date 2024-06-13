@@ -3050,7 +3050,10 @@ def get_model(
         # get tokenizer specific objects
         config_tokenizer, _, max_seq_len_tokenizer = get_config(tokenizer_base_model, **config_kwargs,
                                                                 raise_exception=False)
-        if config is None:
+        if max_seq_len_tokenizer is not None:
+            print("Using max_seq_len=%s defined by config for tokenizer %s" % (max_seq_len_tokenizer, tokenizer_base_model))
+            max_seq_len = max_seq_len_tokenizer
+        if config is None and max_seq_len is None:
             assert max_seq_len, "Must set max_seq_len if passing different tokenizer than model that cannot be found (config is None) e.g. because a private model"
 
         loader_kwargs_tokenizer = loader_kwargs.copy()
@@ -3080,6 +3083,8 @@ def get_model(
             tokenizer = tokenizer_loader
         else:
             tokenizer = tokenizer_loader.from_pretrained(tokenizer_base_model, **tokenizer_kwargs)
+            if max_seq_len is None and hasattr(tokenizer, 'model_max_length'):
+                max_seq_len = tokenizer.model_max_length
             # sets raw (no cushion) limit
             # If using RoPE with scaling, then for non-exllama models (e.g. HF models),
             #  then config -> tokenizer will set model_max_length correctly
