@@ -351,6 +351,10 @@ def main(
         visible_visible_models: bool = True,
         visible_submit_buttons: bool = True,
         visible_side_bar: bool = True,
+        visible_document_subset: bool = True,
+        visible_max_quality: bool = True,
+        visible_add_doc_to_chat: bool = True,
+        visible_chat_history: bool = True,
         visible_doc_track: bool = True,
 
         visible_chat_tab: bool = True,
@@ -994,7 +998,12 @@ def main(
     :param visible_visible_models: Whether visible models drop-down is visible in UI
     :param visible_submit_buttons: whether submit buttons are visible when UI first comes up
     :param visible_side_bar: whether left side bar is visible when UI first comes up
+    :param visible_document_subset: whether document subset is visible when UI first comes up
+    :param visible_max_quality: whether max quality is visible when UI first comes up
+    :param visible_add_doc_to_chat: whether add document to chat is visible when UI first comes up
+    :param visible_chat_history: whether chat history being choosable is visible when UI first comes up
     :param visible_doc_track: whether left side bar's document tracking is visible when UI first comes up
+
     :param visible_chat_tab: "" for chat tab
     :param visible_doc_selection_tab:  "" for doc selection tab
     :param visible_doc_view_tab: "" for doc view tab
