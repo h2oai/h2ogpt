@@ -977,10 +977,10 @@ def go_gradio(**kwargs):
                                             )
                     if kwargs['actions_in_sidebar']:
                         max_quality = gr.Checkbox(label="Max Ingest Quality", value=kwargs['max_quality'],
-                                                  visible=not is_public)
+                                                  visible=kwargs['visible_max_quality'] and not is_public)
                         gradio_upload_to_chatbot = gr.Checkbox(label="Add Doc to Chat",
                                                                value=kwargs['gradio_upload_to_chatbot'],
-                                                               visible=not is_public)
+                                                               visible=kwargs['visible_add_doc_to_chat'] and not is_public)
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
                                           max_lines=1,
@@ -1000,14 +1000,16 @@ def go_gradio(**kwargs):
                 if not kwargs['actions_in_sidebar']:
                     max_quality = gr.Checkbox(label="Max Ingest Quality",
                                               value=kwargs['max_quality'],
-                                              visible=not is_public)
+                                              visible=kwargs['visible_max_quality'] and not is_public)
                     gradio_upload_to_chatbot = gr.Checkbox(label="Add Doc to Chat",
-                                                           value=kwargs['gradio_upload_to_chatbot'])
+                                                           value=kwargs['gradio_upload_to_chatbot'],
+                                                           visible=kwargs['visible_add_doc_to_chat'])
 
                 if not kwargs['actions_in_sidebar']:
                     add_chat_history_to_context = gr.Checkbox(label="Include Chat History",
                                                               value=kwargs[
-                                                                  'add_chat_history_to_context'])
+                                                                  'add_chat_history_to_context'],
+                                                                  visible=kwargs['visible_chat_history'])
                     add_search_to_context = gr.Checkbox(label="Include Web Search",
                                                         value=kwargs['add_search_to_context'],
                                                         visible=serp_visible)
@@ -1034,7 +1036,7 @@ def go_gradio(**kwargs):
                                                label="Subset",
                                                value=DocumentSubset.Relevant.name,
                                                interactive=True,
-                                               visible=not is_public,
+                                               visible=kwargs['visible_document_subset'] and not is_public,
                                                )
                     if kwargs['actions_in_sidebar']:
                         langchain_action = gr.Radio(
