@@ -2391,6 +2391,12 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
                                              history,
                                              image_file,
                                              )
+            print('instruction', (instruction,
+                                             system_prompt_to_use,
+                                             history,
+                                             image_file,
+                                             ))
+            print('messages', messages, flush=True)
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             break
         except Exception as e:
