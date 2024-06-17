@@ -243,6 +243,8 @@ pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/r
 pip uninstall flash_attn autoawq autoawq-kernels -y
 pip install flash_attn autoawq autoawq-kernels --no-cache-dir -c reqs_optional/reqs_constraints.txt
 
+# work-around issue with tenacity 8.4.0
+pip install tenacity==8.3.0 -c reqs_optional/reqs_constraints.txt
 
 bash ./docs/run_patches.sh
 
