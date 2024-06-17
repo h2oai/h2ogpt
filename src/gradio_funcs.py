@@ -15,7 +15,7 @@ from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
     get_accordion_named, check_input_type, download_image
 from src.db_utils import length_db1
-from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides
+from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides, in_model_state_and_evaluate
 from src.vision.utils_vision import process_file_list
 
 
@@ -548,11 +548,15 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
         batch_tokens = 0
         responses = []
-        history_copy = copy.deepcopy(history)  # FIXME: is this ok?  What if byte images?
+
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
         text_context_list = str_to_list(text_context_list)
         text_context_list_copy = copy.deepcopy(text_context_list)
         fun1_args_list_copy = fun1_args_list.copy()
+        # sync all args with model
+        for k, v in model_batch_choice.items():
+            if k in eval_func_param_names and k in in_model_state_and_evaluate and v is not None:
+                fun1_args_list_copy[len(input_args_list) + eval_func_param_names.index(k)] = v
         for batch in range(0, len(image_files), images_num_max_batch):
             fun1_args_list2 = fun1_args_list_copy.copy()
             # then handle images in batches
@@ -571,13 +575,15 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 fun1_args_list2[0] = model_batch_choice
                 fun1_args_list2[
                     len(input_args_list) + eval_func_param_names.index('visible_models')] = visible_vision_models
-
+            history1 = copy.deepcopy(history)  # FIXME: is this ok?  What if byte images?
+            history2 = copy.deepcopy(history)
+            if history1:
+                history2[-1][0] = history1[-1][0] = instruction_batch
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('chat_conversation')] = history1
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
             text = ''
             save_dict1_saved = None
-            history1 = copy.deepcopy(history_copy)
-            history2 = copy.deepcopy(history_copy)
             image_batch_stream = fun1_args_list2[
                 len(input_args_list) + eval_func_param_names.index('image_batch_stream')]
             if image_batch_stream is None:
@@ -591,6 +597,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 else:
                     if not api:
                         history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
+                        if not history2:
+                            history2 = [['', '']]
                         if len(image_files) > images_num_max_batch:
                             history2[-1][1] = 'Querying image %s/%s' % (1 + batch, 1 + len(image_files))
                         else:
@@ -599,14 +607,21 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                         yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio3
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
-                text = history1[-1][1] or ''
+                text = history1[-1][1] or '' if history1 else ''
             batch_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
             responses.append(text)
 
         # last response with no images
         fun1_args_list2 = fun1_args_list_copy.copy()
+        # sync all args with model
+        for k, v in chosen_model_state.items():
+            if k in eval_func_param_names and k in in_model_state_and_evaluate and v is not None:
+                fun1_args_list2[len(input_args_list) + eval_func_param_names.index(k)] = v
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = []
-        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
+        if not history:
+            history = [['', '']]
+        history[-1][0] = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('chat_conversation')] = history
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
         text_context_list = text_context_list_copy
         text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
@@ -936,8 +951,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     ###########################################
     # allow override of expert/user input for other parameters
     for k in eval_func_param_names:
-        if k in ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max', 'image_resolution',
-                 'image_format', 'video_frame_period', 'visible_vision_models']:
+        if k in in_model_state_and_evaluate:
             # already handled
             continue
         if k in model_state1 and model_state1[k] is not None:

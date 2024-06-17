@@ -129,3 +129,7 @@ eval_extra_columns = ["prompt", "response", "score"]
 # ensure prompt_type consistent with prep_bot(), so nochat API works same way
 # see how default_kwargs is set in gradio_runner.py
 key_overrides = ["prompt_type", "prompt_dict"]
+
+in_model_state_and_evaluate = ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max',
+                               'image_resolution',
+                               'image_format', 'video_frame_period', 'visible_vision_models']
