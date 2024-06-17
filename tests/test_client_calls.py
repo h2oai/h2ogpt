@@ -6061,9 +6061,9 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
         response = response.choices[0].message.content
         print(response)
         if isinstance(expected, list):
-            assert any(x in response for x in expected), "%s %s" % (url, response)
+            assert any(x in response for x in expected), "%s" % response
         else:
-            assert expected in response, "%s %s" % (url, response)
+            assert expected in response, "%s" % response
 
 
 def get_creation_date(file_path):
