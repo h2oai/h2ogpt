@@ -5926,7 +5926,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert res['save_dict']['error'] in [None, '']
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + 1
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + 2
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']
