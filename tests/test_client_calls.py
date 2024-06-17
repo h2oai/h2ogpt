@@ -4396,7 +4396,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
         elif inference_server == 'https://gpt.h2o.ai':
-            base_model = 'mistralai/Mistral-7B-Instruct-v0.2'
+            base_model = 'mistralai/Mistral-7B-Instruct-v0.3'
         else:
             base_model = 'gpt-3.5-turbo'
 
@@ -4897,7 +4897,7 @@ def play_audio(audio, sr=16000):
 ])
 @pytest.mark.parametrize("base_model", [
     'llama',
-    'mistralai/Mistral-7B-Instruct-v0.2'
+    'mistralai/Mistral-7B-Instruct-v0.3'
 ])
 @wrap_test_forked
 def test_client1_tts_stream(tts_model, base_model):
@@ -4962,7 +4962,7 @@ def check_final_res(res, base_model='llama'):
     if base_model == 'llama':
         assert res['save_dict']['base_model'] == 'llama'
     else:
-        assert res['save_dict']['base_model'] == 'mistralai/Mistral-7B-Instruct-v0.2'
+        assert res['save_dict']['base_model'] == 'mistralai/Mistral-7B-Instruct-v0.3'
     assert res['save_dict']['where_from']
     assert res['save_dict']['valid_key'] == 'not enforced'
     assert res['save_dict']['h2ogpt_key'] in [None, '']
