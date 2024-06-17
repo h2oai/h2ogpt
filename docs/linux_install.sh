@@ -72,8 +72,6 @@ for i in 1 2 3 4; do python -m nltk.downloader all && break || sleep 1; done  # 
 # Optional: Required for PlayWright
 if [[ -z "${WOLFI_OS}" ]]; then
   playwright install --with-deps
-  # Audio speed-up and slowdown (best quality), if not installed can only speed-up with lower quality
-  sudo apt-get install -y rubberband-cli
 else
   echo "playwright is part of the base wolfi-os image"
 fi
@@ -146,10 +144,8 @@ if [[ -z "${WOLFI_OS}" ]]; then
   chromeVersion="$(echo $(google-chrome --version) | cut -d' ' -f3)"
   # visit https://googlechromelabs.github.io/chrome-for-testing/ and download matching version
   # E.g.
-  sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
-
   # Attempt to download matching version of ChromeDriver
-  sudo rm -rf chromedriver_linux64.zip chromedriver LICENSE.chromedriver
+  sudo rm -rf chromedriver-linux64.zip chromedriver LICENSE.chromedriver
   if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${chromeVersion}/linux64/chromedriver-linux64.zip"; then
       echo "Failed to download ChromeDriver for version ${chromeVersion}, attempting to download known working version 124.0.6367.91."
       if ! wget -O chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/124.0.6367.91/linux64/chromedriver-linux64.zip"; then
