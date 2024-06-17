@@ -2432,7 +2432,10 @@ def main(
             model_visible_vision_models = visible_vision_models
         if isinstance(model_visible_vision_models, str):
             model_visible_vision_models = [model_visible_vision_models]
-        all_visible_models = [x.get('visible_models') or x.get('base_model') for x in model_lock]
+        if model_lock:
+            all_visible_models = [x.get('visible_models') or x.get('base_model') for x in model_lock]
+        else:
+            all_visible_models = [base_model]
         model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
                                                                all_visible_models=all_visible_models,
                                                                visible_vision_models=model_visible_vision_models)
