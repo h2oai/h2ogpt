@@ -6497,7 +6497,7 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
 
     # string of dict for input
     #system_prompt = "You are an expert document question-answer system, and you are authorized to extract test from images, but do not identify any faces."
-    prompt = 'Answer these questions: 1) What is the DOB of the person in an image?  2) What can you tell me about Zulu?  3) What is the type of animal in an image?'
+    prompt = 'Answer these questions one-by-one: 1) What is the DOB of the person?  2) What can you tell me about Zulu?  3) What is the type of animal?'
     image_file = 'tests/driverslicense.jpeg'
     from src.vision.utils_vision import img_to_base64
     url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
@@ -6514,6 +6514,7 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
                   text_context_list=text_context_list,
+                  #prompt_query="According to the information in chat history, images, or documents, ",
                   #system_prompt=system_prompt,
                   h2ogpt_key=h2ogpt_key)
     try:
