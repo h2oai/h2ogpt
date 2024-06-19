@@ -500,6 +500,7 @@ The vLLMs/TGIs are started with these options on various machines.
 For 8*A100 80GB, `go_VLLM.12.sh` has:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -527,6 +528,7 @@ docker run -d \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.70.txt
 
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -555,6 +557,7 @@ docker run -d \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.zephyrbeta.txt
 
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -582,6 +585,7 @@ docker run -d \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.13.txt
 
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -609,6 +613,7 @@ docker run -d \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.code32k.txt
 
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -640,11 +645,13 @@ On another 4*A100 80GB, `go_VLLM.28.sh` has:
 ```bash
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 
 # TGI
 docker run -d --gpus '"device=0,1"' --shm-size 12g -v $HOME/.cache/huggingface/hub/:/data -p 5002:80 ghcr.io/huggingface/text-generation-inference:1.3 --model-id mistralai/Mixtral-8x7B-Instruct-v0.1 --trust-remote-code --max-stop-sequences=6 --max-batch-prefill-tokens=32768 --max-input-length 32768 --max-total-tokens 66560 --max-batch-total-tokens 131072 --sharded true --num-shard 2
 
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -671,6 +678,7 @@ docker run -d \
         --download-dir=/workspace/.cache/huggingface/hub &>> logs.vllm_server.func13b.txt
 
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -699,6 +707,7 @@ and run `bash ./go_VLLM.28.sh`.
 For another 4*A100 80GB, `go_VLLM.22.sh` has:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -728,6 +737,7 @@ and run `bash ./go_VLLM.22.sh`
 For another 1*A100 80GB, `go_VLLM.144.sh` has:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -760,6 +770,7 @@ and run `bash ./go_VLLM.144.sh`.
 For another 2*A10G, `go_VLLM.199.sh` has:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \

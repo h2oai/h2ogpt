@@ -94,6 +94,7 @@ python -m vllm.entrypoints.openai.api_server \
 for choice of port, IP,  model, some number of GPUs matching tensor-parallel-size, etc.  Or with docker with built-in vLLM:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
