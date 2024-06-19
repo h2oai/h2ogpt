@@ -252,6 +252,41 @@ def test_chat_template():
 
 
 @wrap_test_forked
+def test_chat_template_images():
+    history_to_use = [('Are you awesome?', "Yes I'm awesome.")]
+    base_model = 'OpenGVLab/InternVL-Chat-V1-5'
+
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+
+    messages = [{'role': 'system',
+                 'content': 'You are h2oGPTe, an expert question-answering AI system created by H2O.ai that performs like GPT-4 by OpenAI.'},
+                {'role': 'user',
+                 'content': 'What is the name of the tower in one of the images?'}]
+    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    assert prompt is not None
+
+    (instruction, system_prompt, chat_conversation, image_file,
+     user_prompt_for_fake_system_prompt,
+     test_only, verbose) = ('What is the name of the tower in one of the images?',
+                            'You are h2oGPTe, an expert question-answering AI system created by H2O.ai that performs like GPT-4 by OpenAI.',
+                            [], ['/tmp/image_file_0f5f011d-c907-4836-9f38-0ba579b45ffc.jpeg',
+                                 '/tmp/image_file_60dce245-af39-4f8c-9651-df9ae0bd0afa.jpeg',
+                                 '/tmp/image_file_e0b32625-9de3-40d7-98fb-c2e6368d6d73.jpeg'], None, False, False)
+
+    prompt = apply_chat_template(instruction, system_prompt, history_to_use, image_file,
+                                 tokenizer,
+                                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt0,
+                                 test_only=test_only,
+                                 verbose=verbose)
+
+    assert 'h2oGPTe' in prompt  # put into pre-conversation if no actual system prompt
+    assert instruction in prompt
+    assert history_to_use[0][0] in prompt
+    assert history_to_use[0][1] in prompt
+
+
+@wrap_test_forked
 def test_partial_codeblock():
     json.dumps(invalid_json_str)
 
@@ -1003,7 +1038,8 @@ def test_process_animated_gif3():
     for file in processed_files:
         print(file, file=sys.stderr)
         assert os.path.isfile(file)
-    assert len(processed_files) == len(test_files) - 1 + 60  # 60 is the number of images generated from the animated gif
+    assert len(processed_files) == len(
+        test_files) - 1 + 60  # 60 is the number of images generated from the animated gif
 
 
 def test_process_mixed():

@@ -6481,3 +6481,113 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
 
     assert response1["name"] != response2["name"]
     assert response1["age"] != response2["age"]
+
+
+@wrap_test_forked
+@pytest.mark.parametrize("base_model", vision_models)
+@pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
+    if langchain_mode == 'LLM' and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        # dummy return
+        return
+
+    client, base_models = get_test_server_client(base_model)
+    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+
+    # string of dict for input
+    #system_prompt = "You are an expert document question-answer system, and you are authorized to extract test from images, but do not identify any faces."
+    prompt = 'Answer these questions one-by-one: 1) What is the DOB of the person?  2) What can you tell me about Zulu?  3) What is the type of animal?'
+    image_file = 'tests/driverslicense.jpeg'
+    from src.vision.utils_vision import img_to_base64
+    url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
+    tiger_file = download_simple(url)
+    image_file = [img_to_base64(image_file), img_to_base64(tiger_file)]
+
+    text_context_list = ['Zulu is hot.']
+
+    print("Doing base_model=%s" % base_model)
+    kwargs = dict(instruction_nochat=prompt,
+                  image_file=image_file,
+                  visible_models=base_model,
+                  stream_output=False,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
+                  text_context_list=text_context_list,
+                  #prompt_query="According to the information in chat history, images, or documents, ",
+                  #system_prompt=system_prompt,
+                  h2ogpt_key=h2ogpt_key)
+    try:
+        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    except Exception as e:
+        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+                          'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
+            return
+        else:
+            raise
+
+    # string of dict for output
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
+    print(response)
+    assert '1977' in response.lower()
+    assert 'tiger' in response.lower()
+    assert 'hot' in response.lower()
+
+    if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    else:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    messages = [{
+        'role':
+            'user',
+        'content': [{
+            'type': 'text',
+            'text': prompt,
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url': image_file[0],
+            },
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url': image_file[1],
+            },
+        }],
+    }]
+
+    if 'localhost:7860' in client.api_url:
+        base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+    elif '192.168.1.172:7860' in client.api_url:
+        base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+    else:
+        base_url = client.api_url.replace('/api/predict', ':5000/v1')
+
+    from openai import OpenAI
+    model = base_model
+    client_args = dict(base_url=base_url,
+                       api_key=kwargs.get('h2ogpt_key', 'EMPTY'))
+    openai_client = OpenAI(**client_args)
+
+    if client.auth:
+        user = '%s:%s' % (client.auth[0], client.auth[1])
+    else:
+        user = None
+    client_kwargs = dict(model=model,
+                         max_tokens=200,
+                         stream=False,
+                         messages=messages,
+                         user=user,
+                         #system_prompt=system_prompt,
+                         extra_body=dict(text_context_list=text_context_list),
+                         )
+    oclient = openai_client.chat.completions
+    response = oclient.create(**client_kwargs)
+    response = response.choices[0].message.content
+    print(response)
+    assert '1977' in response.lower()
+    assert 'tiger' in response.lower()
+    assert 'hot' in response.lower()

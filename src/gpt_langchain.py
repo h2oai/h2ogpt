@@ -3235,6 +3235,16 @@ def get_llm(use_openai_model=False,
                 if '-vision' in model_name:
                     model_name = model_name.replace('-vision', '')
 
+        # NOTE: assume want own control.  Too many false positives by Google.
+        from google.generativeai.types import HarmCategory
+        from google.generativeai.types import HarmBlockThreshold
+        safety_settings = {
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+            }
+
         callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   google_api_key=os.getenv('GOOGLE_API_KEY'),
@@ -3250,6 +3260,7 @@ def get_llm(use_openai_model=False,
                   model_kwargs=model_kwargs,
                   verbose=verbose,
                   tokenizer=tokenizer,
+                  safety_settings=safety_settings,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None

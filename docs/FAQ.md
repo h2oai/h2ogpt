@@ -1,5 +1,13 @@
 ## Frequently asked questions
 
+### vLLM driver requirements.
+
+vllm >= 0.5.0 requires a cuda >=12.4 driver, else docker will fail with:
+```text
+nvidia-container-cli: requirement error: unsatisfied condition: cuda>=12.4, please update your driver to a newer version, or use an earlier cuda container: unknown.
+```
+
+Or instead of using `vllm/vllm-openai:latest`, use `vllm/vllm-openai:v0.4.2`.
 
 ### Parallel and Isolated OpenAI Proxy Servers
 
@@ -501,7 +509,7 @@ docker run -d \
     -p 5000:5000 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -528,7 +536,7 @@ docker run -d \
     -p 5002:5002 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -556,7 +564,7 @@ docker run -d \
     -p 5001:5001 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -583,7 +591,7 @@ docker run -d \
     -p 5003:5003 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -610,7 +618,7 @@ docker run -d \
     -p 5004:5004 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -646,7 +654,7 @@ docker run -d \
     -p 5001:5001 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -672,7 +680,7 @@ docker run -d \
     -p 5005:5005 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -700,7 +708,7 @@ docker run -d \
     -p 5000:5000 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -729,7 +737,7 @@ docker run -d \
     -p 5014:5014 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -761,7 +769,7 @@ docker run -d \
     -p 5014:5014 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
