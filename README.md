@@ -15,7 +15,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **UI** or CLI with streaming of all models
   - **Upload** and **View** documents through the UI (control multiple collaborative or personal collections)
   - **Vision Models** LLaVa, Claude-3, Gemini-Pro-Vision, GPT-4-Vision
-  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl) and PlaygroundAI (playv2)
+  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl, SD3) and PlaygroundAI (playv2)
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion

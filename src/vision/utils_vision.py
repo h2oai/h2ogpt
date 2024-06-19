@@ -691,6 +691,14 @@ def get_image_model_dict(enable_image,
                 from src.vision.playv2 import get_pipe_make_image, make_image
             elif image_model_name == 'sdxl':
                 from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+            elif image_model_name == 'sd3':
+                from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+                get_pipe_make_image = functools.partial(get_pipe_make_image,
+                                                        base_model='stabilityai/stable-diffusion-3-medium-diffusers',
+                                                        refiner_model=None)
+                make_image = functools.partial(make_image,
+                                               base_model='stabilityai/stable-diffusion-3-medium-diffusers',
+                                               refiner_model=None)
             elif image_model_name == 'sdxl_change':
                 from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
                 make_image = change_image
