@@ -74,6 +74,9 @@ else
 	docker push $(DOCKER_TEST_IMAGE_INTERNVL)
 endif
 
+vllm_docker_build: build_info.txt git_hash.txt
+	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_VLLM) -f Dockerfile-vllm .
+
 just_docker_build: build_info.txt git_hash.txt
 	docker pull $(DOCKER_BASE_OS_IMAGE)
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -t h2ogpt:current -f Dockerfile .

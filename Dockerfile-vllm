@@ -1,4 +1,4 @@
-FROM h2ogpt:current
+FROM gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base-cuda124:test1
 
 USER root
 
