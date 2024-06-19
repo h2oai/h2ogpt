@@ -487,14 +487,23 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if not visible_vision_models:
         visible_vision_models = ''
 
-    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')] or kwargs.get('images_num_max')
+    force_batching = images_num_max is not None and images_num_max <= -1
+    if force_batching:
+        if images_num_max == -1:
+            # treat as if didn't set, but we will just change behavior
+            images_num_max = None
+        else:
+            # super expert control over auto-batching
+            images_num_max = -images_num_max - 1
+
     images_num_max = images_num_max or chosen_model_state.get('images_num_max', images_num_max)
     if images_num_max in [None, 0]:
         # in case not coming from api or UI
         images_num_max = images_num_max_dict.get(base_model, 0)
     images_num_max = max(1, images_num_max)
 
-    do_batching = len(image_files) > images_num_max or \
+    do_batching = force_batching or len(image_files) > images_num_max or \
                   visible_vision_models != display_name and \
                   display_name not in kwargs['all_possible_vision_display_names']
     do_batching &= visible_vision_models != ''

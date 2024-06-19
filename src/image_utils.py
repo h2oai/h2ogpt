@@ -326,8 +326,10 @@ def get_image_file(image_file, image_control, document_choice, base_model=None, 
                 img_file1 = None
         final_img_files.append(img_file1)
     final_img_files = [x for x in final_img_files if x]
-    if base_model and images_num_max is None:
+    if base_model and images_num_max == -1:
         images_num_max = images_num_max_dict.get(base_model, 1)
+    if base_model and images_num_max is None:
+        images_num_max = images_num_max_dict.get(base_model, 1) or 1
     if images_num_max is None:
         images_num_max = 1
     final_img_files = final_img_files[:images_num_max]

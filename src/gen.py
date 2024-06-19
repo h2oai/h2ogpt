@@ -1299,6 +1299,10 @@ def main(
     :param images_num_max: Maximum number of images in any LLM call.
         if None, then checks images_num_max and uses that value for defined models (assumes 80GB GPU), else uses 1
         If set here or in model_lock, then that model uses the set value
+        If set to 0, then won't use images even if image model and given images
+        If set to -1, then always forces batching if any images, even if model could handle all images at once. The amount is inferred for each model
+           This is useful because models do poorly when mixing images and text when text duplicates content of image information, LLM tends to just look at text not image even if image contains better information.
+        If set to -2, -3, etc., then 1, 2, 3 images are used per batch
     :param image_resolution: Resolution of any images
     :param image_format: Preferred format of images, esp. for video output
     :param rotate_align_resize_image: Whether to apply rotation, alignment, resize before giving to LLM

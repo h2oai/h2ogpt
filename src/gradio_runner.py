@@ -1732,7 +1732,7 @@ def go_gradio(**kwargs):
                             label="guided_whitespace_pattern, empty string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=True)
-                        images_num_max = gr.Number(label='Number of Images per LLM call, 0 is auto mode',
+                        images_num_max = gr.Number(label='Number of Images per LLM call, -1 is auto mode, 0 is avoid using images',
                                                    value=kwargs['images_num_max'] or 0)
                         image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'])
                         image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
