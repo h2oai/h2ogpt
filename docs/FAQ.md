@@ -1,5 +1,13 @@
 ## Frequently asked questions
 
+### vLLM driver requirements.
+
+vllm >= 0.5.0 requires a cuda >=12.4 driver, else docker will fail with:
+```text
+nvidia-container-cli: requirement error: unsatisfied condition: cuda>=12.4, please update your driver to a newer version, or use an earlier cuda container: unknown.
+```
+
+Or instead of using `vllm/vllm-openai:latest`, use `vllm/vllm-openai:v0.4.3`.
 
 ### Parallel and Isolated OpenAI Proxy Servers
 
