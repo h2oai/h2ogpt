@@ -255,7 +255,7 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
     if base_model == 'h2oai/h2ogpt-gm-oasst1-en-2048-falcon-7b-v2':
         # 7b has 71 heads, not divisible
         os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    os.system("docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1")
+    os.system("docker pull vllm/vllm-openai")
     datetime_str = str(datetime.now()).replace(" ", "_").replace(":", "_")
     msg = "Starting vLLM inference %s..." % datetime_str
     print(msg, flush=True)
@@ -277,10 +277,10 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
               '-v', '%s/.cache/huggingface/hub:/workspace/.cache/huggingface/hub' % home_dir,
               '-v', '%s/.cache/huggingface/modules:/workspace/.cache/huggingface/modules' % home_dir,
               # '--network', 'host',
-              'gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1',
+              'vllm/vllm-openai:latest',
               # 'h2ogpt',  # use when built locally with vLLM just freshly added
               # 'docker.io/library/h2ogpt',  # use when built locally with vLLM just freshly added
-              '-m', 'vllm.entrypoints.openai.api_server',
+              #'-m', 'vllm.entrypoints.openai.api_server',
               '--port=5000',
               '--host=0.0.0.0',
                     '--model=%s' % base_model,

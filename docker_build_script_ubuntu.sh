@@ -83,31 +83,6 @@ for enc in model_encodings:
 print('Done!')
 "
 
-############################################################
-# vllm server
-export VLLM_CACHE=/workspace/.vllm_cache
-conda create -n vllm -y
-source /h2ogpt_conda/etc/profile.d/conda.sh
-conda activate vllm
-conda install python=3.10 -y
-echo "vLLM conda env: $CONDA_DEFAULT_ENV"
-
-# gputil is for rayWorker in vllm to run as non-root
-# below required outside docker:
-# apt-get install libnccl2
-python -m pip install vllm==0.4.0.post1
-python -m pip install gputil==1.4.0 hf_transfer==0.1.6
-python -m pip install flash-attn==2.5.6 --no-build-isolation --no-deps --no-cache-dir
-
-# pip install hf_transfer
-# pip install tiktoken accelerate flash_attn
-mkdir $VLLM_CACHE
-chmod -R a+rwx /h2ogpt_conda
-
-# Make sure old python location works in case using scripts from old documentation
-mkdir -p /h2ogpt_conda/vllm_env/bin/
-ln -s /h2ogpt_conda/envs/vllm/bin/python3.10 /h2ogpt_conda/vllm_env/bin/python3.10
-
 # Track build info
 cp /workspace/build_info.txt /build_info.txt
 cp /workspace/git_hash.txt /git_hash.txt
