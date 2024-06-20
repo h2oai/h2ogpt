@@ -500,7 +500,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         if images_num_max == -1:
             # treat as if didn't set, but we will just change behavior
             images_num_max = None
-        else:
+        elif images_num_max < -1:
             # super expert control over auto-batching
             images_num_max = -images_num_max - 1
 
@@ -526,6 +526,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         if images_num_max_batch == -1:
             # treat as if didn't set, but we will just change behavior
             images_num_max_batch = None
+        elif images_num_max_batch < -1:
+            # super expert control over auto-batching
+            images_num_max_batch = -images_num_max_batch - 1
         images_num_max_batch = images_num_max_batch or model_batch_choice.get('images_num_max', images_num_max_batch)
         if images_num_max_batch is None:
             # in case not coming from api
