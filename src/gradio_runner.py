@@ -980,7 +980,8 @@ def go_gradio(**kwargs):
                                                   visible=kwargs['visible_max_quality'] and not is_public)
                         gradio_upload_to_chatbot = gr.Checkbox(label="Add Doc to Chat",
                                                                value=kwargs['gradio_upload_to_chatbot'],
-                                                               visible=kwargs['visible_add_doc_to_chat'] and not is_public)
+                                                               visible=kwargs[
+                                                                           'visible_add_doc_to_chat'] and not is_public)
                     url_text = gr.Textbox(label=url_label,
                                           # placeholder="Enter Submits",
                                           max_lines=1,
@@ -1009,7 +1010,7 @@ def go_gradio(**kwargs):
                     add_chat_history_to_context = gr.Checkbox(label="Include Chat History",
                                                               value=kwargs[
                                                                   'add_chat_history_to_context'],
-                                                                  visible=kwargs['visible_chat_history'])
+                                                              visible=kwargs['visible_chat_history'])
                     add_search_to_context = gr.Checkbox(label="Include Web Search",
                                                         value=kwargs['add_search_to_context'],
                                                         visible=serp_visible)
@@ -1731,32 +1732,41 @@ def go_gradio(**kwargs):
                             value=kwargs['guided_whitespace_pattern'] or '',
                             label="guided_whitespace_pattern, empty string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
-                            visible=True)
-                        images_num_max = gr.Number(label='Number of Images per LLM call, -1 is auto mode, 0 is avoid using images',
-                                                   value=kwargs['images_num_max'] or 0)
-                        image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'])
-                        image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
-                        rotate_align_resize_image = gr.Checkbox(label="Whether to apply rotation, align, resize before giving to LLM.",
-                                                                value=kwargs['rotate_align_resize_image'])
+                            visible=not is_public)
+                        images_num_max = gr.Number(
+                            label='Number of Images per LLM call, -1 is auto mode, 0 is avoid using images',
+                            value=kwargs['images_num_max'] or 0,
+                            visible=not is_public)
+                        image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'],
+                                                      visible=not is_public)
+                        image_format = gr.Textbox(label='Image format', value=kwargs['image_format'],
+                                                  visible=not is_public)
+                        rotate_align_resize_image = gr.Checkbox(
+                            label="Whether to apply rotation, align, resize before giving to LLM.",
+                            value=kwargs['rotate_align_resize_image'],
+                            visible=not is_public)
                         video_frame_period = gr.Number(label="Period of frames to use from video.  0 means auto",
-                                                       value=kwargs['video_frame_period'] or 0)
+                                                       value=kwargs['video_frame_period'] or 0,
+                                                       visible=not is_public)
 
                         image_batch_image_prompt = gr.Textbox(label="Image batch prompt",
                                                               value=kwargs['image_batch_image_prompt'])
                         image_batch_final_prompt = gr.Textbox(label="Image batch prompt",
                                                               value=kwargs['image_batch_final_prompt'])
 
-                        visible_vision_models = gr.Dropdown(kwargs['all_possible_vision_display_names'],
+                        visible_vision_models = gr.Dropdown(['auto'] + kwargs['all_possible_vision_display_names'],
                                                             label="Visible Image Models",
-                                                            value=visible_vision_models_state0,  # not changing yet
+                                                            # value=visible_vision_models_state0,  # not changing yet
+                                                            value='auto',
                                                             interactive=True,
                                                             multiselect=False,
-                                                            visible=visible_model_choice,
+                                                            visible=visible_model_choice and not is_public,
                                                             filterable=len(
-                                                                kwargs['all_possible_vision_display_names']) > 5
+                                                                kwargs['all_possible_vision_display_names']) > 5,
                                                             )
                         image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.",
-                                                         value=kwargs['image_batch_stream'])
+                                                         value=kwargs['image_batch_stream'],
+                                                         visible=not is_public)
 
                     clone_visible = visible = kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/')
                     if clone_visible:

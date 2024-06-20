@@ -1,6 +1,7 @@
 import base64
 import functools
 import os
+import tempfile
 import time
 import types
 import uuid
@@ -14,7 +15,7 @@ from src.enums import valid_imagegen_models, valid_imagechange_models, valid_ima
     llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
 from src.image_utils import fix_image_file
 from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
-    have_fiftyone
+    have_fiftyone, sanitize_filename
 
 IMAGE_EXTENSIONS = {'.png': 'PNG', '.apng': 'PNG', '.blp': 'BLP', '.bmp': 'BMP', '.dib': 'DIB', '.bufr': 'BUFR',
                     '.cur': 'CUR', '.pcx': 'PCX', '.dcx': 'DCX', '.dds': 'DDS', '.ps': 'EPS', '.eps': 'EPS',
@@ -162,6 +163,7 @@ def video_to_base64frames(video_path):
     return base64Frames
 
 
+@functools.lru_cache(maxsize=10000, typed=False)
 def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
                     extract_frames=None,
                     verbose=False):
@@ -183,6 +185,9 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
     file_names = video_to_frames("input_video.mp4", "output_frames", resolution=(640, 480), image_format="png", verbose=True)
     print(file_names)
     """
+    if output_dir is None:
+        output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % sanitize_filename(video_path))
+
     enable_fiftyone = True  # optimal against issues if using function server
     if enable_fiftyone and \
             have_fiftyone and \
@@ -302,7 +307,8 @@ def process_file_list(file_list, output_dir, resolution=None, image_format="jpg"
             # If it's a valid video, extract frames
             if verbose:
                 print(f"Processing video file: {file}")
-            frame_files = video_to_frames(file, output_dir, resolution, image_format, video_frame_period,
+            # output_dir is None means only use file for location
+            frame_files = video_to_frames(file, None, resolution, image_format, video_frame_period,
                                           extract_frames, verbose)
             image_files.extend(frame_files)
         else:

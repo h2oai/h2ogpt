@@ -479,9 +479,15 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     base_model = chosen_model_state.get('base_model')
     display_name = chosen_model_state.get('display_name')
 
-    visible_models = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_models')]
+    visible_vision_models = ''
+    if kwargs['visible_vision_models']:
+        visible_vision_models = kwargs['visible_vision_models']
+    if chosen_model_state['is_actually_vision_model']:
+        visible_vision_models = chosen_model_state['display_name']
     # by here these are just single names, not integers or list
-    visible_vision_models = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_vision_models')]
+    visible_vision_models1 = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_vision_models')]
+    if visible_vision_models1 != 'auto':
+        visible_vision_models = visible_vision_models1
     if isinstance(visible_vision_models, list):
         visible_vision_models = visible_vision_models[0]
     if not visible_vision_models:
@@ -517,6 +523,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
 
         images_num_max_batch = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+        if images_num_max_batch == -1:
+            # treat as if didn't set, but we will just change behavior
+            images_num_max_batch = None
         images_num_max_batch = images_num_max_batch or model_batch_choice.get('images_num_max', images_num_max_batch)
         if images_num_max_batch is None:
             # in case not coming from api
@@ -613,9 +622,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                         if not history2:
                             history2 = [['', '']]
                         if len(image_files) > images_num_max_batch:
-                            history2[-1][1] = 'Querying image %s/%s' % (1 + batch, 1 + len(image_files))
+                            history2[-1][1] = '%s querying image %s/%s' % (
+                            visible_vision_models, 1 + batch, 1 + len(image_files))
                         else:
-                            history2[-1][1] = 'Querying image(s)'
+                            history2[-1][1] = '%s querying image(s)' % visible_vision_models
                         audio3 = b''  # don't yield audio if not streaming batches
                         yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio3
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
@@ -634,7 +644,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = []
         if not history1:
             history1 = [['', '']]
-        history1[-1][0] = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
+        history1[-1][0] = fun1_args_list2[
+            len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('chat_conversation')] = history1
         # but don't change what user sees for instruction
         history1 = deepcopy_by_pickle_object(history)
@@ -935,7 +946,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
             # only delete if was made by us
             image_files_to_delete.append(img_file_one)
         else:
-            # str_type='file' or 'youtube'
+            # str_type='file' or 'youtube' or video (can be cached)
             pass
         if img_file_one is not None:
             b2imgs.append(img_file_one)
