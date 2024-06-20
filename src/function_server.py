@@ -127,8 +127,10 @@ else:
 def execute_function(request: FunctionRequest):
     # Mapping of function names to function objects
     from src.gpt_langchain import path_to_docs
+    from src.vision.utils_vision import process_file_list
     FUNCTIONS = {
         'path_to_docs': path_to_docs,
+        'process_file_list': process_file_list,
     }
     try:
         # Fetch the function from the function map

@@ -183,7 +183,7 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
     file_names = video_to_frames("input_video.mp4", "output_frames", resolution=(640, 480), image_format="png", verbose=True)
     print(file_names)
     """
-    enable_fiftyone = False  # WIP cuda mp issue
+    enable_fiftyone = True  # optimal against issues if using function server
     if enable_fiftyone and \
             have_fiftyone and \
             (video_frame_period is not None and video_frame_period < 1 or not os.path.isfile(video_path)):
@@ -195,19 +195,20 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
         kwargs = {'urls': urls, 'file': file, 'download_dir': None, 'export_dir': output_dir,
                   'extract_frames': extract_frames}
         # fifty one is complex program and leaves around processes
-        if False: # FIXME: but can't fork cuda
+        if False:  # NOTE: Assumes using function server to handle isolation if want production grade behavior
             func_new = partial(call_subprocess_onetask, extract_unique_frames, args, kwargs)
         else:
             func_new = functools.partial(extract_unique_frames, *args, **kwargs)
         export_dir = func_new()
         return [os.path.join(export_dir, x) for x in os.listdir(export_dir)]
 
+    if video_frame_period and video_frame_period < 1:
+        video_frame_period = None
     if video_frame_period in [None, 0]:
         # e.g. if no fiftyone and so can't do 0 case, then assume ok to do period based
         total_frames = count_frames(video_path)
-        video_frame_period = total_frames // 20  # no more than 20 frames total for now
-    if video_frame_period < 1:
-        video_frame_period = 1
+        extract_frames = min(20, extract_frames or 20)  # no more than 20 frames total for now
+        video_frame_period = total_frames // extract_frames
 
     video = cv2.VideoCapture(video_path)
     makedirs(output_dir)

@@ -13,7 +13,7 @@ from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTyp
     images_num_max_dict
 from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
-    get_accordion_named, check_input_type, download_image
+    get_accordion_named, check_input_type, download_image, deepcopy_by_pickle_object
 from src.db_utils import length_db1
 from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides, in_model_state_and_evaluate
 from src.vision.utils_vision import process_file_list
@@ -487,7 +487,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if not visible_vision_models:
         visible_vision_models = ''
 
-    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')] or kwargs.get('images_num_max')
+    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')] or kwargs.get(
+        'images_num_max')
     force_batching = images_num_max is not None and images_num_max <= -1
     if force_batching:
         if images_num_max == -1:
@@ -584,11 +585,14 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 fun1_args_list2[0] = model_batch_choice
                 fun1_args_list2[
                     len(input_args_list) + eval_func_param_names.index('visible_models')] = visible_vision_models
-            history1 = copy.deepcopy(history)  # FIXME: is this ok?  What if byte images?
-            history2 = copy.deepcopy(history)
-            if history1:
-                history2[-1][0] = history1[-1][0] = instruction_batch
+            history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?
+            if not history1:
+                history1 = [['', '']]
+            history1[-1][0] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('chat_conversation')] = history1
+            # but don't change what user sees for instruction
+            history1 = deepcopy_by_pickle_object(history)
+            history2 = deepcopy_by_pickle_object(history)
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
             text = ''
@@ -621,22 +625,25 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             responses.append(text)
 
         # last response with no images
+        history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?
         fun1_args_list2 = fun1_args_list_copy.copy()
         # sync all args with model
         for k, v in chosen_model_state.items():
             if k in eval_func_param_names and k in in_model_state_and_evaluate and v is not None:
                 fun1_args_list2[len(input_args_list) + eval_func_param_names.index(k)] = v
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = []
-        if not history:
-            history = [['', '']]
-        history[-1][0] = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
-        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('chat_conversation')] = history
+        if not history1:
+            history1 = [['', '']]
+        history1[-1][0] = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_final
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('chat_conversation')] = history1
+        # but don't change what user sees for instruction
+        history1 = deepcopy_by_pickle_object(history)
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
         text_context_list = text_context_list_copy
         text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = text_context_list
         fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
-        for response in _get_response(fun2, history, chatbot_role1, speaker1, tts_language1, roles_state1,
+        for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                       tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
             response_list = list(response)
             save_dict1 = response_list[6]
@@ -943,13 +950,24 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     image_format = args_list[eval_func_param_names.index('image_format')]
     video_frame_period = args_list[eval_func_param_names.index('video_frame_period')]
     extract_frames = args_list[eval_func_param_names.index('extract_frames')] or kwargs.get('extract_frames', 20)
-    rotate_align_resize_image = args_list[eval_func_param_names.index('rotate_align_resize_image')] or kwargs.get('rotate_align_resize_image', True)
-    image_files = process_file_list(image_files, images_file_path, resolution=image_resolution,
-                                    image_format=image_format,
-                                    rotate_align_resize_image=rotate_align_resize_image,
-                                    video_frame_period=video_frame_period,
-                                    extract_frames=extract_frames,
-                                    verbose=verbose)
+    rotate_align_resize_image = args_list[eval_func_param_names.index('rotate_align_resize_image')] or kwargs.get(
+        'rotate_align_resize_image', True)
+    process_args = (image_files, images_file_path)
+    process_kwargs = dict(resolution=image_resolution,
+                          image_format=image_format,
+                          rotate_align_resize_image=rotate_align_resize_image,
+                          video_frame_period=video_frame_period,
+                          extract_frames=extract_frames,
+                          verbose=verbose)
+    if image_files and kwargs['function_server']:
+        from src.function_client import call_function_server
+        image_files = call_function_server('0.0.0.0', kwargs['function_server_port'], 'process_file_list',
+                                           process_args, process_kwargs,
+                                           use_disk=True, use_pickle=True,
+                                           function_api_key=kwargs['function_api_key'],
+                                           verbose=verbose)
+    else:
+        image_files = process_file_list(*process_args, **process_kwargs)
     args_list[eval_func_param_names.index('image_file')] = image_files
 
     ###########################################

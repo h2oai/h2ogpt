@@ -1738,7 +1738,7 @@ def go_gradio(**kwargs):
                         image_format = gr.Textbox(label='Image format', value=kwargs['image_format'])
                         rotate_align_resize_image = gr.Checkbox(label="Whether to apply rotation, align, resize before giving to LLM.",
                                                                 value=kwargs['rotate_align_resize_image'])
-                        video_frame_period = gr.Number(label="Period of frames to use from video.",
+                        video_frame_period = gr.Number(label="Period of frames to use from video.  0 means auto",
                                                        value=kwargs['video_frame_period'] or 0)
 
                         image_batch_image_prompt = gr.Textbox(label="Image batch prompt",
