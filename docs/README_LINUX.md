@@ -12,16 +12,9 @@ Ensure cuda toolkit is installed, e.g. for CUDA 12.1 on Ubuntu 22:
 wget https://developer.download.nvidia.com/compute/cuda/12.1.1/local_installers/cuda_12.1.1_530.30.02_linux.run
 sudo sh cuda_12.1.1_530.30.02_linux.run
 ```
-One only needs to install the toolkit, and one does not have to overwrite the symlink.  Then run:
-```bash
-curl -fsSL https://h2o-release.s3.amazonaws.com/h2ogpt/linux_install_full.sh | bash
-```
-and enter the sudo password when required. Once install done, do:
-```bash
-conda activate h2ogpt
-```
+One only needs to install the toolkit, and one does not have to overwrite the symlink.
 
-To avoid periodically entering the sudo password (default 5 minute timeout), then extend the sudo timeout by running:
+Optional: To avoid periodically entering the sudo password (default 5 minute timeout), then extend the sudo timeout by running:
 ```bash
 sudo visudo
 ```
@@ -35,6 +28,17 @@ sudo bash
 exit
 ```
 So allow your user session to run sudo for 60 minutes. Then the script will not ask for sudo password during its run.
+
+Run installation script:
+```bash
+curl -fsSL https://h2o-release.s3.amazonaws.com/h2ogpt/linux_install_full.sh | bash
+```
+and enter the sudo password when required.
+
+Activate h2oGPT env:
+```bash
+conda activate h2ogpt
+```
 
 ## Install
 

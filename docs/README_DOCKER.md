@@ -188,6 +188,7 @@ For the vLLM server running on 2 GPUs using h2oai/h2ogpt-4096-llama2-7b-chat mod
 ```bash
 unset CUDA_VISIBLE_DEVICES
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run \
@@ -228,6 +229,7 @@ INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit
 For LLaMa-2 70B AWQ in docker using vLLM run:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -262,6 +264,7 @@ We add `--enforce-eager` to avoid excess memory usage by CUDA graphs.
 For 4*A10G on AWS using LLaMa-2 70B AWQ run:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
 mkdir -p $HOME/.triton/cache/
 mkdir -p $HOME/.config/vllm
 docker run -d \
@@ -365,6 +368,7 @@ Each docker can run on any system where network can reach or on same system on d
 One a low-memory GPU system can add other options to limit batching, e.g.:
 ```bash
 mkdir -p $HOME/.cache/huggingface/hub/
+mkdir -p $HOME/.cache/huggingface/modules/
 export MODEL=h2oai/h2ogpt-4096-llama2-7b-chat
 docker run -d --gpus '"device=0"' \
         --shm-size 1g \

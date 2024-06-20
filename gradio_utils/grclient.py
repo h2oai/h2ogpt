@@ -887,6 +887,7 @@ class GradioClient(Client):
             :param image_batch_final_prompt: Prompt used to query result of batching of images
             :param image_batch_stream: Whether to stream batching of images.
             :param visible_vision_models: Model to use for vision, e.g. if base LLM has no vision
+                   If 'auto', then use CLI value, else use model display name given here
             :param video_file: DO NOT USE FOR API, put images, videos, urls, and youtube urls in image_file as list
 
             :param response_format: text or json_object or json_code
