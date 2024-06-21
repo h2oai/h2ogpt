@@ -8871,11 +8871,11 @@ def get_template(query, iinput,
     if True or model_name and model_name in anthropic_mapping:
         # NOTE: enabled generally for now, seems to help generally
         triple_quotes_start = """
-    <all_documents>
-    """
+<all_documents>
+"""
         triple_quotes_finish = """
-    </all_documents>
-    """
+</all_documents>
+"""
     else:
         triple_quotes_start = triple_quotes_finish = """
 \"\"\"
