@@ -492,6 +492,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     display_name = chosen_model_state.get('display_name')
 
     visible_vision_models = ''
+    if kwargs['visible_vision_models1']:
+        # if in UI, 'auto' is default, but CLI has another default, so use that if set
+        visible_vision_models = kwargs['visible_vision_models']
     if chosen_model_state['is_actually_vision_model']:
         visible_vision_models = chosen_model_state['display_name']
 
