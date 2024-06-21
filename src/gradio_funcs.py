@@ -480,18 +480,23 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     display_name = chosen_model_state.get('display_name')
 
     visible_vision_models = ''
-    if kwargs['visible_vision_models']:
-        visible_vision_models = kwargs['visible_vision_models']
     if chosen_model_state['is_actually_vision_model']:
         visible_vision_models = chosen_model_state['display_name']
+
     # by here these are just single names, not integers or list
+    # args_list is not just from API, but also uses default_kwargs from CLI if not None but user_args is None or ''
     visible_vision_models1 = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_vision_models')]
-    if visible_vision_models1 != 'auto':
-        visible_vision_models = visible_vision_models1
-    if isinstance(visible_vision_models, list):
-        visible_vision_models = visible_vision_models[0]
+    if visible_vision_models1:
+        if isinstance(visible_vision_models1, list):
+            visible_vision_models1 = visible_vision_models1[0]
+        if visible_vision_models1 != 'auto' and visible_vision_models1 in kwargs['all_possible_vision_display_names']:
+            # e.g. CLI might have had InternVL but model lock only Haiku, filter that out here
+            visible_vision_models = visible_vision_models1
+
     if not visible_vision_models:
         visible_vision_models = ''
+    if isinstance(visible_vision_models, list):
+        visible_vision_models = visible_vision_models[0]
 
     images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')] or kwargs.get(
         'images_num_max')
