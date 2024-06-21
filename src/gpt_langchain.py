@@ -1269,6 +1269,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         client = self.client.clone()
         from gradio_utils.grclient import check_job
 
+        res_dict = {}
         t_start = time.time()
         job = client.submit(str(dict(client_kwargs)), api_name=api_name)
         text0 = ''
@@ -1327,6 +1328,11 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         self.count_output_tokens += self.get_num_tokens(ret)
         if self.verbose:
             print("end _acall", flush=True)
+        self.use_gradio_return(res_dict, prompt)
+        # ensure parent client is updated if remote server changed
+        if client.server_hash != self.client.server_hash:
+            with filelock.FileLock(os.path.join('locks', 'gradio_client.lock')):
+                self.client.refresh_client()
         return ret
 
     def get_token_ids(self, text: str) -> List[int]:
