@@ -659,7 +659,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         history1 = deepcopy_by_pickle_object(history)
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
         text_context_list = text_context_list_copy
-        text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
+        # pre-append to ensure images used, since first is highest priority for text_context_list
+        text_context_list = ['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)] + text_context_list
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = text_context_list
         fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
         for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
