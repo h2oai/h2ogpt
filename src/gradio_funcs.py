@@ -648,10 +648,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 if not history2:
                     history2 = [['', '']]
                 if len(image_files) > images_num_max_batch:
-                    history2[-1][1] = '%s querying image %s/%s' % (
+                    history2[-1][1] = '<b>%s querying image %s/%s<b>' % (
                         visible_vision_models, 1 + batch, 1 + len(image_files))
                 else:
-                    history2[-1][1] = '%s querying image(s)' % visible_vision_models
+                    history2[-1][1] = '<b>%s querying image(s)<b>' % visible_vision_models
                 audio3 = b''  # don't yield audio if not streaming batches
                 yield history2, '', [], '', '', [], {}, audio3
 

@@ -4534,6 +4534,8 @@ def go_gradio(**kwargs):
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
+                        # update bots_old
+                        bots_old = bots.copy()
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
                         else:
