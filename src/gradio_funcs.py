@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 import time
+import traceback
 import uuid
 import filelock
 
@@ -212,7 +213,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         prep_bot(*args_list_bot, kwargs_eval=kwargs1, plain_api=plain_api, kwargs=kwargs, verbose=verbose)
 
     save_dict = dict()
-    ret = {}
+    ret = {'error': "No response", 'sources': [], 'sources_str': '', 'prompt_raw': instruction_nochat1,
+           'llm_answers': []}
     ret_old = ''
     history_str_old = ''
     error_old = ''
@@ -345,10 +347,12 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 # collect unstreamed audios
                 audios.append(res_dict['audio'])
             if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                msg = "Took too long evaluate_nochat: %s" % (time.time() - tgen0)
                 if str_api:
                     res_dict['save_dict']['extra_dict']['timeout'] = time.time() - tgen0
+                    res_dict['save_dict']['error'] = msg
                 if verbose:
-                    print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
+                    print(msg, flush=True)
                 break
 
         # yield if anything left over as can happen
@@ -364,6 +368,14 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                                           expect_bytes=kwargs['return_as_byte'])
         yield ret
 
+    except Exception as e:
+        ex = traceback.format_exc()
+        if verbose:
+            print("Error in evaluate_nochat: %s" % ex, flush=True)
+        if str_api:
+            ret = {'error': str(ex), 'sources': [], 'sources_str': '', 'prompt_raw': '', 'llm_answers': []}
+            yield ret
+        raise
     finally:
         clear_torch_cache(allow_skip=True)
         db1s = my_db_state1
@@ -480,18 +492,23 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     display_name = chosen_model_state.get('display_name')
 
     visible_vision_models = ''
-    if kwargs['visible_vision_models']:
-        visible_vision_models = kwargs['visible_vision_models']
     if chosen_model_state['is_actually_vision_model']:
         visible_vision_models = chosen_model_state['display_name']
+
     # by here these are just single names, not integers or list
+    # args_list is not just from API, but also uses default_kwargs from CLI if not None but user_args is None or ''
     visible_vision_models1 = fun1_args_list[len(input_args_list) + eval_func_param_names.index('visible_vision_models')]
-    if visible_vision_models1 != 'auto':
-        visible_vision_models = visible_vision_models1
-    if isinstance(visible_vision_models, list):
-        visible_vision_models = visible_vision_models[0]
+    if visible_vision_models1:
+        if isinstance(visible_vision_models1, list):
+            visible_vision_models1 = visible_vision_models1[0]
+        if visible_vision_models1 != 'auto' and visible_vision_models1 in kwargs['all_possible_vision_display_names']:
+            # e.g. CLI might have had InternVL but model lock only Haiku, filter that out here
+            visible_vision_models = visible_vision_models1
+
     if not visible_vision_models:
         visible_vision_models = ''
+    if isinstance(visible_vision_models, list):
+        visible_vision_models = visible_vision_models[0]
 
     images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')] or kwargs.get(
         'images_num_max')
@@ -584,13 +601,14 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             # then handle images in batches
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
                                                                                                 batch:batch + images_num_max_batch]
+            batch_size = len(fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')])
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch
             # don't include context list, just do image only
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
-            # no docs from DB, just image
+            # no docs from DB, just image.  Don't switch langchain_mode.
             fun1_args_list2[
-                len(input_args_list) + eval_func_param_names.index('langchain_mode')] = LangChainMode.LLM.value
+                len(input_args_list) + eval_func_param_names.index('document_subset')] = []
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
             if model_batch_choice:
                 # override for batch model
@@ -626,7 +644,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                             history2 = [['', '']]
                         if len(image_files) > images_num_max_batch:
                             history2[-1][1] = '%s querying image %s/%s' % (
-                            visible_vision_models, 1 + batch, 1 + len(image_files))
+                                visible_vision_models, 1 + batch, 1 + len(image_files))
                         else:
                             history2[-1][1] = '%s querying image(s)' % visible_vision_models
                         audio3 = b''  # don't yield audio if not streaming batches
@@ -635,7 +653,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or '' if history1 else ''
             batch_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
-            responses.append(text)
+            responses.append(
+                f'<image_{batch}_to_{batch + batch_size - 1}_answer>\n\n{text}\n\n</image_{batch}_to_{batch + batch_size - 1}_answer>')
 
         # last response with no images
         history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?
@@ -653,20 +672,19 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         # but don't change what user sees for instruction
         history1 = deepcopy_by_pickle_object(history)
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
-        text_context_list = text_context_list_copy
-        text_context_list.extend(['# Image %d Answer\n\n%s\n\n' % (i, r) for i, r in enumerate(responses)])
-        fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = text_context_list
+        # pre-append to ensure images used, since first is highest priority for text_context_list
+        fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
+            'text_context_list')] = responses + text_context_list_copy
         fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
         for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                       tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
             response_list = list(response)
             save_dict1 = response_list[6]
-            if 'extra_dict' not in save_dict1:
-                save_dict1['extra_dict'] = {}
-            if 'num_prompt_tokens' not in save_dict1['extra_dict']:
-                save_dict1['extra_dict']['num_prompt_tokens'] = 0
-            save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
-            save_dict1['extra_dict']['batch_responses'] = responses
+            if 'extra_dict' in save_dict1:
+                if 'num_prompt_tokens' in save_dict1['extra_dict']:
+                    save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
+                    save_dict1['extra_dict']['batch_responses'] = responses
+                    response_list[6] = save_dict1
             yield tuple(response_list)
         return
 
