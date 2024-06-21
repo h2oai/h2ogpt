@@ -513,8 +513,17 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if isinstance(visible_vision_models, list):
         visible_vision_models = visible_vision_models[0]
 
-    images_num_max = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')] or kwargs.get(
-        'images_num_max')
+    images_num_max = None
+    if kwargs['images_num_max'] is not None:
+        images_num_max = kwargs['images_num_max']
+    if chosen_model_state['images_num_max'] is not None:
+        images_num_max = chosen_model_state['images_num_max']
+    images_num_max1 = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+    if images_num_max1 is not None:
+        images_num_max = images_num_max1
+    if images_num_max is None:
+        images_num_max = images_num_max_dict.get(base_model, None)
+
     force_batching = images_num_max is not None and images_num_max <= -1
     if force_batching:
         if images_num_max == -1:
@@ -524,11 +533,12 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             # super expert control over auto-batching
             images_num_max = -images_num_max - 1
 
-    images_num_max = images_num_max or chosen_model_state.get('images_num_max', images_num_max)
-    if images_num_max in [None, 0]:
+    if images_num_max is None:
         # in case not coming from api or UI
-        images_num_max = images_num_max_dict.get(base_model, 0)
-    images_num_max = max(1, images_num_max)
+        images_num_max = images_num_max if images_num_max is not None else chosen_model_state['images_num_max']
+        images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 0)
+    if images_num_max is None:
+        images_num_max = 0
 
     do_batching = force_batching or len(image_files) > images_num_max or \
                   visible_vision_models != display_name and \
@@ -549,7 +559,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         elif images_num_max_batch < -1:
             # super expert control over auto-batching
             images_num_max_batch = -images_num_max_batch - 1
-        images_num_max_batch = images_num_max_batch or model_batch_choice.get('images_num_max', images_num_max_batch)
+        images_num_max_batch = images_num_max_batch if images_num_max_batch is not None else model_batch_choice.get('images_num_max', images_num_max_batch)
         if images_num_max_batch is None:
             # in case not coming from api
             images_num_max_batch = images_num_max_dict.get(visible_vision_models, 0)
@@ -634,24 +644,22 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 len(input_args_list) + eval_func_param_names.index('image_batch_stream')]
             if image_batch_stream is None:
                 image_batch_stream = kwargs['image_batch_stream']
+            if not image_batch_stream and not api:
+                if not history2:
+                    history2 = [['', '']]
+                if len(image_files) > images_num_max_batch:
+                    history2[-1][1] = '%s querying image %s/%s' % (
+                        visible_vision_models, 1 + batch, 1 + len(image_files))
+                else:
+                    history2[-1][1] = '%s querying image(s)' % visible_vision_models
+                audio3 = b''  # don't yield audio if not streaming batches
+                yield history2, '', [], '', '', [], {}, audio3
+
             for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                           tts_speed1,
                                           langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
-
                 if image_batch_stream:
                     yield response
-                else:
-                    if not api:
-                        history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
-                        if not history2:
-                            history2 = [['', '']]
-                        if len(image_files) > images_num_max_batch:
-                            history2[-1][1] = '%s querying image %s/%s' % (
-                                visible_vision_models, 1 + batch, 1 + len(image_files))
-                        else:
-                            history2[-1][1] = '%s querying image(s)' % visible_vision_models
-                        audio3 = b''  # don't yield audio if not streaming batches
-                        yield history2, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio3
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or '' if history1 else ''
