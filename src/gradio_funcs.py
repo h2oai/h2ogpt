@@ -347,10 +347,12 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 # collect unstreamed audios
                 audios.append(res_dict['audio'])
             if time.time() - tgen0 > max_time1 + 10:  # don't use actual, so inner has chance to complete
+                msg = "Took too long evaluate_nochat: %s" % (time.time() - tgen0)
                 if str_api:
                     res_dict['save_dict']['extra_dict']['timeout'] = time.time() - tgen0
+                    res_dict['save_dict']['error'] = msg
                 if verbose:
-                    print("Took too long evaluate_nochat: %s" % (time.time() - tgen0), flush=True)
+                    print(msg, flush=True)
                 break
 
         # yield if anything left over as can happen
@@ -371,8 +373,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         if verbose:
             print("Error in evaluate_nochat: %s" % ex, flush=True)
         if str_api:
-            ret = {'error': str(ex), 'sources': [], 'sources_str': '', 'prompt_raw': instruction_nochat1,
-                   'llm_answers': []}
+            ret = {'error': str(ex), 'sources': [], 'sources_str': '', 'prompt_raw': '', 'llm_answers': []}
             yield ret
         raise
     finally:
