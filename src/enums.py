@@ -216,6 +216,7 @@ anthropic_mapping = {
     "claude-instant-1.2": 100000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-5-sonnet-20240620": 200000,
     "claude-3-haiku-20240307": 200000,
 }
 
@@ -226,6 +227,7 @@ anthropic_mapping_outputs = {
     "claude-instant-1.2": 4096,
     "claude-3-opus-20240229": 4096,
     "claude-3-sonnet-20240229": 4096,
+    "claude-3-5-sonnet-20240620": 4096,
     "claude-3-haiku-20240307": 4096,
 }
 
@@ -268,18 +270,22 @@ llava_num_max = 10
 internvl_num_max = 5
 
 images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
-                 'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max, 'gpt-4o': gpt4turbo_image_num_max,
-                 'gemini-pro-vision': geminiimage_num_max,
-                 'gemini-1.5-pro-latest': gemini15image_num_max,
-                 'gemini-1.5-flash-latest': gemini15image_num_max,
-                 'claude-3-opus-20240229': claude3image_num_max, 'claude-3-sonnet-20240229': claude3image_num_max,
-                 'claude-3-haiku-20240307': claude3image_num_max,
-                 'liuhaotian/llava-v1.6-34b': llava_num_max, 'liuhaotian/llava-v1.6-vicuna-13b': llava_num_max,
-                 'HuggingFaceM4/idefics2-8b-chatty': 10,
-                 'lmms-lab/llama3-llava-next-8b': 2,
-                 'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
-                 'THUDM/cogvlm2-llama3-chat-19B': 2,
-                 }
+                       'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max,
+                       'gpt-4o': gpt4turbo_image_num_max,
+                       'gemini-pro-vision': geminiimage_num_max,
+                       'gemini-1.5-pro-latest': gemini15image_num_max,
+                       'gemini-1.5-flash-latest': gemini15image_num_max,
+                       'claude-3-opus-20240229': claude3image_num_max,
+                       'claude-3-sonnet-20240229': claude3image_num_max,
+                       'claude-3-5-sonnet-20240620': claude3image_num_max,
+                       'claude-3-haiku-20240307': claude3image_num_max,
+                       'liuhaotian/llava-v1.6-34b': llava_num_max,
+                       'liuhaotian/llava-v1.6-vicuna-13b': llava_num_max,
+                       'HuggingFaceM4/idefics2-8b-chatty': 10,
+                       'lmms-lab/llama3-llava-next-8b': 2,
+                       'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
+                       'THUDM/cogvlm2-llama3-chat-19B': 2,
+                       }
 
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro

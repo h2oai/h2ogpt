@@ -1163,11 +1163,12 @@ class GradioClient(Client):
                         response = res_dict["response"]
                         sources = res_dict["sources"]
                         prompt_raw = res_dict["prompt_raw"]
+                        save_dict = res_dict.get("save_dict", dict(extra_dict={}))
+                        extra_dict = save_dict.get("extra_dict", {})
                         texts_out = [x["content"] for x in sources]
                         t_taken_s = time.time() - t0
                         t_taken = "%.4f" % t_taken_s
 
-                        assert prompt_raw, "must have prompt_raw for final response"
                         if langchain_action != LangChainAction.EXTRACT.value:
                             text_chunk = response.strip()
                         else:
@@ -1182,6 +1183,9 @@ class GradioClient(Client):
                             raise TimeoutError(
                                 f"No output from LLM {actual_llm} after {t_taken} seconds."
                             )
+                        if 'error' in save_dict and not prompt_raw:
+                            raise RuntimeError(f"Error from LLM: {save_dict['error']}")
+                        assert prompt_raw or extra_dict, "LLM response failed to return final metadata."
 
                         try:
                             extra_dict = res_dict["save_dict"]["extra_dict"]

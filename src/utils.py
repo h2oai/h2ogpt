@@ -2318,12 +2318,15 @@ def handle_json(data):
 
 def repair_json_by_type(response, json_schema_type=None):
     # WIP for later
-    if json_schema_type == 'object':
+    if json_schema_type in ['object', None]:
         from json_repair import repair_json
         response = repair_json(response)
         try:
             # assumes already dict
-            return json.dumps(handle_json(json.loads(response)))
+            response = handle_json(json.loads(response))
+            if isinstance(response, list) and len(response) >= 1:
+                response = response[-1]  # take last if list
+            return json.dumps(response)
         except Exception as e:
             print("Did not extract_values: %s" % str(e))
             return response
@@ -2453,7 +2456,7 @@ def get_vllm_version(openai_client, inference_server, verbose=False):
             else:
                 if verbose:
                     print(f"Failed to retrieve version, status code: {response.status_code}")
-        except (requests.exceptions.Timeout, requests.exceptions.JSONDecodeError):
+        except (requests.exceptions.Timeout, requests.exceptions.JSONDecodeError, requests.exceptions.ConnectionError):
             # if times out, assume older version, with no JSON.  Or might not be real vllm
             vllm_version = '0.3.0'
             print(f"vLLM Server version timeout, assuming: {vllm_version}")

@@ -2408,14 +2408,63 @@ def go_gradio(**kwargs):
                         {task_info_md}
                         """)
 
+        def zip_data_check_key(admin_pass_textbox1,
+                               h2ogpt_key2,
+                               root_dirs=None,
+                               enforce_h2ogpt_api_key=None,
+                               enforce_h2ogpt_ui_key=None,
+                               h2ogpt_api_keys=None, requests_state1=None):
+            valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                                     enforce_h2ogpt_ui_key,
+                                     h2ogpt_api_keys,
+                                     h2ogpt_key2,
+                                     requests_state1=requests_state1,
+                                     )
+            from_ui = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            return zip_data(root_dirs=root_dirs)
+
+        zip_data_func = functools.partial(zip_data_check_key,
+                                          root_dirs=['flagged_data_points', kwargs['save_dir']],
+                                          enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                          enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                          h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                          )
         # Get flagged data
-        zip_data1 = functools.partial(zip_data, root_dirs=['flagged_data_points', kwargs['save_dir']])
-        zip_event = zip_btn.click(zip_data1, inputs=None, outputs=[file_output, zip_text],
+        zip_data1 = functools.partial(zip_data_func)
+        zip_event = zip_btn.click(zip_data1, inputs=[admin_pass_textbox, h2ogpt_key],
+                                  outputs=[file_output, zip_text],
                                   **noqueue_kwargs,
-                                  api_name=False,  # could be on API if key protected
+                                  api_name=False,
                                   )
-        s3up_event = s3up_btn.click(s3up, inputs=zip_text, outputs=s3up_text, **noqueue_kwargs,
-                                    api_name=False,  # could be on API if key protected
+
+        def s3up_check_key(zip_text, admin_pass_textbox1, h2ogpt_key1,
+                           enforce_h2ogpt_api_key=None,
+                           enforce_h2ogpt_ui_key=None,
+                           h2ogpt_api_keys=None, requests_state1=None):
+            valid_key = is_valid_key(enforce_h2ogpt_api_key,
+                                     enforce_h2ogpt_ui_key,
+                                     h2ogpt_api_keys,
+                                     h2ogpt_key1,
+                                     requests_state1=requests_state1,
+                                     )
+            from_ui = is_from_ui(requests_state1)
+            if not valid_key:
+                raise ValueError(invalid_key_msg)
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            return s3up(zip_text)
+
+        s3up_check_key_func = functools.partial(s3up_check_key, enforce_h2ogpt_api_key=kwargs['enforce_h2ogpt_api_key'],
+                                                enforce_h2ogpt_ui_key=kwargs['enforce_h2ogpt_ui_key'],
+                                                h2ogpt_api_keys=kwargs['h2ogpt_api_keys'],
+                                                )
+
+        s3up_event = s3up_btn.click(s3up_check_key_func, inputs=[zip_text, admin_pass_textbox, h2ogpt_key],
+                                    outputs=s3up_text,
+                                    **noqueue_kwargs,
+                                    api_name=False,
                                     )
 
         def clear_file_list():
@@ -4529,6 +4578,8 @@ def go_gradio(**kwargs):
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
+                        # update bots_old
+                        bots_old = bots.copy()
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
                         else:
@@ -5591,7 +5642,8 @@ def go_gradio(**kwargs):
                                         api_name='system_info' if kwargs['system_api_open'] else False,
                                         **noqueue_kwargs)
 
-        def shutdown_func(h2ogpt_pid):
+        def shutdown_func(admin_pass_textbox1, h2ogpt_pid):
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
             if kwargs['close_button']:
                 import psutil
                 parent = psutil.Process(h2ogpt_pid)
@@ -5604,6 +5656,7 @@ def go_gradio(**kwargs):
                                           not is_public and \
                                           kwargs['h2ogpt_pid'] is not None else False
         shutdown_event = close_btn.click(functools.partial(shutdown_func, h2ogpt_pid=kwargs['h2ogpt_pid']),
+                                         inputs=[admin_pass_textbox], outputs=None,
                                          api_name=api_name_shutdown,
                                          **noqueue_kwargs)
 
@@ -5651,9 +5704,10 @@ def go_gradio(**kwargs):
                 model_state3['actually_image'] = model_state3.get('is_actually_vision_model', False)
                 model_state3['video'] = is_video_model(base_model) or model_state3['image']
                 model_state3['actually_video'] = is_video_model(base_model)
-                json_vllm = model_state3.get('json_vllm', False)
-                model_state3['json'] = is_json_model(base_model, inference_server, json_vllm=json_vllm)
-            key_list.extend(['llm', 'rag', 'image', 'video', 'json'])
+                model_state3['json'] = model_state3.get('json', False)
+                model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
+
+            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json', 'auto_visible_vision_models'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,

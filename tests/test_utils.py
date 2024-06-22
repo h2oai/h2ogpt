@@ -762,11 +762,11 @@ def test_json_repair_more():
     ```
     This will display the JSON code block with proper formatting and highlighting.
     """
-    from json_repair import repair_json
-    from src.utils import get_json
+    # from json_repair import repair_json
+    from src.utils import get_json, repair_json_by_type
     import json
 
-    response = repair_json(response0)
+    response = repair_json_by_type(response0)
     assert json.loads(response)['employee_id'] == 1234
     print(response)
 

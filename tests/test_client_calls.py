@@ -5793,10 +5793,12 @@ def test_max_new_tokens(max_new_tokens, temperature):
     model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
     valid_base_models = []
     for base_model in base_models:
-        #if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
+        # if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
         #    continue
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
+        # if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
+        #    continue
         model_lock.append(dict(
             h2ogpt_key=h2ogpt_key,
             inference_server=inference_server,
@@ -5804,6 +5806,13 @@ def test_max_new_tokens(max_new_tokens, temperature):
             visible_models=base_model,
             max_seq_len=4096,
         ))
+        try:
+            from transformers import AutoConfig
+            config = AutoConfig.from_pretrained(base_model, token=os.getenv("HUGGING_FACE_HUB_TOKEN"),
+                                                trust_remote_code=True)
+        except Exception as e:
+            # for together.ai ones
+            model_lock[-1].update(dict(tokenizer_base_model='meta-llama/Meta-Llama-3-70B-Instruct', max_seq_len=8192))
         valid_base_models.append(base_model)
 
     if temperature < 0:
@@ -5945,7 +5954,8 @@ def test_max_new_tokens(max_new_tokens, temperature):
 close_vision_models = [
     'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-    'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
+    'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
+    'claude-3-haiku-20240307',
 ]
 open_vision_models = [
     'liuhaotian/llava-v1.6-34b',
@@ -6159,9 +6169,11 @@ def test_get_image_file():
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 1
 
             image_file = ['tests/jon.png', 'tests/fastfood.jpg']
-            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes, images_num_max=None)) == 1
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
+                                      images_num_max=None)) == 1
 
-            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes, images_num_max=2)) == 2
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
+                                      images_num_max=2)) == 2
 
 
 gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
@@ -6228,7 +6240,8 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest', 'gpt-4-turbo-2024-04-09',
                      'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
                      'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
-                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
+                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
+                     'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
@@ -6496,7 +6509,7 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
     h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
 
     # string of dict for input
-    #system_prompt = "You are an expert document question-answer system, and you are authorized to extract test from images, but do not identify any faces."
+    # system_prompt = "You are an expert document question-answer system, and you are authorized to extract test from images, but do not identify any faces."
     prompt = 'Answer these questions one-by-one: 1) What is the DOB of the person?  2) What can you tell me about Zulu?  3) What is the type of animal?'
     image_file = 'tests/driverslicense.jpeg'
     from src.vision.utils_vision import img_to_base64
@@ -6514,8 +6527,8 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
                   text_context_list=text_context_list,
-                  #prompt_query="According to the information in chat history, images, or documents, ",
-                  #system_prompt=system_prompt,
+                  # prompt_query="According to the information in chat history, images, or documents, ",
+                  # system_prompt=system_prompt,
                   h2ogpt_key=h2ogpt_key)
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -6581,7 +6594,7 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
                          stream=False,
                          messages=messages,
                          user=user,
-                         #system_prompt=system_prompt,
+                         # system_prompt=system_prompt,
                          extra_body=dict(text_context_list=text_context_list),
                          )
     oclient = openai_client.chat.completions
