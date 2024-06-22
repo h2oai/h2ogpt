@@ -4534,6 +4534,8 @@ def go_gradio(**kwargs):
                         audio1 = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                 expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                         audios = []  # reset accumulation
+                        # update bots_old
+                        bots_old = bots.copy()
                         if len(bots) > 1:
                             yield tuple(bots + [exceptions_str, audio1])
                         else:
@@ -5658,9 +5660,10 @@ def go_gradio(**kwargs):
                 model_state3['actually_image'] = model_state3.get('is_actually_vision_model', False)
                 model_state3['video'] = is_video_model(base_model) or model_state3['image']
                 model_state3['actually_video'] = is_video_model(base_model)
-                json_vllm = model_state3.get('json_vllm', False)
-                model_state3['json'] = is_json_model(base_model, inference_server, json_vllm=json_vllm)
-            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json'])
+                model_state3['json'] = model_state3.get('json', False)
+                model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
+
+            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json', 'auto_visible_vision_models'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,
