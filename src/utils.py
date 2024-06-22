@@ -2456,7 +2456,7 @@ def get_vllm_version(openai_client, inference_server, verbose=False):
             else:
                 if verbose:
                     print(f"Failed to retrieve version, status code: {response.status_code}")
-        except (requests.exceptions.Timeout, requests.exceptions.JSONDecodeError):
+        except (requests.exceptions.Timeout, requests.exceptions.JSONDecodeError, requests.exceptions.ConnectionError):
             # if times out, assume older version, with no JSON.  Or might not be real vllm
             vllm_version = '0.3.0'
             print(f"vLLM Server version timeout, assuming: {vllm_version}")

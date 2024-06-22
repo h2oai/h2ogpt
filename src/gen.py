@@ -2241,6 +2241,8 @@ def main(
                             image_batch_final_prompt=None,
                             image_batch_stream=None,
                             visible_vision_models=None,
+                            auto_visible_vision_models=None,
+                            json=None,
                             video_file=None,
                             display_name=None,
                             )
@@ -2429,6 +2431,9 @@ def main(
         model_state_trial.update(model_dict)
         model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
                                                       model_state_trial['inference_server'], verbose=verbose)
+        model_state_trial['json'] = is_json_model(model_state_trial['base_model'],
+                                                  model_state_trial['inference_server'],
+                                                  json_vllm=model_state_trial['json_vllm'])
         model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
         model_visible_vision_models = model_state_trial.get('visible_vision_models', visible_vision_models)
         if model_visible_vision_models is None:
@@ -2446,11 +2451,23 @@ def main(
         if model_state_trial['is_actually_vision_model']:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
                                                                           images_num_max or 1) or 1
-        elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(model_visible_vision_models) > 0:
+        elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(
+                model_visible_vision_models) > 0:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models[0],
                                                                           images_num_max or 1) or 1
         else:
             model_state_trial['images_num_max'] = 0
+
+        auto_visible_vision_models = None
+        if visible_vision_models:
+            # if in UI, 'auto' is default, but CLI has another default, so use that if set
+            auto_visible_vision_models = visible_vision_models
+        if model_state_trial['is_actually_vision_model']:
+            auto_visible_vision_models = model_state_trial['base_model']
+        model_state_trial['auto_visible_vision_models'] = auto_visible_vision_models
+        if isinstance(model_state_trial['auto_visible_vision_models'], list) and len(model_state_trial['auto_visible_vision_models']) >= 1:
+            model_state_trial['auto_visible_vision_models'] = model_state_trial['auto_visible_vision_models'][0]
+
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
         assert len(model_state_none) == len(model_state_trial), diff_keys
         if verbose:
@@ -3078,7 +3095,8 @@ def get_model(
         config_tokenizer, _, max_seq_len_tokenizer = get_config(tokenizer_base_model, **config_kwargs,
                                                                 raise_exception=False)
         if max_seq_len_tokenizer is not None:
-            print("Using max_seq_len=%s defined by config for tokenizer %s" % (max_seq_len_tokenizer, tokenizer_base_model))
+            print("Using max_seq_len=%s defined by config for tokenizer %s" % (
+            max_seq_len_tokenizer, tokenizer_base_model))
             max_seq_len = max_seq_len_tokenizer
         if config is None and max_seq_len is None:
             assert max_seq_len, "Must set max_seq_len if passing different tokenizer than model that cannot be found (config is None) e.g. because a private model"

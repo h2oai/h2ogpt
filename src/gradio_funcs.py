@@ -566,6 +566,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     else:
         model_batch_choice = None
         images_num_max_batch = images_num_max
+    batch_display_name = model_batch_choice.get('display_name') if model_batch_choice is not None else display_name
 
     do_batching &= images_num_max_batch not in [0, None]  # not 0 or None, maybe some unknown model, don't do batching
 
@@ -693,7 +694,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             save_dict1 = response_list[6]
             if 'extra_dict' in save_dict1:
                 if 'num_prompt_tokens' in save_dict1['extra_dict']:
-                    save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
+                    save_dict1['extra_dict']['batch_vision_visible_model'] = batch_display_name
+                    save_dict1['extra_dict']['batch_num_prompt_tokens'] = batch_tokens
+                    if batch_display_name == display_name:
+                        save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
                     save_dict1['extra_dict']['batch_responses'] = responses
                     response_list[6] = save_dict1
             yield tuple(response_list)
