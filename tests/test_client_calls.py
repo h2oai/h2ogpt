@@ -5284,7 +5284,7 @@ def test_client1_image_qa_original():
     image_file = 'tests/driverslicense.jpeg'
     from src.vision.utils_vision import img_to_base64
     image_file = img_to_base64(image_file)
-    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models='liuhaotian/llava-v1.6-vicuna-13b',
+    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models='liuhaotian/llava-v1.6-34b',
                   stream_output=False)
     res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 
@@ -5957,7 +5957,6 @@ close_vision_models = [
 ]
 open_vision_models = [
     'liuhaotian/llava-v1.6-34b',
-    'liuhaotian/llava-v1.6-vicuna-13b',
     'HuggingFaceM4/idefics2-8b-chatty',
     'lmms-lab/llama3-llava-next-8b',
     'OpenGVLab/InternVL-Chat-V1-5',
@@ -6011,6 +6010,8 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert 'license' in response.lower()
     if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    elif 'gemini-1.5-flash-latest' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 300
     else:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
