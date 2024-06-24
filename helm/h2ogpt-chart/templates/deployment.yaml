@@ -281,6 +281,8 @@ spec:
           {{- if .Values.h2ogpt.externalLLM.enabled }}
           - name: H2OGPT_MODEL_LOCK
             value: {{ toJson .Values.h2ogpt.externalLLM.modelLock | quote }}
+          - name: H2OGPT_VISIBLE_VISION_MODELS
+            value: {{ toJson .Values.h2ogpt.externalLLM.visibleImageModels | quote }}
           - name: H2OGPT_SCORE_MODEL
             value: None
           {{- end }}
