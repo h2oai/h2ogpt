@@ -256,6 +256,8 @@ gemini15image_num_max = 30
 # https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
 # 5MB per image
 claude3image_num_max = 20
+# much worse image handling for many images.  Even 3 images gets confused.
+claude3_haiku_image_num_max = 2
 # https://platform.openai.com/docs/guides/vision
 # 20MB per image request (they say per image but that's wrong)
 # gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 10.', 'param': None, 'type': None}}
@@ -278,7 +280,7 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'claude-3-opus-20240229': claude3image_num_max,
                        'claude-3-sonnet-20240229': claude3image_num_max,
                        'claude-3-5-sonnet-20240620': claude3image_num_max,
-                       'claude-3-haiku-20240307': claude3image_num_max,
+                       'claude-3-haiku-20240307': claude3_haiku_image_num_max,
                        'liuhaotian/llava-v1.6-34b': llava_num_max,
                        'liuhaotian/llava-v1.6-vicuna-13b': llava_num_max,
                        'HuggingFaceM4/idefics2-8b-chatty': 10,
