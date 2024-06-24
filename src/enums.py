@@ -698,7 +698,7 @@ json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JS
 json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
 json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to use the same key names as the schema:\n```json\n{properties_schema}\n```'
 
-pre_batch_prompt0 = "You have perfect vision and pay great attention to detail which makes you an expert image processing and recognition. Before providing the answer in <answer> tags, think step by step in <thinking> tags and analyze every part of the images."
+pre_batch_prompt0 = "You have perfect vision and pay great attention to detail, which makes you an expert image processing and recognition who analyzes every part of images."
 image_batch_image_prompt0 = f'{pre_batch_prompt0}  According to the text or any of the images, '
 image_batch_final_prompt0 = f'{pre_batch_prompt0}  According to the text or answers from the images (ignoring image answers that had no answer, but giving details from images that did have an answer), give a well-structured response to: '
 
