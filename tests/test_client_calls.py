@@ -6044,8 +6044,12 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
 
         if 'localhost:7860' in client.api_url:
             base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+        elif 'localhost:7863' in client.api_url:
+            base_url = client.api_url.replace('localhost:7863/api/predict/', 'localhost:5000/v1')
         elif '192.168.1.172:7860' in client.api_url:
             base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+        elif '192.168.1.172:7863' in client.api_url:
+            base_url = client.api_url.replace('192.168.1.172:7863/api/predict/', '192.168.1.172:5000/v1')
         else:
             base_url = client.api_url.replace('/api/predict', ':5000/v1')
 
@@ -6263,6 +6267,7 @@ vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
 def get_test_server_client(base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     # inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7863'
 
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))

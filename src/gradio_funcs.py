@@ -127,6 +127,10 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         else:
             # if no user version or default version, then just take first
             user_kwargs['visible_models'] = [0]
+    if 'visible_vision_models' not in user_kwargs or user_kwargs['visible_vision_models'] is None:
+        # don't assume None, which will trigger default_kwargs
+        # the None case is never really directly useful
+        user_kwargs['visible_vision_models'] = 'auto'
 
     if 'h2ogpt_key' not in user_kwargs:
         user_kwargs['h2ogpt_key'] = None
