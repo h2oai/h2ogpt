@@ -613,8 +613,11 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         for batch in range(0, len(image_files), images_num_max_batch):
             fun1_args_list2 = fun1_args_list_copy.copy()
             # then handle images in batches
-            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = image_files[
-                                                                                                batch:batch + images_num_max_batch]
+            images_batch = image_files[batch:batch + images_num_max_batch]
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')] = images_batch
+            # disable batching if gradio to gradio, back to auto based upon batch size we sent
+            # Can't pass None, default_kwargs will override, so pass actual value instead
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('images_num_max')] = len(images_batch)
             batch_size = len(fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')])
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch

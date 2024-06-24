@@ -5201,7 +5201,7 @@ def evaluate(
 
                     chat_client = chat
                     where_from = "gr_client"
-                    client_langchain_mode = 'Disabled'
+                    client_langchain_mode = LangChainMode.LLM.value
                     client_add_chat_history_to_context = add_chat_history_to_context
                     client_add_search_to_context = False
                     client_langchain_action = LangChainAction.QUERY.value
@@ -5326,7 +5326,7 @@ def evaluate(
 
                                          image_file=img_file,
                                          image_control=None,  # already stuffed into image_file
-                                         images_num_max=None,  # already set number
+                                         images_num_max=images_num_max,
                                          image_resolution=None,  # already changed
                                          image_format=None,  # already changed
                                          rotate_align_resize_image=None,  # already changed

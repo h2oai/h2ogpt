@@ -1002,7 +1002,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
         # don't double-up langchain behavior, already did langchain part
-        client_langchain_mode = 'Disabled'
+        client_langchain_mode = LangChainMode.LLM.value
         client_add_chat_history_to_context = self.add_chat_history_to_context
         # already did search part
         client_add_search_to_context = False
@@ -3600,7 +3600,7 @@ def get_llm(use_openai_model=False,
 
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
-                images_num_max=None,  # already set
+                images_num_max=images_num_max,
                 image_resolution=None,  # already changed
                 image_format=None,  # already changed
                 rotate_align_resize_image=None,  # already changed
