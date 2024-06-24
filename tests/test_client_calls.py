@@ -6011,6 +6011,8 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert 'license' in response.lower()
     if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    elif 'gemini-1.5-flash-latest' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 400
     else:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
