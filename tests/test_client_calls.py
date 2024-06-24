@@ -5270,8 +5270,6 @@ def test_client1_image_qa_original():
     llava_model = os.getenv('H2OGPT_LLAVA_MODEL')
     main(
         model_lock=[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf', 'prompt_type': 'zephyr'},
-                    {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': llava_model,
-                     'prompt_type': noop_prompt_type},
                     {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': llava_model,
                      'prompt_type': noop_prompt_type}],
         llava_model=llava_model,
