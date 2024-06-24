@@ -627,6 +627,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             fun1_args_list2[
                 len(input_args_list) + eval_func_param_names.index('document_subset')] = []
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
+            # don't cause batching inside
+            fun1_args_list2[
+                len(input_args_list) + eval_func_param_names.index('visible_vision_models')] = visible_vision_models
             if model_batch_choice:
                 # override for batch model
                 fun1_args_list2[0] = model_batch_choice
