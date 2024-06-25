@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full, noop_prompt_type, git_hash_unset, images_num_max_dict
+    db_types_full, noop_prompt_type, git_hash_unset
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4, get_hf_server
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big

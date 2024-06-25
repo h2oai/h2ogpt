@@ -540,7 +540,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if images_num_max is None:
         # in case not coming from api or UI
         images_num_max = images_num_max if images_num_max is not None else chosen_model_state['images_num_max']
-        images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 0)
+        if chosen_model_state['is_actually_vision_model']:
+            images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 1)
+        else:
+            images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 0)
     if images_num_max is None:
         images_num_max = 0
 
@@ -566,7 +569,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         images_num_max_batch = images_num_max_batch if images_num_max_batch is not None else model_batch_choice.get('images_num_max', images_num_max_batch)
         if images_num_max_batch is None:
             # in case not coming from api
-            images_num_max_batch = images_num_max_dict.get(visible_vision_models, 0)
+            if model_batch_choice.get['is_actually_vision_model']:
+                images_num_max_batch = images_num_max_dict.get(visible_vision_models, 1)
+            else:
+                images_num_max_batch = images_num_max_dict.get(visible_vision_models, 0)
     else:
         model_batch_choice = None
         images_num_max_batch = images_num_max
