@@ -5961,6 +5961,7 @@ open_vision_models = [
     'lmms-lab/llama3-llava-next-8b',
     'OpenGVLab/InternVL-Chat-V1-5',
     'THUDM/cogvlm2-llama3-chat-19B',
+    'microsoft/Phi-3-vision-128k-instruct',
 ]
 
 vision_models = close_vision_models + open_vision_models
@@ -6254,6 +6255,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'lmms-lab/llama3-llava-next-8b',
                      'OpenGVLab/InternVL-Chat-V1-5',
                      'THUDM/cogvlm2-llama3-chat-19B',
+                     'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
 vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',

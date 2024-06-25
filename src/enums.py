@@ -287,7 +287,7 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'lmms-lab/llama3-llava-next-8b': 2,
                        'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
                        'THUDM/cogvlm2-llama3-chat-19B': 2,
-                       'microsoft/Phi-3-vision-128k-instruct': 2,
+                       'microsoft/Phi-3-vision-128k-instruct': 1, # : "Multiple 'image_url' input is currently not supported."
                        }
 
 # https://ai.google.dev/models/gemini
