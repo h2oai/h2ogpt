@@ -194,6 +194,7 @@ def run_docker(inf_port, base_model, low_mem_mode=False, do_shared=True):
     msg = "Starting HF inference %s..." % datetime_str
     print(msg, flush=True)
     home_dir = os.path.expanduser('~')
+    os.system('docker pulll ghcr.io/huggingface/text-generation-inference:latest')
     makedirs(os.path.join(home_dir, '.cache/huggingface/hub'))
     data_dir = '%s/.cache/huggingface/hub/' % home_dir
     n_gpus = get_ngpus_vis()

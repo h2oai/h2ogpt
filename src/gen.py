@@ -2228,7 +2228,6 @@ def main(
                             base_model=None, base_model0=None, tokenizer_base_model=None, lora_weights=None,
                             inference_server=None, prompt_type=None, prompt_dict=None,
                             visible_models=None, h2ogpt_key=None,
-                            trust_remote_code=None,
                             json_vllm=None,
                             is_vision_model=None,
                             is_actually_vision_model=None,
@@ -2303,11 +2302,12 @@ def main(
 
     # get default model(s)
     model_states = []
-    model_state_base0 = dict(base_model=base_model, base_model0=base_model0,
+    model_state_base0 = {}
+    model_state_base0.update(model_state_none)
+    model_state_base0.update(dict(base_model=base_model, base_model0=base_model0,
                              tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                              inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
-                             display_name=base_model,
-                             visible_models=None, h2ogpt_key=None)
+                             display_name=base_model))
     model_state_base0.update(other_model_state_defaults)
     # for allowing rest of eval_func_param_names.  We don't want to force CLI values always by default
     for k in eval_func_param_names:
@@ -2427,14 +2427,16 @@ def main(
             if model_lock and isinstance(model_lock, list):
                 model_lock.remove(model_dict)
             continue
-        model_state_trial = dict(model=model0, tokenizer=tokenizer0, device=device)
+        model_state_trial = {}
         model_state_trial.update(model_dict)
+        model_state_trial.update(dict(model=model0, tokenizer=tokenizer0, device=device))
         model_state_trial['json_vllm'] = is_json_vllm(model_state_trial, model_state_trial['base_model'],
                                                       model_state_trial['inference_server'], verbose=verbose)
         model_state_trial['json'] = is_json_model(model_state_trial['base_model'],
                                                   model_state_trial['inference_server'],
                                                   json_vllm=model_state_trial['json_vllm'])
-        model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
+        if model_state_trial['is_actually_vision_model'] is None:
+            model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
         model_visible_vision_models = model_state_trial.get('visible_vision_models', visible_vision_models)
         if model_visible_vision_models is None:
             # '' would mean use no vision model, so don't use CLI in that case
@@ -2445,9 +2447,10 @@ def main(
             all_visible_models = [x.get('visible_models') or x.get('base_model') for x in model_lock]
         else:
             all_visible_models = [base_model]
-        model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
-                                                               all_visible_models=all_visible_models,
-                                                               visible_vision_models=model_visible_vision_models)
+        if model_state_trial['is_vision_model'] is None:
+            model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
+                                                                   all_visible_models=all_visible_models,
+                                                                   visible_vision_models=model_visible_vision_models)
         if model_state_trial['is_actually_vision_model']:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
                                                                           images_num_max or 1) or 1
@@ -2465,7 +2468,8 @@ def main(
         if model_state_trial['is_actually_vision_model']:
             auto_visible_vision_models = model_state_trial['base_model']
         model_state_trial['auto_visible_vision_models'] = auto_visible_vision_models
-        if isinstance(model_state_trial['auto_visible_vision_models'], list) and len(model_state_trial['auto_visible_vision_models']) >= 1:
+        if isinstance(model_state_trial['auto_visible_vision_models'], list) and len(
+                model_state_trial['auto_visible_vision_models']) >= 1:
             model_state_trial['auto_visible_vision_models'] = model_state_trial['auto_visible_vision_models'][0]
 
         diff_keys = set(list(model_state_none.keys())).symmetric_difference(model_state_trial.keys())
@@ -2496,7 +2500,9 @@ def main(
                              xi in visible_models]
 
     # get list of visible vision models
-    all_possible_vision_display_names = [x for x in all_possible_display_names if is_vision_model(x)]
+    is_vision_models = [x.get('display_name') for x in model_states if x.get('is_vision_model')]
+    all_possible_vision_display_names = [x for x in all_possible_display_names if
+                                         is_vision_model(x) or x in is_vision_models]
     vision_display_names = deduplicate_names([x for x in all_possible_vision_display_names])
     all_possible_vision_display_names = vision_display_names
     visible_vision_models_state0 = [x for xi, x in enumerate(all_possible_vision_display_names) if
@@ -3096,7 +3102,7 @@ def get_model(
                                                                 raise_exception=False)
         if max_seq_len_tokenizer is not None:
             print("Using max_seq_len=%s defined by config for tokenizer %s" % (
-            max_seq_len_tokenizer, tokenizer_base_model))
+                max_seq_len_tokenizer, tokenizer_base_model))
             max_seq_len = max_seq_len_tokenizer
         if config is None and max_seq_len is None:
             assert max_seq_len, "Must set max_seq_len if passing different tokenizer than model that cannot be found (config is None) e.g. because a private model"
@@ -4336,6 +4342,8 @@ def evaluate(
     lora_weights = chosen_model_state['lora_weights']
     inference_server = chosen_model_state['inference_server']
     visible_models = chosen_model_state['visible_models']
+    is_vision_model1 = chosen_model_state['is_vision_model']
+    is_actually_vision_model1 = chosen_model_state['is_actually_vision_model']
     # use overall key if have, so key for this gradio and any inner gradio
     if chosen_model_state['h2ogpt_key'] is not None:
         h2ogpt_key = chosen_model_state['h2ogpt_key']
@@ -4854,6 +4862,9 @@ def evaluate(
 
                 from_ui=from_ui,
                 stream_map=stream_map,
+
+                is_vision_model1=is_vision_model1,
+                is_actually_vision_model1=is_actually_vision_model1,
         ):
             # doesn't accumulate, new answer every yield, so only save that full answer
             response = r['response']

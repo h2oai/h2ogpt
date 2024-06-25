@@ -81,7 +81,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
-    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag
+    is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -2883,6 +2883,10 @@ def get_llm(use_openai_model=False,
             query_action=True,
             summarize_action=False,
             stream_map=False,
+
+            is_vision_model1=False,
+            is_actually_vision_model1=False,
+
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -3011,7 +3015,7 @@ def get_llm(use_openai_model=False,
                             frequency_penalty=0,
                             presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                             )
-        if not is_vision_model(model_name):
+        if not is_actually_vision_model1:
             model_kwargs.update(dict(logit_bias=None if inf_type == 'vllm' else {}))
         # if inference_server.startswith('vllm'):
         #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
@@ -3118,7 +3122,7 @@ def get_llm(use_openai_model=False,
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
-        if is_vision_model(model_name):
+        if is_actually_vision_model1:
             img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
                                       images_num_max=images_num_max, image_resolution=image_resolution,
                                       image_format=image_format, convert=True, str_bytes=False)
@@ -3168,7 +3172,7 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OChatAnthropic3Sys
 
-            if is_vision_model(model_name):
+            if is_actually_vision_model1:
                 img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
                                           images_num_max=images_num_max, image_resolution=image_resolution,
                                           image_format=image_format, convert=True, str_bytes=False)
@@ -3228,7 +3232,7 @@ def get_llm(use_openai_model=False,
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        if is_vision_model(model_name):
+        if is_actually_vision_model1:
             img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
                                       images_num_max=images_num_max, image_resolution=image_resolution,
                                       image_format=image_format, convert=True, str_bytes=False)
@@ -3245,11 +3249,11 @@ def get_llm(use_openai_model=False,
         from google.generativeai.types import HarmCategory
         from google.generativeai.types import HarmBlockThreshold
         safety_settings = {
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            }
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        }
 
         callbacks = [streaming_callback]
         llm = cls(model=model_name,
@@ -3402,7 +3406,7 @@ def get_llm(use_openai_model=False,
         num_async = min(2, num_async)  # can't handle as much
         async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
 
-        if is_vision_model(model_name):
+        if is_actually_vision_model1:
             # https://github.com/sgl-project/sglang/issues/212#issuecomment-1973432493
             convert = True
             str_bytes = False
@@ -3489,7 +3493,9 @@ def get_llm(use_openai_model=False,
                                                                                   gr_client.endpoints]
         gradio_llava = is_gradio_vision_model(model_name) and llava_direct_gradio
 
-        if is_vision_model(model_name):
+        is_actually_vision_model2 = is_actually_vision_model1 if (hf_client or gradio_llava) else is_vision_model1
+
+        if is_actually_vision_model2:
             # HF client uses markdown image url with bytes inside (or real url inside)
             if hf_client:
                 convert = True
@@ -3745,7 +3751,7 @@ def get_llm(use_openai_model=False,
                       user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                       )
     else:
-        if is_vision_model(model_name):
+        if is_actually_vision_model1:
             convert = True
             str_bytes = False
             img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
@@ -6543,6 +6549,9 @@ def run_qa_db(**kwargs):
     kwargs['from_ui'] = kwargs.get('from_ui', True)
     kwargs['stream_map'] = kwargs.get('stream_map', False)
 
+    kwargs['is_vision_model1'] = kwargs.get('is_vision_model1', False)
+    kwargs['is_actually_vision_model1'] = kwargs.get('is_actually_vision_model1', False)
+
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
     # only keep actual used
@@ -6725,6 +6734,9 @@ def _run_qa_db(query=None,
 
                from_ui=True,
                stream_map=False,
+
+               is_vision_model1=False,
+               is_actually_vision_model1=False,
                ):
     """
 
@@ -6947,6 +6959,9 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       query_action=query_action,
                       summarize_action=summarize_action,
                       stream_map=stream_map,
+
+                      is_vision_model1=is_vision_model1,
+                      is_actually_vision_model1=is_actually_vision_model1,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)

@@ -12,7 +12,7 @@ from tests.utils import wrap_test_forked, make_user_path_test, get_llama, get_in
     count_tokens_llm, kill_weaviate
 from src.client_test import get_client, get_args, run_client_gen
 from src.enums import LangChainAction, LangChainMode, no_model_str, no_lora_str, no_server_str, DocumentChoice, \
-    db_types_full, noop_prompt_type, git_hash_unset, images_num_max_dict
+    db_types_full, noop_prompt_type, git_hash_unset
 from src.utils import get_githash, remove, download_simple, hash_file, makedirs, lg_to_gr, FakeTokenizer, \
     is_gradio_version4, get_hf_server
 from src.prompter import model_names_curated, openai_gpts, model_names_curated_big
@@ -6248,7 +6248,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
-                     'liuhaotian/llava-v1.6-vicuna-13b',
+                     #'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b',
                      'HuggingFaceM4/idefics2-8b-chatty',
                      'lmms-lab/llama3-llava-next-8b',
