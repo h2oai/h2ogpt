@@ -1012,6 +1012,8 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
     image_resolution = args_list[eval_func_param_names.index('image_resolution')]
     image_format = args_list[eval_func_param_names.index('image_format')]
     video_frame_period = args_list[eval_func_param_names.index('video_frame_period')]
+    if video_frame_period is not None:
+        video_frame_period = int(video_frame_period)
     extract_frames = args_list[eval_func_param_names.index('extract_frames')] or kwargs.get('extract_frames', 20)
     rotate_align_resize_image = args_list[eval_func_param_names.index('rotate_align_resize_image')] or kwargs.get(
         'rotate_align_resize_image', True)

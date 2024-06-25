@@ -4355,6 +4355,9 @@ def evaluate(
         prompt_dict = chosen_model_state['prompt_dict']
     # prefer use input from API over model state (see prep_bot())
     images_num_max = images_num_max or chosen_model_state['images_num_max']
+    if images_num_max is not None:
+        # gradio 3 gr.Number issue
+        images_num_max = int(images_num_max)
     if isinstance(image_resolution, str) and image_resolution.strip():
         # from gradio was string of tuple
         image_resolution = ast.literal_eval(image_resolution.strip())
