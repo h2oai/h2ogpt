@@ -5,3 +5,4 @@ diffusers>=0.29.0
 yt-dlp>=2024.5.27
 # if want to use gif_to_mp4()
 # moviepy>=0.5.1
+anyio>=4.4.0 # not directly required, pinned by Snyk to avoid a vulnerability
