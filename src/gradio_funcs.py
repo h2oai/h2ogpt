@@ -26,9 +26,10 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                     requests_state1=None,
                     roles_state1=None,
                     model_states=[],
-                    is_public=False,
-                    verbose=False,
                     **kwargs1):
+    is_public = kwargs1.get('is_public', False)
+    verbose = kwargs1.get('verbose', False)
+
     if my_db_state1 is None:
         if 'my_db_state0' in kwargs1 and kwargs1['my_db_state0'] is not None:
             my_db_state1 = kwargs1['my_db_state0']
