@@ -6,6 +6,7 @@ import queue
 import sys
 import os
 import json
+import threading
 import time
 import traceback
 import typing
@@ -5136,7 +5137,8 @@ def evaluate(
             inference_server, _, _, _ = get_hf_server(inference_server)
             from text_generation import Client as HFClient
             if isinstance(model, GradioClient) and not regenerate_gradio_clients:
-                gr_client = model.clone()
+                with threading.Lock():
+                    gr_client = model.clone()
                 hf_client = None
             elif isinstance(model, Client) and not regenerate_gradio_clients:
                 gr_client = model

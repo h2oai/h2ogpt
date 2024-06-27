@@ -1143,7 +1143,8 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         client_kwargs.update(dict(max_new_tokens=max_new_tokens))
 
         # new client for each call
-        client = self.client.clone()
+        with threading.Lock():
+            client = self.client.clone()
         from gradio_utils.grclient import check_job
 
         res_dict = {}
@@ -1266,7 +1267,8 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 run_manager.on_llm_new_token, verbose=self.verbose
             )
         # new client for each acall
-        client = self.client.clone()
+        with threading.Lock():
+            client = self.client.clone()
         from gradio_utils.grclient import check_job
 
         res_dict = {}
@@ -3466,7 +3468,8 @@ def get_llm(use_openai_model=False,
             hf_client = None
         elif isinstance(model, GradioClient):
             gradio_server = True
-            gr_client = model.clone()
+            with threading.Lock():
+                gr_client = model.clone()
             hf_client = None
         elif not regenerate_gradio_clients:
             gr_client = None

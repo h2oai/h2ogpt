@@ -3,6 +3,7 @@ import base64
 import io
 import os
 import platform
+import threading
 import time
 import uuid
 from collections import deque
@@ -109,7 +110,8 @@ def get_client(user=None):
         # assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
     elif hasattr(gradio_client, 'clone'):
-        client = gradio_client.clone()
+        with threading.Lock():
+            client = gradio_client.clone()
         if client.get_server_hash() != gradio_client.server_hash:
             os.makedirs('locks', exist_ok=True)
             with filelock.FileLock(os.path.join('locks', 'openai_gradio_client.lock')):
