@@ -15,7 +15,7 @@ from datetime import timedelta
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Callable, Generator, Any, Union, List, Dict, Optional, Literal
+from typing import Callable, Generator, Any, Union, List, Dict, Literal
 import ast
 import inspect
 import numpy as np
@@ -43,6 +43,8 @@ class ReturnType(BaseModel):
     output_tokens: int = 0
     tokens_per_second: float = 0.0
     time_to_first_token: float = 0.0
+    vision_visible_model: str | None = None
+    batch_num_prompt_tokens: int | None = None
 
 
 try:
@@ -448,19 +450,20 @@ class GradioClient(Client):
         self.server_hash = self.get_server_hash()
 
     def clone(self):
-        if self.config is None:
-            self.setup()
-        client = GradioClient("")
-        for k, v in self.__dict__.items():
-            setattr(client, k, v)
-        client.reset_session()
+        with threading.Lock():
+            if self.config is None:
+                self.setup()
+            client = GradioClient("")
+            for k, v in self.__dict__.items():
+                setattr(client, k, v)
+            client.reset_session()
 
-        self.get_endpoints(client)
+            self.get_endpoints(client)
 
-        # transfer internals in case used
-        client.server_hash = self.server_hash
-        client.chat_conversation = self.chat_conversation
-        return client
+            # transfer internals in case used
+            client.server_hash = self.server_hash
+            client.chat_conversation = self.chat_conversation
+            return client
 
     def submit(
         self,
@@ -1021,7 +1024,9 @@ class GradioClient(Client):
         )
 
         chat_conversation = (
-            chat_conversation if chat_conversation else self.chat_conversation.copy()
+            chat_conversation
+            if chat_conversation or not self.persist
+            else self.chat_conversation.copy()
         )
 
         locals_for_client = locals().copy()
@@ -1032,7 +1037,8 @@ class GradioClient(Client):
         self.server_hash = client.server_hash
 
         # ensure can fill conversation
-        self.chat_conversation.append((instruction, None))
+        if self.persist:
+            self.chat_conversation.append((instruction, None))
 
         # get result
         actual_llm = None
@@ -1041,6 +1047,8 @@ class GradioClient(Client):
         trials = 3
         t0 = time.time()
         time_to_first_token = None
+        vision_visible_model = None
+        batch_num_prompt_tokens = None
         t_taken_s = None
         for trial in range(trials):
             t0 = time.time()
@@ -1085,6 +1093,12 @@ class GradioClient(Client):
                         tokens_per_second = np.round(
                             extra_dict["tokens_persecond"], decimals=3
                         )
+                        vision_visible_model = extra_dict.get(
+                            "batch_vision_visible_model"
+                        )
+                        batch_num_prompt_tokens = extra_dict.get(
+                            "batch_num_prompt_tokens"
+                        )
                     except:
                         if os.getenv("HARD_ASSERTS"):
                             raise
@@ -1106,9 +1120,11 @@ class GradioClient(Client):
                         output_tokens=output_tokens,
                         tokens_per_second=tokens_per_second,
                         time_to_first_token=time_to_first_token,
+                        vision_visible_model=vision_visible_model,
+                        batch_num_prompt_tokens=batch_num_prompt_tokens,
                     )
-
-                    self.chat_conversation[-1] = (instruction, response)
+                    if self.persist:
+                        self.chat_conversation[-1] = (instruction, response)
                 else:
                     job = client.submit(str(dict(client_kwargs)), api_name=api_name)
                     text0 = ""
@@ -1183,14 +1199,22 @@ class GradioClient(Client):
                             raise TimeoutError(
                                 f"No output from LLM {actual_llm} after {t_taken} seconds."
                             )
-                        if 'error' in save_dict and not prompt_raw:
+                        if "error" in save_dict and not prompt_raw:
                             raise RuntimeError(f"Error from LLM: {save_dict['error']}")
-                        assert prompt_raw or extra_dict, "LLM response failed to return final metadata."
+                        assert (
+                            prompt_raw or extra_dict
+                        ), "LLM response failed to return final metadata."
 
                         try:
                             extra_dict = res_dict["save_dict"]["extra_dict"]
                             input_tokens = extra_dict["num_prompt_tokens"]
                             output_tokens = extra_dict["ntokens"]
+                            vision_visible_model = extra_dict.get(
+                                "batch_vision_visible_model"
+                            )
+                            batch_num_prompt_tokens = extra_dict.get(
+                                "batch_num_prompt_tokens"
+                            )
                             tokens_per_second = np.round(
                                 extra_dict["tokens_persecond"], decimals=3
                             )
@@ -1227,12 +1251,14 @@ class GradioClient(Client):
                             output_tokens=output_tokens,
                             tokens_per_second=tokens_per_second,
                             time_to_first_token=time_to_first_token,
+                            vision_visible_model=vision_visible_model,
+                            batch_num_prompt_tokens=batch_num_prompt_tokens,
                         )
-
-                        self.chat_conversation[-1] = (
-                            instruction,
-                            text_chunk,
-                        )
+                        if self.persist:
+                            self.chat_conversation[-1] = (
+                                instruction,
+                                text_chunk,
+                            )
                     else:
                         assert not success
                         check_job(job, timeout=2.0 * timeout, raise_exception=True)

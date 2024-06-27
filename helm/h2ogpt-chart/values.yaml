@@ -44,6 +44,13 @@ h2ogpt:
 
     replicate: 
       enabled: false
+  
+  visionModels:
+    enabled: false
+    # -- Visible vision models, the vision model itslef needs to be set via modeLock or base_model
+    # -- Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5']
+    visibleModels: []
+    rotateAlignResizeImage: false
 
 # -- Example configs to use when not using Model Lock and External LLM
   # overrideConfig:
