@@ -218,8 +218,28 @@ although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
 ### Running oLLaMa vs. h2oGPT as inference server
 
 * Run oLLaMa as server for h2oGPT frontend.
- 
-  E.g. for some GGUF file (e.g. `llama-2-7b-chat.Q6_K.gguf`) in llamacpp_path follow https://github.com/ollama/ollama?tab=readme-ov-file#import-from-gguf:
+
+    Shutdown ollama and re-run on whichever GPUs wanted:
+    ```bash
+    sudo systemctl stop ollama.service
+    CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11434 ollama serve &> ollama.log &
+    ollama run mistral:v0.3
+    ```
+    or see for [selecting GPUs](https://github.com/ollama/ollama/issues/1813#issuecomment-2101598931).
+
+    Then run:
+    ```bash
+    python generate.py --base_model=mistral:v0.3 --inference_server=vllm_chat:http://localhost:11434/v1/ --prompt_type=openai_chat --max_seq_len=8094
+    ```
+    where `--max_seq_len=8094` can be chosen up to 32k for mistral.  Ignore any errors related to the name when h2oGPT attempts to try getting data from HF.
+
+    For more accurate tokenization specify the tokenizer and hf token (because mistralai is gated on HF):
+    ```bash
+    python generate.py --base_model=mistral:v0.3 --tokenizer_base_model=mistralai/Mistral-7B-Instruct-v0.3 --max_seq_len=8094 --inference_server=vllm_chat:http://localhost:11434/v1/ --prompt_type=openai_chat --use_auth_token=<token>
+    ```
+    for some HF token `<token>`.
+
+*   For some specific GGUF file (e.g. `llama-2-7b-chat.Q6_K.gguf`) in llamacpp_path follow https://github.com/ollama/ollama?tab=readme-ov-file#import-from-gguf:
   
     Create `Modelfile` file:
     ```text
@@ -236,7 +256,9 @@ although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
     ```
     This gives around 55 tokens/sec on 3090Ti on i9.
 
-    The [problem](https://github.com/ollama/ollama/issues/2963) is that oLLaMa does not allow for a runtime change to system prompt or other parameters like temperature.
+  The [problem](https://github.com/ollama/ollama/issues/2963) is that oLLaMa does not allow for a runtime change to system prompt or other parameters like temperature.
+
+  If ollama seems slow, check ollama.log if hit `cudaMalloc failed: out of memory` and check if GPU is being used by another process.
 
 * Run h2oGPT as both server and frontend:
   
