@@ -4499,7 +4499,7 @@ def evaluate(
         guided_grammar = None
 
     # don't repeat prompting if doing gradio server since inner prompting will handle
-    json_vllm = False
+    json_vllm = chosen_model_state['json_vllm']  # for guided_choice etc. needs to be outside below conditional block
     json_schema_type = None
     if not h2ogpt_gradio_server and \
             response_format in ['json_object', 'json_code']:
@@ -4541,7 +4541,6 @@ def evaluate(
             json_schema_type = 'number'
 
         schema_instruction = json_schema_instruction.format(properties_schema=guided_json_properties_json)
-        json_vllm = chosen_model_state['json_vllm']
 
         pre_instruction = ''
         if guided_json and response_format == 'json_object' and (json_vllm or
