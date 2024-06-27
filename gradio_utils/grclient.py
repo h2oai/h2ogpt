@@ -942,8 +942,7 @@ class GradioClient(Client):
         if self.persist:
             client = self
         else:
-            with threading.Lock():
-                client = self.clone()
+            client = self.clone()
         h2ogpt_key = h2ogpt_key or self.h2ogpt_key
         client.h2ogpt_key = h2ogpt_key
 
