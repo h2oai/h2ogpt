@@ -1111,10 +1111,8 @@ def go_gradio(**kwargs):
 
             col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
-                if kwargs['chat_tabless']:
-                    chat_tab = gr.Row(visible=True)
-                else:
-                    chat_tab = gr.TabItem("Chat", visible=kwargs['visible_chat_tab'])
+                chat_tab = gr.Row(visible=True) if kwargs['chat_tabless'] else gr.TabItem("Chat", visible=kwargs[
+                    'visible_chat_tab'])
                 with chat_tab:
                     if kwargs['langchain_mode'] == 'Disabled':
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True,
@@ -1205,7 +1203,8 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
                                                              visible=False and not kwargs['model_lock'])
 
-                doc_selection_tab = gr.TabItem("Document Selection", visible=kwargs['visible_doc_selection_tab'])
+                doc_selection_tab = gr.TabItem("Document Selection", visible=kwargs['visible_doc_selection_tab']) if \
+                    kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
                 with doc_selection_tab:
                     if kwargs['langchain_mode'] in langchain_modes_non_db:
                         if langchain_mode == LangChainMode.DISABLED.value:
@@ -1346,7 +1345,8 @@ def go_gradio(**kwargs):
                                interactive=False,
                                visible=kwargs['langchain_mode'] != 'Disabled')
 
-                doc_view_tab = gr.TabItem("Document Viewer", visible=kwargs['visible_doc_view_tab'])
+                doc_view_tab = gr.TabItem("Document Viewer", visible=kwargs['visible_doc_view_tab']) if kwargs[
+                    'visible_doc_view_tab'] else gr.Row(visible=False)
                 with doc_view_tab:
                     with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled'):
                         with gr.Column(scale=2):
@@ -1383,7 +1383,8 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                image_tab = gr.TabItem("Image Control", visible=image_tab_visible)
+                image_tab = gr.TabItem("Image Control", visible=image_tab_visible) if image_tab_visible else gr.Row(
+                    visible=False)
                 with image_tab:
                     if image_tab_visible:
                         visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
@@ -1402,7 +1403,8 @@ def go_gradio(**kwargs):
                         style_btn = gr.Button("Apply Style", visible=False)
                         # image_upload = # FIXME, go into db
 
-                chat_history_tab = gr.TabItem("Chat History", visible=kwargs['visible_chat_history_tab'])
+                chat_history_tab = gr.TabItem("Chat History", visible=kwargs['visible_chat_history_tab']) if kwargs[
+                    'visible_chat_history_tab'] else gr.Row(visible=False)
                 with chat_history_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
@@ -1435,7 +1437,8 @@ def go_gradio(**kwargs):
                         chat_token_count = gr.Textbox(label="Chat Token Count Result", value=None,
                                                       visible=not is_public and not kwargs['model_lock'],
                                                       interactive=False)
-                expert_tab = gr.TabItem("Expert", visible=kwargs['visible_expert_tab'])
+                expert_tab = gr.TabItem("Expert", visible=kwargs['visible_expert_tab']) if kwargs[
+                    'visible_expert_tab'] else gr.Row(visible=False)
                 with expert_tab:
                     gr.Markdown("Prompt Control")
                     with gr.Row():
@@ -1876,7 +1879,9 @@ def go_gradio(**kwargs):
                                                         api_name='add_role' if allow_api else False,
                                                         **noqueue_kwargs2,
                                                         )
-                models_tab = gr.TabItem("Models", visible=kwargs['visible_models_tab'])
+
+                models_tab = gr.TabItem("Models", visible=kwargs['visible_models_tab']) if kwargs[
+                    'visible_models_tab'] else gr.Row(visible=False)
                 with models_tab:
                     load_msg = "Load (Download) Model" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
@@ -2211,7 +2216,8 @@ def go_gradio(**kwargs):
                             add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port", scale=0,
                                                                      variant=variant_load_msg,
                                                                      size='sm', interactive=not is_public)
-                system_tab = gr.TabItem("System", visible=kwargs['visible_system_tab'])
+                system_tab = gr.TabItem("System", visible=kwargs['visible_system_tab']) if kwargs[
+                    'visible_system_tab'] else gr.Row(visible=False)
                 with system_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
@@ -2378,7 +2384,9 @@ def go_gradio(**kwargs):
                                         s3up_btn = gr.Button("S3UP", size='sm')
                                         s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                tos_tab = gr.TabItem("Terms of Service", visible=kwargs['visible_tos_tab'] and is_public)
+                tos_tab = gr.TabItem("Terms of Service", visible=kwargs['visible_tos_tab'] and is_public) if kwargs[
+                                                                                                                 'visible_tos_tab'] and is_public else gr.Row(
+                    visible=False)
                 with tos_tab:
                     description = ""
                     description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
@@ -2390,7 +2398,9 @@ def go_gradio(**kwargs):
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False)
 
-                login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login", visible=kwargs['visible_login_tab'])
+                login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login",
+                                       visible=kwargs['visible_login_tab']) if kwargs['visible_login_tab'] else gr.Row(
+                    visible=False)
                 with login_tab:
                     extra_login = "\nDaily maintenance at midnight PST will not allow reconnection to state otherwise." if is_public else ""
                     gr.Markdown(
@@ -2421,7 +2431,8 @@ def go_gradio(**kwargs):
                                          visible=kwargs['enforce_h2ogpt_ui_key'],  # only show if need for UI
                                          )
 
-                hosts_tab = gr.TabItem("Hosts", visible=kwargs['visible_hosts_tab'] and is_public)
+                hosts_visible = kwargs['visible_hosts_tab'] and is_public
+                hosts_tab = gr.TabItem("Hosts", visible=hosts_visible) if hosts_visible else gr.Row(visible=False)
                 with hosts_tab:
                     gr.Markdown(f"""
                         {description_bottom}
