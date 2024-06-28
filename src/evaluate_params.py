@@ -123,7 +123,7 @@ for k in no_default_param_names:
     if k in eval_func_param_names_defaults:
         eval_func_param_names_defaults.remove(k)
 
-eval_extra_columns = ["prompt", "response", "score"]
+eval_extra_columns = ["prompt", "response", "score", "sources"]
 
 # override default_kwargs if user_kwargs None for args evaluate() uses that are not just in model_state
 # ensure prompt_type consistent with prep_bot(), so nochat API works same way

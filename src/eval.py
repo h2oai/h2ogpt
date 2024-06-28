@@ -327,7 +327,7 @@ def run_eval(  # for local function:
                             assert iinput in [None, ''], iinput  # should be no iinput
                         prompt = instruction
                     score = score_qa(smodel, stokenizer, prompt, res, memory_restriction_level=memory_restriction_level)
-                    score_dump.append(ex + [prompt, res, score])
+                    score_dump.append(ex + [prompt, res, score, sources])
                     # dump every score in case abort
                     df_scores = pd.DataFrame(score_dump,
                                              columns=eval_func_param_names +
