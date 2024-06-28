@@ -12,7 +12,7 @@ from src.vision.utils_vision import process_file_list
 from tests.utils import wrap_test_forked
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names, handle_json, check_input_type, start_faulthandler
+    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
@@ -1064,3 +1064,44 @@ def test_process_mixed():
         print(file, file=sys.stderr)
         assert os.path.isfile(file)
     assert len(processed_files) == len(test_files) - 1 + 29  # 28 is the number of images generated from the video files
+
+
+def test_update_db():
+    auth_filename = "test.db"
+    remove(auth_filename)
+    from src.db_utils import fetch_user
+    assert fetch_user(auth_filename, '', verbose=True) == {}
+
+    username = "jon"
+    updates = {
+        "selection_docs_state": {
+            "langchain_modes": ["NewMode1"],
+            "langchain_mode_paths": {"NewMode1": "new_mode_path1"},
+            "langchain_mode_types": {"NewMode1": "shared"}
+        }
+    }
+    from src.db_utils import append_to_user_data
+    append_to_user_data(auth_filename, username, updates, verbose=True)
+
+    auth_dict = fetch_user(auth_filename, username, verbose=True)
+
+    assert auth_dict == {'jon': {'selection_docs_state': {'langchain_mode_paths': {'NewMode1': 'new_mode_path1'},
+                                                          'langchain_mode_types': {'NewMode1': 'shared'},
+                                                          'langchain_modes': ['NewMode1']}}}
+
+    updates = {
+        "selection_docs_state": {
+            "langchain_modes": ["NewMode"],
+            "langchain_mode_paths": {"NewMode": "new_mode_path"},
+            "langchain_mode_types": {"NewMode": "shared"}
+        }
+    }
+    from src.db_utils import append_to_users_data
+    append_to_users_data(auth_filename, updates, verbose=True)
+
+    auth_dict = fetch_user(auth_filename, username, verbose=True)
+    assert auth_dict == {'jon': {'selection_docs_state':
+                                     {'langchain_mode_paths': {'NewMode1': 'new_mode_path1',
+                                                               "NewMode": "new_mode_path"},
+                                      'langchain_mode_types': {'NewMode1': 'shared', "NewMode": "shared"},
+                                      'langchain_modes': ['NewMode1', 'NewMode']}}}
