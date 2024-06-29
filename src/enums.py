@@ -468,7 +468,7 @@ def does_support_json_mode(inference_server, model_name, json_vllm=False):
         # assume OpenAI serves updated models
         return True
     else:
-        return is_json_model(model_name, inference_server, json_vllm=False)
+        return is_json_model(model_name, inference_server, json_vllm=json_vllm)
 
 
 font_size = 2

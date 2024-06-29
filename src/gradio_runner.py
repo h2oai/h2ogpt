@@ -29,7 +29,8 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
     my_db_state_done, update_langchain_mode_paths, process_audio, is_valid_key, is_from_ui, get_llm_history, prep_bot, \
     allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain, bot, choose_exc
 
-from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user
+from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
+    append_to_user_data, append_to_users_data
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
@@ -714,7 +715,9 @@ def go_gradio(**kwargs):
         mic_sources_kwargs = dict(source='microphone')
 
     if kwargs['model_lock']:
-        have_vision_models = any([is_vision_model(x.get('base_model', '')) or x.get('base_model', 'NONE') in kwargs['is_vision_models'] for x in kwargs['model_lock']])
+        have_vision_models = any(
+            [is_vision_model(x.get('base_model', '')) or x.get('base_model', 'NONE') in kwargs['is_vision_models'] for x
+             in kwargs['model_lock']])
     else:
         have_vision_models = is_vision_model(kwargs['base_model']) or kwargs['base_model'] in kwargs['is_vision_models']
 
@@ -1108,10 +1111,8 @@ def go_gradio(**kwargs):
 
             col_tabs = gr.Column(elem_id="col-tabs", scale=10)
             with col_tabs, gr.Tabs():
-                if kwargs['chat_tabless']:
-                    chat_tab = gr.Row(visible=True)
-                else:
-                    chat_tab = gr.TabItem("Chat", visible=kwargs['visible_chat_tab'])
+                chat_tab = gr.Row(visible=True) if kwargs['chat_tabless'] else gr.TabItem("Chat", visible=kwargs[
+                    'visible_chat_tab'])
                 with chat_tab:
                     if kwargs['langchain_mode'] == 'Disabled':
                         text_output_nochat = gr.Textbox(lines=5, label=output_label0, show_copy_button=True,
@@ -1202,7 +1203,8 @@ def go_gradio(**kwargs):
                                     score_text2 = gr.Textbox("Response Score2: NA", show_label=False,
                                                              visible=False and not kwargs['model_lock'])
 
-                doc_selection_tab = gr.TabItem("Document Selection", visible=kwargs['visible_doc_selection_tab'])
+                doc_selection_tab = gr.TabItem("Document Selection", visible=kwargs['visible_doc_selection_tab']) if \
+                    kwargs['visible_doc_selection_tab'] else gr.Row(visible=False)
                 with doc_selection_tab:
                     if kwargs['langchain_mode'] in langchain_modes_non_db:
                         if langchain_mode == LangChainMode.DISABLED.value:
@@ -1343,7 +1345,8 @@ def go_gradio(**kwargs):
                                interactive=False,
                                visible=kwargs['langchain_mode'] != 'Disabled')
 
-                doc_view_tab = gr.TabItem("Document Viewer", visible=kwargs['visible_doc_view_tab'])
+                doc_view_tab = gr.TabItem("Document Viewer", visible=kwargs['visible_doc_view_tab']) if kwargs[
+                    'visible_doc_view_tab'] else gr.Row(visible=False)
                 with doc_view_tab:
                     with gr.Row(visible=kwargs['langchain_mode'] != 'Disabled'):
                         with gr.Column(scale=2):
@@ -1380,7 +1383,8 @@ def go_gradio(**kwargs):
                     doc_view7 = gr.Audio(visible=False)
                     doc_view8 = gr.Video(visible=False)
 
-                image_tab = gr.TabItem("Image Control", visible=image_tab_visible)
+                image_tab = gr.TabItem("Image Control", visible=image_tab_visible) if image_tab_visible else gr.Row(
+                    visible=False)
                 with image_tab:
                     if image_tab_visible:
                         visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
@@ -1399,7 +1403,8 @@ def go_gradio(**kwargs):
                         style_btn = gr.Button("Apply Style", visible=False)
                         # image_upload = # FIXME, go into db
 
-                chat_history_tab = gr.TabItem("Chat History", visible=kwargs['visible_chat_history_tab'])
+                chat_history_tab = gr.TabItem("Chat History", visible=kwargs['visible_chat_history_tab']) if kwargs[
+                    'visible_chat_history_tab'] else gr.Row(visible=False)
                 with chat_history_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
@@ -1432,7 +1437,8 @@ def go_gradio(**kwargs):
                         chat_token_count = gr.Textbox(label="Chat Token Count Result", value=None,
                                                       visible=not is_public and not kwargs['model_lock'],
                                                       interactive=False)
-                expert_tab = gr.TabItem("Expert", visible=kwargs['visible_expert_tab'])
+                expert_tab = gr.TabItem("Expert", visible=kwargs['visible_expert_tab']) if kwargs[
+                    'visible_expert_tab'] else gr.Row(visible=False)
                 with expert_tab:
                     gr.Markdown("Prompt Control")
                     with gr.Row():
@@ -1873,7 +1879,9 @@ def go_gradio(**kwargs):
                                                         api_name='add_role' if allow_api else False,
                                                         **noqueue_kwargs2,
                                                         )
-                models_tab = gr.TabItem("Models", visible=kwargs['visible_models_tab'])
+
+                models_tab = gr.TabItem("Models", visible=kwargs['visible_models_tab']) if kwargs[
+                    'visible_models_tab'] else gr.Row(visible=False)
                 with models_tab:
                     load_msg = "Load (Download) Model" if not is_public \
                         else "LOAD-UNLOAD DISABLED FOR HOSTED DEMO"
@@ -2208,7 +2216,8 @@ def go_gradio(**kwargs):
                             add_model_lora_server_button = gr.Button("Add new Model, Lora, Server url:port", scale=0,
                                                                      variant=variant_load_msg,
                                                                      size='sm', interactive=not is_public)
-                system_tab = gr.TabItem("System", visible=kwargs['visible_system_tab'])
+                system_tab = gr.TabItem("System", visible=kwargs['visible_system_tab']) if kwargs[
+                    'visible_system_tab'] else gr.Row(visible=False)
                 with system_tab:
                     with gr.Row():
                         with gr.Column(scale=1):
@@ -2296,49 +2305,88 @@ def go_gradio(**kwargs):
                             pass
                     system_row = gr.Row(visible=system_visible0)
                     with system_row:
-                        with gr.Accordion("Admin", open=False, visible=True):
-                            with gr.Column():
-                                close_btn = gr.Button(value="Shutdown h2oGPT", size='sm',
-                                                      visible=kwargs['close_button'] and kwargs[
-                                                          'h2ogpt_pid'] is not None)
-                                with gr.Row():
-                                    system_btn = gr.Button(value='Get System Info', size='sm')
-                                    system_text = gr.Textbox(label='System Info', interactive=False,
-                                                             show_copy_button=True)
-                                with gr.Row():
-                                    system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
-                                                              visible=not is_public)
-                                    system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public,
-                                                            size='sm')
-                                    system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
-                                                              visible=not is_public, show_copy_button=True)
-                                with gr.Row():
-                                    system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
-                                    system_text3 = gr.Textbox(label='Hash', interactive=False,
-                                                              visible=not is_public, show_copy_button=True)
+                        user_admin_visible = kwargs['auth_filename'].endswith('.db')
+                        with gr.Column():
+                            with gr.Accordion("User List Admin", open=False, visible=user_admin_visible):
+                                with gr.Column():
+                                    with gr.Row():
+                                        admin_users_list_btn = gr.Button(value='Get user names', size='sm')
+                                        admin_user_list_text = gr.JSON(label='User names')
+                            example_value = """{
+    "selection_docs_state": {
+        "langchain_modes": ["NewMode"],
+        "langchain_mode_paths": {"NewMode": "new_mode_path"},
+        "langchain_mode_types": {"NewMode": "shared"}
+    }
+    }"""
+                            with gr.Accordion("Users Admin", open=False, visible=user_admin_visible):
+                                with gr.Column():
+                                    with gr.Row():
+                                        admin_user_update_btn = gr.Button(value='Update all users', size='sm')
+                                        admin_user_update_text = gr.Textbox(label='Update all Users', interactive=True,
+                                                                            info="Placeholder value is just example",
+                                                                            value=example_value,
+                                                                            show_copy_button=True, lines=10,
+                                                                            max_lines=50)
+                            with gr.Accordion("Per-User Admin", open=False, visible=user_admin_visible):
+                                with gr.Column():
+                                    with gr.Row():
+                                        admin_user_txt = gr.Textbox(label='User name')
+                                        admin_user_get_btn = gr.Button(value='Get user Info', size='sm')
+                                        admin_user_put_btn = gr.Button(value='Put update', size='sm')
+                                        admin_user_put_full_btn = gr.Button(value='Put full', size='sm')
+                                    with gr.Row():
+                                        admin_user_put_info = gr.Textbox(label='Update to User', interactive=True,
+                                                                         info="Placeholder value is just example",
+                                                                         value=example_value,
+                                                                         show_copy_button=True, lines=20, max_lines=100)
+                                        admin_user_get_info = gr.JSON(label='User Info')
+                            with gr.Accordion("System Admin", open=False, visible=True):
+                                with gr.Column():
+                                    close_btn = gr.Button(value="Shutdown h2oGPT", size='sm',
+                                                          visible=kwargs['close_button'] and kwargs[
+                                                              'h2ogpt_pid'] is not None)
+                                    with gr.Row():
+                                        system_btn = gr.Button(value='Get System Info', size='sm')
+                                        system_text = gr.Textbox(label='System Info', interactive=False,
+                                                                 show_copy_button=True)
+                                    with gr.Row():
+                                        system_input = gr.Textbox(label='System Info Dict Password', interactive=True,
+                                                                  visible=not is_public)
+                                        system_btn2 = gr.Button(value='Get System Info Dict', visible=not is_public,
+                                                                size='sm')
+                                        system_text2 = gr.Textbox(label='System Info Dict', interactive=False,
+                                                                  visible=not is_public, show_copy_button=True)
+                                    with gr.Row():
+                                        system_btn3 = gr.Button(value='Get Hash', visible=not is_public, size='sm')
+                                        system_text3 = gr.Textbox(label='Hash', interactive=False,
+                                                                  visible=not is_public, show_copy_button=True)
 
-                                    def get_hash():
-                                        return kwargs['git_hash']
+                                        def get_hash():
+                                            return kwargs['git_hash']
 
-                                    system_event = system_btn3.click(get_hash,
-                                                                     outputs=system_text3,
-                                                                     api_name='system_hash' if allow_api else False,
-                                                                     **noqueue_kwargs_curl,
-                                                                     )
+                                        system_event = system_btn3.click(get_hash,
+                                                                         outputs=system_text3,
+                                                                         api_name='system_hash' if allow_api else False,
+                                                                         **noqueue_kwargs_curl,
+                                                                         )
 
-                                    system_btn4 = gr.Button(value='Get Model Names', visible=not is_public, size='sm')
-                                    system_text4 = gr.Textbox(label='Model Names', interactive=False,
-                                                              visible=not is_public, show_copy_button=True)
+                                        system_btn4 = gr.Button(value='Get Model Names', visible=not is_public,
+                                                                size='sm')
+                                        system_text4 = gr.Textbox(label='Model Names', interactive=False,
+                                                                  visible=not is_public, show_copy_button=True)
 
-                                with gr.Row():
-                                    zip_btn = gr.Button("Zip", size='sm')
-                                    zip_text = gr.Textbox(label="Zip file name", interactive=False)
-                                    file_output = gr.File(interactive=False, label="Zip file to Download")
-                                with gr.Row():
-                                    s3up_btn = gr.Button("S3UP", size='sm')
-                                    s3up_text = gr.Textbox(label='S3UP result', interactive=False)
+                                    with gr.Row():
+                                        zip_btn = gr.Button("Zip", size='sm')
+                                        zip_text = gr.Textbox(label="Zip file name", interactive=False)
+                                        file_output = gr.File(interactive=False, label="Zip file to Download")
+                                    with gr.Row():
+                                        s3up_btn = gr.Button("S3UP", size='sm')
+                                        s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                tos_tab = gr.TabItem("Terms of Service", visible=kwargs['visible_tos_tab'])
+                tos_tab = gr.TabItem("Terms of Service", visible=kwargs['visible_tos_tab'] and is_public) if kwargs[
+                                                                                                                 'visible_tos_tab'] and is_public else gr.Row(
+                    visible=False)
                 with tos_tab:
                     description = ""
                     description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
@@ -2350,7 +2398,9 @@ def go_gradio(**kwargs):
                     description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
                     gr.Markdown(value=description, show_label=False)
 
-                login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login", visible=kwargs['visible_login_tab'])
+                login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login",
+                                       visible=kwargs['visible_login_tab']) if kwargs['visible_login_tab'] else gr.Row(
+                    visible=False)
                 with login_tab:
                     extra_login = "\nDaily maintenance at midnight PST will not allow reconnection to state otherwise." if is_public else ""
                     gr.Markdown(
@@ -2381,7 +2431,8 @@ def go_gradio(**kwargs):
                                          visible=kwargs['enforce_h2ogpt_ui_key'],  # only show if need for UI
                                          )
 
-                hosts_tab = gr.TabItem("Hosts", visible=kwargs['visible_hosts_tab'])
+                hosts_visible = kwargs['visible_hosts_tab'] and is_public
+                hosts_tab = gr.TabItem("Hosts", visible=hosts_visible) if hosts_visible else gr.Row(visible=False)
                 with hosts_tab:
                     gr.Markdown(f"""
                         {description_bottom}
@@ -5663,7 +5714,8 @@ def go_gradio(**kwargs):
                 model_state3['json'] = model_state3.get('json', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
 
-            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json', 'auto_visible_vision_models'])
+            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json',
+                             'auto_visible_vision_models'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
         models_list_event = system_btn4.click(get_model_names,
@@ -5671,6 +5723,96 @@ def go_gradio(**kwargs):
                                               api_name='model_names' if allow_api else False,
                                               **noqueue_kwargs,
                                               )
+
+        def text_to_dict(x):
+            e1 = e2 = None
+            try:
+                # see if json
+                x = json.loads(x)
+            except Exception as e:
+                e1 = e
+                try:
+                    # see if literal python dict
+                    x = ast.literal_eval(x)
+                except Exception as e0:
+                    e2 = e0
+                    x = {}
+                    pass
+            if e1 and e2:
+                raise ValueError("Input not valid JSON or literal python dict: %s %s" % (e1, e2))
+            return x
+
+        def update_all_users(admin_pass_textbox1, admin_user_update_text1):
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            auth_filename1 = kwargs['auth_filename']
+            if not auth_filename1.endswith('.db'):
+                return
+            admin_user_update_text1 = text_to_dict(admin_user_update_text1)
+            with filelock.FileLock(auth_filename1 + '.lock'):
+                append_to_users_data(auth_filename1, admin_user_update_text1, verbose=verbose)
+
+        admin_user_update_btn.click(functools.partial(update_all_users),
+                                    inputs=[admin_pass_textbox, admin_user_update_text], outputs=None,
+                                    api_name='update_all_users' if allow_api else False,
+                                    **noqueue_kwargs)
+
+        def get_users(admin_pass_textbox1):
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            auth_filename1 = kwargs['auth_filename']
+            if not auth_filename1.endswith('.db'):
+                return 'auth_filename not .db but %s' % kwargs['auth_filename']
+            with filelock.FileLock(auth_filename1 + '.lock'):
+                users_json = json.dumps(get_all_usernames(auth_filename1))
+            return users_json
+
+        admin_users_list_btn.click(functools.partial(get_users),
+                                   inputs=[admin_pass_textbox], outputs=[admin_user_list_text],
+                                   api_name='list_users' if allow_api else False,
+                                   **noqueue_kwargs)
+
+        def get_user(admin_pass_textbox1, username1):
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            auth_filename1 = kwargs['auth_filename']
+            if not auth_filename1.endswith('.db'):
+                return 'auth_filename not .db but %s' % kwargs['auth_filename']
+            with filelock.FileLock(auth_filename1 + '.lock'):
+                # will create .db if doing migration
+                auth_dict = fetch_user(kwargs['auth_filename'], username1, verbose=verbose)
+            return json.dumps(auth_dict)
+
+        admin_user_get_btn.click(functools.partial(get_user),
+                                 inputs=[admin_pass_textbox, admin_user_txt],
+                                 outputs=[admin_user_get_info],
+                                 api_name='get_user' if allow_api else False,
+                                 **noqueue_kwargs)
+
+        def put_user(admin_pass_textbox1, username1, admin_user_info1, full1=False):
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            auth_filename1 = kwargs['auth_filename']
+            if not auth_filename1.endswith('.db'):
+                return 'auth_filename not .db but %s' % auth_filename1
+            admin_user_info1 = text_to_dict(admin_user_info1)
+            with filelock.FileLock(auth_filename1 + '.lock'):
+                # first fetch, e.g. in case migration
+                auth_dict0 = fetch_user(auth_filename1, username1, verbose=verbose)
+                if full1:
+                    upsert_user(auth_filename1, username1, admin_user_info1, verbose=verbose)
+                else:
+                    append_to_user_data(auth_filename1, username1, admin_user_info1, verbose=verbose)
+                auth_dict1 = fetch_user(auth_filename1, username1, verbose=verbose)
+            return auth_dict1
+
+        admin_user_put_btn.click(functools.partial(put_user),
+                                 inputs=[admin_pass_textbox, admin_user_txt, admin_user_put_info],
+                                 outputs=[admin_user_get_info],
+                                 api_name='update_user' if allow_api else False,
+                                 **noqueue_kwargs)
+
+        admin_user_put_full_btn.click(functools.partial(functools.partial(put_user, full1=True)),
+                                      inputs=[admin_pass_textbox, admin_user_txt, admin_user_put_info],
+                                      outputs=[admin_user_get_info],
+                                      api_name='update_full_user' if allow_api else False,
+                                      **noqueue_kwargs)
 
         def count_chat_tokens(model_state1, chat1, prompt_type1, prompt_dict1,
                               system_prompt1, chat_conversation1,
