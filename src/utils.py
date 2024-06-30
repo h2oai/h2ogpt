@@ -1318,6 +1318,8 @@ class FakeTokenizer:
             self.encoding = None
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
+        if not x:
+            return dict(input_ids=[])
         if self.is_super_fake:
             input_ids = self.heuristic_encode(x)
             # avoid torch tensor

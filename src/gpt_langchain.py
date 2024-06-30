@@ -600,8 +600,11 @@ class H2Oagenerate:
             print("_agenerate H2O", flush=True)
         generations = []
         new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
-        self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
-        self.prompts.extend(prompts)
+        if isinstance(self, GradioInference):
+            pass
+        else:
+            self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
+            self.prompts.extend(prompts)
         tasks = [
             asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
                                                       new_arg_supported=new_arg_supported, **kwargs))
@@ -3223,6 +3226,7 @@ def get_llm(use_openai_model=False,
         # https://ai.google.dev/tutorials/structured_data_extraction
 
         cls = H2OChatGoogle
+        async_output = False  # client initialized inside event loop failures
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
