@@ -3223,6 +3223,7 @@ def get_llm(use_openai_model=False,
         # https://ai.google.dev/tutorials/structured_data_extraction
 
         cls = H2OChatGoogle
+        async_output = False  # client initialized inside event loop failures
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
