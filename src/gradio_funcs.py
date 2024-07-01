@@ -11,7 +11,8 @@ import filelock
 
 from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
     DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset, \
-    images_num_max_dict
+    images_num_max_dict, image_batch_image_prompt0, image_batch_final_prompt0
+from src.model_utils import model_lock_to_state
 from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
     get_accordion_named, check_input_type, download_image, deepcopy_by_pickle_object
@@ -162,21 +163,35 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
 
     ###########################################
     # select model
-    stream_output1 = args_list[eval_func_param_names.index('stream_output')]
-    if len(model_states) >= 1:
+    model_lock_client = args_list[eval_func_param_names.index('model_lock')]
+    if model_lock_client:
+        if model_lock_client is None:
+            model_lock_client = {}
+        if isinstance(model_lock_client, str):
+            model_lock_client = ast.literal_eval(model_lock_client)
+        if isinstance(model_lock_client, list) and len(model_lock_client) >= 1:
+            model_lock_client = model_lock_client[0]
+        assert isinstance(model_lock_client, dict)
+        # because cache, if has local model state, then stays in memory
+        # kwargs should be fixed and unchanging, and user should be careful if mutating model_lock_client
+        model_state1 = model_lock_to_state(model_lock_client, cache_model_state=True, **kwargs)
+    elif len(model_states) >= 1:
         visible_models1 = args_list[eval_func_param_names.index('visible_models')]
         model_active_choice1 = visible_models_to_model_choice(visible_models1, model_states, api=True)
         model_state1 = model_states[model_active_choice1 % len(model_states)]
-        for key in key_overrides:
-            if user_kwargs.get(key) is None and model_state1.get(key) is not None:
-                args_list[eval_func_param_names.index(key)] = model_state1[key]
-        if hasattr(model_state1['tokenizer'], 'model_max_length'):
-            # ensure listen to limit, with some buffer
-            # buffer = 50
-            buffer = 0
-            args_list[eval_func_param_names.index('max_new_tokens')] = min(
-                args_list[eval_func_param_names.index('max_new_tokens')],
-                model_state1['tokenizer'].model_max_length - buffer)
+
+    for key in key_overrides:
+        if user_kwargs.get(key) is None and model_state1.get(key) is not None:
+            args_list[eval_func_param_names.index(key)] = model_state1[key]
+    if isinstance(model_state1, dict) and \
+            'tokenizer' in model_state1 and \
+            hasattr(model_state1['tokenizer'], 'model_max_length'):
+        # ensure listen to limit, with some buffer
+        # buffer = 50
+        buffer = 0
+        args_list[eval_func_param_names.index('max_new_tokens')] = min(
+            args_list[eval_func_param_names.index('max_new_tokens')],
+            model_state1['tokenizer'].model_max_length - buffer)
 
     ###########################################
     # override overall visible_models and h2ogpt_key if have model_specific one
@@ -524,6 +539,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if chosen_model_state['images_num_max'] is not None:
         images_num_max = chosen_model_state['images_num_max']
     images_num_max1 = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+    if isinstance(images_num_max1, float):
+        images_num_max1 = int(images_num_max1)
     if images_num_max1 is not None:
         images_num_max = images_num_max1
     if images_num_max is None:
@@ -561,13 +578,16 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
 
         images_num_max_batch = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+        if isinstance(images_num_max_batch, float):
+            images_num_max_batch = int(images_num_max_batch)
         if images_num_max_batch == -1:
             # treat as if didn't set, but we will just change behavior
             images_num_max_batch = None
         elif images_num_max_batch < -1:
             # super expert control over auto-batching
             images_num_max_batch = -images_num_max_batch - 1
-        images_num_max_batch = images_num_max_batch if images_num_max_batch is not None else model_batch_choice.get('images_num_max', images_num_max_batch)
+        images_num_max_batch = images_num_max_batch if images_num_max_batch is not None else model_batch_choice.get(
+            'images_num_max', images_num_max_batch)
         if images_num_max_batch is None:
             # in case not coming from api
             if model_batch_choice.get['is_actually_vision_model']:
@@ -588,12 +608,12 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     else:
         instruction = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction')]
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
-        instruction = instruction or instruction_nochat
+        instruction = instruction or instruction_nochat or ""
         prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
         image_batch_image_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index(
-            'image_batch_image_prompt')] or kwargs['image_batch_image_prompt']
+            'image_batch_image_prompt')] or kwargs['image_batch_image_prompt'] or image_batch_image_prompt0
         image_batch_final_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index(
-            'image_batch_final_prompt')] or kwargs['image_batch_final_prompt']
+            'image_batch_final_prompt')] or kwargs['image_batch_final_prompt'] or image_batch_final_prompt0
         if langchain_action1 == LangChainAction.QUERY.value:
             instruction_batch = image_batch_image_prompt + instruction
             instruction_final = image_batch_final_prompt + instruction

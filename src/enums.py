@@ -287,7 +287,7 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'lmms-lab/llama3-llava-next-8b': 2,
                        'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
                        'THUDM/cogvlm2-llama3-chat-19B': 2,
-                       'microsoft/Phi-3-vision-128k-instruct': 1, # : "Multiple 'image_url' input is currently not supported."
+                       'microsoft/Phi-3-vision-128k-instruct': 1,  # only 1 possible with vllm
                        }
 
 # https://ai.google.dev/models/gemini
@@ -733,3 +733,50 @@ roles_state0 = dict()
 none = ['', '\n', None]
 nonelist = [None, '', 'None']
 noneset = set(nonelist)
+
+llamacpp_inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
+                            'model_name_exllama_if_no_config']
+
+other_model_state_defaults0 = dict(load_8bit=None, load_4bit=None, low_bit_mode=None,
+                                   load_half=None, use_flash_attention_2=None,
+                                   load_gptq=None, load_awq=None, load_exllama=None,
+                                   use_safetensors=None,
+                                   revision=None, use_gpu_id=None, gpu_id=None,
+                                   compile_model=None,
+                                   use_cache=None,
+                                   llamacpp_dict=dict(model_path_llama=''),
+                                   rope_scaling=None,
+                                   max_seq_len=None,
+                                   max_output_seq_len=None,
+                                   exllama_dict={},
+                                   gptq_dict={},
+                                   attention_sinks={},
+                                   sink_dict={},
+                                   truncation_generation=None,
+                                   hf_model_dict={},
+                                   force_seq2seq_type=None,
+                                   force_t5_type=None,
+                                   trust_remote_code=None,
+                                   )
+
+model_state_none0 = dict(model=None, tokenizer=None, device=None,
+                         base_model=None, base_model0=None, tokenizer_base_model=None, lora_weights=None,
+                         inference_server=None, prompt_type=None, prompt_dict=None,
+                         visible_models=None, h2ogpt_key=None,
+                         json_vllm=None,
+                         is_vision_model=None,
+                         is_actually_vision_model=None,
+                         images_num_max=None,
+                         image_resolution=None,
+                         image_format=None,
+                         rotate_align_resize_image=None,
+                         video_frame_period=None,
+                         image_batch_image_prompt=None,
+                         image_batch_final_prompt=None,
+                         image_batch_stream=None,
+                         visible_vision_models=None,
+                         auto_visible_vision_models=None,
+                         json=None,
+                         video_file=None,
+                         display_name=None,
+                         )

@@ -121,6 +121,8 @@ class H2oGPTParams(BaseModel):
     visible_vision_models: Union[str, int] | None = None
     video_file: Union[str, list] = None
 
+    model_lock: dict | None = None
+
     response_format: Optional[ResponseFormat] = Field(
         default=None,
         description=

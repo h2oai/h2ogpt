@@ -31,6 +31,7 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
 
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
     append_to_user_data, append_to_users_data
+from src.model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
@@ -79,8 +80,8 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
-    switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry, remove_refs, get_on_disk_models, model_name_to_prompt_type, get_inf_models
+    get_model_max_length_from_tokenizer, \
+    get_model_retry, remove_refs, model_name_to_prompt_type
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list
 
@@ -752,7 +753,7 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
 
         model_state_cb = dict(callback=model_state_done) if support_state_callbacks else {}
-        model_state_default = dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
+        model_state_default = dict(model='model', tokenizer='tokenizer', device='device',
                                    base_model=kwargs['base_model'],
                                    display_name=kwargs['base_model'],
                                    tokenizer_base_model=kwargs['tokenizer_base_model'],
@@ -1533,7 +1534,8 @@ def go_gradio(**kwargs):
                             llava_prompt_type.change(fn=show_llava, inputs=llava_prompt_type, outputs=llava_prompt,
                                                      **noqueue_kwargs)
 
-                    gr.Markdown("Document Control")
+                    if not is_public:
+                        gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
                                                                label="Force Image-Audio Reader",
@@ -1741,7 +1743,7 @@ def go_gradio(**kwargs):
                             visible=not is_public)
                         images_num_max = gr.Number(
                             label='Number of Images per LLM call, -1 is auto mode, 0 is avoid using images',
-                            value=kwargs['images_num_max'] or 0,
+                            value=kwargs['images_num_max'] if kwargs['images_num_max'] is not None else -1,
                             visible=not is_public)
                         image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'],
                                                       visible=not is_public)
@@ -1770,6 +1772,7 @@ def go_gradio(**kwargs):
                                                             filterable=len(
                                                                 kwargs['all_possible_vision_display_names']) > 5,
                                                             )
+                        model_lock = gr.Textbox(value="", visible=False)  # API only, not default model_lock
                         image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.",
                                                          value=kwargs['image_batch_stream'],
                                                          visible=not is_public)
@@ -2384,19 +2387,20 @@ def go_gradio(**kwargs):
                                         s3up_btn = gr.Button("S3UP", size='sm')
                                         s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                tos_tab = gr.TabItem("Terms of Service", visible=kwargs['visible_tos_tab'] and is_public) if kwargs[
-                                                                                                                 'visible_tos_tab'] and is_public else gr.Row(
+                tos_visible = kwargs['visible_tos_tab'] and is_public
+                tos_tab = gr.TabItem("Terms of Service", visible=tos_visible) if tos_visible else gr.Row(
                     visible=False)
                 with tos_tab:
-                    description = ""
-                    description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
-                    if kwargs['load_8bit']:
-                        description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
-                    description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
-                    if 'h2ogpt-research' in kwargs['base_model']:
-                        description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
-                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
-                    gr.Markdown(value=description, show_label=False)
+                    if tos_visible:
+                        description = ""
+                        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
+                        if kwargs['load_8bit']:
+                            description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
+                        description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+                        if 'h2ogpt-research' in kwargs['base_model']:
+                            description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
+                        description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
+                        gr.Markdown(value=description, show_label=False)
 
                 login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login",
                                        visible=kwargs['visible_login_tab']) if kwargs['visible_login_tab'] else gr.Row(
@@ -2434,10 +2438,11 @@ def go_gradio(**kwargs):
                 hosts_visible = kwargs['visible_hosts_tab'] and is_public
                 hosts_tab = gr.TabItem("Hosts", visible=hosts_visible) if hosts_visible else gr.Row(visible=False)
                 with hosts_tab:
-                    gr.Markdown(f"""
-                        {description_bottom}
-                        {task_info_md}
-                        """)
+                    if hosts_visible:
+                        gr.Markdown(f"""
+                            {description_bottom}
+                            {task_info_md}
+                            """)
 
         def zip_data_check_key(admin_pass_textbox1,
                                h2ogpt_key2,

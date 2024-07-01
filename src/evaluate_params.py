@@ -114,6 +114,8 @@ eval_func_param_names = (
             "guided_choice",
             "guided_grammar",
             "guided_whitespace_pattern",
+
+            "model_lock",
         ]
 )
 
