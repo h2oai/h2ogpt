@@ -6632,3 +6632,31 @@ def test_client1_lock_choose_model_via_api():
     response = res_dict['response']
     print(response)
     assert 'OpenAI' in response
+
+
+@wrap_test_forked
+def test_client1_lock_choose_model_via_api_vision():
+    from src.gen import main
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         add_disk_models_to_ui=False)
+
+    from src.vision.utils_vision import img_to_base64
+    url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
+    tiger_file = download_simple(url)
+    big_ben_file = 'tests/receipt.jpg'
+    image_file = [img_to_base64(big_ben_file), img_to_base64(tiger_file)]
+
+    model_lock4o = ast.literal_eval(os.environ['GPT4o'])
+    kwargs = dict(instruction='What do you see?', model_lock=model_lock4o[0],
+                  image_file=image_file)
+
+    api_name = '/submit_nochat_api'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        str(kwargs),
+        api_name=api_name,
+    )
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print(response)
+    assert 'tiger' in response and 'receipt' in response
