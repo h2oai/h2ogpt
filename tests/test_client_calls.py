@@ -2970,15 +2970,17 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
+    speed_up = False
+
     if loaders is None:
         loaders = tuple([None, None, None, None, None, None])
     else:
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
-            lg_to_gr(enable_ocr=False,  # speed up testing
+            lg_to_gr(enable_ocr=not speed_up,
                      enable_captions=True,
-                     enable_pdf_ocr='off',  # speed up testing
+                     enable_pdf_ocr='off' if not speed_up else 'on',
                      enable_pdf_doctr=True,
                      use_pymupdf=True,
                      enable_doctr=True,
@@ -2996,8 +2998,12 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
         jq_schema = None
         extract_frames = 0
         llava_prompt = None
-        loaders = [image_audio_loaders_options0, pdf_loaders_options0, url_loaders_options0,
-                   jq_schema, extract_frames, llava_prompt]
+        if speed_up:
+            loaders = [image_audio_loaders_options0, pdf_loaders_options0, url_loaders_options0,
+                       jq_schema, extract_frames, llava_prompt]
+        else:
+            loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
+                       jq_schema, extract_frames, llava_prompt]
 
     stream_output = True
     max_new_tokens = 256
