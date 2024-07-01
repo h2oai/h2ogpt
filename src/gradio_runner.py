@@ -31,7 +31,7 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
 
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
     append_to_user_data, append_to_users_data
-from src.model_utils import switch_a_roo_llama, get_on_disk_models
+from src.model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
