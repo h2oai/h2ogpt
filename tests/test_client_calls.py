@@ -6249,7 +6249,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
-                     #'liuhaotian/llava-v1.6-vicuna-13b',
+                     # 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b',
                      'HuggingFaceM4/idefics2-8b-chatty',
                      'lmms-lab/llama3-llava-next-8b',
@@ -6619,7 +6619,8 @@ def test_client1_lock_choose_model_via_api():
     sys.modules.pop('langchain', None)
 
     from src.gen import main
-    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False, add_disk_models_to_ui=False)
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         add_disk_models_to_ui=False)
 
     model_lock35 = ast.literal_eval(os.environ['GPT35'])
     kwargs = dict(instruction='Who are you?', model_lock=model_lock35[0])
