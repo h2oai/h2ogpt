@@ -6610,3 +6610,27 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
     assert '1977' in response.lower()
     assert 'tiger' in response.lower()
     assert 'hot' in response.lower()
+
+
+@wrap_test_forked
+def test_client1_lock_choose_model_via_api():
+    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
+    sys.modules.pop('gpt_langchain', None)
+    sys.modules.pop('langchain', None)
+
+    from src.gen import main
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False, add_disk_models_to_ui=False)
+
+    model_lock35 = ast.literal_eval(os.environ['GPT35'])
+    kwargs = dict(instruction='Who are you?', model_lock=model_lock35[0])
+
+    api_name = '/submit_nochat_api'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        str(kwargs),
+        api_name=api_name,
+    )
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print(response)
+    assert 'OpenAI' in response

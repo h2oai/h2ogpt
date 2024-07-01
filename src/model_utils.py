@@ -25,7 +25,7 @@ from src.enums import is_gradio_vision_model, anthropic_mapping, groq_mapping, g
     mistralai_mapping_outputs, groq_mapping_outputs, model_state_none0, other_model_state_defaults0, \
     get_langchain_prompts, user_prompt_for_fake_system_prompt0, json_object_prompt0, json_object_prompt_simpler0, \
     json_code_prompt0, json_code_prompt_if_no_schema0, json_schema_instruction0, image_batch_image_prompt0, \
-    image_batch_final_prompt0, is_json_model, is_vision_model, images_num_max_dict
+    image_batch_final_prompt0, is_json_model, is_vision_model, images_num_max_dict, llamacpp_inner_dict_keys
 from src.evaluate_params import eval_func_param_names
 from src.prompter import anthropic_gpts, openai_gpts, google_gpts, mistralai_gpts, groq_gpts, non_hf_types, \
     prompt_type_to_model_name, get_prompt, model_name_to_prompt_type
@@ -96,8 +96,10 @@ def switch_a_roo_llama(base_model, model_path_llama, load_gptq, load_awq, n_gqa,
         load_gptq = load_gptq or 'model'
     elif 'TheBloke' in base_model and '-AWQ' in base_model:
         load_awq = load_awq or 'model'
-    elif '2-70B-GGUF' in model_path_llama:
+    elif model_path_llama and '2-70B-GGUF' in model_path_llama:
         n_gqa = n_gqa or 8
+    if not model_path_llama:
+        model_path_llama = ''
 
     return base_model, model_path_llama, load_gptq, load_awq, n_gqa
 
@@ -1537,14 +1539,22 @@ def prep_model_state_none():
     return model_state_none
 
 
-def model_lock_to_state(model_dict, cache_model_state=False, **kwargs):
+def model_lock_to_state(model_dict1, cache_model_state=False, **kwargs):
     if cache_model_state:
-        model_dict_json = json.dumps(model_dict)
-        kwargs_json = json.dumps(kwargs)
+        model_dict_json = json.dumps(model_dict1)
+
+        # shouldn't need any objects
+        kwargs_model_lock_to_state = kwargs.copy()
+        for key in kwargs:
+            try:
+                json.dumps(kwargs[key])
+            except TypeError:
+                kwargs_model_lock_to_state.pop(key, None)
+        kwargs_json = json.dumps(kwargs_model_lock_to_state)
 
         return _model_lock_to_state(model_dict_json, kwargs_json)
     else:
-        return __model_lock_to_state(model_dict, **kwargs)
+        return __model_lock_to_state(model_dict1, **kwargs)
 
 
 @lru_cache()
@@ -1555,7 +1565,8 @@ def _model_lock_to_state(model_dict_json, kwargs_json):
     return __model_lock_to_state(model_dict, **kwargs)
 
 
-def __model_lock_to_state(model_dict, **kwargs):
+def __model_lock_to_state(model_dict1, **kwargs):
+    model_dict = model_dict1
     model_state_none = prep_model_state_none()
     model_list0 = [model_state_none]
 
@@ -1579,9 +1590,7 @@ def __model_lock_to_state(model_dict, **kwargs):
         if k not in model_dict:
             model_dict[k] = new_model_dict0[k]
     # make so don't have to pass dict in dict so more like CLI for these options
-    inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
-                       'model_name_exllama_if_no_config']
-    for key in inner_dict_keys:
+    for key in llamacpp_inner_dict_keys:
         if key in model_dict:
             model_dict['llamacpp_dict'][key] = model_dict.pop(key)
 
@@ -1592,7 +1601,7 @@ def __model_lock_to_state(model_dict, **kwargs):
         model_dict['load_awq'], \
         model_dict['llamacpp_dict']['n_gqa'] = \
         switch_a_roo_llama(model_dict['base_model'],
-                           model_dict['llamacpp_dict']['model_path_llama'],
+                           model_dict['llamacpp_dict'].get('model_path_llama'),
                            model_dict['load_gptq'],
                            model_dict['load_awq'],
                            model_dict['llamacpp_dict'].get('n_gqa', 0),
