@@ -1772,7 +1772,7 @@ def go_gradio(**kwargs):
                                                             filterable=len(
                                                                 kwargs['all_possible_vision_display_names']) > 5,
                                                             )
-                        model_lock = gr.Textbox(value=kwargs['model_lock'], visible=False)  # API only
+                        model_lock = gr.Textbox(value="", visible=False)  # API only, not default model_lock
                         image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.",
                                                          value=kwargs['image_batch_stream'],
                                                          visible=not is_public)

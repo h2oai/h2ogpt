@@ -2441,7 +2441,7 @@ def evaluate(
         guided_grammar,
         guided_whitespace_pattern,
 
-        model_lock,
+        model_lock,  # not really used by evaluate, just pure API
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2648,13 +2648,7 @@ def evaluate(
 
     # model_state['model] is only 'model' if should use model_state0
     # model could also be None
-    # Note: When pure API, model_lock will only be single or None
-    have_model_lock = model_lock is not None
     have_fresh_model = model_state['model'] not in [None, 'model', no_model_str]
-    # for gradio UI control, expect model_state and model_state0 to match, so if have_model_lock=True, then should have_fresh_model=True
-    # but gradio API control will only use nochat api etc. and won't use fresh model, so can't assert in general
-    # if have_model_lock:
-    #    assert have_fresh_model, "Expected model_state and model_state0 to match if have_model_lock"
     have_cli_model = model_state0['model'] not in [None, 'model', no_model_str]
 
     no_llm_ok = langchain_action in [LangChainAction.IMAGE_GENERATE.value,
@@ -2666,16 +2660,6 @@ def evaluate(
     chosen_model_state = model_state0
     if have_fresh_model:
         # USE FRESH MODEL
-        if not have_model_lock:
-            # model_state0 is just one of model_state if model_lock, so don't nuke
-            # try to free-up original model (i.e. list was passed as reference)
-            if model_state0['model'] and hasattr(model_state0['model'], 'cpu'):
-                model_state0['model'].cpu()
-                model_state0['model'] = None
-            # try to free-up original tokenizer (i.e. list was passed as reference)
-            if model_state0['tokenizer']:
-                model_state0['tokenizer'] = None
-            clear_torch_cache()
         chosen_model_state = model_state
     elif have_cli_model:
         # USE MODEL SETUP AT CLI
