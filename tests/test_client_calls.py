@@ -2970,13 +2970,17 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
 
+    speed_up = False
+
     if loaders is None:
         loaders = tuple([None, None, None, None, None, None])
     else:
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
-            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True,
+            lg_to_gr(enable_ocr=not speed_up,
+                     enable_captions=True,
+                     enable_pdf_ocr='off' if not speed_up else 'on',
                      enable_pdf_doctr=True,
                      use_pymupdf=True,
                      enable_doctr=True,
@@ -2994,8 +2998,12 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
         jq_schema = None
         extract_frames = 0
         llava_prompt = None
-        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
-                   jq_schema, extract_frames, llava_prompt]
+        if speed_up:
+            loaders = [image_audio_loaders_options0, pdf_loaders_options0, url_loaders_options0,
+                       jq_schema, extract_frames, llava_prompt]
+        else:
+            loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
+                       jq_schema, extract_frames, llava_prompt]
 
     stream_output = True
     max_new_tokens = 256
@@ -3017,6 +3025,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          append_sources_to_chat=False,
          function_server=function_server,
          function_server_workers=function_server_workers,
+         add_disk_models_to_ui=False,
          **main_kwargs,
          verbose=True)
 
@@ -6249,7 +6258,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
-                     #'liuhaotian/llava-v1.6-vicuna-13b',
+                     # 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b',
                      'HuggingFaceM4/idefics2-8b-chatty',
                      'lmms-lab/llama3-llava-next-8b',
@@ -6610,3 +6619,52 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
     assert '1977' in response.lower()
     assert 'tiger' in response.lower()
     assert 'hot' in response.lower()
+
+
+@wrap_test_forked
+def test_client1_lock_choose_model_via_api():
+    from src.gen import main
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         add_disk_models_to_ui=False)
+
+    model_lock35 = ast.literal_eval(os.environ['GPT35'])
+    kwargs = dict(instruction='Who are you?', model_lock=model_lock35[0])
+
+    api_name = '/submit_nochat_api'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        str(kwargs),
+        api_name=api_name,
+    )
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print(response)
+    assert 'OpenAI' in response
+
+
+@wrap_test_forked
+def test_client1_lock_choose_model_via_api_vision():
+    from src.gen import main
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         add_disk_models_to_ui=False)
+
+    from src.vision.utils_vision import img_to_base64
+    url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
+    tiger_file = download_simple(url)
+    big_ben_file = 'tests/receipt.jpg'
+    image_file = [img_to_base64(big_ben_file), img_to_base64(tiger_file)]
+
+    model_lock4o = ast.literal_eval(os.environ['GPT4o'])
+    kwargs = dict(instruction='What do you see?', model_lock=model_lock4o[0],
+                  image_file=image_file)
+
+    api_name = '/submit_nochat_api'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        str(kwargs),
+        api_name=api_name,
+    )
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print(response)
+    assert 'tiger' in response and 'receipt' in response

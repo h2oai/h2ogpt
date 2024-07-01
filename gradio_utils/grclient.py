@@ -700,6 +700,7 @@ class GradioClient(Client):
         json_code_prompt_if_no_schema: str = None,
         json_schema_instruction: str = None,
         model: str | int | None = None,
+        model_lock: dict | None = None,
         stream_output: bool = False,
         do_sample: bool = False,
         seed: int | None = 0,
@@ -837,6 +838,7 @@ class GradioClient(Client):
             :param model: base_model name or integer index of model_lock on h2oGPT server
                             None results in use of first (0th index) model in server
                    to get list of models do client.list_models()
+            :param model_lock: dict of states or single state, with dict of things like inference server, to use when using dynamic LLM (not from existing model lock on h2oGPT)
             :param pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
             :param prompt_extraction: Same as prompt_summary but for when doing extraction
             :param do_sample: see src/gen.py
