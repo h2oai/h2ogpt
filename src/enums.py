@@ -281,8 +281,8 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'claude-3-sonnet-20240229': claude3image_num_max,
                        'claude-3-5-sonnet-20240620': claude3image_num_max,
                        'claude-3-haiku-20240307': claude3_haiku_image_num_max,
-                       'liuhaotian/llava-v1.6-34b': 1,
-                       'liuhaotian/llava-v1.6-vicuna-13b': 1,
+                       'liuhaotian/llava-v1.6-34b': 1,  # for lmdeploy
+                       'liuhaotian/llava-v1.6-vicuna-13b': 1,  # for lmdeploy
                        'HuggingFaceM4/idefics2-8b-chatty': 10,
                        'lmms-lab/llama3-llava-next-8b': 2,
                        'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
