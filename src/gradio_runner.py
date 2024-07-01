@@ -1534,7 +1534,8 @@ def go_gradio(**kwargs):
                             llava_prompt_type.change(fn=show_llava, inputs=llava_prompt_type, outputs=llava_prompt,
                                                      **noqueue_kwargs)
 
-                    gr.Markdown("Document Control")
+                    if not is_public:
+                        gr.Markdown("Document Control")
                     with gr.Row(visible=not is_public):
                         image_audio_loaders = gr.CheckboxGroup(image_audio_loaders_options,
                                                                label="Force Image-Audio Reader",
@@ -2386,19 +2387,20 @@ def go_gradio(**kwargs):
                                         s3up_btn = gr.Button("S3UP", size='sm')
                                         s3up_text = gr.Textbox(label='S3UP result', interactive=False)
 
-                tos_tab = gr.TabItem("Terms of Service", visible=kwargs['visible_tos_tab'] and is_public) if kwargs[
-                                                                                                                 'visible_tos_tab'] and is_public else gr.Row(
+                tos_visible = kwargs['visible_tos_tab'] and is_public
+                tos_tab = gr.TabItem("Terms of Service", visible=tos_visible) if tos_visible else gr.Row(
                     visible=False)
                 with tos_tab:
-                    description = ""
-                    description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
-                    if kwargs['load_8bit']:
-                        description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
-                    description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
-                    if 'h2ogpt-research' in kwargs['base_model']:
-                        description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
-                    description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
-                    gr.Markdown(value=description, show_label=False)
+                    if tos_visible:
+                        description = ""
+                        description += """<p><b> DISCLAIMERS: </b><ul><i><li>The model was trained on The Pile and other data, which may contain objectionable content.  Use at own risk.</i></li>"""
+                        if kwargs['load_8bit']:
+                            description += """<i><li> Model is loaded in 8-bit and has other restrictions on this host. UX can be worse than non-hosted version.</i></li>"""
+                        description += """<i><li>Conversations may be used to improve h2oGPT.  Do not share sensitive information.</i></li>"""
+                        if 'h2ogpt-research' in kwargs['base_model']:
+                            description += """<i><li>Research demonstration only, not used for commercial purposes.</i></li>"""
+                        description += """<i><li>By using h2oGPT, you accept our <a href="https://github.com/h2oai/h2ogpt/blob/main/docs/tos.md">Terms of Service</a></i></li></ul></p>"""
+                        gr.Markdown(value=description, show_label=False)
 
                 login_tab = gr.TabItem("Log-in/out" if kwargs['auth'] else "Login",
                                        visible=kwargs['visible_login_tab']) if kwargs['visible_login_tab'] else gr.Row(
@@ -2436,10 +2438,11 @@ def go_gradio(**kwargs):
                 hosts_visible = kwargs['visible_hosts_tab'] and is_public
                 hosts_tab = gr.TabItem("Hosts", visible=hosts_visible) if hosts_visible else gr.Row(visible=False)
                 with hosts_tab:
-                    gr.Markdown(f"""
-                        {description_bottom}
-                        {task_info_md}
-                        """)
+                    if hosts_visible:
+                        gr.Markdown(f"""
+                            {description_bottom}
+                            {task_info_md}
+                            """)
 
         def zip_data_check_key(admin_pass_textbox1,
                                h2ogpt_key2,

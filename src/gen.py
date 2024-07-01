@@ -76,7 +76,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, no_model_str, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
     is_json_model, is_vision_model, \
-    model_state_none0, other_model_state_defaults0
+    model_state_none0, other_model_state_defaults0, image_batch_image_prompt0, image_batch_final_prompt0
 
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, \
@@ -1359,6 +1359,10 @@ def main(
         metadata_in_context = []
     if seed is None:
         seed = 0
+    if image_batch_image_prompt is None:
+        image_batch_image_prompt = image_batch_image_prompt0
+    if image_batch_final_prompt is None:
+        image_batch_final_prompt = image_batch_final_prompt0
 
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)
