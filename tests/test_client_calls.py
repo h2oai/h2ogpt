@@ -2976,8 +2976,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
-            lg_to_gr(enable_ocr=True, enable_captions=True,
-                     enable_pdf_ocr=False,  # speed up testing
+            lg_to_gr(enable_ocr=False,  # speed up testing
+                     enable_captions=True,
+                     enable_pdf_ocr='off',  # speed up testing
                      enable_pdf_doctr=True,
                      use_pymupdf=True,
                      enable_doctr=True,
@@ -3018,6 +3019,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          append_sources_to_chat=False,
          function_server=function_server,
          function_server_workers=function_server_workers,
+         add_disk_models_to_ui=False,
          **main_kwargs,
          verbose=True)
 
