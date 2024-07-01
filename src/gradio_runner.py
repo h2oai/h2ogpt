@@ -1743,7 +1743,7 @@ def go_gradio(**kwargs):
                             visible=not is_public)
                         images_num_max = gr.Number(
                             label='Number of Images per LLM call, -1 is auto mode, 0 is avoid using images',
-                            value=kwargs['images_num_max'] or 0,
+                            value=kwargs['images_num_max'] if kwargs['images_num_max'] is not None else -1,
                             visible=not is_public)
                         image_resolution = gr.Textbox(label='Resolution in (nx, ny)', value=kwargs['image_resolution'],
                                                       visible=not is_public)
