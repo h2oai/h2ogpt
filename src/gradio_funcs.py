@@ -162,7 +162,10 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
 
     ###########################################
     # select model
-    stream_output1 = args_list[eval_func_param_names.index('stream_output')]
+    model_lock_client = args_list[eval_func_param_names.index('model_lock')]
+    if model_lock_client:
+        pass
+
     if len(model_states) >= 1:
         visible_models1 = args_list[eval_func_param_names.index('visible_models')]
         model_active_choice1 = visible_models_to_model_choice(visible_models1, model_states, api=True)

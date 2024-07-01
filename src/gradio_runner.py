@@ -31,6 +31,7 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
 
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
     append_to_user_data, append_to_users_data
+from src.model_utils import switch_a_roo_llama, get_on_disk_models
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
@@ -79,8 +80,8 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
-    switch_a_roo_llama, get_model_max_length_from_tokenizer, \
-    get_model_retry, remove_refs, get_on_disk_models, model_name_to_prompt_type, get_inf_models
+    get_model_max_length_from_tokenizer, \
+    get_model_retry, remove_refs, model_name_to_prompt_type
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
     input_args_list
 
@@ -752,7 +753,7 @@ def go_gradio(**kwargs):
                 clear_torch_cache()
 
         model_state_cb = dict(callback=model_state_done) if support_state_callbacks else {}
-        model_state_default = dict(model='model', tokenizer='tokenizer', device=kwargs['device'],
+        model_state_default = dict(model='model', tokenizer='tokenizer', device='device',
                                    base_model=kwargs['base_model'],
                                    display_name=kwargs['base_model'],
                                    tokenizer_base_model=kwargs['tokenizer_base_model'],
@@ -1770,6 +1771,7 @@ def go_gradio(**kwargs):
                                                             filterable=len(
                                                                 kwargs['all_possible_vision_display_names']) > 5,
                                                             )
+                        model_lock = gr.Textbox(value=kwargs['model_lock'], visible=False)  # API only
                         image_batch_stream = gr.Checkbox(label="Whether to stream batching of images.",
                                                          value=kwargs['image_batch_stream'],
                                                          visible=not is_public)

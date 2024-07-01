@@ -4,10 +4,9 @@ import os
 import traceback
 
 # also supports imports from this file from other files
-from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type # keep single line
+from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type, empty_prompt_type  # keep single line
 from prompter_utils import get_use_chat_template
 from stopping import update_terminate_responses
-from utils import get_gradio_tmp
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -2305,6 +2304,7 @@ def gradio_to_llm(x, bot=False):
     """
     convert message (user or bot) in case message is tuple from gradio
     """
+    from utils import get_gradio_tmp
     gradio_tmp = get_gradio_tmp()
     # handle if gradio tuples in messages
     if x is None:
@@ -2445,3 +2445,51 @@ def convert_messages_and_extract_images(tuple_list):
             })
 
     return messages, images
+
+
+def model_name_to_prompt_type(model_name, inference_server,
+                              model_name0=None, llamacpp_dict={},
+                              prompt_type_old=None, tokenizer=None):
+    from utils import get_llama_lower_hf, FakeTokenizer
+
+    model_lower0 = model_name0.strip().lower() if model_name0 is not None else ''
+    model_lower = model_name.strip().lower()
+    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+    llama_lower_hf = get_llama_lower_hf(llama_lower)
+    llama_lower_base = os.path.basename(llama_lower)
+    if llama_lower_hf and llama_lower_hf in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[llama_lower_hf]
+    elif llama_lower_base and llama_lower_base in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[llama_lower_base]
+    elif model_lower0 and model_lower0 in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[model_lower0]
+    elif model_lower and model_lower in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
+    else:
+        prompt_type1 = prompt_type_old or ''
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer,
+                                                                                                 FakeTokenizer):
+        # handle new models not defined yet
+        if tokenizer.is_google:
+            prompt_type1 = 'google'
+        elif tokenizer.is_anthropic:
+            prompt_type1 = 'anthropic'
+        elif tokenizer.is_openai:
+            prompt_type1 = 'openai'
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type]:
+        # handle new models not defined yet
+        if inference_server == 'google':
+            prompt_type1 = 'google'
+        elif inference_server == 'mistralai':
+            prompt_type1 = 'mistralai'
+        elif inference_server == 'mistralai':
+            prompt_type1 = 'mistralai'
+        elif inference_server == 'anthropic':
+            prompt_type1 = 'anthropic'
+        elif inference_server == 'openai':
+            prompt_type1 = 'openai'
+        elif inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+            # no extra LLM prompting
+            prompt_type1 = 'plain'
+
+    return prompt_type1
