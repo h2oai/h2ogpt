@@ -1,6 +1,6 @@
 ## Frequently asked questions
 
-### vLLM driver requirements.
+### vLLM driver requirements
 
 vllm >= 0.5.0 requires a cuda >=12.4 driver, else docker will fail with:
 ```text
@@ -16,7 +16,7 @@ python generate.py --openai_server=True --openai_workers=2 ...
 ```
 will launch 2 OpenAI proxy servers using FastAPIs workers, so each is a separate fork independent of any other process.
 
-This speeds up any calls to the OpenAI server, letting FastAPI handle concurrency and load balancing between the different workers using same IP/port via OS management.
+This speeds up any calls to the OpenAI server, letting FastAPI handle concurrency and load balancing between the different workers using the same IP/port via OS management.
 
 ### Parallel and Isolated Ingestion Servers
 
@@ -25,7 +25,7 @@ python generate.py --function_server=True --function_server_workers=2 ...
 ```
 will launch 2 Ingestion proxy servers using FastAPIs workers, so each is a separate fork independent of any other process.  If ASR, DocTR, captions, etc. are enabled, these will be run on same GPUs in separate processes.
 
-This helps keep the main UI server isolated from ingestion tasks that can consume alot of cpu or hang the Gradio server.
+This helps keep the main UI server isolated from ingestion tasks that can consume significant amounts of CPU resources or hang the Gradio server.
 
 ### Open Web UI
 
@@ -35,10 +35,8 @@ python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llam
 ```
 You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.  One can choose any other [image generation models](#image-generation) or [TTS models](#speech-to-text-stt-and-text-to_speech-tts) as well.
 
-Then run the Open Web UI docker command
-```bash
+Then run the Open Web UI docker command:
 
-Then run the Open Web UI docker command
 ```bash
 export api_key='EMPTY'
 docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
@@ -63,15 +61,15 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
-Note:  The first time you login to Open Web UI, that user will be admin user who can set defaults for various admin things, have admin panel to control user behavior and settings, etc.  Additional users will take the role the admin sets (by default, pending, which can be changed to user for anyone to login).
+Note: The first time you log in to Open Web UI, that user will be the admin user who can set defaults for various admin settings, access the admin panel to control user behavior and settings, etc. Additional users will take the role set by the admin (by default, pending, which can be changed to user for anyone to log in).
 
-If one wants to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
+If you want to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
 ```bash
 -e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
 ```
 
-For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, one can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but they would be like:
+For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, you can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but they would be like:
 ```bash
 -e AUDIO_GENERATION_ENGINE='openai' \
 -e AUDIO_GENERATION_VOICE='SLT (female)' \
@@ -147,7 +145,7 @@ For 8x22b, we recommend https://huggingface.co/mistral-community/Mixtral-8x22B-v
 - [x] Handle old vLLM and other models that do not have json mode by using `json_code` mode effectively.
 - [x] When making JSON without guided_json schema, handle MistralAI and OpenAI directly using their JSON mode.
 
-h2oGPT in general uses guided_json like defined below to tell LLM the schema as part of prompt, unless vLLM >= 0.4.0 when this is provided directly to vLLM.  Schemas like `guided_json` are not required for JSON mode, but to follow some schema it is required, and only vLLM >= 0.4.0 will strictly follow the schema due to guided generation using outlines package.
+h2oGPT in general uses `guided_json` as defined below to tell LLM the schema as part of prompt, unless vLLM >= 0.4.0 when this is provided directly to vLLM.  Schemas like `guided_json` are not required for JSON mode, but to follow some schema it is required, and only vLLM >= 0.4.0 will strictly follow the schema due to guided generation using outlines package.
 
 Example `guided_json`, `guided_regex`, `guided_choice` schemas to be passed in as string to h2oGPT.
 ```
@@ -219,7 +217,7 @@ although `CohereForAI/aya-101` is auto-detected as T5 Conditional already.
 
 * Run oLLaMa as server for h2oGPT frontend.
 
-    Shutdown ollama and re-run on whichever GPUs wanted:
+    Shut down ollama and re-run on whichever GPUs wanted:
     ```bash
     sudo systemctl stop ollama.service
     CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11434 ollama serve &> ollama.log &
@@ -2046,7 +2044,7 @@ GGUF using Mixtral:
 ```bash
 python generate.py --base_model=TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF --prompt_type=mistral --max_seq_len=4096 --score_model=None
 ```
-Also note that Mixtral GGUF has max context of 4k if allowed to auto-detect in h2oGPT.  One can try larger up to 32k with `--max_seq_len`.  But higher uses alot of GPU memory and is slow but for document QA is probably not helpful (e.g. `--top_k_docs=-1` with 32k actually hurts RAG performance, better to limit RAG to 4k, summarization can use more though).  This can be controlled per-query with `max_input_tokens` in API/UI.
+Also note that Mixtral GGUF has max context of 4k if allowed to auto-detect in h2oGPT.  One can try larger up to 32k with `--max_seq_len`.  But higher uses significant amounts of GPU memory and is slow but for document QA is probably not helpful (e.g. `--top_k_docs=-1` with 32k actually hurts RAG performance, better to limit RAG to 4k, summarization can use more though).  This can be controlled per-query with `max_input_tokens` in API/UI.
 
 Also, with `--top_k_docs=-1` or too large positive value, context-filling of the 4k leads to very slow results for GGUF Mixtral compared to vLLM FP16 performance.
 
@@ -2342,7 +2340,7 @@ Also try smaller GGUF models for GPU, e.g.:
 ```bash
 python generate.py --base_model=https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf --prompt_type=zephyr --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2 --score_model=None --llamacpp_dict="{'n_gpu_layers':10}" --max_seq_len=1024 --enable_tts=False --enable_stt=False --enable_transcriptions=False --top_k_docs=3 --metadata_in_context=None
 ```
-This only uses 2GB of GPU even during usage, but will be alot slower if use only use GPU with 10 layers instead of default.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
+This only uses 2GB of GPU even during usage, but will be significantly slower if you use GPU with only 10 layers instead of default.  You can vary the model size from [TheBloke](https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/tree/main) and offloading to optimize your experience.
 
 On CPU case, a good model that's still low memory is to run:
 ```bash
