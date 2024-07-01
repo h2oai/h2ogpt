@@ -6614,10 +6614,6 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
 
 @wrap_test_forked
 def test_client1_lock_choose_model_via_api():
-    os.environ['TEST_LANGCHAIN_IMPORT'] = "1"
-    sys.modules.pop('gpt_langchain', None)
-    sys.modules.pop('langchain', None)
-
     from src.gen import main
     main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
          add_disk_models_to_ui=False)
