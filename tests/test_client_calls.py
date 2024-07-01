@@ -2996,7 +2996,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
         jq_schema = None
         extract_frames = 0
         llava_prompt = None
-        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
+        loaders = [image_audio_loaders_options0, pdf_loaders_options0, url_loaders_options0,
                    jq_schema, extract_frames, llava_prompt]
 
     stream_output = True
