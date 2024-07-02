@@ -1,15 +1,9 @@
 # ensure doesn't drift, e.g. Issue #1348
 torch==2.2.1
-<<<<<<< HEAD
 gradio==3.50.2
 gradio_client==0.6.1
 # gradio==4.26.0
 # gradio_client==0.15.1
-transformers>=4.41.2
-=======
-gradio==4.26.0
-gradio_client==0.15.1
 transformers>=4.42.3
->>>>>>> main
 # https://github.com/langchain-ai/langchain/issues/22972
 tenacity==8.3.0
