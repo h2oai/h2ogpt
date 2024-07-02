@@ -3694,6 +3694,8 @@ def evaluate(
                                          guided_choice=guided_choice,
                                          guided_grammar=guided_grammar,
                                          guided_whitespace_pattern=guided_whitespace_pattern,
+
+                                         model_lock=None,  # already set
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
