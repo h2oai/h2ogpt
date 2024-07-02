@@ -55,7 +55,6 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-
 from src.gradio_funcs import merge_chat_conversation_history
 from src.db_utils import fetch_user
 from src.model_utils import switch_a_roo_llama, get_score_model, get_model_retry, get_model, \
@@ -3379,7 +3378,13 @@ def evaluate(
                         openai_system_prompt = system_prompt
                     messages0 = []
                     if openai_system_prompt:
-                        messages0.append({"role": "system", "content": openai_system_prompt})
+                        if prompter.can_handle_system_prompt:
+                            messages0.append({"role": "system", "content": openai_system_prompt})
+                        else:
+                            messages0.append({"role": "user",
+                                              "content": user_prompt_for_fake_system_prompt or \
+                                                         user_prompt_for_fake_system_prompt0})
+                            messages0.append({"role": "assistant", "content": openai_system_prompt})
                     if chat_conversation and add_chat_history_to_context:
                         assert external_handle_chat_conversation, "Should be handling only externally"
                         # history_to_use_final handles token counting issues
