@@ -1540,6 +1540,14 @@ def prep_model_state_none():
 
 
 def model_lock_to_state(model_dict1, cache_model_state=False, **kwargs):
+    if model_dict1 is None:
+        model_dict1 = {}
+    if isinstance(model_dict1, str):
+        model_dict1 = ast.literal_eval(model_dict1)
+    if isinstance(model_dict1, list) and len(model_dict1) >= 1:
+        model_dict1 = model_dict1[0]
+    assert isinstance(model_dict1, dict)
+
     if cache_model_state:
         model_dict_json = json.dumps(model_dict1)
 

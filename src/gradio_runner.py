@@ -31,7 +31,7 @@ from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, f
 
 from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
     append_to_user_data, append_to_users_data
-from src.model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models
+from src.model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models, model_lock_to_state
 from src.tts_utils import combine_audios
 from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
@@ -2377,6 +2377,10 @@ def go_gradio(**kwargs):
                                         system_btn4 = gr.Button(value='Get Model Names', visible=not is_public,
                                                                 size='sm')
                                         system_text4 = gr.Textbox(label='Model Names', interactive=False,
+                                                                  visible=not is_public, show_copy_button=True)
+                                        system_btn5 = gr.Button(value='Get Model Info', visible=not is_public,
+                                                                size='sm')
+                                        system_text5 = gr.Textbox(label='Model Info from model_lock', interactive=False,
                                                                   visible=not is_public, show_copy_button=True)
 
                                     with gr.Row():
@@ -5696,17 +5700,26 @@ def go_gradio(**kwargs):
                                               **noqueue_kwargs,  # queue to avoid spam
                                               )
 
-        def get_model_names():
-            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(
-                kwargs['other_model_state_defaults'].keys())
-            # don't want to expose backend inference server IP etc.
-            # key_list += ['inference_server']
+        def get_model_states():
             if len(model_states) >= 1:
                 local_model_states = model_states
             elif model_state0 is not None:
                 local_model_states = [model_state0]
             else:
                 local_model_states = []
+            return local_model_states
+
+        def get_model_names():
+            local_model_states = get_model_states()
+            return _get_model_names(local_model_states)
+
+        def get_model_names_from_lock(admin_pass_textbox1, model_lock_client):
+            assert admin_pass_textbox1 == admin_pass or not admin_pass
+            local_model_states = [
+                model_lock_to_state(model_lock_client, cache_model_state=True, **kwargs)]
+            return _get_model_names(local_model_states)
+
+        def _get_model_names(local_model_states):
             for model_state3 in local_model_states:
                 base_model = model_state3.get('base_model', '')
                 inference_server = model_state3.get('inference_server', '')
@@ -5719,6 +5732,10 @@ def go_gradio(**kwargs):
                 model_state3['json'] = model_state3.get('json', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
 
+            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(
+                kwargs['other_model_state_defaults'].keys())
+            # don't want to expose backend inference server IP etc.
+            # key_list += ['inference_server']
             key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json',
                              'auto_visible_vision_models'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
@@ -5728,6 +5745,14 @@ def go_gradio(**kwargs):
                                               api_name='model_names' if allow_api else False,
                                               **noqueue_kwargs,
                                               )
+
+        # loads model, so admin password protected
+        models_list_event2 = system_btn5.click(get_model_names_from_lock,
+                                               inputs=[admin_pass_textbox, model_lock],
+                                               outputs=system_text5,
+                                               api_name='model_names_from_lock' if allow_api else False,
+                                               **noqueue_kwargs,
+                                               )
 
         def text_to_dict(x):
             e1 = e2 = None

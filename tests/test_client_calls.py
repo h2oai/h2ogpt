@@ -6621,11 +6621,12 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
     assert 'hot' in response.lower()
 
 
+@pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
 @wrap_test_forked
-def test_client1_lock_choose_model_via_api():
+def test_client1_lock_choose_model_via_api(admin_pass):
     from src.gen import main
     main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
-         add_disk_models_to_ui=False)
+         add_disk_models_to_ui=False, admin_pass=admin_pass)
 
     model_lock35 = ast.literal_eval(os.environ['GPT35'])
     kwargs = dict(instruction='Who are you?', model_lock=model_lock35[0])
@@ -6641,12 +6642,32 @@ def test_client1_lock_choose_model_via_api():
     print(response)
     assert 'OpenAI' in response
 
+    api_name = '/model_names_from_lock'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        admin_pass,
+        str(model_lock35),
+        api_name=api_name,
+    )
+    model_info = ast.literal_eval(res)
+    assert len(model_info) == 1
+    assert model_info[0]['base_model'] == 'gpt-3.5-turbo-0613'
+    assert model_info[0]['prompt_type'] == 'openai_chat'
+    assert model_info[0]['max_seq_len'] == 4046
+    assert model_info[0]['actually_image'] is False
+    assert model_info[0]['image'] is False
 
+    response = res_dict['response']
+    print(response)
+    assert 'OpenAI' in response
+
+
+@pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
 @wrap_test_forked
-def test_client1_lock_choose_model_via_api_vision():
+def test_client1_lock_choose_model_via_api_vision(admin_pass):
     from src.gen import main
     main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
-         add_disk_models_to_ui=False)
+         add_disk_models_to_ui=False, admin_pass=admin_pass)
 
     from src.vision.utils_vision import img_to_base64
     url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
@@ -6668,3 +6689,18 @@ def test_client1_lock_choose_model_via_api_vision():
     response = res_dict['response']
     print(response)
     assert 'tiger' in response and 'receipt' in response
+
+    api_name = '/model_names_from_lock'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        admin_pass,
+        str(model_lock4o),
+        api_name=api_name,
+    )
+    model_info = ast.literal_eval(res)
+    assert len(model_info) == 1
+    assert model_info[0]['base_model'] == 'gpt-4o'
+    assert model_info[0]['prompt_type'] == 'openai_chat'
+    assert model_info[0]['max_seq_len'] == 127950
+    assert model_info[0]['actually_image'] is True
+    assert model_info[0]['image'] is True
