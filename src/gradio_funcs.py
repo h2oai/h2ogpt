@@ -387,7 +387,8 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         if verbose:
             print("Error in evaluate_nochat: %s" % ex, flush=True)
         if str_api:
-            ret = {'error': str(ex), 'sources': [], 'sources_str': '', 'prompt_raw': '', 'llm_answers': []}
+            ret = {'error': str(e), 'error_ex': str(ex), 'sources': [], 'sources_str': '', 'prompt_raw': '',
+                   'llm_answers': []}
             yield ret
         raise
     finally:
@@ -649,7 +650,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             # unlikely extended image description possible or required
             if batch_display_name in images_limit_max_new_tokens_list:
                 max_new_tokens = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('max_new_tokens')]
-                fun1_args_list2[len(input_args_list) + eval_func_param_names.index('max_new_tokens')] = min(images_limit_max_new_tokens, max_new_tokens)
+                fun1_args_list2[len(input_args_list) + eval_func_param_names.index('max_new_tokens')] = min(
+                    images_limit_max_new_tokens, max_new_tokens)
             # don't include context list, just do image only
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
             # no docs from DB, just image.  Don't switch langchain_mode.
