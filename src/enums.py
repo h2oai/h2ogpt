@@ -290,6 +290,10 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'microsoft/Phi-3-vision-128k-instruct': 1,  # only 1 possible with vllm
                        }
 
+# llava34b sometimes runs out of tokens and finishes due to token limits, let's restrict
+images_limit_max_new_tokens_list = ['liuhaotian/llava-v1.6-vicuna-13b', 'liuhaotian/llava-v1.6-34b']
+images_limit_max_new_tokens = 512
+
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
 google_mapping = {
