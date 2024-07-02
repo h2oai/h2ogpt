@@ -1544,8 +1544,10 @@ def model_lock_to_state(model_dict1, cache_model_state=False, **kwargs):
         model_dict1 = {}
     if isinstance(model_dict1, str):
         model_dict1 = ast.literal_eval(model_dict1)
-    if isinstance(model_dict1, list) and len(model_dict1) >= 1:
+    if isinstance(model_dict1, list) and len(model_dict1) == 1:
         model_dict1 = model_dict1[0]
+    if isinstance(model_dict1, list) and len(model_dict1) > 1:
+        raise ValueError("Unexpected multiple model_dict entries: %s" % len(model_dict1))
     assert isinstance(model_dict1, dict)
 
     if cache_model_state:
@@ -1581,7 +1583,8 @@ def __model_lock_to_state(model_dict1, **kwargs):
     # handle defaults user didn't have to pass
     # special defaults, ignore defaults for these if not specifically set, replace with ''
     model_dict['base_model'] = model_dict.get('base_model', '')
-    model_dict['display_name'] = model_dict.get('display_name', '')
+    # display_name may be updated if need to dedup
+    model_dict['display_name'] = model_dict.get('display_name', model_dict['base_model'])
     model_dict['tokenizer_base_model'] = model_dict.get('tokenizer_base_model', '')
     model_dict['lora_weights'] = model_dict.get('lora_weights', '')
     model_dict['inference_server'] = model_dict.get('inference_server', '')
