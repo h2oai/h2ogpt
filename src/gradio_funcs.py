@@ -165,13 +165,6 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
     # select model
     model_lock_client = args_list[eval_func_param_names.index('model_lock')]
     if model_lock_client:
-        if model_lock_client is None:
-            model_lock_client = {}
-        if isinstance(model_lock_client, str):
-            model_lock_client = ast.literal_eval(model_lock_client)
-        if isinstance(model_lock_client, list) and len(model_lock_client) >= 1:
-            model_lock_client = model_lock_client[0]
-        assert isinstance(model_lock_client, dict)
         # because cache, if has local model state, then stays in memory
         # kwargs should be fixed and unchanging, and user should be careful if mutating model_lock_client
         model_state1 = model_lock_to_state(model_lock_client, cache_model_state=True, **kwargs)

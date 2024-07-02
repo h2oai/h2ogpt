@@ -176,6 +176,7 @@ def main(
         local_files_only: bool = False,
         resume_download: bool = True,
         use_auth_token: Union[str, bool] = False,
+        admin_pass: str = None,
         trust_remote_code: Union[str, bool] = True,
         rope_scaling: dict = None,
         max_seq_len: int = None,
@@ -736,6 +737,7 @@ def main(
     :param local_files_only: whether to only use local files instead of doing to HF for models
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
+    :param admin_pass: Administator password
     :param trust_remote_code: whether to use trust any code needed for HF model
     :param rope_scaling:
            For HF transformers model: scaling for rope-based models.
@@ -1491,7 +1493,8 @@ def main(
         n_jobs = min(n_jobs, max(1, min(os.cpu_count() // 2, 8)))
     if is_public:
         gradio_upload_to_chatbot_num_max = 1
-    admin_pass = os.getenv("ADMIN_PASS")
+    if admin_pass is None:
+        admin_pass = os.getenv("ADMIN_PASS")
     # will sometimes appear in UI or sometimes actual generation, but maybe better than empty result
     # but becomes unrecoverable sometimes if raise, so just be silent for now
     raise_generate_gpu_exceptions = True
