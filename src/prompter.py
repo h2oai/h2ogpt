@@ -1672,14 +1672,6 @@ class Prompter(object):
         self.pre_response = self.PreResponse
         self.verbose = verbose
 
-        if self.use_chat_template:
-            # see if chat template handles system prompt
-            system_prompt = '1234####*****@@!(#%@#%@#%'
-            self.can_handle_system_prompt = system_prompt in apply_chat_template("Test", system_prompt, [], [],
-                                                                                 self.tokenizer,
-                                                                                 test_only=True,
-                                                                                 user_prompt_for_fake_system_prompt=None)
-
     @property
     def stop_sequences(self):
         terminate_response = self.terminate_response or []
@@ -2420,21 +2412,6 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
                 raise
     assert prompt, "Prompt was not set: %s" % str(exceptions)
     return prompt
-
-
-def template_supports_system_prompt(tokenizer):
-    from src.utils import FakeTokenizer
-    import jinja2
-    if isinstance(tokenizer, FakeTokenizer):
-        return True
-    try:
-        tokenizer.apply_chat_template([{'role': 'system', 'content': 'Test system prompt'}])
-    except jinja2.exceptions.TemplateError as e:
-        if 'System role not supported' in str(e):
-            return False
-        else:
-            raise
-    return True
 
 
 def convert_messages_and_extract_images(tuple_list):
