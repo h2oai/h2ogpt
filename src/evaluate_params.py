@@ -13,6 +13,7 @@ no_default_param_names = [
     "instruction_nochat",
     "iinput_nochat",
     "h2ogpt_key",
+    "model_lock",
 ]
 
 gen_hyper0 = [

@@ -6652,6 +6652,7 @@ def test_client1_lock_choose_model_via_api(admin_pass):
     model_info = ast.literal_eval(res)
     assert len(model_info) == 1
     assert model_info[0]['base_model'] == 'gpt-3.5-turbo-0613'
+    assert model_info[0]['display_name'] == 'gpt-3.5-turbo-0613'
     assert model_info[0]['prompt_type'] == 'openai_chat'
     assert model_info[0]['max_seq_len'] == 4046
     assert model_info[0]['actually_image'] is False
@@ -6700,6 +6701,7 @@ def test_client1_lock_choose_model_via_api_vision(admin_pass):
     model_info = ast.literal_eval(res)
     assert len(model_info) == 1
     assert model_info[0]['base_model'] == 'gpt-4o'
+    assert model_info[0]['display_name'] == 'gpt-4o'
     assert model_info[0]['prompt_type'] == 'openai_chat'
     assert model_info[0]['max_seq_len'] == 127950
     assert model_info[0]['actually_image'] is True
