@@ -11,7 +11,8 @@ import filelock
 
 from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
     DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset, \
-    images_num_max_dict, image_batch_image_prompt0, image_batch_final_prompt0
+    images_num_max_dict, image_batch_image_prompt0, image_batch_final_prompt0, images_limit_max_new_tokens, \
+    images_limit_max_new_tokens_list
 from src.model_utils import model_lock_to_state
 from src.tts_utils import combine_audios
 from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
@@ -645,6 +646,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             batch_size = len(fun1_args_list2[len(input_args_list) + eval_func_param_names.index('image_file')])
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')] = instruction_batch
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_batch
+            # unlikely extended image description possible or required
+            if batch_display_name in images_limit_max_new_tokens_list:
+                max_new_tokens = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('max_new_tokens')]
+                fun1_args_list2[len(input_args_list) + eval_func_param_names.index('max_new_tokens')] = min(images_limit_max_new_tokens, max_new_tokens)
             # don't include context list, just do image only
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
             # no docs from DB, just image.  Don't switch langchain_mode.
