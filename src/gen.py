@@ -2705,13 +2705,13 @@ def evaluate(
 
     if base_model is None and not no_llm_ok:
         raise AssertionError(no_model_msg)
-    if inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
-        # no extra LLM prompting
-        prompt_type = 'plain'
 
     assert base_model.strip(), no_model_msg
     assert model is not None, "Model is missing"
     assert tokenizer is not None, "Tokenizer is missing"
+    model_lower = base_model.lower()
+    llamacpp_dict = str_to_dict(llamacpp_dict)
+
 
     # choose chat or non-chat mode
     if not chat:
@@ -2731,19 +2731,6 @@ def evaluate(
         # make it easy to ignore without needing add_chat_history_to_context
         # some langchain or unit test may need to then handle more general case
         chat_conversation = []
-
-    # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
-    # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
-    model_lower = base_model.lower()
-    llamacpp_dict = str_to_dict(llamacpp_dict)
-    if not prompt_type and prompt_type != 'custom':
-        prompt_type_trial = model_name_to_prompt_type(base_model, inference_server,
-                                                      llamacpp_dict=llamacpp_dict, tokenizer=tokenizer)
-        if prompt_type_trial:
-            prompt_type = prompt_type_trial
-            if verbose:
-                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, base_model), flush=True)
-    assert prompt_type is not None, "prompt_type was None"
 
     # Control generation hyperparameters
     # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
@@ -2932,6 +2919,23 @@ def evaluate(
         prompt_query = pre_instruction + prompt_query
         pre_prompt_summary = ''
         prompt_summary = pre_instruction + prompt_summary
+
+    ###############
+    # prompt_type and prompter setup
+    if inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+        # no extra LLM prompting
+        prompt_type = unknown_prompt_type
+
+    # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
+    # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
+    if not prompt_type and prompt_type != 'custom':
+        prompt_type_trial = model_name_to_prompt_type(base_model, inference_server,
+                                                      llamacpp_dict=llamacpp_dict, tokenizer=tokenizer)
+        if prompt_type_trial:
+            prompt_type = prompt_type_trial
+            if verbose:
+                print("Auto-selecting prompt_type=%s for %s" % (prompt_type, base_model), flush=True)
+    assert prompt_type is not None, "prompt_type was None"
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
