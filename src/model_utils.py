@@ -773,20 +773,24 @@ def get_model(
         import google.generativeai as genai
         see_model = False
         models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                name_split = m.name.split('models/')
-                if len(name_split) >= 2:
-                    name = name_split[1]
-                    models.append(name)
-                    if name not in google_mapping:
-                        if os.getenv('HARD_ASSERTS'):
-                            raise ValueError("%s not in google_mapping" % name)
-                        google_mapping[name] = 8192  # estimate
-                        google_gpts.append(name)
-                        prompt_type_to_model_name['google'].append(name)
-                    see_model |= base_model == name
-        assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    name_split = m.name.split('models/')
+                    if len(name_split) >= 2:
+                        name = name_split[1]
+                        models.append(name)
+                        if name not in google_mapping:
+                            if os.getenv('HARD_ASSERTS'):
+                                raise ValueError("%s not in google_mapping" % name)
+                            google_mapping[name] = 8192  # estimate
+                            google_gpts.append(name)
+                            prompt_type_to_model_name['google'].append(name)
+                        see_model |= base_model == name
+            assert see_model, "Did not find model=%s in API access: %s" % (base_model, models)
+        except Exception as e:
+            print("Can't automatically check Google models: %s" % str(e))
+            assert base_model in google_mapping, "Unknown google model %s" % base_model
 
         api_key = os.getenv('GOOGLE_API_KEY')
         assert api_key, "Missing Google Gemini API key"

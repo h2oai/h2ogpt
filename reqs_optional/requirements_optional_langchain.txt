@@ -26,7 +26,7 @@ together>=1.1.5
 langchain_together==0.1.3
 langchain-openai>=0.1.8
 langchain-google-genai>=1.0.6
-google-generativeai>=0.5.4
+google-generativeai>=0.5.4,<0.7.1
 google-ai-generativelanguage>=0.6.4
 
 llava @ https://h2o-release.s3.amazonaws.com/h2ogpt/llava-1.7.0.dev0-py3-none-any.whl
