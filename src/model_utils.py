@@ -23,9 +23,7 @@ from transformers import AutoModel, AutoTokenizer
 from src.enums import is_gradio_vision_model, anthropic_mapping, groq_mapping, google_mapping, mistralai_mapping, \
     model_token_mapping, model_token_mapping_outputs, anthropic_mapping_outputs, google_mapping_outputs, \
     mistralai_mapping_outputs, groq_mapping_outputs, model_state_none0, other_model_state_defaults0, \
-    get_langchain_prompts, user_prompt_for_fake_system_prompt0, json_object_prompt0, json_object_prompt_simpler0, \
-    json_code_prompt0, json_code_prompt_if_no_schema0, json_schema_instruction0, image_batch_image_prompt0, \
-    image_batch_final_prompt0, is_json_model, is_vision_model, images_num_max_dict, llamacpp_inner_dict_keys
+    is_json_model, is_vision_model, images_num_max_dict, llamacpp_inner_dict_keys
 from src.evaluate_params import eval_func_param_names
 from src.prompter import anthropic_gpts, openai_gpts, google_gpts, mistralai_gpts, groq_gpts, non_hf_types, \
     prompt_type_to_model_name, get_prompt, model_name_to_prompt_type
@@ -1618,38 +1616,6 @@ def __model_lock_to_state(model_dict1, **kwargs):
                            model_dict['llamacpp_dict'].get('n_gqa', 0),
                            kwargs['llamacpp_path'])
 
-    # begin prompt adjustments
-    # get query prompt for (say) last base model if using model lock
-    pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1, hyde_llm_prompt1 = (
-        get_langchain_prompts(kwargs['pre_prompt_query'],
-                              kwargs['prompt_query'],
-                              kwargs['pre_prompt_summary'],
-                              kwargs['prompt_summary'],
-                              kwargs['hyde_llm_prompt'],
-                              model_dict['base_model'],
-                              model_dict['inference_server'],
-                              model_dict['llamacpp_dict']['model_path_llama'],
-                              kwargs['doc_json_mode']
-                              ))
-    # if mixed setup, choose non-empty so best models best
-    # FIXME: Make per model dict passed through to evaluate
-    pre_prompt_query = kwargs['pre_prompt_query'] or pre_prompt_query1
-    prompt_query = kwargs['prompt_query'] or prompt_query1
-    pre_prompt_summary = kwargs['pre_prompt_summary'] or pre_prompt_summary1
-    prompt_summary = kwargs['prompt_summary'] or prompt_summary1
-    hyde_llm_prompt = kwargs['hyde_llm_prompt'] or hyde_llm_prompt1
-
-    user_prompt_for_fake_system_prompt = kwargs[
-                                             'user_prompt_for_fake_system_prompt'] or user_prompt_for_fake_system_prompt0
-    json_object_prompt = kwargs['json_object_prompt'] or json_object_prompt0
-    json_object_prompt_simpler = kwargs['json_object_prompt_simpler'] or json_object_prompt_simpler0
-    json_code_prompt = kwargs['json_code_prompt'] or json_code_prompt0
-    json_code_prompt_if_no_schema = kwargs['json_code_prompt_if_no_schema'] or json_code_prompt_if_no_schema0
-    json_schema_instruction = kwargs['json_schema_instruction'] or json_schema_instruction0
-
-    image_batch_image_prompt = kwargs['image_batch_image_prompt'] or image_batch_image_prompt0
-    image_batch_final_prompt = kwargs['image_batch_final_prompt'] or image_batch_final_prompt0
-
     # try to infer, ignore empty initial state leading to get_generate_params -> 'plain'
     if prompt_type_infer:
         prompt_type1_trial = model_name_to_prompt_type(model_dict['base_model'],
@@ -1669,7 +1635,7 @@ def __model_lock_to_state(model_dict1, **kwargs):
     else:
         model_dict['prompt_dict'] = kwargs['prompt_dict']
     model_dict['prompt_dict'] = model_dict.get('prompt_dict', model_dict['prompt_dict'])
-    # end prompt adjustments
+
     all_kwargs = kwargs.copy()
     all_kwargs.update(locals())
     all_kwargs.update(model_dict)
