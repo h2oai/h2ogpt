@@ -67,18 +67,22 @@ else
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_VLLM) -f Dockerfile-vllm .
 	docker push $(DOCKER_TEST_IMAGE_VLLM)
 endif
+ifdef DO_INTERNVL
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET http://harbor.h2o.ai/api/v2.0/projects/h2ogpt/repositories/test-image-internvl/artifacts/$(BUILD_TAG)/tags),200)
 	@echo "internvl Image already pushed to Harbor: $(DOCKER_TEST_IMAGE_INTERNVL)"
 else
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_INTERNVL) -f docs/Dockerfile.internvl .
 	docker push $(DOCKER_TEST_IMAGE_INTERNVL)
 endif
+endif
 
 just_docker_build: build_info.txt git_hash.txt
 	docker pull $(DOCKER_BASE_OS_IMAGE)
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE) -t h2ogpt:current -f Dockerfile .
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_VLLM) -f Dockerfile-vllm .
+ifdef DO_INTERNVL
 	DOCKER_BUILDKIT=1 docker build -t $(DOCKER_TEST_IMAGE_INTERNVL) -f docs/Dockerfile.internvl .
+endif
 
 docker_build_runner: docker_build
 	-docker pull $(DOCKER_TEST_IMAGE)
@@ -86,15 +90,12 @@ docker_build_runner: docker_build
 
 	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(BUILD_TAG)
 	docker tag $(DOCKER_TEST_IMAGE_VLLM) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(BUILD_TAG)
-	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(BUILD_TAG)
 
 	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)
 	docker tag $(DOCKER_TEST_IMAGE_VLLM) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)
-	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(PACKAGE_VERSION)
 
 	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:latest
 	docker tag $(DOCKER_TEST_IMAGE_VLLM) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:latest
-	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:latest
 
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(BUILD_TAG)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)
@@ -104,9 +105,15 @@ docker_build_runner: docker_build
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:latest
 
+ifdef DO_INTERNVL
+	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(BUILD_TAG)
+	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(PACKAGE_VERSION)
+	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:latest
+
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(BUILD_TAG)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(PACKAGE_VERSION)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:latest
+endif
 
 ifdef BUILD_ID
 	docker tag $(DOCKER_TEST_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)-$(BUILD_ID)
@@ -115,8 +122,10 @@ ifdef BUILD_ID
 	docker tag $(DOCKER_TEST_IMAGE_VLLM) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)-$(BUILD_ID)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)-$(BUILD_ID)
 
+ifdef DO_INTERNVL
 	docker tag $(DOCKER_TEST_IMAGE_INTERNVL) gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(PACKAGE_VERSION)-$(BUILD_ID)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl:$(PACKAGE_VERSION)-$(BUILD_ID)
+endif
 endif
 
 print-%:
