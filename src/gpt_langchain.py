@@ -6798,9 +6798,7 @@ def _run_qa_db(query=None,
     pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
         get_langchain_prompts(pre_prompt_query, prompt_query,
                               pre_prompt_summary, prompt_summary, hyde_llm_prompt,
-                              model_name, inference_server,
-                              llamacpp_dict.get('model_path_llama'),
-                              doc_json_mode)
+                              )
 
     assert db_type is not None
     assert hf_embedding_model is not None

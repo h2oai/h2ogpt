@@ -2176,9 +2176,7 @@ def main(
         pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
             get_langchain_prompts(pre_prompt_query, prompt_query,
                                   pre_prompt_summary, prompt_summary, hyde_llm_prompt,
-                                  model_name, inference_server,
-                                  llamacpp_dict['model_path_llama'],
-                                  doc_json_mode)
+                                  )
 
     # get score model
     score_model_state0 = dict(model=None, tokenizer=None, device=None,
@@ -2260,6 +2258,34 @@ def main(
             model_state0 = model_state_trial.copy()
         else:
             model_state0 = model_state_trial.copy()
+
+    # begin prompt adjustments
+    # get query prompt for (say) last base model if using model lock
+    pre_prompt_query1, prompt_query1, pre_prompt_summary1, prompt_summary1, hyde_llm_prompt1 = (
+        get_langchain_prompts(pre_prompt_query,
+                              prompt_query,
+                              pre_prompt_summary,
+                              prompt_summary,
+                              hyde_llm_prompt,
+                              ))
+    # if mixed setup, choose non-empty so best models best
+    # FIXME: Make per model dict passed through to evaluate
+    pre_prompt_query = pre_prompt_query or pre_prompt_query1
+    prompt_query = prompt_query or prompt_query1
+    pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
+    prompt_summary = prompt_summary or prompt_summary1
+    hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
+
+    user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
+    json_object_prompt = json_object_prompt or json_object_prompt0
+    json_object_prompt_simpler = json_object_prompt_simpler or json_object_prompt_simpler0
+    json_code_prompt = json_code_prompt or json_code_prompt0
+    json_code_prompt_if_no_schema = json_code_prompt_if_no_schema or json_code_prompt_if_no_schema0
+    json_schema_instruction = json_schema_instruction or json_schema_instruction0
+
+    image_batch_image_prompt = image_batch_image_prompt or image_batch_image_prompt0
+    image_batch_final_prompt = image_batch_final_prompt or image_batch_final_prompt0
+    # end prompt adjustments
 
     # get lists of visible models
     all_possible_display_names = [
