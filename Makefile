@@ -51,7 +51,7 @@ git_hash.txt:
 
 
 DOCKER_BASE_OS_IMAGE := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:4
-DOCKER_VLLM_IMAGE    := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.0.post1-812949b9
+DOCKER_VLLM_IMAGE    := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.1-66d25785
 
 docker_build: build_info.txt git_hash.txt
 	docker pull $(DOCKER_BASE_OS_IMAGE)
