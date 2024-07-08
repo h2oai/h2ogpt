@@ -1,3 +1,7 @@
+# if from main:
+# (base) ubuntu@compute-permanent-node-406:~/lmdeploy$ docker build . -f docker/Dockerfile -t internalvlmain --no-cache
+# then change below "FROM openmmlab/lmdeploy:latest" to "FROM internalvlmain"
+
 # docker build - < Dockerfile.internalvl -t internalvl
 FROM openmmlab/lmdeploy:latest
 
