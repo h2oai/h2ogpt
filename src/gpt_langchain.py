@@ -1550,6 +1550,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     chat_conversation: Any = []
     add_chat_history_to_context: bool = True
     user_prompt_for_fake_system_prompt: Any = None
+    prompter: Any = None
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -2307,7 +2308,7 @@ class ExtraChat:
         messages = []
         count_input_tokens_start = self.count_input_tokens
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys):
+            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys) or not self.prompter.can_handle_system_prompt:
                 user_prompt_for_fake_system_prompt = self.user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
@@ -2613,6 +2614,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpe
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2631,6 +2633,7 @@ class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, Az
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    prompter: Any = None
 
     def get_token_ids(self, text: str) -> List[int]:
         """Get the tokens present in the text with tiktoken package."""
@@ -2652,6 +2655,7 @@ class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, Cha
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     tokenizer: Any = None
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2669,6 +2673,7 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     tokenizer: Any = None
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2693,6 +2698,7 @@ class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoo
     streaming: Any = False
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    prompter: Any = None
 
 
 class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
@@ -2705,6 +2711,7 @@ class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, Cha
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     response_format: Any = None
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2719,6 +2726,7 @@ class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     response_format: Any = None
+    prompter: Any = None
 
 
 class H2OAzureOpenAI(H2OTextGenOpenAI, AzureOpenAI):
@@ -3105,7 +3113,6 @@ def get_llm(use_openai_model=False,
                 async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
-                                         prompter=prompter,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
@@ -3154,6 +3161,7 @@ def get_llm(use_openai_model=False,
                   streaming=stream_output,
                   verbose=verbose,
                   request_timeout=max_time,
+                  prompter=prompter,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3216,6 +3224,7 @@ def get_llm(use_openai_model=False,
                   default_request_timeout=max_time,
                   model_kwargs=model_kwargs,
                   tokenizer=tokenizer,
+                  prompter=prompter,
                   verbose=verbose,
                   **kwargs_extra
                   )
@@ -3275,6 +3284,7 @@ def get_llm(use_openai_model=False,
                   verbose=verbose,
                   tokenizer=tokenizer,
                   safety_settings=safety_settings,
+                  prompter=prompter,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3332,6 +3342,7 @@ def get_llm(use_openai_model=False,
                   random_seed=seed,
                   verbose=verbose,
                   tokenizer=tokenizer,
+                  prompter=prompter,
                   **model_kwargs,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
@@ -3370,6 +3381,7 @@ def get_llm(use_openai_model=False,
                       # top_k=top_k,
                   ),
                   tokenizer=tokenizer,
+                  prompter=prompter,
                   **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
