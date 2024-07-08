@@ -34,8 +34,6 @@ h2ogpt:
 
     modelLock:
 
-    visibleImageModels:
-
     openAIAzure:
       enabled: false
 
