@@ -779,6 +779,7 @@ model_state_none0 = dict(model=None, tokenizer=None, device=None,
                          visible_vision_models=None,
                          auto_visible_vision_models=None,
                          json=None,
+                         guided_vllm=None,
                          video_file=None,
                          display_name=None,
                          )
