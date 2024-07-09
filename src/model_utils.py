@@ -1668,6 +1668,7 @@ def __model_lock_to_state(model_dict1, **kwargs):
     model_state_trial['json'] = is_json_model(model_state_trial['base_model'],
                                               model_state_trial['inference_server'],
                                               json_vllm=model_state_trial['json_vllm'])
+    model_state_trial['guided_vllm'] = model_state_trial['json_vllm']
     if model_state_trial['is_actually_vision_model'] is None:
         model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
     model_visible_vision_models = model_state_trial.get('visible_vision_models', kwargs['visible_vision_models'])
