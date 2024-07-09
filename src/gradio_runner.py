@@ -5730,13 +5730,15 @@ def go_gradio(**kwargs):
                 model_state3['video'] = is_video_model(base_model) or model_state3['image']
                 model_state3['actually_video'] = is_video_model(base_model)
                 model_state3['json'] = model_state3.get('json', False)
+                model_state3['guided_vllm'] = model_state3.get('guided_vllm', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
 
             key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(
                 kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
-            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video', 'json',
+            key_list.extend(['llm', 'rag', 'image', 'actually_image', 'video', 'actually_video',
+                             'json', 'guided_vllm',
                              'auto_visible_vision_models'])
             return [{k: x[k] for k in key_list if k in x} for x in local_model_states]
 
