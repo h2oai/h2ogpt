@@ -32,7 +32,7 @@ def update_terminate_responses(terminate_response, tokenizer=None, trust_remote_
                 if isinstance(generate_eos_token_id, list):
                     for eos_token_id in generate_eos_token_id:
                         terminate_response.extend([reverse_vocab[eos_token_id]])
-                else:
+                elif generate_eos_token_id is not None:
                     terminate_response.extend([reverse_vocab[generate_eos_token_id]])
             except OSError:
                 pass
