@@ -270,6 +270,7 @@ llava_num_max = 10
 
 # really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
 internvl_num_max = 5
+internvl2_num_max = 10
 
 images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max,
@@ -289,6 +290,9 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'THUDM/cogvlm2-llama3-chat-19B': 2,
                        'microsoft/Phi-3-vision-128k-instruct': 1,  # only 1 possible with vllm
                        }
+for model_name in ["OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
+                   "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40"]:
+    images_num_max_dict[model_name] = internvl2_num_max
 
 # llava34b sometimes runs out of tokens and finishes due to token limits, let's restrict
 images_limit_max_new_tokens_list = ['liuhaotian/llava-v1.6-vicuna-13b', 'liuhaotian/llava-v1.6-34b']
@@ -402,7 +406,9 @@ def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[])
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
         base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"] or \
         base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5",
-                       "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8"] or \
+                       "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8",
+                       "OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
+                       "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40"] or \
         base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B",
                        "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"] or \
         base_model in ["microsoft/Phi-3-vision-128k-instruct"]
