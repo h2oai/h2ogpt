@@ -721,9 +721,14 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         # but don't change what user sees for instruction
         history1 = deepcopy_by_pickle_object(history)
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
-        # pre-append to ensure images used, since first is highest priority for text_context_list
-        fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
-            'text_context_list')] = responses + text_context_list_copy
+        if langchain_action1 == LangChainAction.QUERY.value:
+            # pre-append to ensure images used, since first is highest priority for text_context_list
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
+                'text_context_list')] = responses + text_context_list_copy
+        else:
+            # for summary/extract, put at end, so if part of single call similar to Query in order for best_near_prompt
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
+                'text_context_list')] = text_context_list_copy + responses
         fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
         for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                       tts_speed1, langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
