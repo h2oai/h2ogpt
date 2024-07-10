@@ -5,7 +5,7 @@ import traceback
 import numpy as np
 from pydub import AudioSegment
 
-from src.utils import get_device
+from utils import get_device
 
 
 def get_transcriber(model="openai/whisper-base.en", use_gpu=True, gpu_id='auto'):

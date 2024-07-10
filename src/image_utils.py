@@ -3,8 +3,8 @@ import os
 import numpy as np
 from scipy.stats import mode
 
-from src.utils import have_cv2, have_pillow
-from src.enums import images_num_max_dict
+from utils import have_cv2, have_pillow
+from enums import images_num_max_dict
 
 
 def largest_contour(contours):
@@ -316,7 +316,7 @@ def get_image_file(image_file, image_control, document_choice, base_model=None, 
     for img_file1 in img_file:
         if convert:
             if img_file1 and os.path.isfile(img_file1):
-                from src.vision.utils_vision import img_to_base64
+                from vision.utils_vision import img_to_base64
                 img_file1 = img_to_base64(img_file1, str_bytes=str_bytes, resolution=image_resolution,
                                           output_format=image_format)
             elif isinstance(img_file1, str):

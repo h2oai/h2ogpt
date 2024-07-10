@@ -55,9 +55,9 @@ if os.getenv('RAYON_RS_NUM_CPUS') is None:
 if os.getenv('RAYON_NUM_THREADS') is None:
     os.environ['RAYON_NUM_THREADS'] = str(min(8, max_cores))
 
-from src.gradio_funcs import merge_chat_conversation_history
-from src.db_utils import fetch_user
-from src.model_utils import switch_a_roo_llama, get_score_model, get_model_retry, get_model, \
+from gradio_funcs import merge_chat_conversation_history
+from db_utils import fetch_user
+from model_utils import switch_a_roo_llama, get_score_model, get_model_retry, get_model, \
     get_client_from_inference_server, model_lock_to_state
 
 from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
@@ -1276,7 +1276,7 @@ def main(
                    For microsoft, use 'microsoft/speecht5_tts'
                    For coqui.ai use one given by doing in python:
                    ```python
-                   from src.tts_coqui import list_models
+                   from tts_coqui import list_models
                    list_models()
                    ```
                    e.g. 'tts_models/multilingual/multi-dataset/xtts_v2'
@@ -1976,7 +1976,7 @@ def main(
     if pre_load_embedding_model and \
             langchain_mode != LangChainMode.DISABLED.value and \
             not use_openai_embedding:
-        from src.gpt_langchain import get_embedding
+        from gpt_langchain import get_embedding
         hf_embedding_model = dict(name=hf_embedding_model,
                                   model=get_embedding(use_openai_embedding, hf_embedding_model=hf_embedding_model,
                                                       preload=True, gpu_id=embedding_gpu_id))
@@ -1997,7 +1997,7 @@ def main(
 
     if enable_transcriptions:
         if pre_load_image_audio_models:
-            from src.audio_langchain import H2OAudioCaptionLoader
+            from audio_langchain import H2OAudioCaptionLoader
             asr_loader = H2OAudioCaptionLoader(asr_gpu=asr_gpu,
                                                gpu_id=asr_gpu_id,
                                                asr_model=asr_model,
@@ -2009,12 +2009,12 @@ def main(
         asr_loader = False
 
     if enable_stt:
-        from src.stt import transcribe
+        from stt import transcribe
         if pre_load_image_audio_models and \
                 stt_model == asr_model:
             transcriber = asr_loader.model.pipe
         else:
-            from src.stt import get_transcriber
+            from stt import get_transcriber
             transcriber = get_transcriber(model=stt_model,
                                           use_gpu=stt_gpu,
                                           gpu_id=stt_gpu_id)
@@ -2032,7 +2032,7 @@ def main(
     if enable_tts:
         # NOTE: required bytes for now for audio streaming to work, else untested combine_audios()
         if tts_model.startswith('microsoft'):
-            from src.tts import predict_from_text, get_tts_model, generate_speech
+            from tts import predict_from_text, get_tts_model, generate_speech
             processor_tts, model_tts, vocoder_tts = \
                 get_tts_model(t5_model=tts_model,
                               t5_gan_model=tts_gan_model,
@@ -2057,7 +2057,7 @@ def main(
             if not have_deepspeed and tts_coquiai_deepspeed:
                 tts_coquiai_deepspeed = False
                 print("deepspeed not installed, disabling", flush=True)
-            from src.tts_coqui import get_xtt, predict_from_text, generate_speech
+            from tts_coqui import get_xtt, predict_from_text, generate_speech
             model_xtt, supported_languages_xtt = get_xtt(model_name=tts_model,
                                                          deepspeed=tts_coquiai_deepspeed,
                                                          use_gpu=tts_gpu,
@@ -2976,7 +2976,7 @@ def evaluate(
 
     # get db, but also fill db state so return already has my_db_state and dbs filled so faster next query
     if langchain_mode != LangChainMode.DISABLED.value:
-        from src.gpt_langchain import get_any_db
+        from gpt_langchain import get_any_db
         db = get_any_db(my_db_state, langchain_mode, langchain_mode_paths, langchain_mode_types,
                         dbs=dbs,
                         load_db_if_exists=load_db_if_exists,
@@ -3553,7 +3553,7 @@ def evaluate(
                 response = ''
                 response_raw = ''
                 if not stream_output and img_file == 1:
-                    from src.vision.utils_vision import get_llava_response
+                    from vision.utils_vision import get_llava_response
                     response, _ = get_llava_response(**llava_kwargs)
 
                     if response_format in ['json_object', 'json_code']:
@@ -3564,7 +3564,7 @@ def evaluate(
                                response_no_refs=response, sources_str='', prompt_raw='')
                 else:
                     tgen0 = time.time()
-                    from src.vision.utils_vision import get_llava_stream
+                    from vision.utils_vision import get_llava_stream
                     for response1 in get_llava_stream(**llava_kwargs):
                         if response_format in ['json_object', 'json_code']:
                             response_raw = response1

@@ -7,7 +7,7 @@ import datetime
 import filelock
 import gradio as gr
 
-from src.utils import is_gradio_version4
+from utils import is_gradio_version4
 
 
 def get_chatbot_name(base_model, display_name, model_path_llama, inference_server='', prompt_type='', model_label_prefix='', debug=False):

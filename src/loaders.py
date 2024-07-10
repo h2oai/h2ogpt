@@ -1,8 +1,7 @@
 import functools
-import json
 
-from src.enums import t5_type
-from src.utils import have_optimum
+from enums import t5_type
+from utils import have_optimum
 
 
 def get_loaders(model_name, reward_type, llama_type=None,
@@ -22,7 +21,7 @@ def get_loaders(model_name, reward_type, llama_type=None,
     if load_exllama:
         if exllama_dict is None:
             exllama_dict = {}
-        from src.llm_exllama import H2OExLlamaTokenizer, H2OExLlamaGenerator
+        from llm_exllama import H2OExLlamaTokenizer, H2OExLlamaGenerator
         from exllama.model import ExLlama, ExLlamaCache, ExLlamaConfig
         import os, glob
 

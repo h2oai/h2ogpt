@@ -48,12 +48,12 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
-from src.utils import is_gradio_version4
+from utils import is_gradio_version4
 
 try:
     from enums import DocumentSubset, LangChainAction
 except:
-    from src.enums import DocumentSubset, LangChainAction
+    from enums import DocumentSubset, LangChainAction
 
 from tests.utils import get_inf_server
 
