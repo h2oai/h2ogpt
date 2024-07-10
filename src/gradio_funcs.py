@@ -625,7 +625,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             prompt_summary_batch = prompt_summary
             prompt_summary_final = prompt_summary
 
-        batch_tokens = 0
+        batch_output_tokens = 0
+        batch_input_tokens = 0
+        batch_tokenspersec = 0
         responses = []
 
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
@@ -702,7 +704,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or '' if history1 else ''
-            batch_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
+            batch_input_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
+            save_dict1_saved['extra_dict'] = _save_generate_tokens(text, save_dict1_saved['extra_dict'])
+            batch_output_tokens += save_dict1_saved['extra_dict'].get('ntokens', 0)
+            batch_tokenspersec += save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
             responses.append(
                 f'<image_{batch}_to_{batch + batch_size - 1}_answer>\n\n{text}\n\n</image_{batch}_to_{batch + batch_size - 1}_answer>')
 
@@ -738,9 +743,18 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             if 'extra_dict' in save_dict1:
                 if 'num_prompt_tokens' in save_dict1['extra_dict']:
                     save_dict1['extra_dict']['batch_vision_visible_model'] = batch_display_name
-                    save_dict1['extra_dict']['batch_num_prompt_tokens'] = batch_tokens
+
+                    save_dict1['extra_dict']['batch_num_prompt_tokens'] = batch_input_tokens
+                    save_dict1['extra_dict']['batch_ntokens'] = batch_output_tokens
+                    save_dict1['extra_dict']['batch_tokens_persecond'] = batch_tokenspersec
                     if batch_display_name == display_name:
-                        save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
+                        save_dict1['extra_dict']['num_prompt_tokens'] += batch_input_tokens
+                        # get ntokens so can add to it
+                        history1new = response_list[1]
+                        if history1new and len(history1new) > 0 and len(history1new[0]) == 2 and history1new[-1][1]:
+                            save_dict1['extra_dict'] = _save_generate_tokens(history1new[-1][1], save_dict1['extra_dict'])
+                        save_dict1['extra_dict']['ntokens'] += batch_output_tokens
+                        # Note: batch_tokens_persecond could be weighted by tokens, but not done
                     save_dict1['extra_dict']['batch_responses'] = responses
                     response_list[6] = save_dict1
             yield tuple(response_list)
