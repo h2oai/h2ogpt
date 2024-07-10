@@ -13,7 +13,7 @@ RUN pip3 uninstall pkg_resources -y
 RUN pip3 install --upgrade pip
 RUN pip3 install --upgrade setuptools==66.1.1
 RUN pip3 uninstall -y ninja && pip3 install ninja
-RUN CUDA_HOME=/usr/local/cuda-11.8/ PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu118 pip3 install timm xformers triton==2.1.0
+RUN CUDA_HOME=/usr/local/cuda-11.8/ PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu118 pip3 install timm xformers triton==2.1.0 transformers
 RUN MAX_JOBS=4 CUDA_HOME=/usr/local/cuda-11.8/ PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu118 FLASH_ATTENTION_FORCE_BUILD=TRUE pip3 install flash-attn==2.5.2 --no-build-isolation
 RUN pip3 install git+https://github.com/haotian-liu/LLaVA.git --no-deps
 

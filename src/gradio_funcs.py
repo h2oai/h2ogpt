@@ -631,6 +631,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
         text_context_list = str_to_list(text_context_list)
         text_context_list_copy = copy.deepcopy(text_context_list)
+        # copy before mutating it
         fun1_args_list_copy = fun1_args_list.copy()
         # sync all args with model
         for k, v in model_batch_choice.items():
@@ -707,7 +708,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
         # last response with no images
         history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?
-        fun1_args_list2 = fun1_args_list_copy.copy()
+        fun1_args_list2 = fun1_args_list.copy()
         # sync all args with model
         for k, v in chosen_model_state.items():
             if k in eval_func_param_names and k in in_model_state_and_evaluate and v is not None:
