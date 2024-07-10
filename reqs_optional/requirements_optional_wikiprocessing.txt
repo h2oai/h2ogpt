@@ -2,3 +2,4 @@
 mwxml>=0.3.3
 mwparserfromhell>=0.6.4
 
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
