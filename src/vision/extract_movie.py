@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from src.utils import makedirs, sanitize_filename, get_gradio_tmp
+from utils import makedirs, sanitize_filename, get_gradio_tmp
 
 
 def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=None, extract_frames=10):

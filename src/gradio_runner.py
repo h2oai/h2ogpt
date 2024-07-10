@@ -25,15 +25,15 @@ from iterators import TimeoutIterator
 from gradio_utils.css import get_css
 from gradio_utils.prompt_form import make_chatbots, get_chatbot_name
 
-from src.gradio_funcs import visible_models_to_model_choice, clear_embeddings, fix_text_for_gradio, get_response, \
+from gradio_funcs import visible_models_to_model_choice, clear_embeddings, fix_text_for_gradio, get_response, \
     my_db_state_done, update_langchain_mode_paths, process_audio, is_valid_key, is_from_ui, get_llm_history, prep_bot, \
     allow_empty_instruction, update_prompt, gen1_fake, get_one_key, get_fun_with_dict_str_plain, bot, choose_exc
 
-from src.db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
+from db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
     append_to_user_data, append_to_users_data
-from src.model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models, model_lock_to_state
-from src.tts_utils import combine_audios
-from src.vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
+from model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models, model_lock_to_state
+from tts_utils import combine_audios
+from vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'
@@ -779,7 +779,7 @@ def go_gradio(**kwargs):
         my_db_state = gr.State(my_db_state0, **my_db_state_cb)
         chat_state = gr.State({})
         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
-            from src.tts_coqui import get_role_to_wave_map
+            from tts_coqui import get_role_to_wave_map
             roles_state0 = roles_state0 if roles_state0 else get_role_to_wave_map()
         else:
             roles_state0 = {}
@@ -866,7 +866,7 @@ def go_gradio(**kwargs):
                 df2.columns = ['Collection', 'Type']
                 df2 = df2.set_index('Collection')
 
-                from src.gpt_langchain import get_persist_directory, load_embed
+                from gpt_langchain import get_persist_directory, load_embed
                 persist_directory_dict = {}
                 embed_dict = {}
                 chroma_version_dict = {}
@@ -942,12 +942,12 @@ def go_gradio(**kwargs):
                     speak_text_plain_api_button = gr.Button("Speak Text Plain API", visible=False)
                     stop_speak_button = gr.Button("Stop/Clear Speak", visible=visible_speak_me, size='sm')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
-                        from src.tts_coqui import get_roles
+                        from tts_coqui import get_roles
                         chatbot_role = get_roles(choices=list(roles_state.value.keys()), value=kwargs['chatbot_role'])
                     else:
                         chatbot_role = gr.Dropdown(choices=['None'], visible=False, value='None')
                     if kwargs['enable_tts'] and kwargs['tts_model'].startswith('microsoft'):
-                        from src.tts import get_speakers_gr
+                        from tts import get_speakers_gr
                         speaker = get_speakers_gr(value=kwargs['speaker'])
                     else:
                         speaker = gr.Radio(visible=False)
@@ -1826,7 +1826,7 @@ def go_gradio(**kwargs):
                                                            visible=False)
 
                         if kwargs['enable_tts'] and kwargs['tts_model'].startswith('tts_models/'):
-                            from src.tts_coqui import get_languages_gr
+                            from tts_coqui import get_languages_gr
                             tts_language = get_languages_gr(visible=True, value=kwargs['tts_language'])
                         else:
                             tts_language = gr.Dropdown(visible=False)
@@ -3593,7 +3593,7 @@ def go_gradio(**kwargs):
 
             if valid and not user_path:
                 # needs to have key for it to make it known different from userdata case in _update_user_db()
-                from src.gpt_langchain import length_db1
+                from gpt_langchain import length_db1
                 db1s[langchain_mode2] = [None] * length_db1()
             if valid:
                 chat_state1 = None
@@ -3668,7 +3668,7 @@ def go_gradio(**kwargs):
             if langchain_mode2 in langchain_modes or langchain_mode2 in langchain_mode_paths or langchain_mode2 in db1s:
                 if can_purge and purge:
                     # remove source files
-                    from src.gpt_langchain import get_sources, del_from_db
+                    from gpt_langchain import get_sources, del_from_db
                     sources_file, source_list, num_chunks, num_sources_str, db = \
                         get_sources(db1s, selection_docs_state1,
                                     requests_state1, langchain_mode2, dbs=dbsu,
@@ -3687,7 +3687,7 @@ def go_gradio(**kwargs):
                             print("Purged %s" % fil, flush=True)
                             remove(fil)
                     # remove db directory
-                    from src.gpt_langchain import get_persist_directory
+                    from gpt_langchain import get_persist_directory
                     persist_directory, langchain_type2 = \
                         get_persist_directory(langchain_mode2, langchain_type=langchain_type2,
                                               db1s=db1s, dbs=dbsu)
@@ -3869,7 +3869,7 @@ def go_gradio(**kwargs):
             eventdb2g = eventdb2f.then(**viewable_kwargs)
 
             def docs_to_message(new_files_last1):
-                from src.gpt_langchain import image_types, audio_types
+                from gpt_langchain import image_types, audio_types
                 # already filtered by what can show in gradio
                 # https://github.com/gradio-app/gradio/issues/3728
                 added_history = []
@@ -4099,7 +4099,7 @@ def go_gradio(**kwargs):
                                            is_public=is_public,
                                            verbose=verbose,
                                            ))
-        from src.gradio_funcs import evaluate_nochat
+        from gradio_funcs import evaluate_nochat
         fun = partial(evaluate_nochat,
                       default_kwargs1=default_kwargs,
                       str_api=False,
@@ -4509,10 +4509,10 @@ def go_gradio(**kwargs):
             llm_answers = llm_answers_all_old = [{}] * len(bots_old)
             save_dicts = save_dicts_old = [{}] * len(bots_old)
             if kwargs['tts_model'].startswith('microsoft'):
-                from src.tts_utils import prepare_speech, get_no_audio
+                from tts_utils import prepare_speech, get_no_audio
                 no_audio = get_no_audio(sr=16000)
             elif kwargs['tts_model'].startswith('tts_models/'):
-                from src.tts_utils import prepare_speech, get_no_audio
+                from tts_utils import prepare_speech, get_no_audio
                 no_audio = get_no_audio(sr=24000)
             else:
                 no_audio = None
@@ -6193,7 +6193,7 @@ def go_gradio(**kwargs):
                 favicon_path = None
 
     if kwargs['prepare_offline_level'] > 0:
-        from src.prepare_offline import go_prepare_offline
+        from prepare_offline import go_prepare_offline
         go_prepare_offline(**locals().copy())
         return
 
@@ -6400,7 +6400,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         assert langchain_mode1 is not None
         langchain_mode_paths = selection_docs_state1['langchain_mode_paths']
         langchain_mode_types = selection_docs_state1['langchain_mode_types']
-        from src.gpt_langchain import set_userid, get_any_db, get_docs_and_meta
+        from gpt_langchain import set_userid, get_any_db, get_docs_and_meta
         set_userid(db1s, requests_state1, get_userid_auth1)
         top_k_docs = -1
         db = get_any_db(db1s, langchain_mode1, langchain_mode_paths, langchain_mode_types,
@@ -6566,7 +6566,7 @@ def show_doc(db1s, selection_docs_state1, requests_state1,
         img_url = url.replace("""<a href=""", """<img src=""")
     else:
         img_url = """<img src="%s" alt="%s">""" % (file, file)
-    from src.gpt_langchain import image_types, audio_types, video_types
+    from gpt_langchain import image_types, audio_types, video_types
     if any([file.lower().endswith('.' + x) for x in image_types]):
         return gr.update(visible=True, value=img_url), dummy1, dummy1, dummy1, dummy1, dummy1, dummy1, dummy1
     elif any([file.lower().endswith('.' + x) for x in video_types]):
@@ -6693,7 +6693,7 @@ def update_user_db_gr(file, db1s, selection_docs_state1, requests_state1,
         if k in kwargs:
             kwargs.pop(k, None)
 
-    from src.gpt_langchain import update_user_db
+    from gpt_langchain import update_user_db
     return update_user_db(file, db1s, selection_docs_state1, requests_state1,
                           langchain_mode=langchain_mode, chunk=chunk, chunk_size=chunk_size,
                           **loaders_dict,
@@ -6727,13 +6727,13 @@ def get_sources_gr(db1s, selection_docs_state1, requests_state1, langchain_mode,
     from_ui = is_from_ui(requests_state1)
     if not valid_key:
         if for_login:
-            from src.utils_langchain import make_sources_file
+            from utils_langchain import make_sources_file
             sources_file = make_sources_file(langchain_mode, '')
             return sources_file, [], ''
         else:
             raise ValueError(invalid_key_msg)
 
-    from src.gpt_langchain import get_sources
+    from gpt_langchain import get_sources
     sources_file, source_list, num_chunks, num_sources_str, db = \
         get_sources(db1s, selection_docs_state1, requests_state1, langchain_mode,
                     dbs=dbs, docs_state0=docs_state0,
@@ -6785,7 +6785,7 @@ def get_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
         else:
             raise ValueError(invalid_key_msg)
 
-    from src.gpt_langchain import get_source_files_given_langchain_mode
+    from gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, None,
                                                  langchain_mode,
                                                  dbs=dbs,
@@ -6826,7 +6826,7 @@ def del_source_files_given_langchain_mode_gr(db1s, selection_docs_state1, reques
     if not valid_key:
         raise ValueError(invalid_key_msg)
 
-    from src.gpt_langchain import get_source_files_given_langchain_mode
+    from gpt_langchain import get_source_files_given_langchain_mode
     return get_source_files_given_langchain_mode(db1s, selection_docs_state1, requests_state1, document_choice1,
                                                  langchain_mode,
                                                  dbs=dbs,
@@ -6893,7 +6893,7 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
     if not valid_key:
         raise ValueError(invalid_key_msg)
 
-    from src.gpt_langchain import update_and_get_source_files_given_langchain_mode
+    from gpt_langchain import update_and_get_source_files_given_langchain_mode
 
     loaders_dict, captions_model, asr_model = gr_to_lg(image_audio_loaders,
                                                        pdf_loaders,
@@ -6938,15 +6938,15 @@ def update_and_get_source_files_given_langchain_mode_gr(db1s,
 
 
 def set_userid_gr(db1s, requests_state1, get_userid_auth):
-    from src.gpt_langchain import set_userid
+    from gpt_langchain import set_userid
     return set_userid(db1s, requests_state1, get_userid_auth)
 
 
 def set_dbid_gr(db1):
-    from src.gpt_langchain import set_dbid
+    from gpt_langchain import set_dbid
     return set_dbid(db1)
 
 
 def set_userid_direct_gr(db1s, userid, username):
-    from src.gpt_langchain import set_userid_direct
+    from gpt_langchain import set_userid_direct
     return set_userid_direct(db1s, userid, username)

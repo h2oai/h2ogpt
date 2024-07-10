@@ -5,7 +5,7 @@ import torch
 from diffusers import AutoPipelineForImage2Image, AutoPipelineForText2Image
 from diffusers.utils import load_image
 
-from src.utils import cuda_vis_check, makedirs
+from utils import cuda_vis_check, makedirs
 
 n_gpus1 = torch.cuda.device_count() if torch.cuda.is_available() else 0
 n_gpus1, gpu_ids = cuda_vis_check(n_gpus1)

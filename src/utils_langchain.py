@@ -20,8 +20,8 @@ from langchain.schema.language_model import BaseLanguageModel
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 from langchain_text_splitters import TextSplitter
 
-from src.enums import docs_joiner_default
-from src.utils import hash_file, get_sha, split_list, makedirs, flatten_list, get_token_count, get_docs_tokens, \
+from enums import docs_joiner_default
+from utils import hash_file, get_sha, split_list, makedirs, flatten_list, get_token_count, get_docs_tokens, \
     FakeTokenizer
 
 from langchain.callbacks.base import BaseCallbackHandler, Callbacks

@@ -11,10 +11,10 @@ import numpy as np
 from PIL.Image import Resampling
 
 from gradio_utils.grclient import check_job
-from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
+from enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
     llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
-from src.image_utils import fix_image_file
-from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
+from image_utils import fix_image_file
+from utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
     have_fiftyone, sanitize_filename
 
 IMAGE_EXTENSIONS = {'.png': 'PNG', '.apng': 'PNG', '.blp': 'BLP', '.bmp': 'BMP', '.dib': 'DIB', '.bufr': 'BUFR',
@@ -193,7 +193,7 @@ def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg",
             have_fiftyone and \
             (video_frame_period is not None and video_frame_period < 1 or not os.path.isfile(video_path)):
         # handles either automatic period or urls
-        from src.vision.extract_movie import extract_unique_frames
+        from vision.extract_movie import extract_unique_frames
         args = ()
         urls = [video_path] if not os.path.isfile(video_path) else None
         file = video_path if os.path.isfile(video_path) else None
@@ -693,13 +693,13 @@ def get_image_model_dict(enable_image,
         if image_model_name in image_models:
             imagegen_index = image_models.index(image_model_name)
             if image_model_name == 'sdxl_turbo':
-                from src.vision.sdxl import get_pipe_make_image, make_image
+                from vision.sdxl import get_pipe_make_image, make_image
             elif image_model_name == 'playv2':
-                from src.vision.playv2 import get_pipe_make_image, make_image
+                from vision.playv2 import get_pipe_make_image, make_image
             elif image_model_name == 'sdxl':
-                from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+                from vision.stable_diffusion_xl import get_pipe_make_image, make_image
             elif image_model_name == 'sd3':
-                from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+                from vision.stable_diffusion_xl import get_pipe_make_image, make_image
                 get_pipe_make_image = functools.partial(get_pipe_make_image,
                                                         base_model='stabilityai/stable-diffusion-3-medium-diffusers',
                                                         refiner_model=None)
@@ -707,7 +707,7 @@ def get_image_model_dict(enable_image,
                                                base_model='stabilityai/stable-diffusion-3-medium-diffusers',
                                                refiner_model=None)
             elif image_model_name == 'sdxl_change':
-                from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
+                from vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
                 make_image = change_image
             # FIXME: style
             else:

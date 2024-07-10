@@ -53,17 +53,17 @@ from langchain_experimental.tools import PythonREPLTool
 from langchain_community.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
 # from langchain_mistralai import ChatMistralAI
-from src.langchain_mistralai.chat_models import ChatMistralAI
+from langchain_mistralai.chat_models import ChatMistralAI
 from langchain_groq import ChatGroq
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
-from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
+from db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
     set_userid_direct
-from src.image_utils import fix_image_file, get_image_types, get_image_file
-from src.output_parser import H2OPythonMRKLOutputParser
-from src.pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
-from src.stopping import update_terminate_responses
+from image_utils import fix_image_file, get_image_types, get_image_file
+from output_parser import H2OPythonMRKLOutputParser
+from pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
+from stopping import update_terminate_responses
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
@@ -86,7 +86,7 @@ from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary
-from src.serpapi import H2OSerpAPIWrapper
+from h2o_serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
     split_merge_docs
@@ -1433,7 +1433,7 @@ class GradioLLaVaInference(GradioInference):
         _, llava_kwargs = self.setup_call(prompt)
 
         if not self.stream_output:
-            from src.vision.utils_vision import get_llava_response
+            from vision.utils_vision import get_llava_response
             response, _ = get_llava_response(**llava_kwargs)
             self.count_output_tokens += self.get_num_tokens(response)
             if self.verbose:
@@ -1449,7 +1449,7 @@ class GradioLLaVaInference(GradioInference):
             t_start = time.time()
             text0 = ''
             text = ''
-            from src.vision.utils_vision import get_llava_stream
+            from vision.utils_vision import get_llava_stream
             for text in get_llava_stream(**llava_kwargs):
 
                 # FIXME: derive chunk from full for now
@@ -1496,7 +1496,7 @@ class GradioLLaVaInference(GradioInference):
         t_start = time.time()
         text0 = ''
         text = ''
-        from src.vision.utils_vision import get_llava_stream
+        from vision.utils_vision import get_llava_stream
         for text in get_llava_stream(**llava_kwargs):
 
             # FIXME: derive chunk from full for now
@@ -2299,7 +2299,10 @@ class ExtraChat:
             if isinstance(self.tokenizer, FakeTokenizer):
                 return self.tokenizer.encode(text)['input_ids']
             else:
-                return self.tokenizer.encode(text)
+                ret = self.tokenizer.encode(text)
+                if hasattr(ret, 'input_ids') and isinstance(ret, dict):
+                    ret = ret['input_ids']
+                return ret
         else:
             return FakeTokenizer().encode(text)['input_ids']
 
@@ -2550,6 +2553,24 @@ class GenerateNormal:
 
 
 class GenerateStream2:
+    def count_out_tokens(self, rets):
+        if rets is None:
+            return
+        try:
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+
+    def pre_generate(self, prompts):
+        if prompts and isinstance(prompts, list) and isinstance(prompts[0], str):
+            self.prompts.extend(prompts)
+        else:
+            self.prompts.extend([x.text for x in prompts])
+        self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
+
     # slightly different from GenerateStream
     def generate_prompt(
             self,
@@ -2558,23 +2579,27 @@ class GenerateStream2:
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
-        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
+        self.pre_generate(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
         if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
+        rets = None
         try:
-            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            rets = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
         except Exception as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
             if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
                 # try one more time
-                return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+                rets = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
             else:
                 raise
+        finally:
+            self.count_out_tokens(rets)
+        return rets
 
     async def agenerate_prompt(
             self,
@@ -2583,15 +2608,16 @@ class GenerateStream2:
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
-        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
+        self.pre_generate(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
         if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
+        rets = None
         try:
-            return await self.agenerate(
+            rets = await self.agenerate(
                 prompt_messages, stop=stop, callbacks=callbacks, **kwargs
             )
         except Exception as e:
@@ -2599,11 +2625,14 @@ class GenerateStream2:
             ex = ''.join(traceback.format_exception(t, v, tb))
             if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
                 # try one more time
-                return await self.agenerate(
+                rets = await self.agenerate(
                     prompt_messages, stop=stop, callbacks=callbacks, **kwargs
                 )
             else:
                 raise
+        finally:
+            self.count_out_tokens(rets)
+        return rets
 
 
 class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpenAI):
@@ -3572,7 +3601,7 @@ def get_llm(use_openai_model=False,
             )
         elif gr_client:
             chat_client = False
-            from src.vision.utils_vision import img_to_base64
+            from vision.utils_vision import img_to_base64
             llm = GradioInference(
                 inference_server_url=inference_server,
                 return_full_text=False,
@@ -3739,7 +3768,7 @@ def get_llm(use_openai_model=False,
         if exllama_dict is None:
             exllama_dict = {}
 
-        from src.llm_exllama import Exllama
+        from llm_exllama import Exllama
         llm = Exllama(streaming=stream_output,
                       model_path=None,
                       model=model,
@@ -4447,7 +4476,7 @@ def file_to_doc(file,
                 handled |= len(docs1) > 0
             if extract_frames > 0 and have_fiftyone:
                 try:
-                    from src.vision.extract_movie import extract_unique_frames
+                    from vision.extract_movie import extract_unique_frames
                     if not files_out or True:  # always do, seems makes audio m4a not with video when downloads
                         # have to directly download
                         export_dir = extract_unique_frames(urls=[file], extract_frames=extract_frames)
@@ -4670,7 +4699,7 @@ def file_to_doc(file,
         if can_do_video_extraction:
             docs1c_files = []
             try:
-                from src.vision.extract_movie import extract_unique_frames
+                from vision.extract_movie import extract_unique_frames
                 export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
                 docs1c_files = path_to_docs_func(export_dir)
                 if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
@@ -4809,7 +4838,7 @@ def file_to_doc(file,
             if verbose:
                 print("BEGIN: LLaVa", flush=True)
             try:
-                from src.vision.utils_vision import get_llava_response
+                from vision.utils_vision import get_llava_response
                 res, llava_prompt = get_llava_response(file_llava, llava_model,
                                                        prompt=llava_prompt,
                                                        allow_prompt_auto=True,
@@ -7961,7 +7990,7 @@ def get_chain(query=None,
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
-    from src.output_parser import H2OMRKLOutputParser
+    from output_parser import H2OMRKLOutputParser
     if LangChainAgent.SEARCH.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
         from langchain.agents import load_tools, AgentType, initialize_agent
@@ -9571,7 +9600,7 @@ def _update_user_db(file,
     args = (file if not is_url and not is_txt else None,)
 
     if function_server:
-        from src.function_client import call_function_server
+        from function_client import call_function_server
         sources = call_function_server('0.0.0.0', function_server_port, 'path_to_docs', (file,), simple_kwargs,
                                        use_disk=True, use_pickle=True,
                                        function_api_key=function_api_key,

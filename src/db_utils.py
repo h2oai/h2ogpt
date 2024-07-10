@@ -3,7 +3,7 @@ import os
 import sqlite3
 import uuid
 
-from src.enums import LangChainMode
+from enums import LangChainMode
 
 
 def set_userid(db1s, requests_state1, get_userid_auth, guest_name=''):

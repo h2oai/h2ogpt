@@ -9,17 +9,17 @@ import traceback
 import uuid
 import filelock
 
-from src.enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
+from enums import LangChainMode, LangChainAction, no_model_str, LangChainTypes, langchain_modes_intrinsic, \
     DocumentSubset, unknown_prompt_type, my_db_state0, selection_docs_state0, requests_state0, roles_state0, noneset, \
     images_num_max_dict, image_batch_image_prompt0, image_batch_final_prompt0, images_limit_max_new_tokens, \
     images_limit_max_new_tokens_list
-from src.model_utils import model_lock_to_state
-from src.tts_utils import combine_audios
-from src.utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
+from model_utils import model_lock_to_state
+from tts_utils import combine_audios
+from utils import _save_generate_tokens, clear_torch_cache, remove, save_generate_output, str_to_list, \
     get_accordion_named, check_input_type, download_image, deepcopy_by_pickle_object
-from src.db_utils import length_db1
-from src.evaluate_params import input_args_list, eval_func_param_names, key_overrides, in_model_state_and_evaluate
-from src.vision.utils_vision import process_file_list
+from db_utils import length_db1
+from evaluate_params import input_args_list, eval_func_param_names, key_overrides, in_model_state_and_evaluate
+from vision.utils_vision import process_file_list
 
 
 def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False, verifier=False, kwargs={},
@@ -345,7 +345,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                 # yield as it goes, else need to wait since predict only returns first yield
                 if isinstance(ret, dict):
                     ret_old = ret.copy()  # copy normal one first
-                    from src.tts_utils import combine_audios
+                    from tts_utils import combine_audios
                     ret['audio'] = combine_audios(audios, audio=audio1, sr=24000 if chatbot_role1 else 16000,
                                                   expect_bytes=kwargs['return_as_byte'], verbose=verbose)
                     audios = []  # reset accumulation
@@ -377,7 +377,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
                                                                             'extra_dict', {}))
             ret = res_dict.copy()
         if isinstance(ret, dict):
-            from src.tts_utils import combine_audios
+            from tts_utils import combine_audios
             ret['audio'] = combine_audios(audios, audio=None,
                                           expect_bytes=kwargs['return_as_byte'])
         yield ret
@@ -625,7 +625,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             prompt_summary_batch = prompt_summary
             prompt_summary_final = prompt_summary
 
-        batch_tokens = 0
+        batch_output_tokens = 0
+        batch_input_tokens = 0
+        batch_tokenspersec = 0
         responses = []
 
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
@@ -702,7 +704,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or '' if history1 else ''
-            batch_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
+            batch_input_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
+            save_dict1_saved['extra_dict'] = _save_generate_tokens(text, save_dict1_saved['extra_dict'])
+            batch_output_tokens += save_dict1_saved['extra_dict'].get('ntokens', 0)
+            batch_tokenspersec += save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
             responses.append(
                 f'<image_{batch}_to_{batch + batch_size - 1}_answer>\n\n{text}\n\n</image_{batch}_to_{batch + batch_size - 1}_answer>')
 
@@ -738,9 +743,18 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             if 'extra_dict' in save_dict1:
                 if 'num_prompt_tokens' in save_dict1['extra_dict']:
                     save_dict1['extra_dict']['batch_vision_visible_model'] = batch_display_name
-                    save_dict1['extra_dict']['batch_num_prompt_tokens'] = batch_tokens
+
+                    save_dict1['extra_dict']['batch_num_prompt_tokens'] = batch_input_tokens
+                    save_dict1['extra_dict']['batch_ntokens'] = batch_output_tokens
+                    save_dict1['extra_dict']['batch_tokens_persecond'] = batch_tokenspersec
                     if batch_display_name == display_name:
-                        save_dict1['extra_dict']['num_prompt_tokens'] += batch_tokens
+                        save_dict1['extra_dict']['num_prompt_tokens'] += batch_input_tokens
+                        # get ntokens so can add to it
+                        history1new = response_list[1]
+                        if history1new and len(history1new) > 0 and len(history1new[0]) == 2 and history1new[-1][1]:
+                            save_dict1['extra_dict'] = _save_generate_tokens(history1new[-1][1], save_dict1['extra_dict'])
+                        save_dict1['extra_dict']['ntokens'] += batch_output_tokens
+                        # Note: batch_tokens_persecond could be weighted by tokens, but not done
                     save_dict1['extra_dict']['batch_responses'] = responses
                     response_list[6] = save_dict1
             yield tuple(response_list)
@@ -838,7 +852,7 @@ def _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_s
 def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1, langchain_action1, kwargs={},
                   verbose=False):
     assert kwargs
-    from src.tts_sentence_parsing import init_sentence_state
+    from tts_sentence_parsing import init_sentence_state
     sentence_state = init_sentence_state()
     if langchain_action1 in [LangChainAction.EXTRACT.value]:
         # don't do audio for extraction in any case
@@ -848,10 +862,10 @@ def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_spee
         no_audio = None
     elif kwargs['tts_model'].startswith('microsoft') and speaker1 not in [None, "None"]:
         audio1 = None
-        from src.tts import get_speaker_embedding
+        from tts import get_speaker_embedding
         speaker_embedding = get_speaker_embedding(speaker1, kwargs['model_tts'].device)
         # audio0 = 16000, np.array([]).astype(np.int16)
-        from src.tts_utils import prepare_speech, get_no_audio
+        from tts_utils import prepare_speech, get_no_audio
         sr = 16000
         audio0 = prepare_speech(sr=sr)
         no_audio = get_no_audio(sr=sr)
@@ -865,8 +879,8 @@ def prepare_audio(chatbot_role1, speaker1, tts_language1, roles_state1, tts_spee
                                                       verbose=verbose)
     elif kwargs['tts_model'].startswith('tts_models/') and chatbot_role1 not in [None, "None"]:
         audio1 = None
-        from src.tts_utils import prepare_speech, get_no_audio
-        from src.tts_coqui import get_latent
+        from tts_utils import prepare_speech, get_no_audio
+        from tts_coqui import get_latent
         sr = 24000
         audio0 = prepare_speech(sr=sr)
         no_audio = get_no_audio(sr=sr)
@@ -963,7 +977,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
         # None when not filling with '' to keep client happy
         return dummy_return
 
-    from src.gen import evaluate, evaluate_fake
+    from gen import evaluate, evaluate_fake
     evaluate_local = evaluate if valid_key else functools.partial(evaluate_fake, langchain_action=langchain_action1)
 
     # shouldn't have to specify in API prompt_type if CLI launched model, so prefer global CLI one if have it
@@ -1020,7 +1034,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
             # only delete if was made by us
             image_files_to_delete.append(img_file_one)
         elif str_type == 'base64':
-            from src.vision.utils_vision import base64_to_img
+            from vision.utils_vision import base64_to_img
             img_file_one = base64_to_img(img_file_one, img_file_path)
             # only delete if was made by us
             image_files_to_delete.append(img_file_one)
@@ -1052,7 +1066,7 @@ def prep_bot(*args, retry=False, which_model=0, kwargs_eval={}, plain_api=False,
                           extract_frames=extract_frames,
                           verbose=verbose)
     if image_files and kwargs['function_server']:
-        from src.function_client import call_function_server
+        from function_client import call_function_server
         image_files = call_function_server('0.0.0.0', kwargs['function_server_port'], 'process_file_list',
                                            process_args, process_kwargs,
                                            use_disk=True, use_pickle=True,
@@ -1109,7 +1123,7 @@ def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, db_type=None, dbs=Non
     history_str_old = ''
     error_old = ''
     sources_str = None
-    from src.tts_utils import get_no_audio
+    from tts_utils import get_no_audio
     no_audio = get_no_audio()
     audios = []  # in case not streaming, since audio is always streaming, need to accumulate for when yield
     last_yield = None

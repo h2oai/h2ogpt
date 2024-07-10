@@ -9,7 +9,7 @@ from langchain.schema.output import GenerationChunk
 from langchain_community.llms import gpt4all
 from pydantic.v1 import root_validator
 
-from src.enums import coqui_lock_name
+from enums import coqui_lock_name
 from utils import FakeTokenizer, url_alive, download_simple, clear_torch_cache, n_gpus_global, makedirs, get_lock_file
 
 

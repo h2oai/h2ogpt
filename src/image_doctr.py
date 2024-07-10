@@ -101,7 +101,7 @@ class H2OOCRLoader(ImageCaptionLoader):
         """
         Helper function for getting the captions and metadata of an image
         """
-        from src.image_utils import pad_resize_image
+        from image_utils import pad_resize_image
         try:
             from doctr.io import DocumentFile
         except ImportError:

@@ -610,7 +610,7 @@ class GradioClient(Client):
     def get_client_kwargs(self, **kwargs):
         client_kwargs = {}
         try:
-            from src.evaluate_params import eval_func_param_names
+            from evaluate_params import eval_func_param_names
         except ModuleNotFoundError:
             from .src.evaluate_params import eval_func_param_names
 

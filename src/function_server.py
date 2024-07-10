@@ -112,7 +112,7 @@ def initialize_gen_kwargs():
 
             # FIXME: Deal with GPU IDs for each caption/ASR/DocTR model, use MIG, etc.
 
-            from src.gen import main as gen_main
+            from gen import main as gen_main
             gen_kwargs = gen_main(**main_kwargs)
 
 
@@ -126,8 +126,8 @@ else:
 @app.post("/execute_function/", dependencies=check_key)
 def execute_function(request: FunctionRequest):
     # Mapping of function names to function objects
-    from src.gpt_langchain import path_to_docs
-    from src.vision.utils_vision import process_file_list
+    from gpt_langchain import path_to_docs
+    from vision.utils_vision import process_file_list
     FUNCTIONS = {
         'path_to_docs': path_to_docs,
         'process_file_list': process_file_list,

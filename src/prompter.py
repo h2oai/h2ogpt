@@ -1700,7 +1700,7 @@ class Prompter(object):
         if self.prompt_type in [template_prompt_type, unknown_prompt_type]:
             assert self.use_chat_template, "Please specify prompt_type or for chat template then pass tokenizer_base_model"
             assert self.tokenizer is not None
-            from src.gen import apply_chat_template
+            from gen import apply_chat_template
             instruction = data_point['instruction']
             # ignore context and iinput when using chat template
             prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, image_file,
@@ -2423,7 +2423,7 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
 
 
 def template_supports_system_prompt(tokenizer):
-    from src.utils import FakeTokenizer
+    from utils import FakeTokenizer
     import jinja2
     if isinstance(tokenizer, FakeTokenizer):
         return True

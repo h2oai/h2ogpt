@@ -20,14 +20,14 @@ from requests.exceptions import ReadTimeout as ReadTimeout2
 import torch
 from transformers import AutoModel, AutoTokenizer
 
-from src.enums import is_gradio_vision_model, anthropic_mapping, groq_mapping, google_mapping, mistralai_mapping, \
+from enums import is_gradio_vision_model, anthropic_mapping, groq_mapping, google_mapping, mistralai_mapping, \
     model_token_mapping, model_token_mapping_outputs, anthropic_mapping_outputs, google_mapping_outputs, \
     mistralai_mapping_outputs, groq_mapping_outputs, model_state_none0, other_model_state_defaults0, \
     is_json_model, is_vision_model, images_num_max_dict, llamacpp_inner_dict_keys
-from src.evaluate_params import eval_func_param_names
-from src.prompter import anthropic_gpts, openai_gpts, google_gpts, mistralai_gpts, groq_gpts, non_hf_types, \
+from evaluate_params import eval_func_param_names
+from prompter import anthropic_gpts, openai_gpts, google_gpts, mistralai_gpts, groq_gpts, non_hf_types, \
     prompt_type_to_model_name, get_prompt, model_name_to_prompt_type
-from src.utils import url_alive, cuda_vis_check, get_hf_server, is_gradio_version4, clear_torch_cache, set_openai, \
+from utils import url_alive, cuda_vis_check, get_hf_server, is_gradio_version4, clear_torch_cache, set_openai, \
     FakeTokenizer, get_device, NullContext, get_kwargs, is_json_vllm
 
 from loaders import get_loaders

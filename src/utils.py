@@ -42,8 +42,8 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset
-from src.utils_procs import reulimit
+from enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset
+from utils_procs import reulimit
 
 reulimit()
 
@@ -415,7 +415,7 @@ def get_githash():
 
     if githash == git_hash_unset:
         try:
-            from src.version import __version__
+            from version import __version__
             githash = __version__
         except:
             pass
@@ -2486,7 +2486,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
         top_k_docs = 1
         text_context_list = text_context_list[:top_k_docs]
         # critical protection
-        from src.h2oai_pipeline import H2OTextGenerationPipeline
+        from h2oai_pipeline import H2OTextGenerationPipeline
         doc_content = text_context_list[0]
         doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
                                                                           tokenizer,

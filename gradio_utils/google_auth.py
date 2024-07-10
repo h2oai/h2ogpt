@@ -1,5 +1,5 @@
-from src.enums import split_google
-from src.utils import sanitize_filename
+from enums import split_google
+from utils import sanitize_filename
 
 
 def setup_app(name_login='google_login', name_app='h2ogpt', verbose=False):

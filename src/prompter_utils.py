@@ -1,4 +1,4 @@
-from src.enums import unknown_prompt_type, template_prompt_type
+from enums import unknown_prompt_type, template_prompt_type
 
 
 def get_use_chat_template(tokenizer, prompt_type=None):

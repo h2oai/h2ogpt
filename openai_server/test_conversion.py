@@ -1,7 +1,7 @@
 import os
 import sys
 
-from src.utils import download_image
+from utils import download_image
 
 sys.path.append('openai_server')
 from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages
