@@ -5966,10 +5966,11 @@ close_vision_models = [
 ]
 open_vision_models = [
     'liuhaotian/llava-v1.6-34b',
-    'HuggingFaceM4/idefics2-8b-chatty',
-    'lmms-lab/llama3-llava-next-8b',
+    #'HuggingFaceM4/idefics2-8b-chatty',
+    #'lmms-lab/llama3-llava-next-8b',
     'OpenGVLab/InternVL-Chat-V1-5',
-    'THUDM/cogvlm2-llama3-chat-19B',
+    'OpenGVLab/InternVL2-26B',
+    #'THUDM/cogvlm2-llama3-chat-19B',
     'microsoft/Phi-3-vision-128k-instruct',
 ]
 
@@ -6260,10 +6261,11 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mixtral-8x7b-32768',
                      # 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b',
-                     'HuggingFaceM4/idefics2-8b-chatty',
-                     'lmms-lab/llama3-llava-next-8b',
+                     #'HuggingFaceM4/idefics2-8b-chatty',
+                     #'lmms-lab/llama3-llava-next-8b',
                      'OpenGVLab/InternVL-Chat-V1-5',
-                     'THUDM/cogvlm2-llama3-chat-19B',
+                     'OpenGVLab/InternVL2-26B',
+                     #'THUDM/cogvlm2-llama3-chat-19B',
                      'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
