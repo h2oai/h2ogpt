@@ -5793,7 +5793,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     if inference_server == 'https://gpt.h2o.ai':
         inference_server += ':guest:guest'
 
-    from src.gen import get_inf_models
+    from src.model_utils import get_inf_models
     base_models = get_inf_models(inference_server)
     h2ogpt_key = os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')
     model_lock = []
@@ -6288,7 +6288,7 @@ def get_test_server_client(base_model):
         inference_server_for_get = inference_server
 
     base_models_touse = [base_model]
-    from src.gen import get_inf_models
+    from src.model_utils import get_inf_models
     base_models = get_inf_models(inference_server_for_get)
     assert len(set(base_models_touse).difference(set(base_models))) == 0
 
