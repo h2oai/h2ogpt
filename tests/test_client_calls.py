@@ -172,7 +172,7 @@ def test_client1api_lean(save_dir, admin_pass):
         res = json.loads(res)
         assert isinstance(res, dict)
         assert res['base_model'] == base_model, "Problem with res=%s" % res
-        assert 'device' in res
+        assert 'load_8bit' in res
         assert res['hash'] == get_githash()
 
         api_name = '/system_hash'
