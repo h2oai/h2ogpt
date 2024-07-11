@@ -11,10 +11,10 @@ import numpy as np
 from PIL.Image import Resampling
 
 from gradio_utils.grclient import check_job
-from enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
+from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
     llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
-from image_utils import fix_image_file
-from utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
+from src.image_utils import fix_image_file
+from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
     have_fiftyone, sanitize_filename
 
 IMAGE_EXTENSIONS = {'.png': 'PNG', '.apng': 'PNG', '.blp': 'BLP', '.bmp': 'BMP', '.dib': 'DIB', '.bufr': 'BUFR',

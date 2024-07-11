@@ -4,8 +4,8 @@ import filelock
 from diffusers import DiffusionPipeline
 import torch
 
-from utils import makedirs
-from vision.sdxl import get_device
+from src.utils import makedirs
+from src.vision.sdxl import get_device
 
 
 def get_pipe_make_image(gpu_id):
