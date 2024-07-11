@@ -769,7 +769,7 @@ other_model_state_defaults0 = dict(load_8bit=None, load_4bit=None, low_bit_mode=
 
 model_state_none0 = dict(model=None, tokenizer=None, device=None,
                          base_model=None, base_model0=None, tokenizer_base_model=None, lora_weights=None,
-                         inference_server=None, prompt_type=None, prompt_dict=None,
+                         inference_server='', prompt_type='unknown', prompt_dict=None,
                          visible_models=None, h2ogpt_key=None,
                          json_vllm=None,
                          is_vision_model=None,
