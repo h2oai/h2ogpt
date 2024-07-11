@@ -750,7 +750,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                     if batch_display_name == display_name:
                         save_dict1['extra_dict']['num_prompt_tokens'] += batch_input_tokens
                         # get ntokens so can add to it
-                        history1new = response_list[1]
+                        history1new = response_list[0]
                         if history1new and len(history1new) > 0 and len(history1new[0]) == 2 and history1new[-1][1]:
                             save_dict1['extra_dict'] = _save_generate_tokens(history1new[-1][1], save_dict1['extra_dict'])
                         save_dict1['extra_dict']['ntokens'] += batch_output_tokens
