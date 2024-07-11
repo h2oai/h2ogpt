@@ -6,6 +6,7 @@ import traceback
 # also supports imports from this file from other files
 from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type, empty_prompt_type  # keep single line
 from prompter_utils import get_use_chat_template
+from utils import FakeTokenizer
 from stopping import update_terminate_responses
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
@@ -1697,7 +1698,7 @@ class Prompter(object):
            In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
-        if self.prompt_type in [template_prompt_type, unknown_prompt_type]:
+        if self.prompt_type in [template_prompt_type, unknown_prompt_type] and not isinstance(self.tokenizer, FakeTokenizer):
             assert self.use_chat_template, "Please specify prompt_type or for chat template then pass tokenizer_base_model"
             assert self.tokenizer is not None
             from gen import apply_chat_template
