@@ -4,3 +4,4 @@ playwright>=1.37.0
 selenium>=4.11.2
 html2text>=2020.1.16
 bs4>=0.0.1
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
