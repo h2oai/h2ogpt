@@ -398,10 +398,7 @@ class H2OLlamaCpp(LlamaCpp):
 
             try:
                 try:
-                    if values["n_gpus"] == 0:
-                        from llama_cpp import Llama
-                    else:
-                        from llama_cpp_cuda import Llama
+                    from llama_cpp import Llama
                 except Exception as e:
                     print("Failed to listen to n_gpus: %s, trying llama_cpp module" % str(e), flush=True)
                     try:

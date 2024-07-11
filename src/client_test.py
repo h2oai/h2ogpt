@@ -158,7 +158,6 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          llava_prompt=None,
                          visible_models=visible_models,
                          visible_image_models=visible_image_models,
-                         model_lock=None,
                          h2ogpt_key=h2ogpt_key,
                          add_search_to_context=add_search_to_context,
                          chat_conversation=chat_conversation,
@@ -200,10 +199,12 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          guided_grammar=None,
                          guided_whitespace_pattern=None,
 
+                         model_lock=None,
                          )
     diff = 0
     from evaluate_params import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == diff
+    assert eval_func_param_names == list(kwargs.keys())
     if chat:
         # add chatbot output on end.  Assumes serialize=False
         kwargs.update(dict(chatbot=[]))
