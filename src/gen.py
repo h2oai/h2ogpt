@@ -2948,7 +2948,7 @@ def evaluate(
 
     ###############
     # prompt_type and prompter setup
-    if inference_server.startswith('openai_chat'):
+    if inference_server.startswith('openai_chat') or inference_server.startswith('openai_azure_chat'):
         # no extra LLM prompting
         prompt_type = 'openai_chat'
     elif inference_server.startswith('vllm_chat'):
