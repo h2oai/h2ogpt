@@ -713,24 +713,24 @@ image_batch_image_prompt0 = """<response_instructions>
 - Provide insights based on your observations.
 - Avoid making up facts.
 - Do not forget to follow the system prompt.
-- Finally, according to our chat history, above documents, above figure captions, or given images, generate a well-structured response.
+- Finally, according to our chat history, the above documents, figure captions, or given images, generate a well-structured response.
 </response_instructions>
 """
 
 image_batch_final_prompt0 = """<response_instructions>
-- Check if the answers already given in <image> xml tags are useful.
+- Check if the answers already given in <image> XML tags are useful.
   - Image answers came from a vision model capable of reading text and images within the images.
-  - If image answers are useful, then preserve all details the image answers provide and use them to construct a well-structured answer.
-- Ignore image answers that had no useful answer, because any single batch of images may not have be relevant. Focus on all details from image answers that are relevant and useful.
+  - If image answers are useful, preserve all details the image answers provide and use them to construct a well-structured answer.
+- Ignore image answers that had no useful content, because any single batch of images may not be relevant. Focus on all details from image answers that are relevant and useful.
 - Check if the document text can answer the question.
 - Check if the chat history can answer the question.
 - Check if any figure captions can answer the question.
 - If answers conflict between text, chat history, and figure captions, do not focus your response on this conflict.
   - In handling conflicting answers, use logical reasoning and supporting evidence to assess the plausibility of each answer.
-  - In handling conflicting answers, choose the most consistent answer -- i.e. the most common answer among conflicts (self-consistency reasoning) or one that aligns with well-established facts.
-  - In handling conflicting answers, one may choose one data source over another -- i.e. text is probably more reliable than image when the question can be answered from text, while image is more reliable than text for flowcharts, photos, etc.
+  - In handling conflicting answers, choose the most consistent answer -- i.e., the most common answer among conflicts (self-consistency reasoning) or one that aligns with well-established facts.
+  - In handling conflicting answers, one may choose one data source over another -- i.e., text is probably more reliable than an image when the question can be answered from text, while an image is more reliable than text for flowcharts, photos, etc.
 - Do not forget to follow the system prompt.
-- Finally, according to our chat history, above documents, above figure captions, or given images, construct a well-structured response.
+- Finally, according to our chat history, the above documents, figure captions, or given images, construct a well-structured response.
 </response_instructions>
 """
 
