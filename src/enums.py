@@ -718,7 +718,9 @@ image_batch_image_prompt0 = """<response_instructions>
 """
 
 image_batch_final_prompt0 = """<response_instructions>
-- Check if the answers already given in <image> xml tags are useful.  These image answers came from a vision model capable of reading text and images within the images.  If useful, then preserve all details the image answers provide and use them to construct a well-structured answer.
+- Check if the answers already given in <image> xml tags are useful.
+  - Image answers came from a vision model capable of reading text and images within the images.
+  - If image answers are useful, then preserve all details the image answers provide and use them to construct a well-structured answer.
 - Ignore image answers that had no useful answer, because any single batch of images may not have be relevant. Focus on all details from image answers that are relevant and useful.
 - Check if the document text can answer the question.
 - Check if the chat history can answer the question.
