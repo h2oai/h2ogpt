@@ -712,6 +712,7 @@ image_batch_image_prompt0 = """<response_instructions>
 - Analyze the content within the images.
 - Provide insights based on your observations.
 - Avoid making up facts.
+- Do not forget to follow the system prompt.
 - Finally, according to our chat history, above documents, above figure captions, or given images, generate a well-structured response.
 </response_instructions>
 """
@@ -722,6 +723,11 @@ image_batch_final_prompt0 = """<response_instructions>
 - Check if the document text can answer the question.
 - Check if the chat history can answer the question.
 - Check if any figure captions can answer the question.
+- If answers conflict between text, chat history, and figure captions, do not focus your response on this conflict.
+  - In handling conflicting answers, use logical reasoning and supporting evidence to assess the plausibility of each answer.
+  - In handling conflicting answers, choose the most consistent answer -- i.e. the most common answer among conflicts (self-consistency reasoning) or one that aligns with well-established facts.
+  - In handling conflicting answers, one may choose one data source over another -- i.e. text is probably more reliable than image when the question can be answered from text, while image is more reliable than text for flowcharts, photos, etc.
+- Do not forget to follow the system prompt.
 - Finally, according to our chat history, above documents, above figure captions, or given images, construct a well-structured response.
 </response_instructions>
 """
