@@ -708,8 +708,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             save_dict1_saved['extra_dict'] = _save_generate_tokens(text, save_dict1_saved['extra_dict'])
             batch_output_tokens += save_dict1_saved['extra_dict'].get('ntokens', 0)
             batch_tokenspersec += save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
-            responses.append(
-                f'<image_{batch}_to_{batch + batch_size - 1}_answer>\n\n{text}\n\n</image_{batch}_to_{batch + batch_size - 1}_answer>')
+            responses.append(f'<image>\n\n{text}\n\n</image>')
 
         # last response with no images
         history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?

@@ -23,7 +23,7 @@ from transformers import AutoModel, AutoTokenizer
 from enums import is_gradio_vision_model, anthropic_mapping, groq_mapping, google_mapping, mistralai_mapping, \
     model_token_mapping, model_token_mapping_outputs, anthropic_mapping_outputs, google_mapping_outputs, \
     mistralai_mapping_outputs, groq_mapping_outputs, model_state_none0, other_model_state_defaults0, \
-    is_json_model, is_vision_model, images_num_max_dict, llamacpp_inner_dict_keys
+    is_json_model, is_vision_model, images_num_max_dict, llamacpp_inner_dict_keys, unknown_prompt_type
 from evaluate_params import eval_func_param_names
 from prompter import anthropic_gpts, openai_gpts, google_gpts, mistralai_gpts, groq_gpts, non_hf_types, \
     prompt_type_to_model_name, get_prompt, model_name_to_prompt_type
@@ -1594,7 +1594,7 @@ def __model_lock_to_state(model_dict1, **kwargs):
         if 'openai' not in model_dict['inference_server'] and 'replicate' not in model_dict['inference_server']:
             # assume want locally, but OpenAI and replicate are never local for model part
             model_dict['inference_server'] = ''
-    prompt_type_infer = not model_dict.get('prompt_type')
+    prompt_type_infer = model_dict.get('prompt_type') in ['', None, unknown_prompt_type]
     model_dict['prompt_type'] = model_dict.get('prompt_type',
                                                model_list0[0]['prompt_type'])  # don't use mutated value
     # rest of generic defaults
