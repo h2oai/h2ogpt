@@ -707,8 +707,24 @@ json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JS
 json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
 json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to use the same key names as the schema:\n```json\n{properties_schema}\n```'
 
-image_batch_image_prompt0 = 'As a keen observer with a sharp eye for detail, analyze the content within the images and provide insights based on your observations, '
-image_batch_final_prompt0 = 'According to the text or according to any of the answers from the images (ignoring image answers that had no useful answer, but providing all details from useful image answers), give a well-structured response to: '
+image_batch_image_prompt0 = """<response_instructions>
+- Act as a keen observer with a sharp eye for detail.
+- Analyze the content within the images.
+- Provide insights based on your observations.
+- Avoid making up facts.
+- Finally, according to our chat history, above documents, above figure captions, or given images, generate a well-structured response.
+</response_instructions>
+"""
+
+image_batch_final_prompt0 = """<response_instructions>
+- Check if the answers already given in <image> xml tags are useful.  These image answers came from a vision model capable of reading text and images within the images.  If useful, then preserve all details the image answers provide and use them to construct a well-structured answer.
+- Ignore image answers that had no useful answer, because any single batch of images may not have be relevant. Focus on all details from image answers that are relevant and useful.
+- Check if the document text can answer the question.
+- Check if the chat history can answer the question.
+- Check if any figure captions can answer the question.
+- Finally, according to our chat history, above documents, above figure captions, or given images, construct a well-structured response.
+</response_instructions>
+"""
 
 coqui_lock_name = 'coqui'
 

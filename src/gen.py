@@ -2957,7 +2957,7 @@ def evaluate(
 
     # in some cases, like lean nochat API, don't want to force sending prompt_type, allow default choice
     # This doesn't do switch-a-roo, assume already done, so might be wrong model and can't infer
-    if not prompt_type and prompt_type != 'custom':
+    if prompt_type in ['', None, unknown_prompt_type] and prompt_type != 'custom':
         prompt_type_trial = model_name_to_prompt_type(base_model, inference_server,
                                                       llamacpp_dict=llamacpp_dict, tokenizer=tokenizer)
         if prompt_type_trial:
@@ -4331,7 +4331,7 @@ def get_generate_params(model_lower,
     max_time_defaults = 60 * 10
     max_time = max_time if max_time is not None else max_time_defaults
 
-    if not prompt_type and prompt_type != 'custom':
+    if prompt_type in ['', None, unknown_prompt_type] and prompt_type != 'custom':
         prompt_type_trial = model_name_to_prompt_type(model_lower, inference_server,
                                                       model_name0=model_lower0,
                                                       llamacpp_dict=llamacpp_dict)
@@ -4388,7 +4388,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         else:
             placeholder_instruction = "Give detailed answer for whether Einstein or Newton is smarter."
         placeholder_input = ""
-        if not prompt_type and prompt_type != 'custom':
+        if prompt_type in ['', None, unknown_prompt_type] and prompt_type != 'custom':
             prompt_type_trial = model_name_to_prompt_type(model_lower,
                                                           inference_server,
                                                           model_name0=model_lower0,

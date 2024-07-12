@@ -2490,7 +2490,7 @@ def model_name_to_prompt_type(model_name, inference_server,
     elif model_lower and model_lower in inv_prompt_type_to_model_lower:
         prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
     else:
-        prompt_type1 = prompt_type_old or ''
+        prompt_type1 = prompt_type_old or unknown_prompt_type
     if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer,
                                                                                                  FakeTokenizer):
         # handle new models not defined yet
