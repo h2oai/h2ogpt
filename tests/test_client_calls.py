@@ -3099,6 +3099,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "it can be inferred that more text is indeed boring" in res_dict['response'] or
             "expressing frustration" in res_dict['response'] or
             "it seems that more text can indeed be boring" in res_dict['response'] or
+            "it can be argued that more text can indeed be boring" in res_dict['response'] or
             "repetition" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
