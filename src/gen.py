@@ -2605,6 +2605,8 @@ def evaluate(
     if metadata_in_context is None:
         metadata_in_context = metadata_in_context0
 
+    if response_format is None:
+        response_format = response_formats[0]
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)
 
