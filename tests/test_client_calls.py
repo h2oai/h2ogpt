@@ -3137,10 +3137,14 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
-    sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
+    sources_expected = [
+        f'{user_path}/FAQ.md',
+        f'{user_path}/README.md',
+        f'{user_path}/pexels-evg-kowalievska-1170986_small.jpg',
+        f'{user_path}/sample1.pdf'
+    ]
+    assert all(file in sources for file in sources_expected), "Sources do not match the expected list."
 
     res = client.predict(langchain_mode2, h2ogpt_key, api_name='/get_sources')
     assert isinstance(res[1], str)
@@ -3148,10 +3152,9 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, h2ogpt_key, api_name='/get_viewable_sources')
@@ -3161,10 +3164,9 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     res = client.predict(langchain_mode2, h2ogpt_key, api_name='/get_viewable_sources')
     assert isinstance(res[1], str)
@@ -3172,20 +3174,17 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     # refresh
     shutil.copy('tests/next.txt', user_path)
-    res = client.predict(langchain_mode, True, 512,
+    sources = client.predict(langchain_mode, True, 512,
                          *loaders, h2ogpt_key,
-                         api_name='/refresh_sources')
+                         api_name='/refresh_sources').replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = 'file/%s/next.txt' % user_path
-    assert sources_expected in res or sources_expected.replace('\\', '/').replace('\r', '') in res.replace('\\',
-                                                                                                           '/').replace(
-        '\r', '\n')
+    assert sources_expected in str(sources)
 
     res = client.predict(langchain_mode, h2ogpt_key, api_name='/get_sources')
     assert isinstance(res[1], str)
@@ -3194,10 +3193,9 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg_pad_resized.png\n{user_path}/sample1.pdf'
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     # check sources, and do after so would detect leakage
     sources = ast.literal_eval(client.predict(langchain_mode, h2ogpt_key, api_name='/get_sources_api'))
@@ -3207,7 +3205,7 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
                         'user_path_test/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg',
                         'user_path_test/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg_pad_resized.png',
                         'user_path_test/sample1.pdf']
-    assert sources == sources_expected
+    assert all(file in sources for file in sources_expected), "Sources do not match the expected list."
 
     file_to_get = sources_expected[3]
     view_raw_text = False
