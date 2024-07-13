@@ -325,6 +325,41 @@ python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None 
 ```
 or choose 13B.
 
+
+### Personal collections with make_db
+
+* --collection_mame must match --persist_directory if both provided
+* Temporary users cannot have a personal databases craeted by make_db since those all uses hashes, so one must at least login or use auth etc.
+* So, ensure you at least login so your personal directories look like `users/<username>/db_dir_<collection_name>`.
+
+Example sequence:
+
+1. Run make_db ensuring collection name matches persist directory and `users/<user>` path matches the expected persistent user name.
+```
+python src/make_db.py --collection_name=duck --user_path=user_path_test --langchain_type=personal --persist_directory=users/tomer/db_dir_duck/
+```
+
+2. Run without "tomer" in langchain_mode, because personal collections are for a single user, not specified at CLI time but stored in the auth database.
+```
+python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --use_safetensors=True --prompt_type=zephyr --save_dir='save2' --use_gpu_id=False --user_path=user_path_test --langchain_mode="LLM" --langchain_modes="['UserData', 'LLM']" --score_model=None --add_disk_models_to_ui=False
+```
+
+3. Login as user "tomer"
+
+![image](https://github.com/user-attachments/assets/51241c90-f262-421c-87f9-c7f8c09d48e3)
+
+4. Add the collection:
+
+![image](https://github.com/user-attachments/assets/8b78fc2e-6375-47d6-8836-143a8f3b907e)
+
+5. Then you'll see the "Directory" be correct:
+
+![image](https://github.com/user-attachments/assets/f36281cd-6237-4027-a250-362ecb7ef59f)
+
+6. You'll see your docs when choosing the duck collection:
+
+![image](https://github.com/user-attachments/assets/f1720238-ec2c-4db8-971b-2e1b4ef03195)
+
 ### Note about Embeddings
 
 The default embedding for GPU is `instructor-large` since most accurate, however, it leads to excessively high scores for references due to its flat score distribution.  For CPU the default embedding is `all-MiniLM-L6-v2`, and it has a sharp distribution of scores, so references make sense, but it is less accurate.
@@ -336,6 +371,7 @@ FAISS filtering is not supported in h2oGPT yet, ask if this is desired to be add
 ### Using Weaviate
 
 #### About
+
 [Weaviate](https://weaviate.io/) is an open-source vector database designed to scale seamlessly into billions of data objects. This implementation supports hybrid search out-of-the-box (meaning it will perform better for keyword searches).
 
 You can run Weaviate in 5 ways:
