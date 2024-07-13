@@ -3,8 +3,8 @@ Based upon ImageCaptionLoader in LangChain version: langchain/document_loaders/i
 But accepts preloaded model to avoid slowness in use and CUDA forking issues
 
 Loader that loads image captions
-By default, the loader utilizes the pre-trained BLIP image captioning model.
-https://huggingface.co/Salesforce/blip-image-captioning-base
+By default, the loader utilizes the pre-trained image captioning model.
+https://huggingface.co/microsoft/Florence-2-base
 
 """
 from typing import List, Union, Any, Tuple
@@ -24,12 +24,116 @@ except (PackageNotFoundError, AssertionError):
     have_bitsandbytes = False
 
 
+from io import BytesIO
+from pathlib import Path
+from typing import Any, List, Tuple, Union
+
+import requests
+from langchain_core.documents import Document
+
+from langchain_community.document_loaders.base import BaseLoader
+
+
+class ImageCaptionLoader(BaseLoader):
+    """Load image captions.
+
+    By default, the loader utilizes the pre-trained
+    Salesforce BLIP image captioning model.
+    https://huggingface.co/Salesforce/blip-image-captioning-base
+    """
+
+    def __init__(
+        self,
+        images: Union[str, Path, bytes, List[Union[str, bytes, Path]]],
+        caption_processor: str = "Salesforce/blip-image-captioning-base",
+        caption_model: str = "Salesforce/blip-image-captioning-base",
+    ):
+        """Initialize with a list of image data (bytes) or file paths
+
+        Args:
+            images: Either a single image or a list of images. Accepts
+                    image data (bytes) or file paths to images.
+            caption_processor: The name of the pre-trained BLIP processor.
+            caption_model: The name of the pre-trained BLIP model.
+        """
+        if isinstance(images, (str, Path, bytes)):
+            self.images = [images]
+        else:
+            self.images = images
+
+        self.caption_processor = caption_processor
+        self.caption_model = caption_model
+
+    def load(self) -> List[Document]:
+        """Load from a list of image data or file paths"""
+        try:
+            from transformers import BlipForConditionalGeneration, BlipProcessor
+        except ImportError:
+            raise ImportError(
+                "`transformers` package not found, please install with "
+                "`pip install transformers`."
+            )
+
+        processor = BlipProcessor.from_pretrained(self.caption_processor)
+        model = BlipForConditionalGeneration.from_pretrained(self.caption_model)
+
+        results = []
+        for image in self.images:
+            caption, metadata = self._get_captions_and_metadata(
+                model=model, processor=processor, image=image
+            )
+            doc = Document(page_content=caption, metadata=metadata)
+            results.append(doc)
+
+        return results
+
+    def _get_captions_and_metadata(
+        self, model: Any, processor: Any, image: Union[str, Path, bytes]
+    ) -> Tuple[str, dict]:
+        """Helper function for getting the captions and metadata of an image."""
+        try:
+            from PIL import Image
+        except ImportError:
+            raise ImportError(
+                "`PIL` package not found, please install with `pip install pillow`"
+            )
+
+        image_source = image  # Save the original source for later reference
+
+        try:
+            if isinstance(image, bytes):
+                image = Image.open(BytesIO(image)).convert("RGB")
+            elif isinstance(image, str) and (
+                image.startswith("http://") or image.startswith("https://")
+            ):
+                image = Image.open(requests.get(image, stream=True).raw).convert("RGB")
+            else:
+                image = Image.open(image).convert("RGB")
+        except Exception:
+            if isinstance(image_source, bytes):
+                msg = "Could not get image data from bytes"
+            else:
+                msg = f"Could not get image data for {image_source}"
+            raise ValueError(msg)
+
+        inputs = processor(image, "an image of", return_tensors="pt")
+        output = model.generate(**inputs)
+
+        caption: str = processor.decode(output[0])
+        if isinstance(image_source, bytes):
+            metadata: dict = {"image_source": "Image bytes provided"}
+        else:
+            metadata = {"image_path": str(image_source)}
+
+        return caption, metadata
+
+
 class H2OImageCaptionLoader(ImageCaptionLoader):
     """Loader that loads the captions of an image"""
 
     def __init__(self, path_images: Union[str, List[str]] = None,
-                 blip_processor: str = None,
-                 blip_model: str = None,
+                 caption_processor: str = None,
+                 caption_model: str = None,
                  caption_gpu=True,
                  load_in_8bit=True,
                  # True doesn't seem to work, even though https://huggingface.co/Salesforce/blip2-flan-t5-xxl#in-8-bit-precision-int8
@@ -39,16 +143,16 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
                  load_exllama=False,
                  use_safetensors=False,
                  revision=None,
-                 min_new_tokens=20,
+                 min_new_tokens=512,
                  max_tokens=50,
                  gpu_id='auto'):
-        if blip_model is None or blip_model is None:
-            blip_processor = "Salesforce/blip-image-captioning-base"
-            blip_model = "Salesforce/blip-image-captioning-base"
+        if caption_model is None or caption_model is None:
+            caption_processor = "microsoft/Florence-2-base"
+            caption_model = "microsoft/Florence-2-base"
 
-        super().__init__(path_images, blip_processor, blip_model)
-        self.blip_processor = blip_processor
-        self.blip_model = blip_model
+        super().__init__(path_images, caption_processor, caption_model)
+        self.caption_processor = caption_processor
+        self.caption_model = caption_model
         self.processor = None
         self.model = None
         self.caption_gpu = caption_gpu
@@ -112,27 +216,34 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
             with self.context_class(self.device):
                 context_class_cast = NullContext if self.device == 'cpu' else torch.autocast
                 with context_class_cast(self.device):
-                    if 'blip2' in self.blip_processor.lower():
+                    if 'blip2' in self.caption_processor.lower():
                         from transformers import Blip2Processor, Blip2ForConditionalGeneration
                         if self.load_half and not self.load_in_8bit:
-                            self.processor = Blip2Processor.from_pretrained(self.blip_processor,
+                            self.processor = Blip2Processor.from_pretrained(self.caption_processor,
                                                                             device_map=self.device_map).half()
-                            self.model = Blip2ForConditionalGeneration.from_pretrained(self.blip_model,
+                            self.model = Blip2ForConditionalGeneration.from_pretrained(self.caption_model,
                                                                                        device_map=self.device_map).half()
                         else:
-                            self.processor = Blip2Processor.from_pretrained(self.blip_processor,
+                            self.processor = Blip2Processor.from_pretrained(self.caption_processor,
                                                                             load_in_8bit=self.load_in_8bit,
                                                                             device_map=self.device_map,
                                                                             )
-                            self.model = Blip2ForConditionalGeneration.from_pretrained(self.blip_model,
+                            self.model = Blip2ForConditionalGeneration.from_pretrained(self.caption_model,
                                                                                        load_in_8bit=self.load_in_8bit,
                                                                                        device_map=self.device_map)
-                    else:
+                    elif 'blip' in self.caption_processor.lower():
                         from transformers import BlipForConditionalGeneration, BlipProcessor
                         self.load_half = False  # not supported
-                        self.processor = BlipProcessor.from_pretrained(self.blip_processor, device_map=self.device_map)
-                        self.model = BlipForConditionalGeneration.from_pretrained(self.blip_model,
+                        self.processor = BlipProcessor.from_pretrained(self.caption_processor, device_map=self.device_map)
+                        self.model = BlipForConditionalGeneration.from_pretrained(self.caption_model,
                                                                                   device_map=self.device_map)
+                    else:
+                        from transformers import AutoModelForCausalLM, AutoProcessor
+                        self.load_half = False  # not supported
+                        self.processor = AutoProcessor.from_pretrained(self.caption_processor, device_map=self.device_map,
+                        trust_remote_code=True)
+                        self.model = AutoModelForCausalLM.from_pretrained(self.caption_model, device_map=self.device_map,
+                        trust_remote_code=True)
         return self
 
     def set_image_paths(self, path_images: Union[str, List[str]]):
@@ -193,20 +304,49 @@ class H2OImageCaptionLoader(ImageCaptionLoader):
             with self.context_class(self.device):
                 context_class_cast = NullContext if self.device == 'cpu' else torch.autocast
                 with context_class_cast(self.device):
-                    if self.load_half:
-                        # FIXME: RuntimeError: "slow_conv2d_cpu" not implemented for 'Half'
-                        inputs = processor(image, prompt, return_tensors="pt")  # .half()
+                    extra_kwargs = {}
+
+                    if isinstance(self.caption_model, str) and 'florence' in self.caption_model.lower():
+                        caption_detail_task_map = {
+                            "low": "<CAPTION>",
+                            "medium": "<DETAILED_CAPTION>",
+                            "high": "<MORE_DETAILED_CAPTION>",
+                        }
+                        task_prompt = caption_detail_task_map[
+                           'high' if 'large' in self.caption_model else 'medium'
+                        ]
+                        num_beams = 3 if 'large' in self.caption_model else 1
+                        extra_kwargs.update(dict(num_beams=num_beams))
+                        if prompt and False:
+                            prompt = task_prompt + prompt
+                        else:
+                            prompt = task_prompt
+
+                    if isinstance(self.caption_model, str) and 'blip' in self.caption_model:
+                        min_length = len(prompt) // 4 + self.min_new_tokens
+                        self.max_tokens = max(self.max_tokens, min_length)
+                        extra_kwargs.update(dict(min_length=min_length))
+                        if self.load_half:
+                            # FIXME: RuntimeError: "slow_conv2d_cpu" not implemented for 'Half'
+                            inputs = processor(image, prompt, return_tensors="pt")  # .half()
+                        else:
+                            inputs = processor(image, prompt, return_tensors="pt")
                     else:
-                        inputs = processor(image, prompt, return_tensors="pt")
-                    min_length = len(prompt) // 4 + self.min_new_tokens
-                    self.max_tokens = max(self.max_tokens, min_length)
+                        inputs = processor(text=prompt, images=image, return_tensors="pt")
                     inputs.to(model.device)
-                    output = model.generate(**inputs, min_length=min_length, max_length=self.max_tokens)
+                    output = model.generate(**inputs, max_length=self.max_tokens, **extra_kwargs)
 
                     caption: str = processor.decode(output[0], skip_special_tokens=True)
-                    prompti = caption.find(prompt)
-                    if prompti >= 0:
-                        caption = caption[prompti + len(prompt):]
+                    if isinstance(self.caption_model, str) and 'blip' in self.caption_model:
+                        prompti = caption.find(prompt)
+                        if prompti >= 0:
+                            caption = caption[prompti + len(prompt):]
+                    elif isinstance(self.caption_model, str) and 'florence' in self.caption_model.lower():
+                        parsed_answer = processor.post_process_generation(
+                            caption, task=task_prompt, image_size=(image.width, image.height)
+                        )
+                        caption: str = parsed_answer[task_prompt].strip()
+
                     metadata: dict = {"image_path": path_image}
 
         return caption, metadata

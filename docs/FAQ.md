@@ -1321,7 +1321,7 @@ python generate.py --base_model=llama \
                    --score_model=None \
                    --embedding_gpu_id=0 \
                    --caption_gpu_id=1 \
-                   --captions_model=Salesforce/blip2-flan-t5-xl \
+                   --captions_model=microsoft/Florence-2-large \
                    --enable_pdf_doctr=on \
                    --doctr_gpu_id=2 \
                    --asr_gpu_id=3 \
@@ -1560,9 +1560,9 @@ For images, there are these options with defaults
 * enable_doctr=True
 * enable_pix2struct=False
 * enable_captions=True
-* captions_model="Salesforce/blip-image-captioning-base",
+* captions_model="microsoft/Florence-2-base",
 
-So for images we always use caption model (BLIP) but one can use BLIP2 or others for more accuracy.  BLIP describes an image, while DocTR does OCR on the image.  "enable_ocr" uses Tesseract via Unstructured wrapper and is less capable than DocTR.  If these are forced on in UI, that is like choosing `True`.
+So for images we always use caption model (microsoft/Florence-2-base) but one can use microsoft/Florence-2-large for more accuracy.  microsoft/Florence-2-base describes an image, while DocTR does OCR on the image.  "enable_ocr" uses Tesseract via Unstructured wrapper and is less capable than DocTR.  If these are forced on in UI, that is like choosing `True`.
 
 To enable all options on, choose `--max_quality=True` or select in side panel->Upload->Maximum Ingest Quality.  However, this can lead to a few redundant pages in database.  So only good idea if have >4k context.
 
@@ -1570,9 +1570,8 @@ The value `--top_k_docs` sets how many chunks (for query action) or parts of doc
 
 To improve speed of parsing for captioning images and DocTR for images and PDFs, set `--pre_load_image_audio_models=True`.  Note `--pre_load_embedding_model=True` is already the default.  This preloads the models, especially useful when using GPUs.  Choose GPU IDs for each model to help distribute the load, e.g. if have 3 GPUs, the embedding model will be on GPU=0, then use `--caption_gpu_id=1` and `--doctr_gpu_id=2` and `--asr_gpu_id=3`.  This is also useful for multi-user case, else the models are loaded and unloaded for each user doing parsing, which is wasteful of GPU memory.  E.g., for maximum speed and accuracy on 4 GPUs, one could run:
 ```bash
-python generate.py --pre_load_embedding_model=True --embedding_gpu_id=0 --hf_embedding_model=BAAI/bge-large-en --cut_distance=10000 --pre_load_caption_model=True --caption_gpu_id=1 --caption_model=Salesforce/blip2-flan-t5-xl --doctr_gpu_id=2 --asr_gpu_id=3 --asr_model=openai/whisper-large-v3 --max_quality=True
+python generate.py --pre_load_embedding_model=True --embedding_gpu_id=0 --hf_embedding_model=BAAI/bge-large-en --cut_distance=10000 --pre_load_caption_model=True --caption_gpu_id=1 --caption_model=microsoft/Florence-2-large --doctr_gpu_id=2 --asr_gpu_id=3 --asr_model=openai/whisper-large-v3 --max_quality=True
 ```
-where the BLIP2 model needs 16GB and the whisper-large-v3 needs 10GB.
 
 ### Controlling Quality and Speed of Context-Filling
 

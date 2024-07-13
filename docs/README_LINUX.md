@@ -161,7 +161,7 @@ Note that models are stored in `/home/$USER/.cache/` for chroma, huggingface, se
   where `<key>` should be replaced by your OpenAI key that probably starts with `sk-`.  OpenAI is **not** recommended for private document question-answer, but it can be a good reference for testing purposes or when privacy is not required.  
   Perhaps you want better image caption performance and focus local GPU on that, then do:
   ```bash
-  OPENAI_API_KEY=<key> python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=Salesforce/blip2-flan-t5-xl
+  OPENAI_API_KEY=<key> python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --captions_model=microsoft/Florence-2-large
   ```
   For Azure OpenAI:
   ```bash
