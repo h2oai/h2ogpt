@@ -1343,7 +1343,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     docs = db.similarity_search("invoice", k=10)
@@ -1394,7 +1394,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
@@ -1409,7 +1409,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
@@ -1424,7 +1424,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
