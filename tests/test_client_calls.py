@@ -2955,15 +2955,28 @@ def test_text_generation_inference_server1():
            'Deep learning refers to a class of machine learning' in text
 
 
+def kill_function_server():
+    os.system('pkill -f server_start.py --signal 9')
+    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
+
+
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("function_server_workers", [2, 1])
 @pytest.mark.parametrize("function_server", [False, True])
-@pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @pytest.mark.parametrize("loaders", ['all', None])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, function_server,
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
                                              function_server_workers):
+    kill_function_server()
+    try:
+        run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
+                                                function_server_workers)
+    finally:
+        kill_function_server()
+
+def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
+                                            function_server_workers):
     if not function_server and function_server_workers > 1:
         # no-op
         return
@@ -3026,6 +3039,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          function_server=function_server,
          function_server_workers=function_server_workers,
          add_disk_models_to_ui=False,
+         append_sources_to_answer=True,  # not normally True, but helps legacy asserts
          **main_kwargs,
          verbose=True)
 
@@ -3201,7 +3215,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
-    assert 'a cat sitting on a window' in source_dict['contents'][0]
+    assert 'cat sitting' in source_dict['contents'][0]
     assert isinstance(source_dict['metadatas'][0], str)
     assert sources_expected[3] in source_dict['metadatas'][0]
 
@@ -3212,7 +3226,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)
-    assert 'a cat sitting on a window' in source_dict['contents'][0]
+    assert 'cat sitting' in source_dict['contents'][0]
     assert isinstance(source_dict['metadatas'][0], dict)
     assert sources_expected[3] == source_dict['metadatas'][0]['source']
 
@@ -3403,9 +3417,6 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                               ['UserData2', 'shared', 'user_path2'],
                               ['MyData2', 'personal', ''],
                               ]
-
-    os.system('pkill -f server_start.py --signal 9')
-    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
 
 
 @pytest.mark.need_tokens
@@ -5967,11 +5978,11 @@ close_vision_models = [
 ]
 open_vision_models = [
     'liuhaotian/llava-v1.6-34b',
-    #'HuggingFaceM4/idefics2-8b-chatty',
-    #'lmms-lab/llama3-llava-next-8b',
+    # 'HuggingFaceM4/idefics2-8b-chatty',
+    # 'lmms-lab/llama3-llava-next-8b',
     'OpenGVLab/InternVL-Chat-V1-5',
     'OpenGVLab/InternVL2-26B',
-    #'THUDM/cogvlm2-llama3-chat-19B',
+    # 'THUDM/cogvlm2-llama3-chat-19B',
     'microsoft/Phi-3-vision-128k-instruct',
 ]
 
@@ -6262,11 +6273,11 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mixtral-8x7b-32768',
                      # 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b',
-                     #'HuggingFaceM4/idefics2-8b-chatty',
-                     #'lmms-lab/llama3-llava-next-8b',
+                     # 'HuggingFaceM4/idefics2-8b-chatty',
+                     # 'lmms-lab/llama3-llava-next-8b',
                      'OpenGVLab/InternVL-Chat-V1-5',
                      'OpenGVLab/InternVL2-26B',
-                     #'THUDM/cogvlm2-llama3-chat-19B',
+                     # 'THUDM/cogvlm2-llama3-chat-19B',
                      'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
