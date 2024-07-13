@@ -52,6 +52,8 @@ from langchain_core.outputs import ChatResult, RunInfo
 from langchain_experimental.tools import PythonREPLTool
 from langchain_community.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from gradio_utils.grclient import GradioClient
 # from langchain_mistralai import ChatMistralAI
 from langchain_mistralai.chat_models import ChatMistralAI
 from langchain_groq import ChatGroq
@@ -1153,6 +1155,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if not self.stream_output:
             res = client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
+            GradioClient.check_error(res_dict)
             text = res_dict['response']
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
@@ -1190,6 +1193,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 if outputs_list:
                     res = outputs_list[-1]
                     res_dict = ast.literal_eval(res)
+                    GradioClient.check_error(res_dict)
                     text = res_dict['response']
                     text = self.prompter.get_response(prompt + text, prompt=prompt,
                                                       sanitize_bot_response=self.sanitize_bot_response)
@@ -1219,6 +1223,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
                 res = res_all[-1]
                 res_dict = ast.literal_eval(res)
+                GradioClient.check_error(res_dict)
                 text = res_dict['response']
                 # FIXME: derive chunk from full for now
             else:
@@ -1286,6 +1291,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
             if outputs_list:
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
+                GradioClient.check_error(res_dict)
                 text = res_dict['response']
                 text = self.prompter.get_response(prompt + text, prompt=prompt,
                                                   sanitize_bot_response=self.sanitize_bot_response)
@@ -1315,6 +1321,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if len(res_all) > 0:
             res = res_all[-1]
             res_dict = ast.literal_eval(res)
+            GradioClient.check_error(res_dict)
             text = res_dict['response']
             # FIXME: derive chunk from full for now
             check_job(job, timeout=timeout, raise_exception=True)

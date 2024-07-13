@@ -480,7 +480,12 @@ class GradioClient(Client):
             self.refresh_client_if_should()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
         except Exception as e:
-            print("Hit e=%s\n\n%s" % (str(e), traceback.format_exc()), flush=True)
+            ex = traceback.format_exc()
+            print(
+                "Hit e=%s\n\n%s\n\n%s"
+                % (str(ex), traceback.format_exc(), self.__dict__),
+                flush=True,
+            )
             # force reconfig in case only that
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
@@ -610,9 +615,12 @@ class GradioClient(Client):
     def get_client_kwargs(self, **kwargs):
         client_kwargs = {}
         try:
-            from evaluate_params import eval_func_param_names
-        except ModuleNotFoundError:
-            from .src.evaluate_params import eval_func_param_names
+            from src.evaluate_params import eval_func_param_names
+        except (ImportError, ModuleNotFoundError):
+            try:
+                from evaluate_params import eval_func_param_names
+            except (ImportError, ModuleNotFoundError):
+                from .src.evaluate_params import eval_func_param_names
 
         for k in eval_func_param_names:
             if k in kwargs:
@@ -659,6 +667,15 @@ class GradioClient(Client):
         fun_kwargs = {k: kwargs.get(k, v.default) for k, v in fun_dict}
 
         return fun_kwargs
+
+    @staticmethod
+    def check_error(res_dict):
+        if "error" in res_dict and res_dict["error"]:
+            raise RuntimeError(f"Error from LLM: {res_dict['error']}")
+        if "error_ex" in res_dict and res_dict["error_ex"]:
+            raise RuntimeError(f"Error Traceback from LLM: {res_dict['error_ex']}")
+        if "response" not in res_dict:
+            raise ValueError("No response from LLM")
 
     def query_or_summarize_or_extract(
         self,
@@ -1066,6 +1083,7 @@ class GradioClient(Client):
                     # in case server changed, update in case clone()
                     self.server_hash = client.server_hash
                     res_dict = ast.literal_eval(res)
+                    self.check_error(res_dict)
                     response = res_dict["response"]
                     if langchain_action != LangChainAction.EXTRACT.value:
                         response = response.strip()
@@ -1083,7 +1101,7 @@ class GradioClient(Client):
                             f"Unable to access save_dict to get actual_llm: {str(e)}"
                         )
                         actual_llm = (
-                            sanitize_llm(visible_models)
+                            sanitize_llm(visible_models, client=client)
                             if sanitize_llm is not None
                             else visible_models
                         )
@@ -1138,6 +1156,7 @@ class GradioClient(Client):
                         if outputs_list:
                             res = outputs_list[-1]
                             res_dict = ast.literal_eval(res)
+                            self.check_error(res_dict)
                             response = res_dict["response"]  # keeps growing
                             prompt_raw = res_dict.get(
                                 "prompt_raw", ""
@@ -1165,7 +1184,7 @@ class GradioClient(Client):
                         ) as e:  # FIXME - except TimeoutError once h2ogpt raises that.
                             if "Abrupt termination of communication" in str(e):
                                 actual_llm = (
-                                    sanitize_llm(visible_models)
+                                    sanitize_llm(visible_models, client=client)
                                     if sanitize_llm is not None
                                     else visible_models
                                 )
@@ -1178,6 +1197,7 @@ class GradioClient(Client):
 
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
+                        self.check_error(res_dict)
                         response = res_dict["response"]
                         sources = res_dict["sources"]
                         prompt_raw = res_dict["prompt_raw"]
@@ -1194,7 +1214,7 @@ class GradioClient(Client):
 
                         if not text_chunk:
                             actual_llm = (
-                                sanitize_llm(visible_models)
+                                sanitize_llm(visible_models, client=client)
                                 if sanitize_llm is not None
                                 else visible_models
                             )
@@ -1234,7 +1254,7 @@ class GradioClient(Client):
                                 f"Unable to access save_dict to get actual_llm: {str(e)}"
                             )
                             actual_llm = (
-                                sanitize_llm(visible_models)
+                                sanitize_llm(visible_models, client=client)
                                 if sanitize_llm is not None
                                 else visible_models
                             )

@@ -3745,6 +3745,7 @@ def evaluate(
                     if not stream_output:
                         res = gr_client.predict(str(dict(client_kwargs)), api_name=api_name)
                         res_dict = ast.literal_eval(res)
+                        GradioClient.check_error(res_dict)
                         text = res_dict['response']
                         sources = res_dict['sources']
                         response = prompter.get_response(prompt + text, prompt=prompt,
