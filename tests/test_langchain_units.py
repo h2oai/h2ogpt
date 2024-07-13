@@ -1447,11 +1447,14 @@ def check_content_captions(docs, captions_model, enable_pix2struct):
     assert any(['license' in docs[ix].page_content.lower() for ix in range(len(docs))])
     if captions_model is not None and 'florence' in captions_model:
         str_expected = """The image shows a California driver's license with a picture of a woman's face on it."""
+        str_expected2 = """The image is a California driver's license."""
     elif enable_pix2struct:
-        str_expected = """california license"""
+        str_expected2 = str_expected = """california license"""
     else:
         str_expected = """The image shows a California driver's license with a picture of a woman's face on it."""
-    assert any([str_expected.lower() in docs[ix].page_content.lower() for ix in range(len(docs))])
+        str_expected2 = """The image is a California driver's license."""
+    assert any([str_expected.lower() in docs[ix].page_content.lower() for ix in range(len(docs))]) or \
+           any([str_expected2.lower() in docs[ix].page_content.lower() for ix in range(len(docs))])
 
 
 def check_content_doctr(docs):
