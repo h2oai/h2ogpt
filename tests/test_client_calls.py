@@ -2975,6 +2975,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fu
     finally:
         kill_function_server()
 
+
 def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
                                             function_server_workers):
     if not function_server and function_server_workers > 1:
@@ -3042,6 +3043,9 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
          append_sources_to_answer=True,  # not normally True, but helps legacy asserts
          **main_kwargs,
          verbose=True)
+
+    if function_server:
+        time.sleep(20)  # wait for server to start
 
     from src.client_test import get_client, get_args, run_client
     # serialize=False would lead to returning dict for some objects or files for get_sources
