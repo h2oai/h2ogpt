@@ -713,7 +713,6 @@ image_batch_image_prompt0 = """<response_instructions>
 - Provide insights based on your observations.
 - Avoid making up facts.
 - Do not forget to follow the system prompt.
-- Finally, according to our chat history, the above documents, figure captions, or given images, generate a well-structured response.
 </response_instructions>
 """
 
