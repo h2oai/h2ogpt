@@ -36,7 +36,7 @@ def go_prepare_offline(*args, **kwargs):
 
     for fileup_output in file_list:
         # ensure normal blip (not 2) obtained
-        blip2 = 'CaptionBlip2'
+        blip2 = 'CaptionLarge'
         if blip2 in kwargs['image_audio_loaders_options']:
             kwargs['image_audio_loaders_options'].remove(blip2)
 

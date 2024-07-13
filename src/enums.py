@@ -578,13 +578,13 @@ def gr_to_lg(image_audio_loaders,
         enable_ocr='OCR' in image_audio_loaders,
         enable_doctr='DocTR' in image_audio_loaders,
         enable_pix2struct='Pix2Struct' in image_audio_loaders,
-        enable_captions='Caption' in image_audio_loaders or 'CaptionBlip2' in image_audio_loaders,
+        enable_captions='Caption' in image_audio_loaders or 'CaptionLarge' in image_audio_loaders,
         enable_transcriptions="ASR" in image_audio_loaders or 'ASRLarge' in image_audio_loaders,
         enable_llava='LLaVa' in image_audio_loaders,
     )
-    if 'CaptionBlip2' in image_audio_loaders:
+    if 'CaptionLarge' in image_audio_loaders:
         # just override, don't actually do both even if user chose both
-        captions_model = "Salesforce/blip2-flan-t5-xl"
+        captions_model = "microsoft/Florence-2-large"
     else:
         captions_model = kwargs['captions_model']
     if 'ASRLarge' in image_audio_loaders:

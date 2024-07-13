@@ -446,7 +446,7 @@ def main(
 
         caption_gpu: bool = True,
         caption_gpu_id: Union[int, str] = 'auto',
-        captions_model: str = "Salesforce/blip-image-captioning-base",
+        captions_model: str = "microsoft/Florence-2-base",
         doctr_gpu: bool = True,
         doctr_gpu_id: Union[int, str] = 'auto',
         llava_model: str = None,
@@ -1194,7 +1194,7 @@ def main(
     :param enable_ocr: Whether to support OCR on images
     :param enable_doctr: Whether to support doctr on images (using OCR better than enable_ocr=True)
     :param enable_pix2struct: Whether to support pix2struct on images for captions
-    :param enable_captions: Whether to support captions using BLIP for image files as documents,
+    :param enable_captions: Whether to support captions for image files as documents,
            then preloads that model if pre_load_image_audio_models=True
     :param enable_llava: If LLaVa IP port is set, whether to use response for image ingestion
     :param enable_transcriptions: Whether to enable audio transcriptions (youtube of from files)
@@ -1206,11 +1206,8 @@ def main(
            Also applies to DocTR and ASR models
 
     :param captions_model: Which model to use for captions.
-           captions_model: str = "Salesforce/blip-image-captioning-base",  # continue capable
-           captions_model: str = "Salesforce/blip2-flan-t5-xl",   # question/answer capable, 16GB state
-           captions_model: str = "Salesforce/blip2-flan-t5-xxl",  # question/answer capable, 60GB state
-           Note: opt-based blip2 are not permissive license due to opt and Meta license restrictions
-           Disabled for CPU since BLIP requires CUDA
+           captions_model: str = "microsoft/Florence-2-base",  # fine
+           captions_model: str = "microsoft/Florence-2-large",   # quite good
     :param caption_gpu: If support caption, then use GPU if exists
     :param caption_gpu_id: Which GPU id to use, if 'auto' then select 0
 
@@ -2608,6 +2605,8 @@ def evaluate(
     if metadata_in_context is None:
         metadata_in_context = metadata_in_context0
 
+    if response_format is None:
+        response_format = response_formats[0]
     assert response_format in response_formats, "Invalid response_format: %s, must be in %s" % (
         response_format, response_formats)
 

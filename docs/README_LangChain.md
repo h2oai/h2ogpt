@@ -130,7 +130,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.zip` : Zip File containing any native datatype.
    - `.urls` : Text file containing new-line separated URLs (to be consumed via download).
 
-Note: If you upload files and one of the files is a zip that contains images to be read by BLIP/DocTR or PDFs to be read by DocTR, this will currently fail with:
+Note: If you upload files and one of the files is a zip that contains images to be read by Florence-2/DocTR or PDFs to be read by DocTR, this will currently fail with:
 ```text
 Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
 ```
@@ -206,7 +206,7 @@ python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --
 ```
 and if you want to push the image caption model to get better captions, this can be done if have enough GPU memory or if use OpenAI:
 ```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=microsoft/Florence-2-large
 ```
 Similar commands can be used for Azure OpenAI, e.g.
 ```bash

@@ -121,7 +121,7 @@ See [Offline](docs/README_offline.md#tldr) for how to run h2oGPT offline.
 
 ---
 
-Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, Stable Diffusion, etc. download models at runtime that appear to delay operations in the UI. The progress appears in the console logs.
+Note that for all platforms, some packages such as DocTR, Unstructured, Florence-2, Stable Diffusion, etc. download models at runtime that appear to delay operations in the UI. The progress appears in the console logs.
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer

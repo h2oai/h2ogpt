@@ -4777,30 +4777,30 @@ def file_to_doc(file,
             if verbose:
                 print("END: DocTR", flush=True)
         if enable_captions:
-            file_blip = fix_image_file(file, do_align=False, do_rotate=False, do_pad=False)
-            # BLIP
+            file_caption = fix_image_file(file, do_align=False, do_rotate=False, do_pad=False)
+            # Caption
             if verbose:
-                print("BEGIN: BLIP", flush=True)
+                print("BEGIN: Caption", flush=True)
             try:
                 if model_loaders['caption'] is not None and not isinstance(model_loaders['caption'], (str, bool)):
                     # assumes didn't fork into this process with joblib, else can deadlock
                     if verbose:
-                        print("Reuse BLIP", flush=True)
+                        print("Reuse Caption", flush=True)
                     model_loaders['caption'].load_model()
                 else:
                     if verbose:
-                        print("Fresh BLIP", flush=True)
+                        print("Fresh Caption", flush=True)
                     from image_captions import H2OImageCaptionLoader
                     model_loaders['caption'] = H2OImageCaptionLoader(caption_gpu=model_loaders['caption'] == 'gpu',
-                                                                     blip_model=captions_model,
-                                                                     blip_processor=captions_model)
-                model_loaders['caption'].set_image_paths([file_blip])
+                                                                     caption_model=captions_model,
+                                                                     caption_processor=captions_model)
+                model_loaders['caption'].set_image_paths([file_caption])
                 docs1c = model_loaders['caption'].load()
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model, file_as_source=True)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, source_true=file_blip, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, source_true=file_caption, hashid=hash_of_file) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("H2OImageCaptionLoader: %s" % str(e0), flush=True)
@@ -4808,7 +4808,7 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
 
             if verbose:
-                print("END: BLIP", flush=True)
+                print("END: Caption", flush=True)
         if enable_pix2struct:
             file_pix = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False)
             # PIX
@@ -4839,7 +4839,7 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
             if verbose:
                 print("END: Pix2Struct", flush=True)
-        if llava_model and enable_llava:
+        if llava_model and enable_llava and 'vllm' not in llava_model:
             file_llava = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False)
             # LLaVa
             if verbose:
