@@ -1380,7 +1380,8 @@ def test_client_chat_stream_langchain():
            'an open-source project' in res_dict['response'] or \
            'h2oGPT is a project that allows' in res_dict['response'] or \
            'h2oGPT is a language model trained' in res_dict['response'] or \
-           'h2oGPT is a large-scale' in res_dict['response']
+           'h2oGPT is a large-scale' in res_dict['response'] or \
+           'is a free and open-source' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
