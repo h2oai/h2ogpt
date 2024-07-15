@@ -2,8 +2,8 @@ import os
 import time
 import pytest
 
-from src.image_utils import get_image_file
 from tests.utils import wrap_test_forked
+from src.image_utils import get_image_file
 from src.enums import source_prefix, source_postfix
 from src.prompter import generate_prompt, convert_messages_and_extract_images, get_llm_history
 
