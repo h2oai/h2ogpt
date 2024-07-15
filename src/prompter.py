@@ -2514,6 +2514,7 @@ def model_name_to_prompt_type(model_name, inference_server,
             prompt_type1 = 'openai'
         elif inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
             # no extra LLM prompting
-            prompt_type1 = 'plain'
+            # don't switch to 'plain' as that would disable chat templae awareness and system prompt awareness
+            prompt_type1 = 'unknown'
 
     return prompt_type1
