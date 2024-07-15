@@ -156,7 +156,7 @@ def make_db_main(use_openai_embedding: bool = False,
                  enable_pix2struct=False,
                  enable_captions=True,
                  enable_llava=True,
-                 captions_model: str = "Salesforce/blip-image-captioning-base",
+                 captions_model: str = "microsoft/Florence-2-base",
                  llava_model: str = None,
                  llava_prompt: str = None,
                  pre_load_image_audio_models: bool = False,
@@ -312,8 +312,8 @@ def make_db_main(use_openai_embedding: bool = False,
         # However, if have many images, all those images will be handled more quickly by preloaded model on GPU
         from image_captions import H2OImageCaptionLoader
         caption_loader = H2OImageCaptionLoader(None,
-                                               blip_model=captions_model,
-                                               blip_processor=captions_model,
+                                               caption_model=captions_model,
+                                               caption_processor=captions_model,
                                                caption_gpu=caption_gpu,
                                                ).load_model()
     else:

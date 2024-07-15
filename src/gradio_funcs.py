@@ -605,6 +605,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         instruction_nochat = fun1_args_list[len(input_args_list) + eval_func_param_names.index('instruction_nochat')]
         instruction = instruction or instruction_nochat or ""
         prompt_summary = fun1_args_list[len(input_args_list) + eval_func_param_names.index('prompt_summary')]
+        if prompt_summary is None:
+            prompt_summary = kwargs['prompt_summary'] or ''
         image_batch_image_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index(
             'image_batch_image_prompt')] or kwargs['image_batch_image_prompt'] or image_batch_image_prompt0
         image_batch_final_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index(
@@ -754,7 +756,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                         # get ntokens so can add to it
                         history1new = response_list[0]
                         if history1new and len(history1new) > 0 and len(history1new[0]) == 2 and history1new[-1][1]:
-                            save_dict1['extra_dict'] = _save_generate_tokens(history1new[-1][1], save_dict1['extra_dict'])
+                            save_dict1['extra_dict'] = _save_generate_tokens(history1new[-1][1],
+                                                                             save_dict1['extra_dict'])
                         save_dict1['extra_dict']['ntokens'] += batch_output_tokens
                         # Note: batch_tokens_persecond could be weighted by tokens, but not done
                     save_dict1['extra_dict']['batch_responses'] = responses

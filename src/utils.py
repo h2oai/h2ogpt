@@ -1788,7 +1788,7 @@ def lg_to_gr(
 
     image_audio_loaders_options = ['Caption']
     if n_gpus != 0:
-        image_audio_loaders_options.extend(['CaptionBlip2', 'Pix2Struct'])
+        image_audio_loaders_options.extend(['CaptionLarge', 'Pix2Struct'])
     if have_tesseract:
         image_audio_loaders_options.append('OCR')
     if have_doctr:
@@ -1808,7 +1808,7 @@ def lg_to_gr(
     if kwargs['enable_captions']:
         if kwargs['max_quality'] and n_gpus > 0:
             # BLIP2 only on GPU
-            image_audio_loaders_options0.append('CaptionBlip2')
+            image_audio_loaders_options0.append('CaptionLarge')
         else:
             image_audio_loaders_options0.append('Caption')
     if have_librosa and kwargs['enable_transcriptions']:
@@ -1816,15 +1816,16 @@ def lg_to_gr(
             image_audio_loaders_options0.append('ASRLarge')
         else:
             image_audio_loaders_options0.append('ASR')
-    if kwargs['enable_llava'] and kwargs['llava_model']:
+    if kwargs['enable_llava'] and kwargs['llava_model'] and 'vllm' not in kwargs['llava_model']:
+        # Caption like llava model is only gradio based, legacy method
         #  and n_gpus > 0  # don't require local GPUs
         # LLaVa better and faster if present
         #  and kwargs['max_quality']
         image_audio_loaders_options0.append('LLaVa')
         if 'Caption' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('Caption')
-        if 'CaptionBlip2' in image_audio_loaders_options0:
-            image_audio_loaders_options0.remove('CaptionBlip2')
+        if 'CaptionLarge' in image_audio_loaders_options0:
+            image_audio_loaders_options0.remove('CaptionLarge')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
     if have_pymupdf:
