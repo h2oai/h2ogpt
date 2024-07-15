@@ -128,6 +128,8 @@ See https://github.com/open-webui/open-webui/issues/2312.  The `OPENAI_API_USER`
 
 Flaws with Open Web UI:
 * Chat history is not used if any document is in the chat history.
+* To change hyperparameters, go to settings -> general -> advanced parameters.  In h2oGPT branch the temp=0 (0.8 normally), max_tokens=1024 (128 normally), context=4096 (2048 normally) and there is no way to control at startup time.
+* You have to choose max_tokens to be reasonable for the model, e.g. less than 4096 for many models.  But it has no per-model settings.
 
 See for more [help](https://docs.openwebui.com/troubleshooting/).
 
@@ -136,10 +138,6 @@ To remove the container do `docker stop <hash> ; docker remove <hash>` for the c
 ![openwebui1.png](openwebui1.png)
 
 ![openwebui2.png](openwebui2.png)
-
-Gotchas with Open-WebUI:
-* To change hyperparameters, go to settings -> general -> advanced parameters.  In h2oGPT branch the temp=0 (0.8 normally), max_tokens=1024 (128 normally), context=4096 (2048 normally) and there is no way to control at startup time.
-* You have to choose max_tokens to be reasonable for the model, e.g. less than 4096 for many models.  But it has no per-model settings.
 
 ### Loading forever in UI
 
