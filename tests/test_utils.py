@@ -922,7 +922,7 @@ def test_process_file_list():
     for file in processed_files:
         print(file, file=sys.stderr)
         assert os.path.isfile(file)
-    assert len(processed_files) == len(test_files) - 1 + 17  # 17 is the number of images generated from the video file
+    assert len(processed_files) == len(test_files) - 1 + 17 + 4  # 17 is the number of images generated from the video file
 
 
 def test_process_file_list_extract_frames():
