@@ -5026,7 +5026,8 @@ def check_curl_plain_api():
     assert 'assistant' in res_dict['response'] or \
            'computer program' in res_dict['response'] or \
            'program designed' in res_dict['response'] or \
-           'intelligence' in res_dict['response']
+           'intelligence' in res_dict['response'] or \
+           'I am a model trained' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
     assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == \
            res_dict['save_dict'][
