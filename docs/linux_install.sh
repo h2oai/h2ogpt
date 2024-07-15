@@ -242,6 +242,9 @@ pip install flash_attn autoawq autoawq-kernels --no-cache-dir -c reqs_optional/r
 # work-around issue with tenacity 8.4.0
 pip install tenacity==8.3.0 -c reqs_optional/reqs_constraints.txt
 
+# work-around for some package downgrading jinja2 but >3.1.0 needed for transformers
+pip install jinja2==3.1.4 -c reqs_optional/reqs_constraints.txt
+
 bash ./docs/run_patches.sh
 
 

@@ -5,3 +5,6 @@ diffusers>=0.29.0
 yt-dlp>=2024.5.27
 # if want to use gif_to_mp4()
 # moviepy>=0.5.1
+
+# for fiftyone with patches
+pytubefix>=6.2.2
