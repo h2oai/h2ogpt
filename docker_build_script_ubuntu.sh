@@ -91,7 +91,7 @@ conda install python=3.11 -y
 echo "open-webui conda env: $CONDA_DEFAULT_ENV"
 
 chmod -R a+rwx /h2ogpt_conda
-pip install git+https://github.com/h2oai/open-webui.git
+pip install https://h2o-release.s3.amazonaws.com/h2ogpt/open_webui-0.3.8-py3-none-any.whl
 
 # Track build info
 cp /workspace/build_info.txt /build_info.txt

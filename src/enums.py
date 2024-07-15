@@ -683,7 +683,7 @@ Respond absolutely only in valid JSON with elaborate and well-structured text fo
 """
 # "Web references" : str array // Up to 3 most relevant HTML links used to justify the response.
 
-max_input_tokens_public = 3100
+max_input_tokens_public = 6000
 max_input_tokens_public_api = 2 * max_input_tokens_public  # so can exercise bit longer context models
 
 max_total_input_tokens_public = 4096 * 2
@@ -694,7 +694,7 @@ max_top_k_docs_public_api = 2 * max_top_k_docs_public
 
 max_top_k_docs_default = 10
 
-max_docs_public = 5
+max_docs_public = 10
 max_docs_public_api = 2 * max_docs_public
 
 max_chunks_per_doc_public = 5000
