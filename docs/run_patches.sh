@@ -22,8 +22,8 @@ sed -i "s/5.16.51/6.40.52/g" $sp/pytube/innertube.py
 sed -i "s/5.21/6.41/g" $sp/pytube/innertube.py
 
 # use pytubefix instead, pytube too old and various issues
-sed -i 's/pytube/pytubefix/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/pytube>=15/pytubefix>=6/g' $sp/fiftyone/utils/youtube.py
+sed -i 's/pytube/pytubefix/g' $sp/fiftyone/utils/youtube.py
 
 # fix asyncio same way websockets was fixed, else keep hitting errors in async calls
 # https://github.com/python-websockets/websockets/commit/f9fd2cebcd42633ed917cd64e805bea17879c2d7
