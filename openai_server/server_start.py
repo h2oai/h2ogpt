@@ -63,6 +63,14 @@ def run_server(host: str = '0.0.0.0',
     ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
 
+    if verbose:
+        print('ENVs')
+        print(dict(os.environ))
+        print('LOCALS')
+        print(locals())
+    else:
+        print("verbose disabled")
+
     prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
     try:
         from openai_server.log import logger
