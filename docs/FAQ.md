@@ -76,9 +76,11 @@ Or run as:
 # python env
 conda create -n open-webui-run -y
 conda activate open-webui-run
-conda install -y python==3.11
+conda install -y python=3.11
 # pip install open-webui  # for Open Web UI's RAG and file ingestion
-pip install git+https://github.com/h2oai/open-webui.git  # for h2oGPT file ingestion
+# pip install git+https://github.com/h2oai/open-webui.git  # for h2oGPT file ingestion
+pip install https://h2o-release.s3.amazonaws.com/h2ogpt/open_webui-0.3.8-py3-none-any.whl  # for latest release
+#
 export H2OGPT_LOADERS=1  # for h2oGPT file ingestion
 # ensure certain things not set
 unset OPENAI_API_BASE_URLS
@@ -110,6 +112,7 @@ export ENABLE_LITELLM=False
 export ENABLE_OLLAMA_API=False
 export ENABLE_OPENAI_API=True
 export SERPER_API_KEY=''  # fill me
+export H2OGPT_FUNCTION_SERVER_PORT=5003  # match with --function_server_port
 # run
 open-webui serve
 ```
