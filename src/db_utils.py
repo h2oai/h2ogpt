@@ -3,7 +3,7 @@ import os
 import sqlite3
 import uuid
 
-from src.enums import LangChainMode
+from enums import LangChainMode
 
 
 def set_userid(db1s, requests_state1, get_userid_auth, guest_name=''):
@@ -186,4 +186,129 @@ def upsert_auth_dict(db_filename, auth_dict, verbose=False):
         print(f"An error occurred: {e}")
     finally:
         # Close the database connection
+        conn.close()
+
+
+def get_all_usernames(auth_filename):
+    assert auth_filename.endswith('.db'), "Bad auth_filename: %s" % auth_filename
+    if not os.path.isfile(auth_filename):
+        return []
+
+    conn = sqlite3.connect(auth_filename)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT username FROM Users")
+        usernames = [row[0] for row in cursor.fetchall()]
+        return usernames
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def merge_dicts(original, updates):
+    """
+    Merge updates into the original dictionary. If a key points to a list, append the values.
+    If a key points to a dictionary, merge the dictionaries.
+    """
+    for key, value in updates.items():
+        if key in original:
+            if isinstance(original[key], list) and isinstance(value, list):
+                original[key].extend(value)
+            elif isinstance(original[key], dict) and isinstance(value, dict):
+                original[key] = merge_dicts(original[key], value)
+            else:
+                original[key] = value
+        else:
+            original[key] = value
+    return original
+
+
+def append_to_users_data(auth_filename, updates, verbose=False):
+    assert auth_filename.endswith('.db'), "Bad auth_filename: %s" % auth_filename
+    db_filename = auth_filename
+    assert os.path.isfile(db_filename), "Database file %s does not exist." % db_filename
+
+    conn = sqlite3.connect(db_filename)
+    cursor = conn.cursor()
+
+    try:
+        # Fetch all usernames and their data
+        cursor.execute("SELECT username, data FROM Users")
+        users = cursor.fetchall()
+
+        for username, data_string in users:
+            user_details = json.loads(data_string)
+
+            # Merge updates into user details
+            user_details = merge_dicts(user_details, updates)
+
+            # Serialize the updated user_details dictionary to a JSON string
+            updated_data_string = json.dumps(user_details)
+
+            # Prepare the UPSERT SQL command
+            sql_command = """
+            INSERT INTO Users (username, data)
+            VALUES (?, ?)
+            ON CONFLICT(username)
+            DO UPDATE SET data = excluded.data;
+            """
+
+            # Execute the UPSERT command
+            cursor.execute(sql_command, (username, updated_data_string))
+            if verbose:
+                print(f"User '{username}' updated successfully.")
+
+        conn.commit()  # Commit the changes to the database
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        conn.close()
+
+
+def append_to_user_data(auth_filename, username, updates, verbose=False):
+    assert auth_filename.endswith('.db'), "Bad auth_filename: %s" % auth_filename
+    db_filename = auth_filename
+    assert os.path.isfile(db_filename), "Database file %s does not exist." % db_filename
+
+    conn = sqlite3.connect(db_filename)
+    cursor = conn.cursor()
+
+    try:
+        # Fetch the user data for the specified username
+        cursor.execute("SELECT data FROM Users WHERE username = ?", (username,))
+        user_data = cursor.fetchone()
+
+        if not user_data:
+            # Create new user details if user does not exist
+            user_details = updates
+            if verbose:
+                print(f"User '{username}' does not exist in the database. Creating new user.")
+        else:
+            user_details = json.loads(user_data[0])
+            # Merge updates into user details
+            user_details = merge_dicts(user_details, updates)
+
+        # Serialize the updated user_details dictionary to a JSON string
+        updated_data_string = json.dumps(user_details)
+
+        # Prepare the UPSERT SQL command
+        sql_command = """
+        INSERT INTO Users (username, data)
+        VALUES (?, ?)
+        ON CONFLICT(username)
+        DO UPDATE SET data = excluded.data;
+        """
+
+        # Execute the UPSERT command
+        cursor.execute(sql_command, (username, updated_data_string))
+        if verbose:
+            print(f"User '{username}' updated successfully.")
+
+        conn.commit()  # Commit the changes to the database
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
         conn.close()

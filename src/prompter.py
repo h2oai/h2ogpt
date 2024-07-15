@@ -1,14 +1,13 @@
 import ast
 import time
 import os
+import traceback
 
 # also supports imports from this file from other files
-from enums import PromptType, gpt_token_mapping, \
-    anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, openai_supports_json_mode, noop_prompt_type, \
-    unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type
-from src.prompter_utils import get_use_chat_template
-from src.stopping import update_terminate_responses
-from src.utils import get_gradio_tmp
+from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type, empty_prompt_type  # keep single line
+from prompter_utils import get_use_chat_template
+from utils import FakeTokenizer
+from stopping import update_terminate_responses
 
 non_hf_types = ['gpt4all_llama', 'llama', 'gptj']
 
@@ -1674,6 +1673,14 @@ class Prompter(object):
         self.pre_response = self.PreResponse
         self.verbose = verbose
 
+        if self.use_chat_template:
+            # see if chat template handles system prompt
+            system_prompt = '1234####*****@@!(#%@#%@#%'
+            self.can_handle_system_prompt = system_prompt in apply_chat_template("Test", system_prompt, [], [],
+                                                                                 self.tokenizer,
+                                                                                 test_only=True,
+                                                                                 user_prompt_for_fake_system_prompt=None)
+
     @property
     def stop_sequences(self):
         terminate_response = self.terminate_response or []
@@ -1681,7 +1688,7 @@ class Prompter(object):
         stop_sequences = [x for x in stop_sequences if x]
         return stop_sequences
 
-    def generate_prompt(self, data_point, reduced=False, context_from_history=None, chat_conversation=[],
+    def generate_prompt(self, data_point, reduced=False, context_from_history=None, chat_conversation=[], image_file=[],
                         user_prompt_for_fake_system_prompt=None):
         """
         data_point['context'] is assumed to be like a system prompt or pre-conversation, not inserted after user prompt
@@ -1691,13 +1698,14 @@ class Prompter(object):
            In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
-        if self.prompt_type in [template_prompt_type, unknown_prompt_type]:
-            assert self.use_chat_template, "Please specify prompt_type or pass tokenizer_base_model with chat template"
+        if self.prompt_type in [template_prompt_type, unknown_prompt_type] and not isinstance(self.tokenizer, FakeTokenizer):
+            assert self.use_chat_template, "Please specify prompt_type or for chat template then pass tokenizer_base_model"
             assert self.tokenizer is not None
-            from src.gen import apply_chat_template
+            from gen import apply_chat_template
             instruction = data_point['instruction']
             # ignore context and iinput when using chat template
-            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, self.tokenizer,
+            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, image_file,
+                                         self.tokenizer,
                                          user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          test_only=False, verbose=self.verbose)
             return prompt
@@ -2305,6 +2313,7 @@ def gradio_to_llm(x, bot=False):
     """
     convert message (user or bot) in case message is tuple from gradio
     """
+    from utils import get_gradio_tmp
     gradio_tmp = get_gradio_tmp()
     # handle if gradio tuples in messages
     if x is None:
@@ -2374,8 +2383,10 @@ def get_llm_history(history, only_text=False):
     return history_new
 
 
-def apply_chat_template(instruction, system_prompt, history, tokenizer, user_prompt_for_fake_system_prompt=None,
+def apply_chat_template(instruction, system_prompt, history, image_file,
+                        tokenizer, user_prompt_for_fake_system_prompt=None,
                         test_only=False, verbose=False):
+    image_file = []  # NA for tokenizer version of things, usually much more specific non-OpenAI compliant thing
     history = get_llm_history(history, only_text=True)
     prompt = ''
     exceptions = []
@@ -2387,24 +2398,44 @@ def apply_chat_template(instruction, system_prompt, history, tokenizer, user_pro
         try:
             messages = structure_to_messages(instruction,
                                              system_prompt_to_use,
-                                             history)
+                                             history,
+                                             image_file,
+                                             )
+            if not messages:
+                return ''
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
             break
         except Exception as e:
+            ex = traceback.format_exc()
             if test_only:
                 return ''
             # try no direct system prompt, but add as conversation history
             user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
             history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
 
-            exceptions.append(e)
+            exceptions.append(ex)
             if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
                 if verbose:
-                    print("No system prompt supported: %s" % str(e))
+                    print("No system prompt supported: %s" % str(ex))
             elif os.getenv('HARD_ASSERTS'):
                 raise
     assert prompt, "Prompt was not set: %s" % str(exceptions)
     return prompt
+
+
+def template_supports_system_prompt(tokenizer):
+    from utils import FakeTokenizer
+    import jinja2
+    if isinstance(tokenizer, FakeTokenizer):
+        return True
+    try:
+        tokenizer.apply_chat_template([{'role': 'system', 'content': 'Test system prompt'}])
+    except jinja2.exceptions.TemplateError as e:
+        if 'System role not supported' in str(e):
+            return False
+        else:
+            raise
+    return True
 
 
 def convert_messages_and_extract_images(tuple_list):
@@ -2438,3 +2469,51 @@ def convert_messages_and_extract_images(tuple_list):
             })
 
     return messages, images
+
+
+def model_name_to_prompt_type(model_name, inference_server,
+                              model_name0=None, llamacpp_dict={},
+                              prompt_type_old=None, tokenizer=None):
+    from utils import get_llama_lower_hf, FakeTokenizer
+
+    model_lower0 = model_name0.strip().lower() if model_name0 is not None else ''
+    model_lower = model_name.strip().lower()
+    llama_lower = llamacpp_dict.get('model_path_llama', '').lower() if llamacpp_dict is not None else ''
+    llama_lower_hf = get_llama_lower_hf(llama_lower)
+    llama_lower_base = os.path.basename(llama_lower)
+    if llama_lower_hf and llama_lower_hf in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[llama_lower_hf]
+    elif llama_lower_base and llama_lower_base in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[llama_lower_base]
+    elif model_lower0 and model_lower0 in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[model_lower0]
+    elif model_lower and model_lower in inv_prompt_type_to_model_lower:
+        prompt_type1 = inv_prompt_type_to_model_lower[model_lower]
+    else:
+        prompt_type1 = prompt_type_old or unknown_prompt_type
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type] and isinstance(tokenizer,
+                                                                                                 FakeTokenizer):
+        # handle new models not defined yet
+        if tokenizer.is_google:
+            prompt_type1 = 'google'
+        elif tokenizer.is_anthropic:
+            prompt_type1 = 'anthropic'
+        elif tokenizer.is_openai:
+            prompt_type1 = 'openai'
+    if prompt_type1 in [empty_prompt_type, unknown_prompt_type, noop_prompt_type]:
+        # handle new models not defined yet
+        if inference_server == 'google':
+            prompt_type1 = 'google'
+        elif inference_server == 'mistralai':
+            prompt_type1 = 'mistralai'
+        elif inference_server == 'mistralai':
+            prompt_type1 = 'mistralai'
+        elif inference_server == 'anthropic':
+            prompt_type1 = 'anthropic'
+        elif inference_server == 'openai':
+            prompt_type1 = 'openai'
+        elif inference_server.startswith('openai_chat') or inference_server.startswith('vllm_chat'):
+            # no extra LLM prompting
+            prompt_type1 = 'plain'
+
+    return prompt_type1

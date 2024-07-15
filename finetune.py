@@ -10,9 +10,9 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 if os.path.dirname('src') not in sys.path:
     sys.path.append('src')
 
-from src.loaders import get_loaders, get_tokenizer
-from src.prompter import generate_prompt, prompt_types, PromptType
-from src.utils import get_githash, copy_code, H2O_Fire
+from loaders import get_loaders, get_tokenizer
+from prompter import generate_prompt, prompt_types, PromptType
+from utils import get_githash, copy_code, H2O_Fire
 import torch
 
 
@@ -105,7 +105,7 @@ def train(
 ):
     if llama_flash_attn:
         # Need to call this before importing transformers.
-        from src.llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
+        from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
         replace_llama_attn_with_flash_attn()
     if "llama2-7b" in base_model:
         fp16 = False

@@ -48,12 +48,12 @@ import markdown  # pip install markdown
 import pytest
 from bs4 import BeautifulSoup  # pip install beautifulsoup4
 
-from src.utils import is_gradio_version4
+from utils import is_gradio_version4
 
 try:
     from enums import DocumentSubset, LangChainAction
 except:
-    from src.enums import DocumentSubset, LangChainAction
+    from enums import DocumentSubset, LangChainAction
 
 from tests.utils import get_inf_server
 
@@ -92,7 +92,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
              document_source_substrings_op='and',
              document_content_substrings=[],
              document_content_substrings_op='and',
-             max_time=20,  # nominally want test to complete, not exercise timeout code (llama.cpp gets stuck behind file lock if prior generation is still going)
+             max_time=40,  # nominally want test to complete, not exercise timeout code (llama.cpp gets stuck behind file lock if prior generation is still going)
              repetition_penalty=1.0,
              do_sample=True,
              seed=0,
@@ -181,6 +181,16 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
 
                          image_file=None,
                          image_control=None,
+                         images_num_max=None,
+                         image_resolution=None,
+                         image_format=None,
+                         rotate_align_resize_image=None,
+                         video_frame_period=None,
+                         image_batch_image_prompt=None,
+                         image_batch_final_prompt=None,
+                         image_batch_stream=None,
+                         visible_vision_models=None,
+                         video_file=None,
 
                          response_format=None,
                          guided_json=None,
@@ -189,10 +199,12 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          guided_grammar=None,
                          guided_whitespace_pattern=None,
 
+                         model_lock=None,
                          )
     diff = 0
     from evaluate_params import eval_func_param_names
     assert len(set(eval_func_param_names).difference(set(list(kwargs.keys())))) == diff
+    assert eval_func_param_names == list(kwargs.keys())
     if chat:
         # add chatbot output on end.  Assumes serialize=False
         kwargs.update(dict(chatbot=[]))

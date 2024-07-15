@@ -33,7 +33,8 @@ def test_openai_client_test2(stream_output, chat, local_server):
     api_key = 'EMPTY'
     enforce_h2ogpt_api_key = False
     repeat = 1
-    run_openai_client(stream_output, chat, local_server, prompt, api_key, enforce_h2ogpt_api_key, repeat)
+    openai_workers = 1
+    run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat)
 
 
 @pytest.mark.parametrize("stream_output", [False, True])
@@ -54,7 +55,7 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     # base_model = 'gemini-pro'
 
     if local_server:
-        from src.gen import main
+        from gen import main
         main(base_model=base_model, chat=False,
              stream_output=stream_output, gradio=True,
              num_beams=1, block_gradio_exit=False,
@@ -108,6 +109,9 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     assert model_info.base_model == base_model
     model_list = openai_client.models.list()
     assert model_list.data[0].id == base_model
+
+    os.system('pkill -f server_start.py --signal 9')
+    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
 
 
 def test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,

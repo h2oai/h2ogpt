@@ -1,16 +1,16 @@
---- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/modeling_utils.py	2024-05-20 08:47:52.580255528 -0700
-+++ new.py	2024-05-20 08:54:05.751687071 -0700
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/modeling_utils.py	2024-06-17 10:32:30.807673675 -0700
++++ modeling_utils.py	2024-06-17 10:32:12.827315293 -0700
 @@ -3412,7 +3412,12 @@
-                                 "_commit_hash": commit_hash,
-                                 **has_file_kwargs,
-                             }
--                            if not has_file(pretrained_model_name_or_path, safe_weights_name, **has_file_kwargs):
-+                            import requests
-+                            try:
-+                                has_file_res = has_file(pretrained_model_name_or_path, safe_weights_name, **has_file_kwargs)
-+                            except requests.exceptions.ConnectionError:
-+                                has_file_res = False
-+                            if not has_file_res:
-                                 Thread(
-                                     target=auto_conversion,
-                                     args=(pretrained_model_name_or_path,),
+                                     "_commit_hash": commit_hash,
+                                     **has_file_kwargs,
+                                 }
+-                                if not has_file(pretrained_model_name_or_path, safe_weights_name, **has_file_kwargs):
++                                import requests
++                                try:
++                                    has_file_res = has_file(pretrained_model_name_or_path, safe_weights_name, **has_file_kwargs)
++                                except requests.exceptions.ConnectionError:
++                                    has_file_res = False
++                                if not has_file_res:
+                                     Thread(
+                                         target=auto_conversion,
+                                         args=(pretrained_model_name_or_path,),

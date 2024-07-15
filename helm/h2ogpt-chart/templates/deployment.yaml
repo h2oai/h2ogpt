@@ -263,6 +263,12 @@ spec:
           - name: H2OGPT_SCORE_MODEL
             value: None
           {{- end }}
+          {{- if .Values.h2ogpt.visionModels.enabled }}
+          - name: H2OGPT_VISIBLE_VISION_MODELS
+            value: {{ .Values.h2ogpt.visionModels.visibleModels | quote }}
+          - name: H2OGPT_ROTATE_ALIGN_RESIZE_IMAGE
+            value: {{ .Values.h2ogpt.visionModels.rotateAlignResizeImage | quote }}
+          {{- end }}
           volumeMounts:
             - name: {{ include "h2ogpt.fullname" . }}-volume
               mountPath: /workspace/.cache

@@ -103,6 +103,16 @@ def run_eval(  # for local function:
         tts_speed=None,
         image_file=None,
         image_control=None,
+        images_num_max=None,
+        image_resolution=None,
+        image_format=None,
+        rotate_align_resize_image=None,
+        video_frame_period=None,
+        image_batch_image_prompt=None,
+        image_batch_final_prompt=None,
+        image_batch_stream=None,
+        visible_vision_models=None,
+        video_file=None,
 
         response_format=None,
         guided_json=None,
@@ -309,7 +319,7 @@ def run_eval(  # for local function:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
                         prompter = Prompter(prompt_type, prompt_dict,
                                             debug=debug, stream_output=stream_output)
-                        prompt = prompter.generate_prompt(data_point, context_from_history=False)
+                        prompt = prompter.generate_prompt(data_point, context_from_history=False, image_file=image_file)
                     else:
                         # just raw input and output
                         if eval_prompts_only_num > 0:
@@ -317,7 +327,7 @@ def run_eval(  # for local function:
                             assert iinput in [None, ''], iinput  # should be no iinput
                         prompt = instruction
                     score = score_qa(smodel, stokenizer, prompt, res, memory_restriction_level=memory_restriction_level)
-                    score_dump.append(ex + [prompt, res, score])
+                    score_dump.append(ex + [prompt, res, score, sources])
                     # dump every score in case abort
                     df_scores = pd.DataFrame(score_dump,
                                              columns=eval_func_param_names +

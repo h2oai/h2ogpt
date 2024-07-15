@@ -190,7 +190,7 @@ One can pass, e.g., `--max_max_new_tokens=2048 --max_new_tokens=512` to generate
 
 For efficient parallel summarization with 13B LLaMa2 on single A100:
 ```bash
-python --inference_server=http://192.168.1.46:6112 --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --score_model=None --save_dir=save_gpt13 --max_max_new_tokens=2048 --max_new_tokens=1024 --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl --num_async=10 --top_k_docs=-1
+python --inference_server=http://192.168.1.46:6112 --base_model=h2oai/h2ogpt-4096-llama2-13b-chat --score_model=None --save_dir=save_gpt13 --max_max_new_tokens=2048 --max_new_tokens=1024 --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=microsoft/Florence-2-large --num_async=10 --top_k_docs=-1
 ```
 which achieves about 80 output tokens/second, using 10 simultaneous streams and all document pages/parts.  In about 2 minutes, it can handle summarization of a complete 30 page ArXiV paper using LangChain map-reduce with asyncio bugs fixed: https://github.com/langchain-ai/langchain/issues/8391 .  In UI or API calls, one should disable streaming since the threading used by streaming does not mix well with asyncio. 
 
@@ -455,6 +455,10 @@ Issues:
 * `requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)`
 * Sometimes Replicate sends back bad json, seems randomly occurs.
 
+
+### LLama.cpp HTTP server
+
+If you have any other OpenAI compatible chat completion endpoint, you should use vllm_chat way.  E.g. llama.cpp http server: https://github.com/ggerganov/llama.cpp/tree/master/examples/server
 
 ## AWS SageMaker Endpoint
 

@@ -13,6 +13,7 @@ no_default_param_names = [
     "instruction_nochat",
     "iinput_nochat",
     "h2ogpt_key",
+    "model_lock",
 ]
 
 gen_hyper0 = [
@@ -37,74 +38,86 @@ reader_names = [
 ]
 
 eval_func_param_names = (
-    ["instruction", "iinput", "context", "stream_output", "prompt_type", "prompt_dict"]
-    + gen_hyper
-    + [
-        "chat",
-        "instruction_nochat",
-        "iinput_nochat",
-        "langchain_mode",
-        "add_chat_history_to_context",
-        "langchain_action",
-        "langchain_agents",
-        "top_k_docs",
-        "chunk",
-        "chunk_size",
+        ["instruction", "iinput", "context", "stream_output", "prompt_type", "prompt_dict"]
+        + gen_hyper
+        + [
+            "chat",
+            "instruction_nochat",
+            "iinput_nochat",
+            "langchain_mode",
+            "add_chat_history_to_context",
+            "langchain_action",
+            "langchain_agents",
+            "top_k_docs",
+            "chunk",
+            "chunk_size",
 
-        "document_subset",
-        "document_choice",
-        "document_source_substrings",
-        "document_source_substrings_op",
-        "document_content_substrings",
-        "document_content_substrings_op",
+            "document_subset",
+            "document_choice",
+            "document_source_substrings",
+            "document_source_substrings_op",
+            "document_content_substrings",
+            "document_content_substrings_op",
 
-        "pre_prompt_query",
-        "prompt_query",
-        "pre_prompt_summary",
-        "prompt_summary",
-        "hyde_llm_prompt",
+            "pre_prompt_query",
+            "prompt_query",
+            "pre_prompt_summary",
+            "prompt_summary",
+            "hyde_llm_prompt",
 
-        "user_prompt_for_fake_system_prompt",
-        "json_object_prompt",
-        "json_object_prompt_simpler",
-        "json_code_prompt",
-        "json_code_prompt_if_no_schema",
-        "json_schema_instruction",
+            "user_prompt_for_fake_system_prompt",
+            "json_object_prompt",
+            "json_object_prompt_simpler",
+            "json_code_prompt",
+            "json_code_prompt_if_no_schema",
+            "json_schema_instruction",
 
-        "system_prompt",
-    ]
-    + reader_names
-    + [
-        "visible_models",
-        "visible_image_models",
-        "h2ogpt_key",
-        "add_search_to_context",
-        "chat_conversation",
-        "text_context_list",
-        "docs_ordering_type",
-        "min_max_new_tokens",
-        "max_input_tokens",
-        "max_total_input_tokens",
-        "docs_token_handling",
-        "docs_joiner",
-        "hyde_level",
-        "hyde_template",
-        "hyde_show_only_final",
-        "doc_json_mode",
-        "metadata_in_context",
-        "chatbot_role",
-        "speaker",
-        "tts_language",
-        "tts_speed",
-        "image_file",
-        "image_control",
-        "response_format",
-        "guided_json",
-        "guided_regex",
-        "guided_choice",
-        "guided_grammar",
-        "guided_whitespace_pattern",
-    ]
+            "system_prompt",
+        ]
+        + reader_names
+        + [
+            "visible_models",
+            "visible_image_models",
+            "h2ogpt_key",
+            "add_search_to_context",
+            "chat_conversation",
+            "text_context_list",
+            "docs_ordering_type",
+            "min_max_new_tokens",
+            "max_input_tokens",
+            "max_total_input_tokens",
+            "docs_token_handling",
+            "docs_joiner",
+            "hyde_level",
+            "hyde_template",
+            "hyde_show_only_final",
+            "doc_json_mode",
+            "metadata_in_context",
+            "chatbot_role",
+            "speaker",
+            "tts_language",
+            "tts_speed",
+            "image_file",
+            "image_control",
+            "images_num_max",
+            "image_resolution",
+            "image_format",
+            "rotate_align_resize_image",
+            "video_frame_period",
+            "image_batch_image_prompt",
+            "image_batch_final_prompt",
+            "image_batch_stream",
+            "visible_vision_models",
+            "video_file",
+            "response_format",
+            "guided_json",
+            "guided_regex",
+            "guided_choice",
+            "guided_grammar",
+            "guided_whitespace_pattern",
+
+            "model_lock",
+        ]
 )
 
 # form evaluate defaults for submit_nochat_api
@@ -113,9 +126,13 @@ for k in no_default_param_names:
     if k in eval_func_param_names_defaults:
         eval_func_param_names_defaults.remove(k)
 
-eval_extra_columns = ["prompt", "response", "score"]
+eval_extra_columns = ["prompt", "response", "score", "sources"]
 
 # override default_kwargs if user_kwargs None for args evaluate() uses that are not just in model_state
 # ensure prompt_type consistent with prep_bot(), so nochat API works same way
 # see how default_kwargs is set in gradio_runner.py
 key_overrides = ["prompt_type", "prompt_dict"]
+
+in_model_state_and_evaluate = ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max',
+                               'image_resolution',
+                               'image_format', 'video_frame_period', 'visible_vision_models']

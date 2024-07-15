@@ -93,19 +93,24 @@ python -m vllm.entrypoints.openai.api_server \
 ```
 for choice of port, IP,  model, some number of GPUs matching tensor-parallel-size, etc.  Or with docker with built-in vLLM:
 ```bash
+mkdir -p $HOME/.cache/huggingface/hub
+mkdir -p $HOME/.cache/huggingface/modules/
+mkdir -p $HOME/.triton/cache/
+mkdir -p $HOME/.config/vllm
 docker run -d \
     --runtime=nvidia \
     --gpus '"device=0,1"' \
     --shm-size=10.24gb \
     -p 5000:5000 \
-    --entrypoint /h2ogpt_conda/vllm_env/bin/python3.10 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
+    -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
+    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
-    -v "${HOME}"/.cache:/workspace/.cache \
+    -v "${HOME}"/.cache:$HOME/.cache/ -v "${HOME}"/.config:$HOME/.config/   -v "${HOME}"/.triton:$HOME/.triton/  \
     --network host \
-    gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.0 -m vllm.entrypoints.openai.api_server \
+    vllm/vllm-openai:latest \
         --port=5000 \
         --host=0.0.0.0 \
         --model=h2oai/h2ogpt-4096-llama2-70b-chat-4bit \

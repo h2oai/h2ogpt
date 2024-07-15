@@ -130,7 +130,7 @@ Open-source data types are supported, .msg is not supported due to GPL-3 require
    - `.zip` : Zip File containing any native datatype.
    - `.urls` : Text file containing new-line separated URLs (to be consumed via download).
 
-Note: If you upload files and one of the files is a zip that contains images to be read by BLIP/DocTR or PDFs to be read by DocTR, this will currently fail with:
+Note: If you upload files and one of the files is a zip that contains images to be read by Florence-2/DocTR or PDFs to be read by DocTR, this will currently fail with:
 ```text
 Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
 ```
@@ -206,12 +206,35 @@ python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --
 ```
 and if you want to push the image caption model to get better captions, this can be done if have enough GPU memory or if use OpenAI:
 ```bash
-python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=Salesforce/blip2-flan-t5-xl
+python generate.py  --inference_server=openai_chat --base_model=gpt-3.5-turbo --score_model=None --langchain_mode=LLM --langchain_modes="['LLM', 'UserData', 'MyData']" --captions_model=microsoft/Florence-2-large
 ```
 Similar commands can be used for Azure OpenAI, e.g.
 ```bash
 OPENAI_API_KEY=<key> python generate.py --inference_server="openai_azure_chat:<deployment_name>:<base_url>:<api_version>" --base_model=gpt-3.5-turbo --h2ocolors=False --langchain_mode=UserData
 ```
+
+To speed-up ingestion of PDFs (skip complex PDFs that fail with pymupdf) and to use faster embedding model, can run differently.  Can also use docker to avoid installing dependencies:
+```bash
+mkdir -p ~/.cache
+mkdir -p ~/save
+mkdir -p ~/user_path
+mkdir -p ~/db_dir_UserData
+docker run \
+       --gpus all \
+       --runtime=nvidia \
+       --shm-size=2g \
+       --rm --init \
+       --network host \
+       -v /etc/passwd:/etc/passwd:ro \
+       -v /etc/group:/etc/group:ro \
+       -u `id -u`:`id -g` \
+       -v "${HOME}"/.cache:/workspace/.cache \
+       -v "${HOME}"/save:/workspace/save \
+       -v "${HOME}"/user_path:/workspace/user_path \
+       -v "${HOME}"/db_dir_UserData:/workspace/db_dir_UserData \
+       gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1 /workspace/src/make_db.py --verbose --use_unstructured_pdf=False --enable_pdf_ocr=False --hf_embedding_model=BAAI/bge-small-en-v1.5 --cut_distance=10000
+```
+This will consume about 100 PDFs per minute on average, and embedding part takes about 5 minutes for 300 PDFs.  For multilingual, use `BAAI/bge-m3` that uses more memory, so you may need to set ENV `CHROMA_MAX_BATCH_SIZE=1` or similar values to avoid GPU OOM.
 
 
 ### Multiple embeddings and sources
@@ -302,6 +325,41 @@ python generate.py --base_model='llama' --prompt_type=llama2 --score_model=None 
 ```
 or choose 13B.
 
+
+### Personal collections with make_db
+
+* --collection_mame must match --persist_directory if both provided
+* Temporary users cannot have a personal databases craeted by make_db since those all uses hashes, so one must at least login or use auth etc.
+* So, ensure you at least login so your personal directories look like `users/<username>/db_dir_<collection_name>`.
+
+Example sequence:
+
+1. Run make_db ensuring collection name matches persist directory and `users/<user>` path matches the expected persistent user name.
+```
+python src/make_db.py --collection_name=duck --user_path=user_path_test --langchain_type=personal --persist_directory=users/tomer/db_dir_duck/
+```
+
+2. Run without "tomer" in langchain_mode, because personal collections are for a single user, not specified at CLI time but stored in the auth database.
+```
+python generate.py --base_model=https://huggingface.co/TheBloke/zephyr-7B-beta-GGUF/resolve/main/zephyr-7b-beta.Q2_K.gguf --use_safetensors=True --prompt_type=zephyr --save_dir='save2' --use_gpu_id=False --user_path=user_path_test --langchain_mode="LLM" --langchain_modes="['UserData', 'LLM']" --score_model=None --add_disk_models_to_ui=False
+```
+
+3. Login as user "tomer"
+
+![image](https://github.com/user-attachments/assets/51241c90-f262-421c-87f9-c7f8c09d48e3)
+
+4. Add the collection:
+
+![image](https://github.com/user-attachments/assets/8b78fc2e-6375-47d6-8836-143a8f3b907e)
+
+5. Then you'll see the "Directory" be correct:
+
+![image](https://github.com/user-attachments/assets/f36281cd-6237-4027-a250-362ecb7ef59f)
+
+6. You'll see your docs when choosing the duck collection:
+
+![image](https://github.com/user-attachments/assets/f1720238-ec2c-4db8-971b-2e1b4ef03195)
+
 ### Note about Embeddings
 
 The default embedding for GPU is `instructor-large` since most accurate, however, it leads to excessively high scores for references due to its flat score distribution.  For CPU the default embedding is `all-MiniLM-L6-v2`, and it has a sharp distribution of scores, so references make sense, but it is less accurate.
@@ -313,6 +371,7 @@ FAISS filtering is not supported in h2oGPT yet, ask if this is desired to be add
 ### Using Weaviate
 
 #### About
+
 [Weaviate](https://weaviate.io/) is an open-source vector database designed to scale seamlessly into billions of data objects. This implementation supports hybrid search out-of-the-box (meaning it will perform better for keyword searches).
 
 You can run Weaviate in 5 ways:

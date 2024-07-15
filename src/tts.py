@@ -11,8 +11,8 @@ import soundfile as sf
 import torch
 import librosa
 
-from src.tts_sentence_parsing import init_sentence_state, get_sentence
-from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
+from tts_sentence_parsing import init_sentence_state, get_sentence
+from tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
 
 speaker_embeddings = {
     "BDL": resource_filename('h2ogpt', "spkemb/cmu_us_bdl_arctic-wav-arctic_a0009.npy"),

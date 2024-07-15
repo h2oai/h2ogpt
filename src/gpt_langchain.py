@@ -50,20 +50,22 @@ from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatResult, RunInfo
 from langchain_experimental.tools import PythonREPLTool
-from langchain.tools.json.tool import JsonSpec
+from langchain_community.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+from gradio_utils.grclient import GradioClient
 # from langchain_mistralai import ChatMistralAI
-from src.langchain_mistralai.chat_models import ChatMistralAI
+from langchain_mistralai.chat_models import ChatMistralAI
 from langchain_groq import ChatGroq
 from pydantic.v1 import root_validator
 from tqdm import tqdm
 
-from src.db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
+from db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_direct, get_username_direct, \
     set_userid_direct
-from src.image_utils import fix_image_file, get_image_types, get_image_file
-from src.output_parser import H2OPythonMRKLOutputParser
-from src.pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
-from src.stopping import update_terminate_responses
+from image_utils import fix_image_file, get_image_types, get_image_file
+from output_parser import H2OPythonMRKLOutputParser
+from pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
+from stopping import update_terminate_responses
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
     have_libreoffice, have_arxiv, have_playwright, have_selenium, have_tesseract, have_doctr, have_pymupdf, set_openai, \
@@ -71,7 +73,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -81,12 +83,12 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
-    is_vision_model, is_gradio_vision_model, is_json_model, anthropic_mapping
+    is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
 from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, system_docqa, system_summary
-from src.serpapi import H2OSerpAPIWrapper
+from h2o_serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
     split_merge_docs
@@ -226,6 +228,8 @@ def get_db(sources, use_openai_embedding=False, db_type='faiss',
                     max_batch_size = api._producer.max_batch_size
                 else:
                     max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+                # limit embedding memory use
+                max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
                 sources_batches = split_list(sources, max_batch_size)
                 for sources_batch in sources_batches:
                     db = Chroma.from_documents(documents=sources_batch, **from_kwargs)
@@ -287,6 +291,7 @@ def del_from_db(db, sources, db_type=None):
                 max_batch_size = client_collection._producer.max_batch_size
             else:
                 max_batch_size = int(os.getenv('CHROMA_MAX_BATCH_SIZE', '100'))
+            max_batch_size = min(max_batch_size, int(os.getenv('CHROMA_MAX_BATCH_SIZE', '1024')))
             metadatas = list(set(sources))
             sources_batches = split_list(metadatas, max_batch_size)
             for sources_batch in sources_batches:
@@ -524,7 +529,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
-            from langchain_community.embeddings import HuggingFaceEmbeddings
+            from langchain_community.embeddings import HuggingFaceEmbeddings, HuggingFaceBgeEmbeddings
 
             if isinstance(gpu_id, int) or gpu_id == 'auto':
                 device, torch_dtype, context_class = get_device_dtype()
@@ -532,7 +537,18 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             else:
                 # use gpu_id as device name
                 model_kwargs = dict(device=gpu_id)
-            if 'instructor' in hf_embedding_model:
+            if hf_embedding_model.startswith("BAAI/bge"):
+                encode_kwargs = {'normalize_embeddings': True}
+                if hf_embedding_model == "BAAI/bge-m3":
+                    query_kwargs = dict(query_instruction="")
+                else:
+                    query_kwargs = dict()
+                embedding = HuggingFaceBgeEmbeddings(model_name=hf_embedding_model,
+                                                     model_kwargs=model_kwargs,
+                                                     encode_kwargs=encode_kwargs,
+                                                     **query_kwargs)
+                embedding.client.eval()
+            elif 'instructor' in hf_embedding_model:
                 encode_kwargs = {'normalize_embeddings': True}
                 embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
                                                           model_kwargs=model_kwargs,
@@ -586,8 +602,11 @@ class H2Oagenerate:
             print("_agenerate H2O", flush=True)
         generations = []
         new_arg_supported = inspect.signature(self._acall).parameters.get("run_manager")
-        self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
-        self.prompts.extend(prompts)
+        if isinstance(self, GradioInference):
+            pass
+        else:
+            self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
+            self.prompts.extend(prompts)
         tasks = [
             asyncio.ensure_future(self._agenerate_one(prompt, stop=stop, run_manager=run_manager,
                                                       new_arg_supported=new_arg_supported, **kwargs))
@@ -930,6 +949,16 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     image_file: Any = None
     image_control: Any = None
+    images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    rotate_align_resize_image: Any = None
+    video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
+    visible_vision_models: Any = None
+    video_file: Any = None
 
     response_format: Any = None
     guided_json: Any = None
@@ -978,7 +1007,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
         # don't double-up langchain behavior, already did langchain part
-        client_langchain_mode = 'Disabled'
+        client_langchain_mode = LangChainMode.LLM.value
         client_add_chat_history_to_context = self.add_chat_history_to_context
         # already did search part
         client_add_search_to_context = False
@@ -1077,6 +1106,16 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
                              image_file=self.image_file,
                              image_control=self.image_control,
+                             images_num_max=self.images_num_max,
+                             image_resolution=self.image_resolution,
+                             image_format=self.image_format,
+                             rotate_align_resize_image=self.rotate_align_resize_image,
+                             video_frame_period=self.video_frame_period,
+                             image_batch_image_prompt=self.image_batch_image_prompt,
+                             image_batch_final_prompt=self.image_batch_final_prompt,
+                             image_batch_stream=self.image_batch_stream,
+                             visible_vision_models=self.visible_vision_models,
+                             video_file=self.video_file,
 
                              response_format=self.response_format,
                              guided_json=self.guided_json,
@@ -1116,6 +1155,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if not self.stream_output:
             res = client.predict(str(dict(client_kwargs)), api_name=api_name)
             res_dict = ast.literal_eval(res)
+            GradioClient.check_error(res_dict)
             text = res_dict['response']
             ret = self.prompter.get_response(prompt + text, prompt=prompt,
                                              sanitize_bot_response=self.sanitize_bot_response)
@@ -1153,6 +1193,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                 if outputs_list:
                     res = outputs_list[-1]
                     res_dict = ast.literal_eval(res)
+                    GradioClient.check_error(res_dict)
                     text = res_dict['response']
                     text = self.prompter.get_response(prompt + text, prompt=prompt,
                                                       sanitize_bot_response=self.sanitize_bot_response)
@@ -1182,6 +1223,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
                 res = res_all[-1]
                 res_dict = ast.literal_eval(res)
+                GradioClient.check_error(res_dict)
                 text = res_dict['response']
                 # FIXME: derive chunk from full for now
             else:
@@ -1235,6 +1277,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         client = self.client.clone()
         from gradio_utils.grclient import check_job
 
+        res_dict = {}
         t_start = time.time()
         job = client.submit(str(dict(client_kwargs)), api_name=api_name)
         text0 = ''
@@ -1248,6 +1291,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
             if outputs_list:
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
+                GradioClient.check_error(res_dict)
                 text = res_dict['response']
                 text = self.prompter.get_response(prompt + text, prompt=prompt,
                                                   sanitize_bot_response=self.sanitize_bot_response)
@@ -1277,6 +1321,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         if len(res_all) > 0:
             res = res_all[-1]
             res_dict = ast.literal_eval(res)
+            GradioClient.check_error(res_dict)
             text = res_dict['response']
             # FIXME: derive chunk from full for now
             check_job(job, timeout=timeout, raise_exception=True)
@@ -1293,6 +1338,11 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         self.count_output_tokens += self.get_num_tokens(ret)
         if self.verbose:
             print("end _acall", flush=True)
+        self.use_gradio_return(res_dict, prompt)
+        # ensure parent client is updated if remote server changed
+        if client.server_hash != self.client.server_hash:
+            with filelock.FileLock(os.path.join('locks', 'gradio_client.lock')):
+                self.client.refresh_client()
         return ret
 
     def get_token_ids(self, text: str) -> List[int]:
@@ -1390,7 +1440,7 @@ class GradioLLaVaInference(GradioInference):
         _, llava_kwargs = self.setup_call(prompt)
 
         if not self.stream_output:
-            from src.vision.utils_vision import get_llava_response
+            from vision.utils_vision import get_llava_response
             response, _ = get_llava_response(**llava_kwargs)
             self.count_output_tokens += self.get_num_tokens(response)
             if self.verbose:
@@ -1406,7 +1456,7 @@ class GradioLLaVaInference(GradioInference):
             t_start = time.time()
             text0 = ''
             text = ''
-            from src.vision.utils_vision import get_llava_stream
+            from vision.utils_vision import get_llava_stream
             for text in get_llava_stream(**llava_kwargs):
 
                 # FIXME: derive chunk from full for now
@@ -1453,7 +1503,7 @@ class GradioLLaVaInference(GradioInference):
         t_start = time.time()
         text0 = ''
         text = ''
-        from src.vision.utils_vision import get_llava_stream
+        from vision.utils_vision import get_llava_stream
         for text in get_llava_stream(**llava_kwargs):
 
             # FIXME: derive chunk from full for now
@@ -1507,6 +1557,7 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     chat_conversation: Any = []
     add_chat_history_to_context: bool = True
     user_prompt_for_fake_system_prompt: Any = None
+    prompter: Any = None
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -1514,6 +1565,16 @@ class SGlangInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     image_file: Any = None
     image_control: Any = None
+    images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    rotate_align_resize_image: Any = None
+    video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
+    visible_vision_models: Any = None
+    video_file: Any = None
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1841,6 +1902,16 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
     base_model: Any = ''
     image_file: Any = None
     image_control: Any = None
+    images_num_max: Any = None
+    image_resolution: Any = None
+    image_format: Any = None
+    rotate_align_resize_image: Any = None
+    video_frame_period: Any = None
+    image_batch_image_prompt: Any = None
+    image_batch_final_prompt: Any = None
+    image_batch_stream: Any = None
+    visible_vision_models: Any = None
+    video_file: Any = None
 
     def prep_prompt(self, prompt, stop, kwargs):
         if stop is None:
@@ -1861,6 +1932,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
         prompt = self.prompter.generate_prompt(data_point,
                                                chat_conversation=self.chat_conversation,
                                                user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               image_file=self.image_file,
                                                )
         self.count_input_tokens += self.get_num_tokens(str(prompt))
         self.prompts.append(prompt)
@@ -1993,10 +2065,12 @@ class H2OTextGenOpenAI:
             # NOTE: OpenAI/vLLM server does not add prompting, so must do here
             data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
             context_from_history = len(self.chat_conversation) > 0
+            image_file = []  # FIXME: not supported, should use chat API for images via OpenAI API
             prompt = self.prompter.generate_prompt(data_point,
                                                    chat_conversation=self.chat_conversation,
                                                    user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
                                                    context_from_history=context_from_history,
+                                                   image_file=image_file,
                                                    )
             prompts[prompti] = prompt
 
@@ -2215,9 +2289,11 @@ class H2OReplicate(Replicate):
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, self.tokenizer)
         # Note Replicate handles the prompting of the specific model, but not if history, so just do it all on our side
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
+        image_file = []
         prompt = self.prompter.generate_prompt(data_point,
                                                chat_conversation=self.chat_conversation,
                                                user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
+                                               image_file=image_file,
                                                )
 
         response = super()._call(prompt, stop=stop, run_manager=run_manager, **kwargs)
@@ -2230,7 +2306,10 @@ class ExtraChat:
             if isinstance(self.tokenizer, FakeTokenizer):
                 return self.tokenizer.encode(text)['input_ids']
             else:
-                return self.tokenizer.encode(text)
+                ret = self.tokenizer.encode(text)
+                if hasattr(ret, 'input_ids') and isinstance(ret, dict):
+                    ret = ret['input_ids']
+                return ret
         else:
             return FakeTokenizer().encode(text)['input_ids']
 
@@ -2239,7 +2318,7 @@ class ExtraChat:
         messages = []
         count_input_tokens_start = self.count_input_tokens
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys):
+            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys) or not self.prompter.can_handle_system_prompt:
                 user_prompt_for_fake_system_prompt = self.user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
@@ -2255,7 +2334,7 @@ class ExtraChat:
                 if len(messages1) == 2 and (messages1[0] is None or messages1[1] is None):
                     # then not really part of LLM, internal, so avoid
                     continue
-                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag]:
+                if messages1[1] in [claude3imagetag, gpt4imagetag, geminiimagetag, gemini15imagetag]:
                     img_tag = messages1[1]
                     img_base64 = messages1[0]
                     continue
@@ -2291,7 +2370,7 @@ class ExtraChat:
                     content = []
                     num_images = 0
                     for img_base64_one in img_base64:
-                        if img_tag in [geminiimagetag]:
+                        if img_tag in [geminiimagetag, gemini15imagetag]:
                             img_url = img_base64_one
                         else:
                             img_url = {
@@ -2310,7 +2389,7 @@ class ExtraChat:
                             # https://docs.anthropic.com/claude/docs/vision#image-costs
                             # for roughly 1kx1k image
                             self.count_input_tokens += claude3_image_tokens
-                        if img_tag in [geminiimagetag]:
+                        if img_tag in [geminiimagetag, gemini15imagetag]:
                             # https://cloud.google.com/vertex-ai/generative-ai/pricing
                             # gemini gives $ cost per image, not by tokens, just estimate
                             # $0.0025 per image and $0.000125/1k tokens, 4 chars/token, so image like 20k chars or 5k tokens
@@ -2321,12 +2400,17 @@ class ExtraChat:
                             self.count_input_tokens += gpt4_image_tokens
 
                         num_images += 1
-                        if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
-                            break
-                        if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
-                            break
-                        if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
-                            break
+                        hard_truncate = False
+                        # do this elsewhere to allow API flexibility as well
+                        if hard_truncate:
+                            if img_tag in [geminiimagetag] and num_images >= geminiimage_num_max:
+                                break
+                            if img_tag in [gemini15imagetag] and num_images >= gemini15image_num_max:
+                                break
+                            if img_tag in [gpt4imagetag] and num_images >= gpt4image_num_max:
+                                break
+                            if img_tag in [claude3imagetag] and num_images >= claude3image_num_max:
+                                break
                     # https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/design-multimodal-prompts
                     # gemini recommends images come first before text
                     content.append({"type": "text", "text": prompt_text})
@@ -2476,6 +2560,24 @@ class GenerateNormal:
 
 
 class GenerateStream2:
+    def count_out_tokens(self, rets):
+        if rets is None:
+            return
+        try:
+            self.count_output_tokens += sum(
+                [self.get_num_tokens(z) for z in flatten_list([[x.text for x in y] for y in rets.generations])])
+        except Exception as e:
+            if os.getenv('HARD_ASSERTS'):
+                raise
+            print("Failed to get total output tokens\n%s\n" % traceback.format_exc())
+
+    def pre_generate(self, prompts):
+        if prompts and isinstance(prompts, list) and isinstance(prompts[0], str):
+            self.prompts.extend(prompts)
+        else:
+            self.prompts.extend([x.text for x in prompts])
+        self.count_input_tokens += sum([self.get_num_tokens(str(prompt)) for prompt in prompts])
+
     # slightly different from GenerateStream
     def generate_prompt(
             self,
@@ -2484,23 +2586,27 @@ class GenerateStream2:
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
-        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
+        self.pre_generate(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
         if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
+        rets = None
         try:
-            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            rets = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
         except Exception as e:
             t, v, tb = sys.exc_info()
             ex = ''.join(traceback.format_exception(t, v, tb))
             if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
                 # try one more time
-                return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+                rets = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
             else:
                 raise
+        finally:
+            self.count_out_tokens(rets)
+        return rets
 
     async def agenerate_prompt(
             self,
@@ -2509,15 +2615,16 @@ class GenerateStream2:
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
-        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
+        self.pre_generate(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         if self.stream_output:
             kwargs.update(dict(stream=True))
         if self.response_format == 'json_object':
             kwargs.update(dict(response_format=self.response_format))
+        rets = None
         try:
-            return await self.agenerate(
+            rets = await self.agenerate(
                 prompt_messages, stop=stop, callbacks=callbacks, **kwargs
             )
         except Exception as e:
@@ -2525,11 +2632,14 @@ class GenerateStream2:
             ex = ''.join(traceback.format_exception(t, v, tb))
             if 'assert generation is not None' in str(ex) or 'Input should be' in str(ex):
                 # try one more time
-                return await self.agenerate(
+                rets = await self.agenerate(
                     prompt_messages, stop=stop, callbacks=callbacks, **kwargs
                 )
             else:
                 raise
+        finally:
+            self.count_out_tokens(rets)
+        return rets
 
 
 class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpenAI):
@@ -2540,6 +2650,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpe
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2558,6 +2669,7 @@ class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, Az
     prompts: Any = []
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    prompter: Any = None
 
     def get_token_ids(self, text: str) -> List[int]:
         """Get the tokens present in the text with tiktoken package."""
@@ -2579,6 +2691,7 @@ class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, Cha
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     tokenizer: Any = None
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2596,6 +2709,7 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     tokenizer: Any = None
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2620,6 +2734,7 @@ class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoo
     streaming: Any = False
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
+    prompter: Any = None
 
 
 class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
@@ -2632,6 +2747,7 @@ class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, Cha
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     response_format: Any = None
+    prompter: Any = None
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2646,6 +2762,7 @@ class H2OChatGroq(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatGroq
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     response_format: Any = None
+    prompter: Any = None
 
 
 class H2OAzureOpenAI(H2OTextGenOpenAI, AzureOpenAI):
@@ -2787,6 +2904,17 @@ def get_llm(use_openai_model=False,
 
             image_file=None,
             image_control=None,
+            images_num_max=None,
+            image_resolution=None,
+            image_format=None,
+            rotate_align_resize_image=None,
+            video_frame_period=None,
+            image_batch_image_prompt=None,
+            image_batch_final_prompt=None,
+            image_batch_stream=None,
+            visible_vision_models=None,
+            video_file=None,
+
             document_choice=None,
 
             response_format=None,
@@ -2802,6 +2930,10 @@ def get_llm(use_openai_model=False,
             query_action=True,
             summarize_action=False,
             stream_map=False,
+
+            is_vision_model1=False,
+            is_actually_vision_model1=False,
+
             ):
     # make all return only new text, so other uses work as expected, like summarization
     only_new_text = True
@@ -2930,7 +3062,7 @@ def get_llm(use_openai_model=False,
                             frequency_penalty=0,
                             presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                             )
-        if not is_vision_model(model_name):
+        if not is_actually_vision_model1:
             model_kwargs.update(dict(logit_bias=None if inf_type == 'vllm' else {}))
         # if inference_server.startswith('vllm'):
         #    model_kwargs.update(dict(repetition_penalty=repetition_penalty))
@@ -3017,7 +3149,6 @@ def get_llm(use_openai_model=False,
                 async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
                 kwargs_extra.update(dict(stop_sequences=prompter.stop_sequences,
                                          sanitize_bot_response=sanitize_bot_response,
-                                         prompter=prompter,
                                          context=context,
                                          iinput=iinput,
                                          tokenizer=tokenizer,
@@ -3037,8 +3168,10 @@ def get_llm(use_openai_model=False,
             else:
                 assert inf_type == 'openai' or use_openai_model, inf_type
 
-        if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+        if is_actually_vision_model1:
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=True, str_bytes=False)
             if img_file:
                 # gpt4imagetag also applies to lmdeploy use of OpenAI via vllm_chat
                 chat_conversation.append((img_file, gpt4imagetag))
@@ -3064,6 +3197,7 @@ def get_llm(use_openai_model=False,
                   streaming=stream_output,
                   verbose=verbose,
                   request_timeout=max_time,
+                  prompter=prompter,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3085,8 +3219,10 @@ def get_llm(use_openai_model=False,
         else:
             cls = H2OChatAnthropic3Sys
 
-            if is_vision_model(model_name):
-                img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+            if is_actually_vision_model1:
+                img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                          images_num_max=images_num_max, image_resolution=image_resolution,
+                                          image_format=image_format, convert=True, str_bytes=False)
                 if img_file:
                     chat_conversation.append((img_file, claude3imagetag))
 
@@ -3124,6 +3260,7 @@ def get_llm(use_openai_model=False,
                   default_request_timeout=max_time,
                   model_kwargs=model_kwargs,
                   tokenizer=tokenizer,
+                  prompter=prompter,
                   verbose=verbose,
                   **kwargs_extra
                   )
@@ -3134,6 +3271,7 @@ def get_llm(use_openai_model=False,
         # https://ai.google.dev/tutorials/structured_data_extraction
 
         cls = H2OChatGoogle
+        async_output = False  # client initialized inside event loop failures
 
         # Langchain oddly passes some things directly and rest via model_kwargs
         model_kwargs = dict()
@@ -3143,15 +3281,28 @@ def get_llm(use_openai_model=False,
         if not regenerate_clients and isinstance(model, dict):
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
-        if is_vision_model(model_name):
-            img_file = get_image_file(image_file, image_control, document_choice, convert=True, str_bytes=False)
+        if is_actually_vision_model1:
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=True, str_bytes=False)
             if img_file:
-                chat_conversation.append((img_file, geminiimagetag))
+                tag = geminiimagetag if model_name == 'gemini-pro-vision' else gemini15imagetag
+                chat_conversation.append((img_file, tag))
                 # https://github.com/langchain-ai/langchain/issues/19115
                 stream_output = False  # BUG IN GOOGLE/LANGCHAIN
             else:
                 if '-vision' in model_name:
                     model_name = model_name.replace('-vision', '')
+
+        # NOTE: assume want own control.  Too many false positives by Google.
+        from google.generativeai.types import HarmCategory
+        from google.generativeai.types import HarmBlockThreshold
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        }
 
         callbacks = [streaming_callback]
         llm = cls(model=model_name,
@@ -3168,6 +3319,8 @@ def get_llm(use_openai_model=False,
                   model_kwargs=model_kwargs,
                   verbose=verbose,
                   tokenizer=tokenizer,
+                  safety_settings=safety_settings,
+                  prompter=prompter,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3225,6 +3378,7 @@ def get_llm(use_openai_model=False,
                   random_seed=seed,
                   verbose=verbose,
                   tokenizer=tokenizer,
+                  prompter=prompter,
                   **model_kwargs,
                   **kwargs_extra,
                   llm_kwargs=dict(stream=True),
@@ -3263,6 +3417,7 @@ def get_llm(use_openai_model=False,
                       # top_k=top_k,
                   ),
                   tokenizer=tokenizer,
+                  prompter=prompter,
                   **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3303,11 +3458,13 @@ def get_llm(use_openai_model=False,
         num_async = min(2, num_async)  # can't handle as much
         async_sem = asyncio.Semaphore(num_async) if async_output else AsyncNullContext()
 
-        if is_vision_model(model_name):
+        if is_actually_vision_model1:
             # https://github.com/sgl-project/sglang/issues/212#issuecomment-1973432493
             convert = True
             str_bytes = False
-            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3388,7 +3545,9 @@ def get_llm(use_openai_model=False,
                                                                                   gr_client.endpoints]
         gradio_llava = is_gradio_vision_model(model_name) and llava_direct_gradio
 
-        if is_vision_model(model_name):
+        is_actually_vision_model2 = is_actually_vision_model1 if (hf_client or gradio_llava) else is_vision_model1
+
+        if is_actually_vision_model2:
             # HF client uses markdown image url with bytes inside (or real url inside)
             if hf_client:
                 convert = True
@@ -3400,7 +3559,9 @@ def get_llm(use_openai_model=False,
                 convert = True
                 str_bytes = True
             # Gradio uses str_bytes=True
-            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3447,7 +3608,7 @@ def get_llm(use_openai_model=False,
             )
         elif gr_client:
             chat_client = False
-            from src.vision.utils_vision import img_to_base64
+            from vision.utils_vision import img_to_base64
             llm = GradioInference(
                 inference_server_url=inference_server,
                 return_full_text=False,
@@ -3497,6 +3658,16 @@ def get_llm(use_openai_model=False,
 
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
+                images_num_max=images_num_max,
+                image_resolution=None,  # already changed
+                image_format=None,  # already changed
+                rotate_align_resize_image=None,  # already changed
+                video_frame_period=None,  # already changed
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
+                visible_vision_models=visible_vision_models,
+                video_file=None,  # already handled in image list
 
                 response_format=response_format,
                 guided_json=guided_json,
@@ -3539,6 +3710,16 @@ def get_llm(use_openai_model=False,
                 base_model=model_name,
                 image_file=img_file,
                 image_control=None,  # already stuffed into image_file
+                images_num_max=None,  # already set
+                image_resolution=None,  # already changed
+                image_format=None,  # already changed
+                rotate_align_resize_image=None,  # already changed
+                video_frame_period=None,  # already changed
+                image_batch_image_prompt=image_batch_image_prompt,
+                image_batch_final_prompt=image_batch_final_prompt,
+                image_batch_stream=image_batch_stream,
+                visible_vision_models=visible_vision_models,
+                video_file=video_file,
             )
         else:
             raise RuntimeError("No defined client")
@@ -3594,7 +3775,7 @@ def get_llm(use_openai_model=False,
         if exllama_dict is None:
             exllama_dict = {}
 
-        from src.llm_exllama import Exllama
+        from llm_exllama import Exllama
         llm = Exllama(streaming=stream_output,
                       model_path=None,
                       model=model,
@@ -3622,10 +3803,12 @@ def get_llm(use_openai_model=False,
                       user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                       )
     else:
-        if is_vision_model(model_name):
+        if is_actually_vision_model1:
             convert = True
             str_bytes = False
-            img_file = get_image_file(image_file, image_control, document_choice, convert=convert, str_bytes=str_bytes)
+            img_file = get_image_file(image_file, image_control, document_choice, base_model=model_name,
+                                      images_num_max=images_num_max, image_resolution=image_resolution,
+                                      image_format=image_format, convert=convert, str_bytes=str_bytes)
         else:
             img_file = None
 
@@ -3635,11 +3818,15 @@ def get_llm(use_openai_model=False,
             assert tokenizer is None or isinstance(tokenizer, FakeTokenizer)
             prompt_type = 'human_bot'
             if model_name is None:
-                model_name = 'h2oai/h2ogpt-oasst1-512-12b'
+                # model_name = 'h2oai/h2ogpt-oasst1-512-12b'
                 # model_name = 'h2oai/h2ogpt-oig-oasst1-512-6_9b'
                 # model_name = 'h2oai/h2ogpt-oasst1-512-20b'
+                model_name = 'meta-llama/Meta-Llama-3-8B-Instruct'
+                load_4bit = False
+            else:
+                load_4bit = True
             inference_server = ''
-            model, tokenizer, device = get_model_retry(load_8bit=True, base_model=model_name,
+            model, tokenizer, device = get_model_retry(load_4bit=load_4bit, base_model=model_name,
                                                        inference_server=inference_server, gpu_id=0)
 
         gen_kwargs = dict(do_sample=do_sample,
@@ -3703,6 +3890,16 @@ def get_llm(use_openai_model=False,
                                          truncation_generation=truncation_generation,
                                          image_file=img_file,
                                          image_control=image_control,
+                                         images_num_max=images_num_max,
+                                         image_resolution=image_resolution,
+                                         image_format=image_format,
+                                         rotate_align_resize_image=rotate_align_resize_image,
+                                         video_frame_period=video_frame_period,
+                                         image_batch_image_prompt=image_batch_image_prompt,
+                                         image_batch_final_prompt=image_batch_final_prompt,
+                                         image_batch_stream=image_batch_stream,
+                                         visible_vision_models=visible_vision_models,
+                                         video_file=video_file,
                                          **gen_kwargs)
         # pipe.task = "text-generation"
         # below makes it listen only to our prompt removal,
@@ -4023,191 +4220,6 @@ class Crawler:
         return self.final_urls
 
 
-def get_youtube_urls():
-    # https://www.netify.ai/resources/applications/youtube
-    base = ['googlevideo.com',
-            'video.google.com',
-            'video.l.google.com',
-            'wide-youtube.l.google.com',
-            'youtu.be',
-            'youtube.ae',
-            'youtube.al',
-            'youtube.am',
-            'youtube.at',
-            'youtube.az',
-            'youtube.ba',
-            'youtube.be',
-            'youtube.bg',
-            'youtube.bh',
-            'youtube.bo',
-            'youtube.by',
-            'youtube.ca',
-            'youtube.cat',
-            'youtube.ch',
-            'youtube.cl',
-            'youtube.co',
-            'youtube.co.ae',
-            'youtube.co.at',
-            'youtube.co.cr',
-            'youtube.co.hu',
-            'youtube.co.id',
-            'youtube.co.il',
-            'youtube.co.in',
-            'youtube.co.jp',
-            'youtube.co.ke',
-            'youtube.co.kr',
-            'youtube.com',
-            'youtube.co.ma',
-            'youtube.com.ar',
-            'youtube.com.au',
-            'youtube.com.az',
-            'youtube.com.bd',
-            'youtube.com.bh',
-            'youtube.com.bo',
-            'youtube.com.br',
-            'youtube.com.by',
-            'youtube.com.co',
-            'youtube.com.do',
-            'youtube.com.ec',
-            'youtube.com.ee',
-            'youtube.com.eg',
-            'youtube.com.es',
-            'youtube.com.gh',
-            'youtube.com.gr',
-            'youtube.com.gt',
-            'youtube.com.hk',
-            'youtube.com.hn',
-            'youtube.com.hr',
-            'youtube.com.jm',
-            'youtube.com.jo',
-            'youtube.com.kw',
-            'youtube.com.lb',
-            'youtube.com.lv',
-            'youtube.com.ly',
-            'youtube.com.mk',
-            'youtube.com.mt',
-            'youtube.com.mx',
-            'youtube.com.my',
-            'youtube.com.ng',
-            'youtube.com.ni',
-            'youtube.com.om',
-            'youtube.com.pa',
-            'youtube.com.pe',
-            'youtube.com.ph',
-            'youtube.com.pk',
-            'youtube.com.pt',
-            'youtube.com.py',
-            'youtube.com.qa',
-            'youtube.com.ro',
-            'youtube.com.sa',
-            'youtube.com.sg',
-            'youtube.com.sv',
-            'youtube.com.tn',
-            'youtube.com.tr',
-            'youtube.com.tw',
-            'youtube.com.ua',
-            'youtube.com.uy',
-            'youtube.com.ve',
-            'youtube.co.nz',
-            'youtube.co.th',
-            'youtube.co.tz',
-            'youtube.co.ug',
-            'youtube.co.uk',
-            'youtube.co.ve',
-            'youtube.co.za',
-            'youtube.co.zw',
-            'youtube.cr',
-            'youtube.cz',
-            'youtube.de',
-            'youtube.dk',
-            'youtubeeducation.com',
-            'youtube.ee',
-            'youtubeembeddedplayer.googleapis.com',
-            'youtube.es',
-            'youtube.fi',
-            'youtube.fr',
-            'youtube.ge',
-            'youtube.googleapis.com',
-            'youtube.gr',
-            'youtube.gt',
-            'youtube.hk',
-            'youtube.hr',
-            'youtube.hu',
-            'youtube.ie',
-            'youtubei.googleapis.com',
-            'youtube.in',
-            'youtube.iq',
-            'youtube.is',
-            'youtube.it',
-            'youtube.jo',
-            'youtube.jp',
-            'youtubekids.com',
-            'youtube.kr',
-            'youtube.kz',
-            'youtube.la',
-            'youtube.lk',
-            'youtube.lt',
-            'youtube.lu',
-            'youtube.lv',
-            'youtube.ly',
-            'youtube.ma',
-            'youtube.md',
-            'youtube.me',
-            'youtube.mk',
-            'youtube.mn',
-            'youtube.mx',
-            'youtube.my',
-            'youtube.ng',
-            'youtube.ni',
-            'youtube.nl',
-            'youtube.no',
-            'youtube-nocookie.com',
-            'youtube.pa',
-            'youtube.pe',
-            'youtube.ph',
-            'youtube.pk',
-            'youtube.pl',
-            'youtube.pr',
-            'youtube.pt',
-            'youtube.qa',
-            'youtube.ro',
-            'youtube.rs',
-            'youtube.ru',
-            'youtube.sa',
-            'youtube.se',
-            'youtube.sg',
-            'youtube.si',
-            'youtube.sk',
-            'youtube.sn',
-            'youtube.soy',
-            'youtube.sv',
-            'youtube.tn',
-            'youtube.tv',
-            'youtube.ua',
-            'youtube.ug',
-            'youtube-ui.l.google.com',
-            'youtube.uy',
-            'youtube.vn',
-            'yt3.ggpht.com',
-            'yt.be',
-            'ytimg.com',
-            'ytimg.l.google.com',
-            'ytkids.app.goo.gl',
-            'yt-video-upload.l.google.com']
-
-    url_prefixes_youtube1 = []
-    for x in base:
-        url_prefixes_youtube1.extend([
-            # '%s/watch?v=' % x,
-            '%s' % x,
-            # '%s/shorts/' % x,
-        ])
-    return set(url_prefixes_youtube1)
-
-
-url_prefixes_youtube = get_youtube_urls()
-
-
 def file_to_doc(file,
                 filei=0,
                 base_path=None, verbose=False, fail_any_exception=False,
@@ -4471,7 +4483,7 @@ def file_to_doc(file,
                 handled |= len(docs1) > 0
             if extract_frames > 0 and have_fiftyone:
                 try:
-                    from src.vision.extract_movie import extract_unique_frames
+                    from vision.extract_movie import extract_unique_frames
                     if not files_out or True:  # always do, seems makes audio m4a not with video when downloads
                         # have to directly download
                         export_dir = extract_unique_frames(urls=[file], extract_frames=extract_frames)
@@ -4694,7 +4706,7 @@ def file_to_doc(file,
         if can_do_video_extraction:
             docs1c_files = []
             try:
-                from src.vision.extract_movie import extract_unique_frames
+                from vision.extract_movie import extract_unique_frames
                 export_dir = extract_unique_frames(file=file, extract_frames=extract_frames)
                 docs1c_files = path_to_docs_func(export_dir)
                 if os.getenv('FRAMES_AS_SAME_DOC', '0') == '1':
@@ -4765,30 +4777,30 @@ def file_to_doc(file,
             if verbose:
                 print("END: DocTR", flush=True)
         if enable_captions:
-            file_blip = fix_image_file(file, do_align=False, do_rotate=False, do_pad=False)
-            # BLIP
+            file_caption = fix_image_file(file, do_align=False, do_rotate=False, do_pad=False)
+            # Caption
             if verbose:
-                print("BEGIN: BLIP", flush=True)
+                print("BEGIN: Caption", flush=True)
             try:
                 if model_loaders['caption'] is not None and not isinstance(model_loaders['caption'], (str, bool)):
                     # assumes didn't fork into this process with joblib, else can deadlock
                     if verbose:
-                        print("Reuse BLIP", flush=True)
+                        print("Reuse Caption", flush=True)
                     model_loaders['caption'].load_model()
                 else:
                     if verbose:
-                        print("Fresh BLIP", flush=True)
+                        print("Fresh Caption", flush=True)
                     from image_captions import H2OImageCaptionLoader
                     model_loaders['caption'] = H2OImageCaptionLoader(caption_gpu=model_loaders['caption'] == 'gpu',
-                                                                     blip_model=captions_model,
-                                                                     blip_processor=captions_model)
-                model_loaders['caption'].set_image_paths([file_blip])
+                                                                     caption_model=captions_model,
+                                                                     caption_processor=captions_model)
+                model_loaders['caption'].set_image_paths([file_caption])
                 docs1c = model_loaders['caption'].load()
                 docs1c = [x for x in docs1c if x.page_content]
                 add_meta(docs1c, file, parser='H2OImageCaptionLoader: %s' % captions_model, file_as_source=True)
                 # caption didn't set source, so fix-up meta
                 hash_of_file = hash_file(file)
-                [doci.metadata.update(source=file, source_true=file_blip, hashid=hash_of_file) for doci in docs1c]
+                [doci.metadata.update(source=file, source_true=file_caption, hashid=hash_of_file) for doci in docs1c]
                 docs1.extend(docs1c)
             except BaseException as e0:
                 print("H2OImageCaptionLoader: %s" % str(e0), flush=True)
@@ -4796,7 +4808,7 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
 
             if verbose:
-                print("END: BLIP", flush=True)
+                print("END: Caption", flush=True)
         if enable_pix2struct:
             file_pix = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False)
             # PIX
@@ -4827,13 +4839,13 @@ def file_to_doc(file,
             handled |= len(docs1) > 0
             if verbose:
                 print("END: Pix2Struct", flush=True)
-        if llava_model and enable_llava:
+        if llava_model and enable_llava and 'vllm' not in llava_model:
             file_llava = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False)
             # LLaVa
             if verbose:
                 print("BEGIN: LLaVa", flush=True)
             try:
-                from src.vision.utils_vision import get_llava_response
+                from vision.utils_vision import get_llava_response
                 res, llava_prompt = get_llava_response(file_llava, llava_model,
                                                        prompt=llava_prompt,
                                                        allow_prompt_auto=True,
@@ -5569,6 +5581,14 @@ def path_to_docs(path_or_paths,
     my_tqdm = no_tqdm if not verbose else tqdm
     filei0 = filei
 
+    fork_lots_ok = kwargs['hf_embedding_model'] and \
+                   'name' in kwargs['hf_embedding_model'] and \
+                   kwargs['hf_embedding_model']['name'] and \
+                   kwargs['hf_embedding_model']['name'].startswith('tei')
+    if not fork_lots_ok:
+        # else can hit OSError: [Errno 12] Cannot allocate memory
+        n_jobs = max(1, min(8, n_jobs))
+
     if n_jobs != 1 and len(globs_non_image_types) > 1:
         kwargs['hf_embedding_model'] = None  # can't fork and use CUDA
         # avoid nesting, e.g. upload 1 zip and then inside many files
@@ -6258,15 +6278,16 @@ def _make_db(use_openai_embedding=False,
                                 )
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
-            if os.getenv('NO_NEW_FILES') is not None:
-                raise RuntimeError("Expected no new files! %s" % new_metadata_sources)
+            new_metadata_sources_real = [x for x in new_metadata_sources if 'rotated' not in x and 'pad_resized' not in x]
+            if os.getenv('NO_NEW_FILES') is not None and new_metadata_sources_real:
+                raise RuntimeError("Expected no new files1! %s" % new_metadata_sources_real)
             print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
                   flush=True)
             if verbose:
                 print("Files added: %s" % '\n'.join(new_metadata_sources), flush=True)
         sources.extend(sources1)
         if len(sources) > 0 and os.getenv('NO_NEW_FILES') is not None:
-            raise RuntimeError("Expected no new files! %s" % langchain_mode)
+            raise RuntimeError("Expected no new files2! %s" % langchain_mode)
         if len(sources) == 0 and os.getenv('SHOULD_NEW_FILES') is not None:
             raise RuntimeError("Expected new files! %s" % langchain_mode)
         if verbose:
@@ -6564,18 +6585,25 @@ def run_qa_db(**kwargs):
     kwargs['force_t5_type'] = False  # shouldn't be required unless from test using _run_qa_db
     kwargs['image_file'] = kwargs.get('image_file')
     kwargs['image_control'] = kwargs.get('image_control')
+    kwargs['images_num_max'] = kwargs.get('images_num_max')
+    kwargs['image_resolution'] = kwargs.get('image_resolution')
+    kwargs['image_format'] = kwargs.get('image_format')
+    kwargs['video_frame_period'] = kwargs.get('video_frame_period')
     kwargs['load_awq'] = kwargs.get('load_awq', '')
 
     kwargs['response_format'] = kwargs.get('response_format', 'text')
-    kwargs['guided_json'] = kwargs.get('guided_json', '')
-    kwargs['guided_regex'] = kwargs.get('guided_regex', '')
-    kwargs['guided_choice'] = kwargs.get('guided_choice', '')
-    kwargs['guided_grammar'] = kwargs.get('guided_grammar', '')
+    kwargs['guided_json'] = kwargs.get('guided_json', None)
+    kwargs['guided_regex'] = kwargs.get('guided_regex', None)
+    kwargs['guided_choice'] = kwargs.get('guided_choice', None)
+    kwargs['guided_grammar'] = kwargs.get('guided_grammar', None)
     kwargs['guided_whitespace_pattern'] = kwargs.get('guided_whitespace_pattern', None)
     kwargs['json_vllm'] = kwargs.get('json_vllm', False)
 
     kwargs['from_ui'] = kwargs.get('from_ui', True)
     kwargs['stream_map'] = kwargs.get('stream_map', False)
+
+    kwargs['is_vision_model1'] = kwargs.get('is_vision_model1', False)
+    kwargs['is_actually_vision_model1'] = kwargs.get('is_actually_vision_model1', False)
 
     missing_kwargs = [x for x in func_names if x not in kwargs]
     assert not missing_kwargs, "Missing kwargs for run_qa_db: %s" % missing_kwargs
@@ -6737,6 +6765,16 @@ def _run_qa_db(query=None,
 
                image_file=None,
                image_control=None,
+               images_num_max=None,
+               image_resolution=None,
+               image_format=None,
+               rotate_align_resize_image=None,
+               video_frame_period=None,
+               image_batch_image_prompt=None,
+               image_batch_final_prompt=None,
+               image_batch_stream=None,
+               visible_vision_models=None,
+               video_file=None,
 
                response_format=None,
                guided_json=None,
@@ -6749,6 +6787,9 @@ def _run_qa_db(query=None,
 
                from_ui=True,
                stream_map=False,
+
+               is_vision_model1=False,
+               is_actually_vision_model1=False,
                ):
     """
 
@@ -6806,9 +6847,7 @@ def _run_qa_db(query=None,
     pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt = \
         get_langchain_prompts(pre_prompt_query, prompt_query,
                               pre_prompt_summary, prompt_summary, hyde_llm_prompt,
-                              model_name, inference_server,
-                              llamacpp_dict.get('model_path_llama'),
-                              doc_json_mode)
+                              )
 
     assert db_type is not None
     assert hf_embedding_model is not None
@@ -6945,6 +6984,17 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
 
                       image_file=image_file,
                       image_control=image_control,
+                      images_num_max=images_num_max,
+                      image_resolution=image_resolution,
+                      image_format=image_format,
+                      rotate_align_resize_image=rotate_align_resize_image,
+                      video_frame_period=video_frame_period,
+                      image_batch_image_prompt=image_batch_image_prompt,
+                      image_batch_final_prompt=image_batch_final_prompt,
+                      image_batch_stream=image_batch_stream,
+                      visible_vision_models=visible_vision_models,
+                      video_file=video_file,
+
                       document_choice=document_choice,
 
                       response_format=response_format,
@@ -6960,6 +7010,9 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       query_action=query_action,
                       summarize_action=summarize_action,
                       stream_map=stream_map,
+
+                      is_vision_model1=is_vision_model1,
+                      is_actually_vision_model1=is_actually_vision_model1,
                       )
     llm, model_name, streamer, prompt_type_out, async_output, only_new_text, gradio_server = \
         get_llm(**llm_kwargs)
@@ -7019,6 +7072,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                              hyde_show_intermediate_in_accordion=hyde_show_intermediate_in_accordion,
                              map_reduce_show_intermediate_in_accordion=map_reduce_show_intermediate_in_accordion,
                              show_link_in_sources=show_link_in_sources,
+                             docs_ordering_type=docs_ordering_type,
                              top_k_docs_max_show=top_k_docs_max_show,
                              verbose=verbose,
                              )
@@ -7721,6 +7775,7 @@ def get_chain(query=None,
               summarize_action=None,
 
               doing_grounding=False,
+              image_file=[],
               ):
     if inference_server is None:
         inference_server = ''
@@ -7943,7 +7998,7 @@ def get_chain(query=None,
         return docs, target, scores, num_docs_before_cut, use_llm_if_no_docs, top_k_docs_max_show, \
             llm, model_name, streamer, prompt_type_out, async_output, only_new_text
 
-    from src.output_parser import H2OMRKLOutputParser
+    from output_parser import H2OMRKLOutputParser
     if LangChainAgent.SEARCH.value in langchain_agents:
         output_parser = H2OMRKLOutputParser()
         from langchain.agents import load_tools, AgentType, initialize_agent
@@ -8227,14 +8282,6 @@ def get_chain(query=None,
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
 
-    if hasattr(db, '_persist_directory'):
-        lock_file = get_db_lock_file(db, lock_type='sim')
-    else:
-        base_path = 'locks'
-        base_path = makedirs(base_path, exist_ok=True, tmp_ok=True, use_base=True)
-        name_path = "sim.lock"
-        lock_file = os.path.join(base_path, name_path)
-
     # GET FILTER
 
     if not is_chroma_db(db):
@@ -8460,6 +8507,7 @@ def get_chain(query=None,
                                                 attention_sinks=attention_sinks,
                                                 hyde_level=hyde_level,
                                                 doing_grounding=doing_grounding,
+                                                image_file=image_file,
                                                 )
 
     # NOTE: if map_reduce, then no need to auto reduce chunks
@@ -8646,10 +8694,6 @@ def get_chain(query=None,
         if verbose:
             print("frac_common: %s" % frac_common, flush=True)
 
-    if len(docs) == 0:
-        # avoid context == in prompt then
-        template = template_if_no_docs
-
     got_any_docs = len(docs) > 0
     # update template in case situation changed or did get docs
     # then no new documents from database or not used, redo template
@@ -8696,7 +8740,8 @@ def get_chain(query=None,
             while True:
                 conversation = structure_to_messages(query,
                                                      system_prompt if system_prompt not in [None, '', 'auto'] else None,
-                                                     chat_conversation)
+                                                     chat_conversation,
+                                                     image_file)
                 documents = [merge_dict(dict(text=x.page_content),
                                         {k: v for k, v in x.metadata.items() if
                                          v and k in metadata_in_context_set}) for x in docs]
@@ -8898,11 +8943,11 @@ def get_template(query, iinput,
     if True or model_name and model_name in anthropic_mapping:
         # NOTE: enabled generally for now, seems to help generally
         triple_quotes_start = """
-    <all_documents>
-    """
+<all_documents>
+"""
         triple_quotes_finish = """
-    </all_documents>
-    """
+</all_documents>
+"""
     else:
         triple_quotes_start = triple_quotes_finish = """
 \"\"\"
@@ -8973,7 +9018,7 @@ def get_template(query, iinput,
             fstring = '{input_documents}'
         # triple_quotes includes \n before """ and after """
         template = """%s%s%s%s%s\n""" % (
-        pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
+            pre_prompt_summary, triple_quotes_start, fstring, triple_quotes_finish, prompt_summary)
         template_if_no_docs = "Exactly only say: There are no documents to summarize/extract from."
     elif langchain_action in [LangChainAction.SUMMARIZE_REFINE]:
         template = ''  # unused
@@ -9036,6 +9081,7 @@ def get_sources_answer(query, docs, answer,
                        hyde_show_intermediate_in_accordion=True,
                        map_reduce_show_intermediate_in_accordion=True,
                        show_link_in_sources=True,
+                       docs_ordering_type=None,
                        top_k_docs_max_show=10,
                        verbose=False,
                        t_run=None,
@@ -9058,8 +9104,12 @@ def get_sources_answer(query, docs, answer,
         return answer_with_acc, sources, answer, ''
 
     sources = [dict(score=score, content=get_doc(x), source=get_source(x), orig_index=x.metadata.get('orig_index', 0))
-               for score, x in zip(scores, docs)][
-              :top_k_docs_max_show]
+               for score, x in zip(scores, docs)]
+    if docs_ordering_type in ['best_first']:
+        sources = sources[:top_k_docs_max_show]
+    else:
+        # sources as usually most important near prompt that comes last in sources list
+        sources = sources[-top_k_docs_max_show:]
     if answer_with_sources == -1:
         sources_str = [str(x) for x in sources]
         sources_str = '\n'.join(sources_str)
@@ -9088,7 +9138,10 @@ def get_sources_answer(query, docs, answer,
         # answer_sources = ['%d | %s' % (1 + rank, url) for rank, (score, url) in enumerate(answer_sources)]
         # sorted_sources_urls = "Sources [Rank | Link]:<br>" + "<br>".join(answer_sources)
         answer_sources = ['%s' % url for rank, (score, url, _) in enumerate(answer_sources)]
-        answer_sources = answer_sources[:top_k_docs_max_show]
+        if docs_ordering_type in ['best_first']:
+            answer_sources = answer_sources[:top_k_docs_max_show]
+        else:
+            answer_sources = answer_sources[-top_k_docs_max_show:]
         sorted_sources_urls = "Ranked Sources:<br>" + "<br>".join(answer_sources)
     else:
         if sources_show_text_in_accordion:
@@ -9105,7 +9158,10 @@ def get_sources_answer(query, docs, answer,
             else:
                 answer_sources = ['<font size="%s"><li>%.2g</li></font>' % (font_size, score)
                                   for score, url, accordion in answer_sources]
-        answer_sources = answer_sources[:top_k_docs_max_show]
+        if docs_ordering_type in ['best_first']:
+            answer_sources = answer_sources[:top_k_docs_max_show]
+        else:
+            answer_sources = answer_sources[-top_k_docs_max_show:]
         if sources_show_text_in_accordion:
             sorted_sources_urls = f"<font size=\"{font_size}\">{source_prefix}<ul></font>" + "".join(answer_sources)
         else:
@@ -9435,9 +9491,19 @@ def _update_user_db(file,
             raise ValueError("Public instance only allows up to"
                              " %d (%d from API) documents updated at a time." % (max_docs_public, max_docs_public_api))
 
-    if is_url is None and is_url is None and file:
-        # assume add_button action if not set
-        is_url = True
+    add_text_called = is_txt and is_url is False
+    # Upload file button = add_file has is_txt=is_url=None
+    # Ingest button = add_url is True and add_text may be True or False (that is used for add_button for any text, url, or file)
+    if not add_text_called:
+        # is_url will do extra checks of if good url, want to avoid if just text
+        # if file, also want to avoid if possible extra checks
+        if is_url is None and file:
+            # assume add_button action if not set
+            is_url = True
+        if isinstance(file, str) and os.path.isfile(file):
+            is_url = False
+        if isinstance(file, list) and len(file) > 0 and all(os.path.isfile(x) for x in file):
+            is_url = False
 
     if langchain_mode == LangChainMode.DISABLED.value:
         return None, langchain_mode, get_source_files(), "", None, {}
@@ -9542,7 +9608,7 @@ def _update_user_db(file,
     args = (file if not is_url and not is_txt else None,)
 
     if function_server:
-        from src.function_client import call_function_server
+        from function_client import call_function_server
         sources = call_function_server('0.0.0.0', function_server_port, 'path_to_docs', (file,), simple_kwargs,
                                        use_disk=True, use_pickle=True,
                                        function_api_key=function_api_key,

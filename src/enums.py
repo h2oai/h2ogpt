@@ -140,7 +140,7 @@ class LangChainAction(Enum):
     IMAGE_STYLE = "ImageStyle"
 
 
-valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'playv2']
+valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'sd3', 'playv2']
 valid_imagechange_models = ['sdxl_change']
 valid_imagestyle_models = ['sdxl_style']
 
@@ -216,6 +216,7 @@ anthropic_mapping = {
     "claude-instant-1.2": 100000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-5-sonnet-20240620": 200000,
     "claude-3-haiku-20240307": 200000,
 }
 
@@ -226,12 +227,14 @@ anthropic_mapping_outputs = {
     "claude-instant-1.2": 4096,
     "claude-3-opus-20240229": 4096,
     "claude-3-sonnet-20240229": 4096,
+    "claude-3-5-sonnet-20240620": 4096,
     "claude-3-haiku-20240307": 4096,
 }
 
 claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
+gemini15imagetag = 'gemini15-image'
 
 claude3_image_tokens = 1334
 gemini_image_tokens = 5000
@@ -245,16 +248,55 @@ llava16_image_fudge = 50
 #  Invalid argument provided to Gemini: 400 Please use fewer than 16 images in your request to models/gemini-pro-vision
 # 4MB *total* limit of any prompt.  But only supports 16 images when doing fileData, needs to point to some gcp location
 geminiimage_num_max = 15
+# For gemini-1.5-pro, you can specify any combination and number of text, image, video, and audio files. The token limit is 1,000,000.
+# no real limit, just set at 30
+gemini15image_num_max = 30
+
 # https://docs.anthropic.com/claude/docs/vision#image-best-practices
 # https://github.com/anthropics/anthropic-cookbook/blob/main/multimodal/reading_charts_graphs_powerpoints.ipynb
 # 5MB per image
 claude3image_num_max = 20
+# much worse image handling for many images.  Even 3 images gets confused.
+claude3_haiku_image_num_max = 20
 # https://platform.openai.com/docs/guides/vision
-# 20MB per image
+# 20MB per image request (they say per image but that's wrong)
+# gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 10.', 'param': None, 'type': None}}
 gpt4image_num_max = 10
+# gpt-4o: ValueError: Error code: 400 - {'error': {'code': 'BadRequest', 'message': 'Too many images in request. Max is 20.', 'param': None, 'type': None}}
+gpt4turbo_image_num_max = 20
 
 # can be any number, but queued after --limit-model-concurrency <number> for some <number> e.g. 5
 llava_num_max = 10
+
+# really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
+internvl_num_max = 5
+internvl2_num_max = 10
+
+images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
+                       'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max,
+                       'gpt-4o': gpt4turbo_image_num_max,
+                       'gemini-pro-vision': geminiimage_num_max,
+                       'gemini-1.5-pro-latest': gemini15image_num_max,
+                       'gemini-1.5-flash-latest': gemini15image_num_max,
+                       'claude-3-opus-20240229': claude3image_num_max,
+                       'claude-3-sonnet-20240229': claude3image_num_max,
+                       'claude-3-5-sonnet-20240620': claude3image_num_max,
+                       'claude-3-haiku-20240307': claude3_haiku_image_num_max,
+                       'liuhaotian/llava-v1.6-34b': 1,  # for lmdeploy
+                       'liuhaotian/llava-v1.6-vicuna-13b': 1,  # for lmdeploy
+                       'HuggingFaceM4/idefics2-8b-chatty': 10,
+                       'lmms-lab/llama3-llava-next-8b': 2,
+                       'OpenGVLab/InternVL-Chat-V1-5': internvl_num_max,
+                       'THUDM/cogvlm2-llama3-chat-19B': 2,
+                       'microsoft/Phi-3-vision-128k-instruct': 1,  # only 1 possible with vllm
+                       }
+for model_name in ["OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
+                   "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40"]:
+    images_num_max_dict[model_name] = internvl2_num_max
+
+# llava34b sometimes runs out of tokens and finishes due to token limits, let's restrict
+images_limit_max_new_tokens_list = ['liuhaotian/llava-v1.6-vicuna-13b', 'liuhaotian/llava-v1.6-34b']
+images_limit_max_new_tokens = 512
 
 # https://ai.google.dev/models/gemini
 # gemini-1.0-pro
@@ -349,20 +391,27 @@ def is_gradio_vision_model(base_model):
         base_model.startswith('Qwen/Qwen-VL')
 
 
-def is_vision_model(base_model):
+def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[]):
     if not base_model:
         return False
+    if visible_vision_models and all_visible_models and visible_vision_models[0] in all_visible_models:
+        # all models are vision models by proxy
+        return True
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
-        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview'] or \
+        base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+                       'gpt-4o-2024-05-13'] or \
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest",
                        "gemini-1.5-flash-latest"] or \
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
         base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"] or \
         base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5",
-                       "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8"] or \
+                       "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8",
+                       "OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
+                       "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40"] or \
         base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B",
-                       "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"]
+                       "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"] or \
+        base_model in ["microsoft/Phi-3-vision-128k-instruct"]
 
 
 def is_video_model(base_model):
@@ -429,7 +478,7 @@ def does_support_json_mode(inference_server, model_name, json_vllm=False):
         # assume OpenAI serves updated models
         return True
     else:
-        return is_json_model(model_name, inference_server, json_vllm=False)
+        return is_json_model(model_name, inference_server, json_vllm=json_vllm)
 
 
 font_size = 2
@@ -453,8 +502,6 @@ def t5_type(model_name):
 
 
 def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, prompt_summary, hyde_llm_prompt,
-                          model_name, inference_server, model_path_llama,
-                          doc_json_mode,
                           prompt_query_type='simple'):
     if prompt_query_type == 'advanced':
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends.  If the answer cannot be primarily obtained from information within the context, then respond that the answer does not appear in the context of the documents."
@@ -531,13 +578,13 @@ def gr_to_lg(image_audio_loaders,
         enable_ocr='OCR' in image_audio_loaders,
         enable_doctr='DocTR' in image_audio_loaders,
         enable_pix2struct='Pix2Struct' in image_audio_loaders,
-        enable_captions='Caption' in image_audio_loaders or 'CaptionBlip2' in image_audio_loaders,
+        enable_captions='Caption' in image_audio_loaders or 'CaptionLarge' in image_audio_loaders,
         enable_transcriptions="ASR" in image_audio_loaders or 'ASRLarge' in image_audio_loaders,
         enable_llava='LLaVa' in image_audio_loaders,
     )
-    if 'CaptionBlip2' in image_audio_loaders:
+    if 'CaptionLarge' in image_audio_loaders:
         # just override, don't actually do both even if user chose both
-        captions_model = "Salesforce/blip2-flan-t5-xl"
+        captions_model = "microsoft/Florence-2-large"
     else:
         captions_model = kwargs['captions_model']
     if 'ASRLarge' in image_audio_loaders:
@@ -660,6 +707,32 @@ json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JS
 json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
 json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to use the same key names as the schema:\n```json\n{properties_schema}\n```'
 
+image_batch_image_prompt0 = """<response_instructions>
+- Act as a keen observer with a sharp eye for detail.
+- Analyze the content within the images.
+- Provide insights based on your observations.
+- Avoid making up facts.
+- Do not forget to follow the system prompt.
+</response_instructions>
+"""
+
+image_batch_final_prompt0 = """<response_instructions>
+- Check if the answers already given in <image> XML tags are useful.
+  - Image answers came from a vision model capable of reading text and images within the images.
+  - If image answers are useful, preserve all details the image answers provide and use them to construct a well-structured answer.
+- Ignore image answers that had no useful content, because any single batch of images may not be relevant. Focus on all details from image answers that are relevant and useful.
+- Check if the document text can answer the question.
+- Check if the chat history can answer the question.
+- Check if any figure captions can answer the question.
+- If answers conflict between text, chat history, and figure captions, do not focus your response on this conflict.
+  - In handling conflicting answers, use logical reasoning and supporting evidence to assess the plausibility of each answer.
+  - In handling conflicting answers, choose the most consistent answer -- i.e., the most common answer among conflicts (self-consistency reasoning) or one that aligns with well-established facts.
+  - In handling conflicting answers, one may choose one data source over another -- i.e., text is probably more reliable than an image when the question can be answered from text, while an image is more reliable than text for flowcharts, photos, etc.
+- Do not forget to follow the system prompt.
+- Finally, according to our chat history, the above documents, figure captions, or given images, construct a well-structured response.
+</response_instructions>
+"""
+
 coqui_lock_name = 'coqui'
 
 split_google = "::::::::::"
@@ -691,3 +764,51 @@ roles_state0 = dict()
 none = ['', '\n', None]
 nonelist = [None, '', 'None']
 noneset = set(nonelist)
+
+llamacpp_inner_dict_keys = ['model_path_llama', 'model_name_gptj', 'model_name_gpt4all_llama',
+                            'model_name_exllama_if_no_config']
+
+other_model_state_defaults0 = dict(load_8bit=None, load_4bit=None, low_bit_mode=None,
+                                   load_half=None, use_flash_attention_2=None,
+                                   load_gptq=None, load_awq=None, load_exllama=None,
+                                   use_safetensors=None,
+                                   revision=None, use_gpu_id=None, gpu_id=None,
+                                   compile_model=None,
+                                   use_cache=None,
+                                   llamacpp_dict=dict(model_path_llama=''),
+                                   rope_scaling=None,
+                                   max_seq_len=None,
+                                   max_output_seq_len=None,
+                                   exllama_dict={},
+                                   gptq_dict={},
+                                   attention_sinks={},
+                                   sink_dict={},
+                                   truncation_generation=None,
+                                   hf_model_dict={},
+                                   force_seq2seq_type=None,
+                                   force_t5_type=None,
+                                   trust_remote_code=None,
+                                   )
+
+model_state_none0 = dict(model=None, tokenizer=None, device=None,
+                         base_model=None, base_model0=None, tokenizer_base_model=None, lora_weights=None,
+                         inference_server='', prompt_type='unknown', prompt_dict=None,
+                         visible_models=None, h2ogpt_key=None,
+                         json_vllm=None,
+                         is_vision_model=None,
+                         is_actually_vision_model=None,
+                         images_num_max=None,
+                         image_resolution=None,
+                         image_format=None,
+                         rotate_align_resize_image=None,
+                         video_frame_period=None,
+                         image_batch_image_prompt=None,
+                         image_batch_final_prompt=None,
+                         image_batch_stream=None,
+                         visible_vision_models=None,
+                         auto_visible_vision_models=None,
+                         json=None,
+                         guided_vllm=None,
+                         video_file=None,
+                         display_name=None,
+                         )

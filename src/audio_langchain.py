@@ -285,8 +285,8 @@ Based upon ImageCaptionLoader in LangChain version: langchain/document_loaders/i
 But accepts preloaded model to avoid slowness in use and CUDA forking issues
 
 Loader that loads image captions
-By default, the loader utilizes the pre-trained BLIP image captioning model.
-https://huggingface.co/Salesforce/blip-image-captioning-base
+By default, the loader utilizes the pre-trained image captioning model.
+https://huggingface.co/microsoft/Florence-2-base
 
 """
 from typing import List, Union, Any, Tuple
@@ -416,7 +416,7 @@ class H2OAudioCaptionLoader(ImageCaptionLoader):
 
 from typing import Iterable, List
 
-from langchain.document_loaders.blob_loaders import FileSystemBlobLoader
+from langchain_community.document_loaders import FileSystemBlobLoader
 from langchain.document_loaders.blob_loaders.schema import Blob, BlobLoader
 
 

@@ -9,13 +9,14 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
   - **Efficient** use of context using instruct-tuned LLMs (no need for LangChain's few-shot approach)
   - **Parallel** summarization and extraction, reaching an output of 80 tokens per second with the 13B LLaMa2 model
   - **HYDE** (Hypothetical Document Embeddings) for enhanced retrieval based upon LLM responses
+  - **Semantic Chunking** for better document splitting (requires GPU)
 - **Variety** of models supported (LLaMa2, Mistral, Falcon, Vicuna, WizardLM.  With AutoGPTQ, 4-bit/8-bit, LORA, etc.)
   - **GPU** support from HF and LLaMa.cpp GGML models, and **CPU** support using HF, LLaMa.cpp, and GPT4ALL models
   - **Attention Sinks** for [arbitrarily long](https://github.com/tomaarsen/attention_sinks) generation (LLaMa-2, Mistral, MPT, Pythia, Falcon, etc.)
 - **UI** or CLI with streaming of all models
   - **Upload** and **View** documents through the UI (control multiple collaborative or personal collections)
   - **Vision Models** LLaVa, Claude-3, Gemini-Pro-Vision, GPT-4-Vision
-  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl) and PlaygroundAI (playv2)
+  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl, SD3) and PlaygroundAI (playv2)
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
@@ -27,7 +28,7 @@ Query and summarize your documents or just chat with local private GPT LLMs usin
 - **Linux, Docker, macOS, and Windows** support
   - [**Easy Windows Installer**](#windows-1011-64-bit-with-full-document-qa-capability) for Windows 10 64-bit (CPU/CUDA)
   - [**Easy macOS Installer**](#macos-cpum1m2-with-full-document-qa-capability) for macOS (CPU/M1/M2)
-- **Inference Servers** [support](docs/README_InferenceServers.md) for oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, Together.ai, OpenAI, Azure OpenAI, Anthropic
+- **Inference Servers** [support](docs/README_InferenceServers.md) for oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, Together.ai, OpenAI, Azure OpenAI, Anthropic, MistralAI, Google, and Groq
 - **OpenAI-compliant**
   - Server Proxy [API](docs/README_CLIENT.md) (h2oGPT acts as drop-in-replacement to OpenAI server)
   - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding
@@ -120,7 +121,7 @@ See [Offline](docs/README_offline.md#tldr) for how to run h2oGPT offline.
 
 ---
 
-Note that for all platforms, some packages such as DocTR, Unstructured, BLIP, Stable Diffusion, etc. download models at runtime that appear to delay operations in the UI. The progress appears in the console logs.
+Note that for all platforms, some packages such as DocTR, Unstructured, Florence-2, Stable Diffusion, etc. download models at runtime that appear to delay operations in the UI. The progress appears in the console logs.
 
 #### Windows 10/11 64-bit with full document Q/A capability
   * One-Click Installer
@@ -263,10 +264,8 @@ These are not part of normal installation instructions and are experimental.
 
 ### Roadmap
 
-- Integration of code and resulting LLMs with downstream applications and low/no-code platforms
-- Complement h2oGPT chatbot with other APIs like [ToolBench](https://github.com/OpenBMB/ToolBench)
-- Enhance the model's code completion, reasoning, and mathematical capabilities, ensure factual correctness, minimize hallucinations, and avoid repetitive output
-- Add better agents for SQL and CSV question/answer
+- Complement h2oGPT chatbot with other APIs like [ToolBench](https://github.com/OpenBMB/ToolBench), Wolfram Alpha, Semantic Scholar, etc.
+- Enhance h2oGPT with reliable agentic control
 
 ### Development
 
@@ -278,7 +277,7 @@ These are not part of normal installation instructions and are experimental.
     conda install -c conda-forge gst-python -y
     sudo apt-get install gstreamer-1.0
     pip install pygame
-    pytest --instafail -s -v tests
+    GPT_H2O_AI=0 CONCURRENCY_COUNT=1 pytest --instafail -s -v tests
     # for openai server test on already-running local server
     pytest -s -v -n 4 openai_server/test_openai_server.py::test_openai_client
     ```

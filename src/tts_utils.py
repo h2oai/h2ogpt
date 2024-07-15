@@ -2,7 +2,7 @@ import io
 import numpy as np
 import pydub
 
-from src.utils import have_pyrubberband
+from utils import have_pyrubberband
 
 
 # Keep non-native package imports out of global space

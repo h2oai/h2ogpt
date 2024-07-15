@@ -1,7 +1,7 @@
 import textwrap
 import re
 
-from src.utils import flatten_list, have_emoji, have_langid
+from utils import flatten_list, have_emoji, have_langid
 
 
 def setup_nltk():

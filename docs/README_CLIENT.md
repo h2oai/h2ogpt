@@ -48,6 +48,83 @@ for chunk in responses:
 ```
 just as with OpenAI, and related API for text completion (non-chat) mode.
 
+### Image Understanding
+
+```python
+from src.vision.utils_vision import img_to_base64
+
+# local files would only work if server on same system as client
+# for img_to_base64, str_bytes=True or False will work.  True is for internal use for LLaVa gradio communication only
+urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
+        img_to_base64('tests/driverslicense.jpeg'),
+        img_to_base64('tests/receipt.jpg'),
+        img_to_base64('tests/dental.png'),
+        ]
+expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic']]
+for expected, url in zip(expecteds, urls):
+    # OpenAI API
+    messages = [{
+        'role':
+            'user',
+        'content': [{
+            'type': 'text',
+            'text': 'Describe the image please',
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url':
+                    url,
+            },
+        }],
+    }]
+
+
+
+    model = 'OpenGVLab/InternVL-Chat-V1-5'
+    base_url = 'http://localhost:5000/v1'
+    h2ogpt_key = 'fill or EMPTY'
+
+    from openai import OpenAI
+    client_args = dict(base_url=base_url,
+                       api_key=h2ogpt_key)
+    client = OpenAI(**client_args)
+
+    # auth:
+    # user = '%s:%s' % ('user', 'pass')
+    # no auth:
+    user = None
+
+    client_kwargs = dict(model=model,
+                         max_tokens=200,
+                         stream=False,
+                         messages=messages,
+                         user=user,
+                         )
+    response = client.chat.completions.create(**client_kwargs)
+    print(response)
+    if isinstance(expected, list):
+        assert any(x in response.choices[0].message.content for x in expected), "%s %s" % (url, response)
+    else:
+        assert expected in response.choices[0].message.content, "%s %s" % (url, response)
+```
+
+That that `str_bytes=True` leads to something like:
+```text
+b'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...'
+```
+which includes the b prefix indicating it's a byte string.
+while `str_bytes=False` leads to something like
+```text
+data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...
+```
+without the b prefix, indicating it's a plain string.
+
+Ensure the bytes encoded part does *not* itself have `b' '` around it.  i.e. if used:
+```python
+f"data:image/{iformat.lower()};base64,{img_str.decode('utf-8')}"
+```
+and `img_str = str(bytes_object)` that will not be correct.
+
 #### Authentication
 
 If h2oGPT has authentication enabled, then one passes `user` to OpenAI with the `username:password` as a string to access.  E.g.:
@@ -474,6 +551,73 @@ if len(res_final) > 0:
     text = res_dict['response']
     new_text = text[len(text_old):]
     print(new_text)
+```
+
+### Image Understanding
+
+```python
+import ast
+from gradio_client import Client
+
+# without auth:
+# client = Client('http://localhost:7860')
+
+# with auth:
+client = Client('http://localhost:7860', auth=('user', 'pass'))
+
+h2ogpt_key = 'api key here, or EMPTY if no key or do not put in kwargs'
+
+kwargs = dict(
+    visible_models='THUDM/cogvlm2-llama3-chat-19B',
+    instruction_nochat="describe the imaged",
+    h2ogpt_key=h2ogpt_key,
+    stream_output=False,
+    image_file='https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
+    temperature=0,
+    max_tokens=4000)
+res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+
+response = ast.literal_eval(res)['response']
+print(response)
+```
+
+WIth bytes:
+
+```python
+import ast
+
+from gradio_client import Client
+
+# can copy-paste these functions for own use
+from src.utils import download_image
+from src.vision.utils_vision import img_to_base64
+
+# without auth:
+# client = Client('http://localhost:7860')
+
+# with auth:
+client = Client('http://localhost:7860', auth=('user', 'pass'))
+
+h2ogpt_key = 'api key here, or EMPTY if no key or do not put in kwargs'
+
+
+image_url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
+save_dir = 'datatest'
+image_file = download_image(image_url, save_dir)
+image_bytes = img_to_base64(image_file)
+
+kwargs = dict(
+    visible_models='THUDM/cogvlm2-llama3-chat-19B',
+    instruction_nochat="describe the imaged",
+    h2ogpt_key=h2ogpt_key,
+    stream_output=False,
+    image_file=image_bytes,
+    temperature=0,
+    max_tokens=4000)
+res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+
+response = ast.literal_eval(res)['response']
+print(response)
 ```
 
 ### h2oGPT Gradio Wrapper

@@ -1,55 +1,136 @@
 import base64
+import functools
 import os
+import tempfile
 import time
 import types
 import uuid
+from functools import partial
 from io import BytesIO
 import numpy as np
+from PIL.Image import Resampling
 
 from gradio_utils.grclient import check_job
 from src.enums import valid_imagegen_models, valid_imagechange_models, valid_imagestyle_models, docs_joiner_default, \
     llava16_model_max_length, llava16_image_tokens, llava16_image_fudge
-from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text
+from src.image_utils import fix_image_file
+from src.utils import is_gradio_version4, get_docs_tokens, get_limited_text, makedirs, call_subprocess_onetask, \
+    have_fiftyone, sanitize_filename
+
+IMAGE_EXTENSIONS = {'.png': 'PNG', '.apng': 'PNG', '.blp': 'BLP', '.bmp': 'BMP', '.dib': 'DIB', '.bufr': 'BUFR',
+                    '.cur': 'CUR', '.pcx': 'PCX', '.dcx': 'DCX', '.dds': 'DDS', '.ps': 'EPS', '.eps': 'EPS',
+                    '.fit': 'FITS', '.fits': 'FITS', '.fli': 'FLI', '.flc': 'FLI', '.fpx': 'FPX', '.ftc': 'FTEX',
+                    '.ftu': 'FTEX', '.gbr': 'GBR', '.gif': 'GIF', '.grib': 'GRIB', '.h5': 'HDF5', '.hdf': 'HDF5',
+                    '.jp2': 'JPEG2000', '.j2k': 'JPEG2000', '.jpc': 'JPEG2000', '.jpf': 'JPEG2000', '.jpx': 'JPEG2000',
+                    '.j2c': 'JPEG2000', '.icns': 'ICNS', '.ico': 'ICO', '.im': 'IM', '.iim': 'IPTC', '.jfif': 'JPEG',
+                    '.jpe': 'JPEG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.tif': 'TIFF', '.tiff': 'TIFF', '.mic': 'MIC',
+                    '.mpg': 'MPEG', '.mpeg': 'MPEG', '.mpo': 'MPO', '.msp': 'MSP', '.palm': 'PALM', '.pcd': 'PCD',
+                    '.pdf': 'PDF', '.pxr': 'PIXAR', '.pbm': 'PPM', '.pgm': 'PPM', '.ppm': 'PPM', '.pnm': 'PPM',
+                    '.psd': 'PSD', '.qoi': 'QOI', '.bw': 'SGI', '.rgb': 'SGI', '.rgba': 'SGI', '.sgi': 'SGI',
+                    '.ras': 'SUN', '.tga': 'TGA', '.icb': 'TGA', '.vda': 'TGA', '.vst': 'TGA', '.webp': 'WEBP',
+                    '.wmf': 'WMF', '.emf': 'WMF', '.xbm': 'XBM', '.xpm': 'XPM'}
+
+VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}
 
 
-def img_to_base64(image_file, str_bytes=True):
+def is_animated_gif(file_path):
+    if not file_path.endswith('.gif'):
+        return False
+    from PIL import Image, UnidentifiedImageError
+    try:
+        gif = Image.open(file_path)
+    except (FileNotFoundError, UnidentifiedImageError):
+        return False
+    try:
+        gif.seek(1)
+    except EOFError:
+        return False
+    else:
+        return True
+
+
+def gif_to_mp4(gif_path):
+    from moviepy.editor import VideoFileClip
+    """
+    Convert an animated GIF to an MP4 video.
+
+    :param gif_path: Path to the input GIF file.
+    :param mp4_path: Path to the output MP4 file.
+    """
+    clip = VideoFileClip(gif_path)
+    mp4_path = gif_path.replace('.gif', '.mp4')
+    clip.write_videofile(mp4_path, codec='libx264')
+    return mp4_path
+
+
+def is_video_file(file_path):
+    """
+    Determine if the file is a video by checking its extension, frame count, and frame rate.
+
+    :param file_path: Path to the file.
+    :return: True if the file is a video, False otherwise.
+    """
+    ext = os.path.splitext(file_path)[-1].lower()
+    if ext not in VIDEO_EXTENSIONS:
+        return False
+
+    import cv2
+    video = cv2.VideoCapture(file_path)
+    frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+    frame_rate = video.get(cv2.CAP_PROP_FPS)
+    video.release()
+
+    # A valid video should have more than 0 frames and a positive frame rate
+    return frame_count >= 1 and frame_rate > 0
+
+
+def img_to_base64(image_file, resolution=None, output_format=None, str_bytes=True):
     # assert image_file.lower().endswith('jpg') or image_file.lower().endswith('jpeg')
     from PIL import Image
 
-    EXTENSIONS = {'.png': 'PNG', '.apng': 'PNG', '.blp': 'BLP', '.bmp': 'BMP', '.dib': 'DIB', '.bufr': 'BUFR',
-                  '.cur': 'CUR', '.pcx': 'PCX', '.dcx': 'DCX', '.dds': 'DDS', '.ps': 'EPS', '.eps': 'EPS',
-                  '.fit': 'FITS', '.fits': 'FITS', '.fli': 'FLI', '.flc': 'FLI', '.fpx': 'FPX', '.ftc': 'FTEX',
-                  '.ftu': 'FTEX', '.gbr': 'GBR', '.gif': 'GIF', '.grib': 'GRIB', '.h5': 'HDF5', '.hdf': 'HDF5',
-                  '.jp2': 'JPEG2000', '.j2k': 'JPEG2000', '.jpc': 'JPEG2000', '.jpf': 'JPEG2000', '.jpx': 'JPEG2000',
-                  '.j2c': 'JPEG2000', '.icns': 'ICNS', '.ico': 'ICO', '.im': 'IM', '.iim': 'IPTC', '.jfif': 'JPEG',
-                  '.jpe': 'JPEG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.tif': 'TIFF', '.tiff': 'TIFF', '.mic': 'MIC',
-                  '.mpg': 'MPEG', '.mpeg': 'MPEG', '.mpo': 'MPO', '.msp': 'MSP', '.palm': 'PALM', '.pcd': 'PCD',
-                  '.pdf': 'PDF', '.pxr': 'PIXAR', '.pbm': 'PPM', '.pgm': 'PPM', '.ppm': 'PPM', '.pnm': 'PPM',
-                  '.psd': 'PSD', '.qoi': 'QOI', '.bw': 'SGI', '.rgb': 'SGI', '.rgba': 'SGI', '.sgi': 'SGI',
-                  '.ras': 'SUN', '.tga': 'TGA', '.icb': 'TGA', '.vda': 'TGA', '.vst': 'TGA', '.webp': 'WEBP',
-                  '.wmf': 'WMF', '.emf': 'WMF', '.xbm': 'XBM', '.xpm': 'XPM'}
-
     from pathlib import Path
     ext = Path(image_file).suffix
-    if ext in EXTENSIONS:
-        iformat = EXTENSIONS[ext]
-    else:
-        raise ValueError("Invalid file extension %s for file %s" % (ext, image_file))
+    iformat = IMAGE_EXTENSIONS.get(ext)
+    assert iformat is not None, "Invalid file extension %s for file %s" % (ext, image_file)
 
     image = Image.open(image_file)
+
+    if resolution:
+        image = image.resize(resolution, resample=Resampling.BICUBIC)
+
+    if output_format:
+        oformat = output_format.upper()
+    elif iformat not in ['JPEG', 'PNG']:
+        # use jpeg by default if nothing set, so most general format allowed
+        oformat = 'JPEG'
+    else:
+        oformat = iformat
+
     buffered = BytesIO()
-    image.save(buffered, format=iformat)
+    image.save(buffered, format=oformat)
     img_str = base64.b64encode(buffered.getvalue())
+
     # FIXME: unsure about below
     if str_bytes:
-        img_str = str(bytes("data:image/%s;base64," % iformat.lower(), encoding='utf-8') + img_str)
+        img_str = str(bytes("data:image/%s;base64," % oformat.lower(), encoding='utf-8') + img_str)
     else:
-        img_str = f"data:image/{iformat.lower()};base64,{img_str.decode('utf-8')}"
+        img_str = f"data:image/{oformat.lower()};base64,{img_str.decode('utf-8')}"
 
     return img_str
 
 
 def base64_to_img(img_str, output_path):
+    """
+    Convert a base64 string to an image or video file.
+
+    :param img_str: The base64 encoded string with the image or video data.
+    :param output_path: The path (without extension) where the output file will be saved.
+    :return: The path to the saved file.
+    """
+    if img_str.startswith("b'"):
+        # check if was a string of bytes joined like when str_bytes=True in above function
+        img_str = img_str[2:-1]  # This removes the first b' and the last '
+
     # Split the string on "," to separate the metadata from the base64 data
     meta, base64_data = img_str.split(",", 1)
     # Extract the format from the metadata
@@ -63,6 +144,182 @@ def base64_to_img(img_str, output_path):
         f.write(img_bytes)
     print(f"Image saved to {output_file} with format {img_format}")
     return output_file
+
+
+def video_to_base64frames(video_path):
+    import cv2
+    video = cv2.VideoCapture(video_path)
+
+    base64Frames = []
+    while video.isOpened():
+        success, frame = video.read()
+        if not success:
+            break
+        _, buffer = cv2.imencode(".jpg", frame)
+        base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+
+    video.release()
+    print(len(base64Frames), "frames read.")
+    return base64Frames
+
+
+@functools.lru_cache(maxsize=10000, typed=False)
+def video_to_frames(video_path, output_dir, resolution=None, image_format="jpg", video_frame_period=None,
+                    extract_frames=None,
+                    verbose=False):
+    import cv2
+    """
+    Convert video to frames, save them as image files in the specified format, and return the list of file names.
+
+    :param video_path: Path to the input video file.
+    :param output_dir: Directory where the output frames will be saved.
+    :param resolution: Tuple specifying the desired resolution (width, height) or None to keep the original resolution.
+    :param image_format: String specifying the desired image format (e.g., "jpg", "png").
+    :param video_frame_period: How often to sample frames from the video. If None, every 20th frame is saved.
+      e.g. if pass non-real-time video, can set to 1 to save all frames, to mimic passing actual frames separately otherwise
+    :param extract_frames: Number of frames to extract from the video. If None, all frames are saved.
+    :param verbose: Boolean to control whether to print progress messages.
+    :return: List of file names for the saved frames.
+
+    Example usage:
+    file_names = video_to_frames("input_video.mp4", "output_frames", resolution=(640, 480), image_format="png", verbose=True)
+    print(file_names)
+    """
+    if output_dir is None:
+        output_dir = os.path.join(tempfile.gettempdir(), 'image_path_%s' % sanitize_filename(video_path))
+
+    enable_fiftyone = True  # optimal against issues if using function server
+    if enable_fiftyone and \
+            have_fiftyone and \
+            (video_frame_period is not None and video_frame_period < 1 or not os.path.isfile(video_path)):
+        # handles either automatic period or urls
+        from src.vision.extract_movie import extract_unique_frames
+        args = ()
+        urls = [video_path] if not os.path.isfile(video_path) else None
+        file = video_path if os.path.isfile(video_path) else None
+        kwargs = {'urls': urls, 'file': file, 'download_dir': None, 'export_dir': output_dir,
+                  'extract_frames': extract_frames}
+        # fifty one is complex program and leaves around processes
+        if False:  # NOTE: Assumes using function server to handle isolation if want production grade behavior
+            func_new = partial(call_subprocess_onetask, extract_unique_frames, args, kwargs)
+        else:
+            func_new = functools.partial(extract_unique_frames, *args, **kwargs)
+        export_dir = func_new()
+        return [os.path.join(export_dir, x) for x in os.listdir(export_dir)]
+
+    if video_frame_period and video_frame_period < 1:
+        video_frame_period = None
+    if video_frame_period in [None, 0]:
+        # e.g. if no fiftyone and so can't do 0 case, then assume ok to do period based
+        total_frames = count_frames(video_path)
+        extract_frames = min(20, extract_frames or 20)  # no more than 20 frames total for now
+        video_frame_period = total_frames // extract_frames
+
+    video = cv2.VideoCapture(video_path)
+    makedirs(output_dir)
+
+    image_format = image_format or '.jpg'
+
+    frame_count = 0
+    file_names = []
+    while True:
+        success, frame = video.read()
+        if not success:
+            break
+
+        # keep first frame, then keep a frame every video_frame_resolution frames
+        if frame_count % video_frame_period != 0:
+            frame_count += 1
+            continue
+        if resolution:
+            frame = cv2.resize(frame, resolution)
+
+        frame_filename = os.path.join(output_dir, f"frame_{frame_count:04d}.{image_format}")
+        cv2.imwrite(frame_filename, frame)
+        file_names.append(frame_filename)
+        frame_count += 1
+    video.release()
+
+    if verbose:
+        print(f"{frame_count} frames saved to {output_dir}.")
+
+    return file_names
+
+
+def count_frames(video_path):
+    import cv2
+    # Open the video file
+    video = cv2.VideoCapture(video_path)
+
+    # Check if video opened successfully
+    if not video.isOpened():
+        print("Error: Could not open video.")
+        return -1
+
+    # Get the total number of frames
+    total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Release the video capture object
+    video.release()
+
+    return total_frames
+
+
+def process_file_list(file_list, output_dir, resolution=None, image_format="jpg",
+                      rotate_align_resize_image=True,
+                      video_frame_period=None,
+                      extract_frames=None,
+                      verbose=False):
+    # FIXME: resolution is not used unless video, could use for every case, but resolution is set later when byte encoding for LLMs
+    """
+    Process a list of files, converting any videos to frames and updating the list to only contain image files.
+
+    :param file_list: List of file paths to be processed.
+    :param output_dir: Directory where the output frames will be saved.
+    :param resolution: Tuple specifying the desired resolution (width, height) or None to keep the original resolution.
+      Does not affect images as inputs, handled elsewhere when converting to base64 for LLM
+    :param image_format: String specifying the desired image format (e.g., "jpg", "png").
+    :param rotate_align_resize_image:  Whether to apply rotation, alignment, resize before giving to LLM
+    :param video_frame_period: Period to save frames, if <1 then automatic
+    :param extract_frames: how many frames to extract if automatic period mode
+    :param verbose: Boolean to control whether to print progress messages.
+    :return: Updated list of file names containing only image files.
+    """
+    if file_list is None:
+        file_list = []
+    if image_format is None:
+        image_format = 'jpg'
+
+    image_files = []
+
+    for file in file_list:
+        # i.e. if not file, then maybe youtube url
+        is_maybe_video = os.path.isfile(file) and is_video_file(file) or not os.path.isfile(file) or is_animated_gif(
+            file)
+        if is_animated_gif(file):
+            # FIXME: could convert gif -> mp4 with gif_to_mp4(gif_path)()
+            # fiftyone can't handle animated gifs
+            extract_frames = None
+            if video_frame_period is not None and video_frame_period < 1:
+                video_frame_period = None
+
+        if is_maybe_video:
+            # If it's a valid video, extract frames
+            if verbose:
+                print(f"Processing video file: {file}")
+            # output_dir is None means only use file for location
+            frame_files = video_to_frames(file, None, resolution, image_format, video_frame_period,
+                                          extract_frames, verbose)
+            image_files.extend(frame_files)
+        else:
+            # If it's not a valid video, add it to the image file list
+            if rotate_align_resize_image:
+                file_fixed = fix_image_file(file, do_align=True, do_rotate=True, do_pad=False, relaxed_resize=True)
+            else:
+                file_fixed = file
+            image_files.append(file_fixed)
+
+    return image_files
 
 
 def fix_llava_prompt(file,
@@ -441,6 +698,14 @@ def get_image_model_dict(enable_image,
                 from src.vision.playv2 import get_pipe_make_image, make_image
             elif image_model_name == 'sdxl':
                 from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+            elif image_model_name == 'sd3':
+                from src.vision.stable_diffusion_xl import get_pipe_make_image, make_image
+                get_pipe_make_image = functools.partial(get_pipe_make_image,
+                                                        base_model='stabilityai/stable-diffusion-3-medium-diffusers',
+                                                        refiner_model=None)
+                make_image = functools.partial(make_image,
+                                               base_model='stabilityai/stable-diffusion-3-medium-diffusers',
+                                               refiner_model=None)
             elif image_model_name == 'sdxl_change':
                 from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
                 make_image = change_image

@@ -20,13 +20,13 @@ from langchain.schema.language_model import BaseLanguageModel
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 from langchain_text_splitters import TextSplitter
 
-from src.enums import docs_joiner_default
-from src.utils import hash_file, get_sha, split_list, makedirs, flatten_list, get_token_count, get_docs_tokens, \
+from enums import docs_joiner_default
+from utils import hash_file, get_sha, split_list, makedirs, flatten_list, get_token_count, get_docs_tokens, \
     FakeTokenizer
 
 from langchain.callbacks.base import BaseCallbackHandler, Callbacks
 from langchain.schema import LLMResult
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 
 
@@ -177,14 +177,14 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
         # skip split if not necessary, since expensive for some reason
         text_splitter1 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
             tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
-            separators=[". "],
+            separators=[". "], strip_whitespace=False,
         )
         text_splitter2 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
+            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0, strip_whitespace=False,
         )
         # https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/recursive_text_splitter/
         text_splitter3 = H2OCharacterTextSplitter.from_huggingface_tokenizer(
-            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0,
+            tokenizer, chunk_size=doc_chunk_size, chunk_overlap=0, strip_whitespace=False,
             separators=[
                 "\n\n",
                 "\n",
@@ -199,8 +199,10 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
                 "",
             ],
         )
+        text_splitter4 = RecursiveCharacterTextSplitter(chunk_size=4 * doc_chunk_size, chunk_overlap=0)
+
         text_splitters = dict(semantic=text_splitter0, sentence=text_splitter1, normal=text_splitter2,
-                              multilingual=text_splitter3)
+                              multilingual=text_splitter3, backup=text_splitter4)
         text_splitters = {k: v for k, v in text_splitters.items() if v is not None}
 
         did_split = False
@@ -256,12 +258,14 @@ def split_merge_docs(docs_with_score, tokenizer=None, max_input_tokens=None, doc
             new_metadata = docs_with_score1[0][0].metadata.copy()
             # keep source as single file so can look up, leave source_merged with joined version
             if len(docs_with_score1) > 1:
-                [new_metadata.update({'source_merged_%s' % xi: x[0].metadata['source']}) for xi, x in enumerate(docs_with_score1)]
+                [new_metadata.update({'source_merged_%s' % xi: x[0].metadata['source']}) for xi, x in
+                 enumerate(docs_with_score1)]
             new_metadata['source'] = [x[0].metadata['source'] for x in docs_with_score1][0]
             doc1 = Document(page_content=new_page_content, metadata=new_metadata)
             docs_with_score_new.append((doc1, new_score))
 
-            if did_split:
+            strict_fail = False  # don't strictly fail, sometimes can't split due to separators, so best can
+            if strict_fail and did_split:
                 assert one_doc_size is None or one_doc_size == 0, "Split failed: %s" % one_doc_size
             elif one_doc_size is not None:
                 # chopped

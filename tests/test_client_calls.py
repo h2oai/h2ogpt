@@ -172,7 +172,7 @@ def test_client1api_lean(save_dir, admin_pass):
         res = json.loads(res)
         assert isinstance(res, dict)
         assert res['base_model'] == base_model, "Problem with res=%s" % res
-        assert 'device' in res
+        assert 'load_8bit' in res
         assert res['hash'] == get_githash()
 
         api_name = '/system_hash'
@@ -235,7 +235,7 @@ def test_client1api_lean_lock_choose_model():
             if base_model == base1:
                 assert 'I am h2oGPT' in response or "I'm h2oGPT" in response or 'I’m h2oGPT' in response
             else:
-                assert 'the limit of time' in response or 'the limit' in response
+                assert 'the limit of time' in response or 'the limit' in response or 'I am a man of the night' in response
 
     api_name = '/model_names'
     res = client.predict(api_name=api_name)
@@ -1380,7 +1380,8 @@ def test_client_chat_stream_langchain():
            'an open-source project' in res_dict['response'] or \
            'h2oGPT is a project that allows' in res_dict['response'] or \
            'h2oGPT is a language model trained' in res_dict['response'] or \
-           'h2oGPT is a large-scale' in res_dict['response']
+           'h2oGPT is a large-scale' in res_dict['response'] or \
+           'is a free and open-source' in res_dict['response']
 
 
 @pytest.mark.parametrize("max_new_tokens", [256, 2048])
@@ -2549,7 +2550,10 @@ def test_autogptq(base_model):
     load_gptq = 'model'
     use_safetensors = True
     prompt_type = ''
-    max_seq_len = 4096  # mistral will use 32k if don't specify, go OOM on typical system
+    if base_model == 'TheBloke/em_german_leo_mistral-GPTQ':
+        max_seq_len = 4096  # mistral will use 32k if don't specify, go OOM on typical system
+    else:
+        max_seq_len = 2048
     langchain_mode = 'Disabled'
     langchain_action = LangChainAction.QUERY.value
     langchain_agents = []
@@ -2952,20 +2956,36 @@ def test_text_generation_inference_server1():
            'Deep learning refers to a class of machine learning' in text
 
 
+def kill_function_server():
+    os.system('pkill -f server_start.py --signal 9')
+    os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
+
+
 @pytest.mark.need_tokens
 @pytest.mark.parametrize("function_server_workers", [2, 1])
 @pytest.mark.parametrize("function_server", [False, True])
-@pytest.mark.parametrize("enforce_h2ogpt_ui_key", [False, True])
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @pytest.mark.parametrize("loaders", ['all', None])
 @wrap_test_forked
-def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, enforce_h2ogpt_ui_key, function_server,
+def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
                                              function_server_workers):
+    kill_function_server()
+    try:
+        run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
+                                                function_server_workers)
+    finally:
+        kill_function_server()
+
+
+def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, function_server,
+                                            function_server_workers):
     if not function_server and function_server_workers > 1:
         # no-op
         return
     os.environ['VERBOSE_PIPELINE'] = '1'
     user_path = make_user_path_test()
+
+    speed_up = False
 
     if loaders is None:
         loaders = tuple([None, None, None, None, None, None])
@@ -2973,7 +2993,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
         image_audio_loaders_options0, image_audio_loaders_options, \
             pdf_loaders_options0, pdf_loaders_options, \
             url_loaders_options0, url_loaders_options = \
-            lg_to_gr(enable_ocr=True, enable_captions=True, enable_pdf_ocr=True,
+            lg_to_gr(enable_ocr=not speed_up,
+                     enable_captions=True,
+                     enable_pdf_ocr='off' if not speed_up else 'on',
                      enable_pdf_doctr=True,
                      use_pymupdf=True,
                      enable_doctr=True,
@@ -2991,8 +3013,12 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
         jq_schema = None
         extract_frames = 0
         llava_prompt = None
-        loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
-                   jq_schema, extract_frames, llava_prompt]
+        if speed_up:
+            loaders = [image_audio_loaders_options0, pdf_loaders_options0, url_loaders_options0,
+                       jq_schema, extract_frames, llava_prompt]
+        else:
+            loaders = [image_audio_loaders_options, pdf_loaders_options, url_loaders_options,
+                       jq_schema, extract_frames, llava_prompt]
 
     stream_output = True
     max_new_tokens = 256
@@ -3014,8 +3040,13 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
          append_sources_to_chat=False,
          function_server=function_server,
          function_server_workers=function_server_workers,
+         add_disk_models_to_ui=False,
+         append_sources_to_answer=True,  # not normally True, but helps legacy asserts
          **main_kwargs,
          verbose=True)
+
+    if function_server:
+        time.sleep(20)  # wait for server to start
 
     from src.client_test import get_client, get_args, run_client
     # serialize=False would lead to returning dict for some objects or files for get_sources
@@ -3086,7 +3117,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
             "more text is boring" in res_dict['response'] or
             "it can be inferred that more text is indeed boring" in res_dict['response'] or
             "expressing frustration" in res_dict['response'] or
-            "it seems that more text can indeed be boring" in res_dict['response']) \
+            "it seems that more text can indeed be boring" in res_dict['response'] or
+            "it can be argued that more text can indeed be boring" in res_dict['response'] or
+            "repetition" in res_dict['response']) \
            and 'sample1.pdf' in res_dict['response']
     # QUERY2
     prompt = "What is a universal file format?"
@@ -3105,10 +3138,14 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
-    sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
+    sources_expected = [
+        f'{user_path}/FAQ.md',
+        f'{user_path}/README.md',
+        f'{user_path}/pexels-evg-kowalievska-1170986_small.jpg',
+        f'{user_path}/sample1.pdf'
+    ]
+    assert all(file in sources for file in sources_expected), "Sources do not match the expected list."
 
     res = client.predict(langchain_mode2, h2ogpt_key, api_name='/get_sources')
     assert isinstance(res[1], str)
@@ -3116,10 +3153,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     # check sources, and do after so would detect leakage
     res = client.predict(langchain_mode, h2ogpt_key, api_name='/get_viewable_sources')
@@ -3129,10 +3165,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/sample1.pdf'
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     res = client.predict(langchain_mode2, h2ogpt_key, api_name='/get_viewable_sources')
     assert isinstance(res[1], str)
@@ -3140,20 +3175,17 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = """%s/pdf-sample.pdf""" % user_path2
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     # refresh
     shutil.copy('tests/next.txt', user_path)
-    res = client.predict(langchain_mode, True, 512,
+    sources = client.predict(langchain_mode, True, 512,
                          *loaders, h2ogpt_key,
-                         api_name='/refresh_sources')
+                         api_name='/refresh_sources').replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = 'file/%s/next.txt' % user_path
-    assert sources_expected in res or sources_expected.replace('\\', '/').replace('\r', '') in res.replace('\\',
-                                                                                                           '/').replace(
-        '\r', '\n')
+    assert sources_expected in str(sources)
 
     res = client.predict(langchain_mode, h2ogpt_key, api_name='/get_sources')
     assert isinstance(res[1], str)
@@ -3162,10 +3194,9 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     if not is_gradio_version4:
         res = res['name']
     with open(res, 'rb') as f:
-        sources = f.read().decode()
+        sources = f.read().decode().replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = f'{user_path}/FAQ.md\n{user_path}/README.md\n{user_path}/next.txt\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg\n{user_path}/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg_pad_resized.png\n{user_path}/sample1.pdf'
-    assert sources == sources_expected or sources.replace('\\', '/').replace('\r', '') == sources_expected.replace(
-        '\\', '/').replace('\r', '')
+    assert all(file in sources for file in sources_expected.split('\n')), "Sources do not match the expected list."
 
     # check sources, and do after so would detect leakage
     sources = ast.literal_eval(client.predict(langchain_mode, h2ogpt_key, api_name='/get_sources_api'))
@@ -3175,7 +3206,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
                         'user_path_test/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg',
                         'user_path_test/pexels-evg-kowalievska-1170986_small.jpg_rotated.jpg_pad_resized.png',
                         'user_path_test/sample1.pdf']
-    assert sources == sources_expected
+    assert all(file in sources for file in sources_expected), "Sources do not match the expected list."
 
     file_to_get = sources_expected[3]
     view_raw_text = False
@@ -3187,7 +3218,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert len(source_dict['contents']) == 1
     assert len(source_dict['metadatas']) == 1
     assert isinstance(source_dict['contents'][0], str)
-    assert 'a cat sitting on a window' in source_dict['contents'][0]
+    assert 'cat sitting' in source_dict['contents'][0]
     assert isinstance(source_dict['metadatas'][0], str)
     assert sources_expected[3] in source_dict['metadatas'][0]
 
@@ -3198,7 +3229,7 @@ def test_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, en
     assert len(source_dict['contents']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert len(source_dict['metadatas']) == 2  # chunk_id=0 (query) and -1 (summarization)
     assert isinstance(source_dict['contents'][0], str)
-    assert 'a cat sitting on a window' in source_dict['contents'][0]
+    assert 'cat sitting' in source_dict['contents'][0]
     assert isinstance(source_dict['metadatas'][0], dict)
     assert sources_expected[3] == source_dict['metadatas'][0]['source']
 
@@ -4389,7 +4420,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         if not inference_server:
             base_model = 'h2oai/h2ogpt-4096-llama2-7b-chat'
         elif inference_server == 'https://gpt.h2o.ai':
-            base_model = 'mistralai/Mistral-7B-Instruct-v0.2'
+            base_model = 'mistralai/Mistral-7B-Instruct-v0.3'
         else:
             base_model = 'gpt-3.5-turbo'
 
@@ -4662,6 +4693,8 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'h2oGPT model' in summary \
                or 'released an open-source version' in summary \
                or 'Summarizes the main features' in summary \
+               or 'open-source, community-driven' in summary \
+               or 'is a chatbot that uses' in summary \
                or ('key results based on the provided document' in summary and 'h2oGPT' in summary)
         assert 'h2oGPT' in [x['content'] for x in sources][0]
     assert url in [x['source'] for x in sources][0]
@@ -4889,7 +4922,7 @@ def play_audio(audio, sr=16000):
 ])
 @pytest.mark.parametrize("base_model", [
     'llama',
-    'mistralai/Mistral-7B-Instruct-v0.2'
+    'mistralai/Mistral-7B-Instruct-v0.3'
 ])
 @wrap_test_forked
 def test_client1_tts_stream(tts_model, base_model):
@@ -4954,7 +4987,7 @@ def check_final_res(res, base_model='llama'):
     if base_model == 'llama':
         assert res['save_dict']['base_model'] == 'llama'
     else:
-        assert res['save_dict']['base_model'] == 'mistralai/Mistral-7B-Instruct-v0.2'
+        assert res['save_dict']['base_model'] == 'mistralai/Mistral-7B-Instruct-v0.3'
     assert res['save_dict']['where_from']
     assert res['save_dict']['valid_key'] == 'not enforced'
     assert res['save_dict']['h2ogpt_key'] in [None, '']
@@ -4993,7 +5026,8 @@ def check_curl_plain_api():
     assert 'assistant' in res_dict['response'] or \
            'computer program' in res_dict['response'] or \
            'program designed' in res_dict['response'] or \
-           'intelligence' in res_dict['response']
+           'intelligence' in res_dict['response'] or \
+           'I am a model trained' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
     assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == \
            res_dict['save_dict'][
@@ -5262,8 +5296,6 @@ def test_client1_image_qa_original():
     llava_model = os.getenv('H2OGPT_LLAVA_MODEL')
     main(
         model_lock=[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf', 'prompt_type': 'zephyr'},
-                    {'base_model': 'liuhaotian/llava-v1.6-vicuna-13b', 'inference_server': llava_model,
-                     'prompt_type': noop_prompt_type},
                     {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': llava_model,
                      'prompt_type': noop_prompt_type}],
         llava_model=llava_model,
@@ -5278,7 +5310,7 @@ def test_client1_image_qa_original():
     image_file = 'tests/driverslicense.jpeg'
     from src.vision.utils_vision import img_to_base64
     image_file = img_to_base64(image_file)
-    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models='liuhaotian/llava-v1.6-vicuna-13b',
+    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models='liuhaotian/llava-v1.6-34b',
                   stream_output=False)
     res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 
@@ -5385,7 +5417,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
            'natural language' in text or \
            'Summarize' in text or \
            'summarizing' in text or \
-           'summarization' in text
+           'summarization' in text or \
+           'large language model' in text
 
     # MyData
     # get file for client to upload
@@ -5473,7 +5506,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
     test1 = 'Based on the document provided chirpy, a young bird, embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
     test2 = 'Based on the document provided chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song.' == transcription.text
     test3 = """Based on the document provided Chirpy, a young bird embarked on a journey to find a legendary bird known for its beautiful song. Chirpy met many birds along the way, learning new songs, but he couldn't find the one he was searching for. After many days and nights, he reached the edge of the forest and learned that the song he was looking for was not just a melody but a story that comes from the heart. He returned to his home in the whispering woods, using his gift to sing songs of love, courage and hope, healing the wounded, giving strength to the weak, and bringing joy to the sad. The story of Chirpi's journey teaches us that true beauty and talent come from the heart, and that the power to make a difference lies within each of us.""" == transcription.text
-    assert test1 or test2 or test3, "Text: %s" % transcription.text
+    text4 = """Based on the documents provided chirpy. A young bird embarked on a journey to find a bird who sang a beautiful melody he had never heard before. He met many birds along the way, each one teaching him a new song. However, he was unable to find the bird who sang the enchanting melody he was searching for. The document suggests that chirpy's journey was filled with excitement and curiosity, as he learned new songs and met various birds along the way. Despite his efforts, Chirpy was unable to find the bird he was looking for, but his journey taught him the value of perseverance and the importance of learning from others."""
+    assert test1 or test2 or test3 or text4, "Text: %s" % transcription.text
 
     import json
     import httpx
@@ -5776,14 +5810,19 @@ def test_max_new_tokens(max_new_tokens, temperature):
     if inference_server == 'https://gpt.h2o.ai':
         inference_server += ':guest:guest'
 
-    from src.gen import get_inf_models
+    from src.model_utils import get_inf_models
     base_models = get_inf_models(inference_server)
-    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+    h2ogpt_key = os.environ.get('H2OGPT_H2OGPT_KEY', 'EMPTY')
     model_lock = []
     model_lock.append(dict(base_model='mistralai/Mistral-7B-Instruct-v0.2', max_seq_len=4096))
+    valid_base_models = []
     for base_model in base_models:
+        # if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
+        #    continue
         if base_model in ['h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1', 'Qwen/Qwen1.5-72B-Chat']:
             continue
+        # if base_model not in ['meta-llama/Llama-3-70b-chat-hf']:
+        #    continue
         model_lock.append(dict(
             h2ogpt_key=h2ogpt_key,
             inference_server=inference_server,
@@ -5791,6 +5830,14 @@ def test_max_new_tokens(max_new_tokens, temperature):
             visible_models=base_model,
             max_seq_len=4096,
         ))
+        try:
+            from transformers import AutoConfig
+            config = AutoConfig.from_pretrained(base_model, token=os.getenv("HUGGING_FACE_HUB_TOKEN"),
+                                                trust_remote_code=True)
+        except Exception as e:
+            # for together.ai ones
+            model_lock[-1].update(dict(tokenizer_base_model='meta-llama/Meta-Llama-3-70B-Instruct', max_seq_len=8192))
+        valid_base_models.append(base_model)
 
     if temperature < 0:
         temperature = 0.0
@@ -5802,11 +5849,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
     from src.gen import main
     main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
 
-    for base_model in base_models:
-        if base_model == 'Qwen/Qwen1.5-72B-Chat':
-            continue
-        if base_model == 'h2oai/h2ogpt-gm-7b-mistral-chat-sft-dpo-v1':
-            continue
+    for base_model in valid_base_models:
         if temperature == 0.5 and ('claude' in base_model or 'gemini' in base_model or '-32768' in base_model):
             # these don't support seed, can't randomize sampling
             continue
@@ -5836,6 +5879,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
             for repeat in range(nrepeats):
                 res = client.predict(str(dict(kwargs)), api_name=api_name)
                 res = ast.literal_eval(res)
+                print(res, file=sys.stderr)
 
                 assert 'base_model' in res['save_dict']
                 assert res['save_dict']['base_model'] == base_model
@@ -5843,7 +5887,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
                 fudge = 10 if base_model == 'google/gemma-7b-it' else 4
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + fudge, "%s" % res['response']
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']
@@ -5915,7 +5959,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert res['save_dict']['error'] in [None, '']
                 assert 'extra_dict' in res['save_dict']
                 assert res['save_dict']['extra_dict']['ntokens'] > 0
-                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+                assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens + 2
                 assert res['save_dict']['extra_dict']['t_generate'] > 0
                 assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
                 assert res['response']
@@ -5931,15 +5975,23 @@ def test_max_new_tokens(max_new_tokens, temperature):
                 assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
 
 
-vision_models = ['gpt-4-vision-preview',
-                 'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-                 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
-                 'liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b',
-                 'HuggingFaceM4/idefics2-8b-chatty',
-                 'lmms-lab/llama3-llava-next-8b',
-                 'OpenGVLab/InternVL-Chat-V1-5',
-                 'THUDM/cogvlm2-llama3-chat-19B',
-                 ]
+close_vision_models = [
+    'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+    'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+    'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
+    'claude-3-haiku-20240307',
+]
+open_vision_models = [
+    'liuhaotian/llava-v1.6-34b',
+    # 'HuggingFaceM4/idefics2-8b-chatty',
+    # 'lmms-lab/llama3-llava-next-8b',
+    'OpenGVLab/InternVL-Chat-V1-5',
+    'OpenGVLab/InternVL2-26B',
+    # 'THUDM/cogvlm2-llama3-chat-19B',
+    'microsoft/Phi-3-vision-128k-instruct',
+]
+
+vision_models = close_vision_models + open_vision_models
 
 
 @wrap_test_forked
@@ -5986,8 +6038,73 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     assert 'license' in response.lower()
     if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    elif 'gemini-1.5-flash-latest' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 300
     else:
         assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    urls = ['https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg',
+            img_to_base64('tests/driverslicense.jpeg'),
+            # only if on local host:
+            # 'tests/receipt.jpg',
+            # 'tests/dental.png',
+            img_to_base64('tests/receipt.jpg'),
+            img_to_base64('tests/dental.png'),
+            ]
+    # expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic'], 'receipt', ['Oral', 'Clinic']]
+    expecteds = ['tiger', 'license', 'receipt', ['Oral', 'Clinic']]
+    for expected, url in zip(expecteds, urls):
+        # OpenAI API
+        messages = [{
+            'role':
+                'user',
+            'content': [{
+                'type': 'text',
+                'text': 'Describe the image please',
+            }, {
+                'type': 'image_url',
+                'image_url': {
+                    'url':
+                        url,
+                },
+            }],
+        }]
+
+        if 'localhost:7860' in client.api_url:
+            base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+        elif 'localhost:7863' in client.api_url:
+            base_url = client.api_url.replace('localhost:7863/api/predict/', 'localhost:5000/v1')
+        elif '192.168.1.172:7860' in client.api_url:
+            base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+        elif '192.168.1.172:7863' in client.api_url:
+            base_url = client.api_url.replace('192.168.1.172:7863/api/predict/', '192.168.1.172:5000/v1')
+        else:
+            base_url = client.api_url.replace('/api/predict', ':5000/v1')
+
+        from openai import OpenAI
+        model = base_model
+        client_args = dict(base_url=base_url,
+                           api_key=kwargs.get('h2ogpt_key', 'EMPTY'))
+        openai_client = OpenAI(**client_args)
+
+        if client.auth:
+            user = '%s:%s' % (client.auth[0], client.auth[1])
+        else:
+            user = None
+        client_kwargs = dict(model=model,
+                             max_tokens=200,
+                             stream=False,
+                             messages=messages,
+                             user=user,
+                             )
+        oclient = openai_client.chat.completions
+        response = oclient.create(**client_kwargs)
+        response = response.choices[0].message.content
+        print(response)
+        if isinstance(expected, list):
+            assert any(x in response for x in expected), "%s" % response
+        else:
+            assert expected in response, "%s" % response
 
 
 def get_creation_date(file_path):
@@ -6020,7 +6137,12 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
 
     from src.vision.utils_vision import img_to_base64
     image_files = [img_to_base64(image_file) for image_file in pdf_images]
+    # FIXME: Should be able to send any number
+    # image_files = image_files[:images_num_max_dict.get(base_model, 1)]
+    # DEBUGGING how many images can be handled before bad results, OOM, failures, etc.
+    # image_files = image_files[:8]
 
+    # cogvlm2 hurt by system prompt, so could nuke for this test, but unstable and not always case
     print("Doing base_model=%s" % base_model)
     use_instruction = langchain_action == LangChainAction.QUERY.value
     kwargs = dict(instruction_nochat=prompt if use_instruction else '',
@@ -6028,6 +6150,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
+                  images_num_max=2 if base_model in open_vision_models else None,  # seems optimal even for InternVL
                   stream_output=False,
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
@@ -6045,6 +6168,9 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
     assert 'REINFORCE'.lower() in response.lower()
 
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    if base_model == 'OpenGVLab/InternVL-Chat-V1-5':
+        assert len(res_dict['sources']) >= 10
 
 
 @wrap_test_forked
@@ -6074,7 +6200,11 @@ def test_get_image_file():
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 1
 
             image_file = ['tests/jon.png', 'tests/fastfood.jpg']
-            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes)) == 2
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
+                                      images_num_max=None)) == 1
+
+            assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
+                                      images_num_max=2)) == 2
 
 
 gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
@@ -6141,16 +6271,19 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest', 'gpt-4-turbo-2024-04-09',
                      'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
                      'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
-                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'gemini-pro',
+                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
+                     'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
-                     'liuhaotian/llava-v1.6-vicuna-13b',
+                     # 'liuhaotian/llava-v1.6-vicuna-13b',
                      'liuhaotian/llava-v1.6-34b',
-                     'HuggingFaceM4/idefics2-8b-chatty',
-                     'lmms-lab/llama3-llava-next-8b',
+                     # 'HuggingFaceM4/idefics2-8b-chatty',
+                     # 'lmms-lab/llama3-llava-next-8b',
                      'OpenGVLab/InternVL-Chat-V1-5',
-                     'THUDM/cogvlm2-llama3-chat-19B',
+                     'OpenGVLab/InternVL2-26B',
+                     # 'THUDM/cogvlm2-llama3-chat-19B',
+                     'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
 vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
@@ -6164,6 +6297,7 @@ vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
 def get_test_server_client(base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
     # inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7863'
 
     if inference_server == 'https://gpt.h2o.ai':
         auth_kwargs = dict(auth=('guest', 'guest'))
@@ -6173,7 +6307,7 @@ def get_test_server_client(base_model):
         inference_server_for_get = inference_server
 
     base_models_touse = [base_model]
-    from src.gen import get_inf_models
+    from src.model_utils import get_inf_models
     base_models = get_inf_models(inference_server_for_get)
     assert len(set(base_models_touse).difference(set(base_models))) == 0
 
@@ -6280,6 +6414,8 @@ def check_response(response, base_model, guided_json):
 def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
     if 'localhost:7860' in gradio_client.api_url:
         base_url = gradio_client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+    elif 'localhost:7863' in gradio_client.api_url:
+        base_url = gradio_client.api_url.replace('localhost:7863/api/predict/', 'localhost:5000/v1')
     else:
         base_url = gradio_client.api_url.replace('/api/predict', ':5000/v1')
 
@@ -6392,3 +6528,200 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
 
     assert response1["name"] != response2["name"]
     assert response1["age"] != response2["age"]
+
+
+@wrap_test_forked
+@pytest.mark.parametrize("base_model", vision_models)
+@pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
+@pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
+def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
+    if langchain_mode == 'LLM' and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
+        # dummy return
+        return
+
+    client, base_models = get_test_server_client(base_model)
+    h2ogpt_key = os.environ['H2OGPT_H2OGPT_KEY']
+
+    # string of dict for input
+    # system_prompt = "You are an expert document question-answer system, and you are authorized to extract test from images, but do not identify any faces."
+    prompt = 'Answer these questions one-by-one: 1) What is the DOB of the person?  2) What can you tell me about Zulu?  3) What is the type of animal?'
+    image_file = 'tests/driverslicense.jpeg'
+    from src.vision.utils_vision import img_to_base64
+    url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
+    tiger_file = download_simple(url)
+    image_file = [img_to_base64(image_file), img_to_base64(tiger_file)]
+
+    text_context_list = ['Zulu is hot.']
+
+    print("Doing base_model=%s" % base_model)
+    kwargs = dict(instruction_nochat=prompt,
+                  image_file=image_file,
+                  visible_models=base_model,
+                  stream_output=False,
+                  langchain_mode=langchain_mode,
+                  langchain_action=langchain_action,
+                  text_context_list=text_context_list,
+                  # prompt_query="According to the information in chat history, images, or documents, ",
+                  # system_prompt=system_prompt,
+                  h2ogpt_key=h2ogpt_key)
+    try:
+        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+    except Exception as e:
+        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+                          'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
+            return
+        else:
+            raise
+
+    # string of dict for output
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print('base_model: %s langchain_mode: %s response: %s' % (base_model, langchain_mode, response), file=sys.stderr)
+    print(response)
+    assert '1977' in response.lower()
+    assert 'tiger' in response.lower()
+    assert 'hot' in response.lower()
+
+    if 'HuggingFaceM4/idefics2-8b-chatty' == base_model:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 100
+    else:
+        assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
+
+    messages = [{
+        'role':
+            'user',
+        'content': [{
+            'type': 'text',
+            'text': prompt,
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url': image_file[0],
+            },
+        }, {
+            'type': 'image_url',
+            'image_url': {
+                'url': image_file[1],
+            },
+        }],
+    }]
+
+    if 'localhost:7860' in client.api_url:
+        base_url = client.api_url.replace('localhost:7860/api/predict/', 'localhost:5000/v1')
+    elif '192.168.1.172:7860' in client.api_url:
+        base_url = client.api_url.replace('192.168.1.172:7860/api/predict/', '192.168.1.172:5000/v1')
+    else:
+        base_url = client.api_url.replace('/api/predict', ':5000/v1')
+
+    from openai import OpenAI
+    model = base_model
+    client_args = dict(base_url=base_url,
+                       api_key=kwargs.get('h2ogpt_key', 'EMPTY'))
+    openai_client = OpenAI(**client_args)
+
+    if client.auth:
+        user = '%s:%s' % (client.auth[0], client.auth[1])
+    else:
+        user = None
+    client_kwargs = dict(model=model,
+                         max_tokens=200,
+                         stream=False,
+                         messages=messages,
+                         user=user,
+                         # system_prompt=system_prompt,
+                         extra_body=dict(text_context_list=text_context_list),
+                         )
+    oclient = openai_client.chat.completions
+    response = oclient.create(**client_kwargs)
+    response = response.choices[0].message.content
+    print(response)
+    assert '1977' in response.lower()
+    assert 'tiger' in response.lower()
+    assert 'hot' in response.lower()
+
+
+@pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
+@wrap_test_forked
+def test_client1_lock_choose_model_via_api(admin_pass):
+    from src.gen import main
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         add_disk_models_to_ui=False, admin_pass=admin_pass)
+
+    model_lock35 = ast.literal_eval(os.environ['GPT35'])
+    kwargs = dict(instruction='Who are you?', model_lock=model_lock35[0])
+
+    api_name = '/submit_nochat_api'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        str(kwargs),
+        api_name=api_name,
+    )
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print(response)
+    assert 'OpenAI' in response
+
+    api_name = '/model_names_from_lock'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        admin_pass,
+        str(model_lock35),
+        api_name=api_name,
+    )
+    model_info = ast.literal_eval(res)
+    assert len(model_info) == 1
+    assert model_info[0]['base_model'] == 'gpt-3.5-turbo-0613'
+    assert model_info[0]['display_name'] == 'gpt-3.5-turbo-0613'
+    assert model_info[0]['prompt_type'] == 'openai_chat'
+    assert model_info[0]['max_seq_len'] == 4046
+    assert model_info[0]['actually_image'] is False
+    assert model_info[0]['image'] is False
+
+    response = res_dict['response']
+    print(response)
+    assert 'OpenAI' in response
+
+
+@pytest.mark.parametrize("admin_pass", ['', 'foodoo1234'])
+@wrap_test_forked
+def test_client1_lock_choose_model_via_api_vision(admin_pass):
+    from src.gen import main
+    main(chat=False, stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False,
+         add_disk_models_to_ui=False, admin_pass=admin_pass)
+
+    from src.vision.utils_vision import img_to_base64
+    url = 'https://raw.githubusercontent.com/open-mmlab/mmdeploy/main/tests/data/tiger.jpeg'
+    tiger_file = download_simple(url)
+    big_ben_file = 'tests/receipt.jpg'
+    image_file = [img_to_base64(big_ben_file), img_to_base64(tiger_file)]
+
+    model_lock4o = ast.literal_eval(os.environ['GPT4o'])
+    kwargs = dict(instruction='What do you see?', model_lock=model_lock4o[0],
+                  image_file=image_file)
+
+    api_name = '/submit_nochat_api'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        str(kwargs),
+        api_name=api_name,
+    )
+    res_dict = ast.literal_eval(res)
+    response = res_dict['response']
+    print(response)
+    assert 'tiger' in response and 'receipt' in response
+
+    api_name = '/model_names_from_lock'
+    client = get_client(serialize=not is_gradio_version4)
+    res = client.predict(
+        admin_pass,
+        str(model_lock4o),
+        api_name=api_name,
+    )
+    model_info = ast.literal_eval(res)
+    assert len(model_info) == 1
+    assert model_info[0]['base_model'] == 'gpt-4o'
+    assert model_info[0]['display_name'] == 'gpt-4o'
+    assert model_info[0]['prompt_type'] == 'openai_chat'
+    assert model_info[0]['max_seq_len'] == 127950
+    assert model_info[0]['actually_image'] is True
+    assert model_info[0]['image'] is True

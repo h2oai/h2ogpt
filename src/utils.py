@@ -1,5 +1,6 @@
 import ast
 import asyncio
+import base64
 import contextlib
 import functools
 import gc
@@ -25,6 +26,7 @@ from datetime import datetime
 from typing import Tuple, Callable, Dict
 from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 import filelock
 import fire
@@ -40,8 +42,8 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from src.enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset
-from src.utils_procs import reulimit
+from enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset
+from utils_procs import reulimit
 
 reulimit()
 
@@ -413,7 +415,7 @@ def get_githash():
 
     if githash == git_hash_unset:
         try:
-            from src.version import __version__
+            from version import __version__
             githash = __version__
         except:
             pass
@@ -1316,6 +1318,8 @@ class FakeTokenizer:
             self.encoding = None
 
     def encode(self, x, *args, return_tensors="pt", **kwargs):
+        if not x:
+            return dict(input_ids=[])
         if self.is_super_fake:
             input_ids = self.heuristic_encode(x)
             # avoid torch tensor
@@ -1622,7 +1626,8 @@ def set_openai(inference_server, model_name=None):
             if api_version in ['None', None]:
                 # for function tools support
                 # https://github.com/Azure/azure-rest-api-specs/tree/main/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-12-01-preview
-                api_version = "2024-04-01-preview"
+                # https://learn.microsoft.com/en-us/azure/ai-services/openai/api-version-deprecation
+                api_version = "2024-05-01-preview"
             if os.getenv('OPENAI_AZURE_KEY') is not None:
                 # use this instead if exists
                 api_key = os.getenv("OPENAI_AZURE_KEY")
@@ -1783,7 +1788,7 @@ def lg_to_gr(
 
     image_audio_loaders_options = ['Caption']
     if n_gpus != 0:
-        image_audio_loaders_options.extend(['CaptionBlip2', 'Pix2Struct'])
+        image_audio_loaders_options.extend(['CaptionLarge', 'Pix2Struct'])
     if have_tesseract:
         image_audio_loaders_options.append('OCR')
     if have_doctr:
@@ -1803,7 +1808,7 @@ def lg_to_gr(
     if kwargs['enable_captions']:
         if kwargs['max_quality'] and n_gpus > 0:
             # BLIP2 only on GPU
-            image_audio_loaders_options0.append('CaptionBlip2')
+            image_audio_loaders_options0.append('CaptionLarge')
         else:
             image_audio_loaders_options0.append('Caption')
     if have_librosa and kwargs['enable_transcriptions']:
@@ -1811,15 +1816,16 @@ def lg_to_gr(
             image_audio_loaders_options0.append('ASRLarge')
         else:
             image_audio_loaders_options0.append('ASR')
-    if kwargs['enable_llava'] and kwargs['llava_model']:
+    if kwargs['enable_llava'] and kwargs['llava_model'] and 'vllm' not in kwargs['llava_model']:
+        # Caption like llava model is only gradio based, legacy method
         #  and n_gpus > 0  # don't require local GPUs
         # LLaVa better and faster if present
         #  and kwargs['max_quality']
         image_audio_loaders_options0.append('LLaVa')
         if 'Caption' in image_audio_loaders_options0:
             image_audio_loaders_options0.remove('Caption')
-        if 'CaptionBlip2' in image_audio_loaders_options0:
-            image_audio_loaders_options0.remove('CaptionBlip2')
+        if 'CaptionLarge' in image_audio_loaders_options0:
+            image_audio_loaders_options0.remove('CaptionLarge')
 
     pdf_loaders_options = ['Unstructured', 'PyPDF', 'TryHTML']
     if have_pymupdf:
@@ -2264,33 +2270,70 @@ def get_json(response, fixup=True, json_schema_type=None):
     return response_new
 
 
-# Regular expression to find the first JSON block
-json_pattern = re.compile(r'{[\s\S]*?}')
+def extract_values(data):
+    if isinstance(data, dict):
+        if 'type' in data and 'value' in data:
+            return data['value']
+        elif 'items' in data:
+            return [extract_values(item) for item in data['items']]
+        elif 'properties' in data:
+            return {key: extract_values(value) for key, value in data['properties'].items()}
+        elif 'enum' in data:
+            return data['enum']  # return the enum values
+        elif 'const' in data:
+            return data['const']  # return the const value
+        elif 'oneOf' in data:
+            return [extract_values(item) for item in data['oneOf']]
+        elif 'anyOf' in data:
+            return [extract_values(item) for item in data['anyOf']]
+        elif 'allOf' in data:
+            return [extract_values(item) for item in data['allOf']]
+        else:
+            return {key: extract_values(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [extract_values(item) for item in data]
+    else:
+        return data
+
+
+# Function to check if JSON contains schema information
+def contains_schema(data):
+    if isinstance(data, dict):
+        if 'type' in data and 'value' in data:
+            return True
+        for key, value in data.items():
+            if contains_schema(value):
+                return True
+    elif isinstance(data, list):
+        for item in data:
+            if contains_schema(item):
+                return True
+    return False
+
+
+# Main function to handle both schema and regular JSON
+def handle_json(data):
+    if contains_schema(data):
+        return extract_values(data)
+    else:
+        return data
 
 
 def repair_json_by_type(response, json_schema_type=None):
-    if json_schema_type == 'object':
-        # try to assume object exists
-
-        # Find the first match
-        match = json_pattern.search(response)
-        if match:
-            response0 = match.group(0)  # Extract the matched JSON string
-        else:
-            # best can do
-            from json_repair import repair_json
-            return repair_json(response)
-        if response0.strip().startswith('{'):
-            # then seems like good json object so far, can try to repair
-            from json_repair.json_repair import JSONParser
-            a = JSONParser(response0, None, None)
-            return json.dumps(a.parse_object())
-        else:
-            # nothing can be done, just generic repair
-            from json_repair import repair_json
-            return repair_json(response)
+    # WIP for later
+    if json_schema_type in ['object', None]:
+        from json_repair import repair_json
+        response = repair_json(response)
+        try:
+            # assumes already dict
+            response = handle_json(json.loads(response))
+            if isinstance(response, list) and len(response) >= 1:
+                response = response[-1]  # take last if list
+            return json.dumps(response)
+        except Exception as e:
+            print("Did not extract_values: %s" % str(e))
+            return response
     else:
-        # rest are safe
         from json_repair import repair_json
         return repair_json(response)
 
@@ -2416,7 +2459,7 @@ def get_vllm_version(openai_client, inference_server, verbose=False):
             else:
                 if verbose:
                     print(f"Failed to retrieve version, status code: {response.status_code}")
-        except (requests.exceptions.Timeout, requests.exceptions.JSONDecodeError):
+        except (requests.exceptions.Timeout, requests.exceptions.JSONDecodeError, requests.exceptions.ConnectionError):
             # if times out, assume older version, with no JSON.  Or might not be real vllm
             vllm_version = '0.3.0'
             print(f"vLLM Server version timeout, assuming: {vllm_version}")
@@ -2444,7 +2487,7 @@ def get_docs_tokens(tokenizer, text_context_list=[], max_input_tokens=None, docs
         top_k_docs = 1
         text_context_list = text_context_list[:top_k_docs]
         # critical protection
-        from src.h2oai_pipeline import H2OTextGenerationPipeline
+        from h2oai_pipeline import H2OTextGenerationPipeline
         doc_content = text_context_list[0]
         doc_content, new_tokens0 = H2OTextGenerationPipeline.limit_prompt(doc_content,
                                                                           tokenizer,
@@ -2517,3 +2560,272 @@ def deduplicate_names(names):
             deduplicated_names.append(name)
 
     return deduplicated_names
+
+
+def download_image(image_url, save_dir):
+    """
+    Download an image from a URL and save it to a specified directory.
+
+    Parameters:
+    image_url (str): The URL of the image to download.
+    save_dir (str): The directory path where the image will be saved.
+
+    Returns:
+    str or None: The file path where the image was saved, or None if an error occurred.
+    """
+    try:
+        response = requests.get(image_url)
+        response.raise_for_status()  # Check if the request was successful
+
+        # Extract the file name from the URL
+        parsed_url = urlparse(image_url)
+        file_name = os.path.basename(parsed_url.path)
+
+        # Create the full save path
+        save_path = os.path.join(save_dir, file_name)
+        makedirs(save_dir, exist_ok=True)
+
+        # Save the image
+        with open(save_path, 'wb') as file:
+            file.write(response.content)
+        return save_path
+    except requests.exceptions.RequestException as e:
+        print(f"Error downloading the image: {e}")
+        return None
+
+
+# Check if the input is a URL
+url_pattern = re.compile(
+    r'^(?:http|ftp)s?://'  # http:// or https://
+    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+    r'localhost|'  # localhost...
+    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|'  # ...or ipv4
+    r'\[?[A-F0-9]*:[A-F0-9:]+\]?)'  # ...or ipv6
+    r'(?::\d+)?'  # optional port
+    r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+
+
+def check_input_type(input_string):
+    """
+    Check if the input string is a file path, URL, or a base64 encoded image.
+
+    Parameters:
+    input_string (str): The input string to check.
+
+    Returns:
+    str: 'file', 'url', 'base64', or 'unknown' based on the input type.
+    """
+    if not isinstance(input_string, str):
+        return 'unknown'
+
+    # Check if the input string looks like a base64 encoded image
+    if input_string.startswith("data:image/") or input_string.startswith("b'data:image/"):
+        return 'base64'
+
+    if re.match(url_pattern, input_string):
+        return 'url'
+
+    is_youtube = any(
+        input_string.replace('http://', '').replace('https://', '').replace('www.', '').startswith(prefix) for prefix in
+        url_prefixes_youtube)
+    if is_youtube:
+        return 'youtube'
+
+    # Check if the input is a file path
+    if os.path.isfile(input_string):
+        return 'file'
+
+    return 'unknown'
+
+
+def get_youtube_urls():
+    # https://www.netify.ai/resources/applications/youtube
+    base = ['googlevideo.com',
+            'video.google.com',
+            'video.l.google.com',
+            'wide-youtube.l.google.com',
+            'youtu.be',
+            'youtube.ae',
+            'youtube.al',
+            'youtube.am',
+            'youtube.at',
+            'youtube.az',
+            'youtube.ba',
+            'youtube.be',
+            'youtube.bg',
+            'youtube.bh',
+            'youtube.bo',
+            'youtube.by',
+            'youtube.ca',
+            'youtube.cat',
+            'youtube.ch',
+            'youtube.cl',
+            'youtube.co',
+            'youtube.co.ae',
+            'youtube.co.at',
+            'youtube.co.cr',
+            'youtube.co.hu',
+            'youtube.co.id',
+            'youtube.co.il',
+            'youtube.co.in',
+            'youtube.co.jp',
+            'youtube.co.ke',
+            'youtube.co.kr',
+            'youtube.com',
+            'youtube.co.ma',
+            'youtube.com.ar',
+            'youtube.com.au',
+            'youtube.com.az',
+            'youtube.com.bd',
+            'youtube.com.bh',
+            'youtube.com.bo',
+            'youtube.com.br',
+            'youtube.com.by',
+            'youtube.com.co',
+            'youtube.com.do',
+            'youtube.com.ec',
+            'youtube.com.ee',
+            'youtube.com.eg',
+            'youtube.com.es',
+            'youtube.com.gh',
+            'youtube.com.gr',
+            'youtube.com.gt',
+            'youtube.com.hk',
+            'youtube.com.hn',
+            'youtube.com.hr',
+            'youtube.com.jm',
+            'youtube.com.jo',
+            'youtube.com.kw',
+            'youtube.com.lb',
+            'youtube.com.lv',
+            'youtube.com.ly',
+            'youtube.com.mk',
+            'youtube.com.mt',
+            'youtube.com.mx',
+            'youtube.com.my',
+            'youtube.com.ng',
+            'youtube.com.ni',
+            'youtube.com.om',
+            'youtube.com.pa',
+            'youtube.com.pe',
+            'youtube.com.ph',
+            'youtube.com.pk',
+            'youtube.com.pt',
+            'youtube.com.py',
+            'youtube.com.qa',
+            'youtube.com.ro',
+            'youtube.com.sa',
+            'youtube.com.sg',
+            'youtube.com.sv',
+            'youtube.com.tn',
+            'youtube.com.tr',
+            'youtube.com.tw',
+            'youtube.com.ua',
+            'youtube.com.uy',
+            'youtube.com.ve',
+            'youtube.co.nz',
+            'youtube.co.th',
+            'youtube.co.tz',
+            'youtube.co.ug',
+            'youtube.co.uk',
+            'youtube.co.ve',
+            'youtube.co.za',
+            'youtube.co.zw',
+            'youtube.cr',
+            'youtube.cz',
+            'youtube.de',
+            'youtube.dk',
+            'youtubeeducation.com',
+            'youtube.ee',
+            'youtubeembeddedplayer.googleapis.com',
+            'youtube.es',
+            'youtube.fi',
+            'youtube.fr',
+            'youtube.ge',
+            'youtube.googleapis.com',
+            'youtube.gr',
+            'youtube.gt',
+            'youtube.hk',
+            'youtube.hr',
+            'youtube.hu',
+            'youtube.ie',
+            'youtubei.googleapis.com',
+            'youtube.in',
+            'youtube.iq',
+            'youtube.is',
+            'youtube.it',
+            'youtube.jo',
+            'youtube.jp',
+            'youtubekids.com',
+            'youtube.kr',
+            'youtube.kz',
+            'youtube.la',
+            'youtube.lk',
+            'youtube.lt',
+            'youtube.lu',
+            'youtube.lv',
+            'youtube.ly',
+            'youtube.ma',
+            'youtube.md',
+            'youtube.me',
+            'youtube.mk',
+            'youtube.mn',
+            'youtube.mx',
+            'youtube.my',
+            'youtube.ng',
+            'youtube.ni',
+            'youtube.nl',
+            'youtube.no',
+            'youtube-nocookie.com',
+            'youtube.pa',
+            'youtube.pe',
+            'youtube.ph',
+            'youtube.pk',
+            'youtube.pl',
+            'youtube.pr',
+            'youtube.pt',
+            'youtube.qa',
+            'youtube.ro',
+            'youtube.rs',
+            'youtube.ru',
+            'youtube.sa',
+            'youtube.se',
+            'youtube.sg',
+            'youtube.si',
+            'youtube.sk',
+            'youtube.sn',
+            'youtube.soy',
+            'youtube.sv',
+            'youtube.tn',
+            'youtube.tv',
+            'youtube.ua',
+            'youtube.ug',
+            'youtube-ui.l.google.com',
+            'youtube.uy',
+            'youtube.vn',
+            'yt3.ggpht.com',
+            'yt.be',
+            'ytimg.com',
+            'ytimg.l.google.com',
+            'ytkids.app.goo.gl',
+            'yt-video-upload.l.google.com']
+
+    url_prefixes_youtube1 = []
+    for x in base:
+        url_prefixes_youtube1.extend([
+            # '%s/watch?v=' % x,
+            '%s' % x,
+            # '%s/shorts/' % x,
+        ])
+    return set(url_prefixes_youtube1)
+
+
+url_prefixes_youtube = get_youtube_urls()
+
+
+def get_llama_lower_hf(llama_lower):
+    if 'huggingface.co' in llama_lower and '/resolve/' in llama_lower and len(llama_lower.split('huggingface.co')) == 2:
+        llama_lower_hf = llama_lower.split('huggingface.co')[1].split('resolve/')[0]
+    else:
+        llama_lower_hf = None
+    return llama_lower_hf

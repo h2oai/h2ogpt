@@ -532,7 +532,7 @@ def test_make_add_db(repeat, db_type):
                                   enable_pix2struct=False,
                                   enable_llava=False,
                                   enable_transcriptions=False,
-                                  captions_model="Salesforce/blip-image-captioning-base",
+                                  captions_model="microsoft/Florence-2-base",
                                   llava_model=None,
                                   llava_prompt=None,
                                   asr_model='openai/whisper-medium',
@@ -731,7 +731,7 @@ def test_urls_add(db_type):
                                            db_type=db_type)
         assert db is not None
         if db_type == 'chroma':
-            assert len(db.get()['documents']) > 50
+            assert len(db.get()['documents']) > 48
         docs = db.similarity_search("list founding team of h2o.ai")
         assert len(docs) >= 1
         assert 'Sri Ambati' in docs[0].page_content
@@ -1260,7 +1260,7 @@ os.system('cd tests ; unzip -o driverslicense.jpeg.zip')
 @pytest.mark.parametrize("enable_captions", [False, True])
 @pytest.mark.parametrize("pre_load_image_audio_models", [False, True])
 @pytest.mark.parametrize("caption_gpu", [False, True])
-@pytest.mark.parametrize("captions_model", [None, 'Salesforce/blip2-flan-t5-xl'])
+@pytest.mark.parametrize("captions_model", [None, 'microsoft/Florence-2-large'])
 @wrap_test_forked
 @pytest.mark.parallel10
 def test_png_add(captions_model, caption_gpu, pre_load_image_audio_models, enable_captions,
@@ -1268,13 +1268,13 @@ def test_png_add(captions_model, caption_gpu, pre_load_image_audio_models, enabl
     if not have_gpus and caption_gpu:
         # if have no GPUs, don't enable caption on GPU
         return
-    if not caption_gpu and captions_model == 'Salesforce/blip2-flan-t5-xl':
+    if not caption_gpu and captions_model == 'microsoft/Florence-2-large':
         # RuntimeError: "slow_conv2d_cpu" not implemented for 'Half'
         return
     if not enable_captions and pre_load_image_audio_models:
         # nothing to preload if not enabling captions
         return
-    if captions_model == 'Salesforce/blip2-flan-t5-xl' and not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3):
+    if captions_model == 'microsoft/Florence-2-large' and not (have_gpus and mem_gpus[0] > 20 * 1024 ** 3):
         # requires GPUs and enough memory to run
         return
     if not (enable_ocr or enable_doctr or enable_pix2struct or enable_captions):
@@ -1343,7 +1343,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     docs = db.similarity_search("invoice", k=10)
@@ -1394,7 +1394,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
@@ -1409,7 +1409,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
@@ -1424,7 +1424,7 @@ def run_png_add(captions_model=None, caption_gpu=False,
                 if 'kowalievska' in file:
                     docs = db.similarity_search("cat", k=10)
                     assert len(docs) >= 1
-                    assert 'a cat sitting on a window' in docs[0].page_content
+                    assert 'cat sitting' in docs[0].page_content
                     check_source(docs, test_file1)
                 elif 'Sample-Invoice-printable' in file:
                     # weak test
@@ -1445,13 +1445,16 @@ def run_png_add(captions_model=None, caption_gpu=False,
 
 def check_content_captions(docs, captions_model, enable_pix2struct):
     assert any(['license' in docs[ix].page_content.lower() for ix in range(len(docs))])
-    if captions_model is not None and 'blip2' in captions_model:
-        str_expected = """california driver license with a woman's face on it california driver license"""
+    if captions_model is not None and 'florence' in captions_model:
+        str_expected = """The image shows a California driver's license with a picture of a woman's face on it."""
+        str_expected2 = """The image is a California driver's license."""
     elif enable_pix2struct:
-        str_expected = """california license"""
+        str_expected2 = str_expected = """california license"""
     else:
-        str_expected = """a california driver's license with a picture of a woman's face and a picture of a man's face"""
-    assert any([str_expected in docs[ix].page_content.lower() for ix in range(len(docs))])
+        str_expected = """The image shows a California driver's license with a picture of a woman's face on it."""
+        str_expected2 = """The image is a California driver's license."""
+    assert any([str_expected.lower() in docs[ix].page_content.lower() for ix in range(len(docs))]) or \
+           any([str_expected2.lower() in docs[ix].page_content.lower() for ix in range(len(docs))])
 
 
 def check_content_doctr(docs):

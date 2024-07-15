@@ -83,7 +83,6 @@ for enc in model_encodings:
 print('Done!')
 "
 
-############################################################
 # Open Web UI
 conda create -n open-webui -y
 source /h2ogpt_conda/etc/profile.d/conda.sh

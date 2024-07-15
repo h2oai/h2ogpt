@@ -3,7 +3,8 @@ import os
 import numpy as np
 from scipy.stats import mode
 
-from src.utils import have_cv2, have_pillow
+from utils import have_cv2, have_pillow
+from enums import images_num_max_dict
 
 
 def largest_contour(contours):
@@ -54,9 +55,9 @@ def file_to_cv2(img_file):
         pil_image_file = img_file + '.pil.png'
         pil_image.save(pil_image_file)
         image = cv2.imread(pil_image_file)
-        #open_cv_image = np.array(pil_image, dtype=np.unit8)
+        # open_cv_image = np.array(pil_image, dtype=np.unit8)
         ## Convert RGB to BGR
-        #image = open_cv_image[:, :, ::-1].copy()
+        # image = open_cv_image[:, :, ::-1].copy()
 
     # Check if image is loaded
     if image is None:
@@ -119,7 +120,7 @@ def correct_rotation(img_file, border_size=50):
     edges = cv2.Canny(gray, 50, 150, apertureSize=3)
 
     # Detect points that form a line using HoughLinesP
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=80, minLineLength=100, maxLineGap=10)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=80, minLineLength=100, maxLineGap=10)
     if lines is None or len(lines) == 0:
         return img_file
 
@@ -162,25 +163,54 @@ def correct_rotation(img_file, border_size=50):
     return out_file
 
 
-def pad_resize_image_file(img_file):
+def pad_resize_image_file(img_file, relaxed_resize=False):
     import cv2
 
     image = file_to_cv2(img_file)
-    image = pad_resize_image(image, return_none_if_no_change=True)
+    if relaxed_resize:
+        postfix = "_resized.png"
+        image = resize_image(image, return_none_if_no_change=True, max_dimension=2048)
+    else:
+        postfix = "_pad_resized.png"
+        image = pad_resize_image(image, return_none_if_no_change=True)
     if image is None:
         new_file = img_file
     else:
-        new_file = img_file + "_pad_resized.png"
+        new_file = img_file + postfix
         cv2.imwrite(new_file, image)
 
     return new_file
 
 
-def pad_resize_image(image, return_none_if_no_change=False):
+def resize_image(image, return_none_if_no_change=True, max_dimension=2048):
+    import cv2
+    height, width = image.shape[:2]
+
+    # Calculate the scaling factor
+    if max(height, width) > max_dimension:
+        if height > width:
+            scale_factor = max_dimension / height
+        else:
+            scale_factor = max_dimension / width
+
+        # Compute new dimensions
+        new_dimensions = (int(width * scale_factor), int(height * scale_factor))
+
+        # Resize the image
+        resized_image = cv2.resize(image, new_dimensions, interpolation=cv2.INTER_AREA)
+    else:
+        # No resizing needed if the image is already within the desired dimensions
+        if return_none_if_no_change:
+            return None
+        resized_image = image
+    return resized_image
+
+
+def pad_resize_image(image, return_none_if_no_change=False, max_dimension=1024):
     import cv2
 
-    L = 1024
-    H = 1024
+    L = max_dimension
+    H = max_dimension
 
     # Load the image
     Li, Hi = image.shape[1], image.shape[0]
@@ -200,7 +230,8 @@ def pad_resize_image(image, return_none_if_no_change=False):
         # Padding
         padding_x = (L - Li) // 2
         padding_y = (H - Hi) // 2
-        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT,
+                                   value=[0, 0, 0])
     elif Li > L and Hi > H:
         # Resizing
         if aspect_ratio_original < aspect_ratio_final:
@@ -225,7 +256,8 @@ def pad_resize_image(image, return_none_if_no_change=False):
         image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
         padding_x = (L - new_width) // 2
         padding_y = (H - new_height) // 2
-        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+        image = cv2.copyMakeBorder(image, padding_y, padding_y, padding_x, padding_x, cv2.BORDER_CONSTANT,
+                                   value=[0, 0, 0])
 
     # debug, to see effect of pad-resize
     # import cv2
@@ -234,7 +266,7 @@ def pad_resize_image(image, return_none_if_no_change=False):
     return image
 
 
-def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
+def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False, relaxed_resize=False):
     # always try to fix rotation/alignment since OCR better etc. in that case
     if have_cv2:
         if do_align:
@@ -245,8 +277,8 @@ def fix_image_file(file, do_align=False, do_rotate=False, do_pad=False):
             derotated_image = correct_rotation(file)
             if derotated_image is not None and os.path.isfile(derotated_image):
                 file = derotated_image
-        if do_pad:
-            file = pad_resize_image_file(file)
+        if do_pad or relaxed_resize:
+            file = pad_resize_image_file(file, relaxed_resize=relaxed_resize)
     return file
 
 
@@ -262,14 +294,18 @@ def get_image_types():
     return image_types0
 
 
-def get_image_file(image_file, image_control, document_choice, convert=False, str_bytes=True):
+def get_image_file(image_file, image_control, document_choice, base_model=None, images_num_max=None,
+                   image_resolution=None, image_format=None,
+                   convert=False,
+                   str_bytes=True):
     if image_control is not None:
         img_file = image_control
     elif image_file is not None:
         img_file = image_file
     else:
         image_types = get_image_types()
-        img_file = [x for x in document_choice if any(x.endswith('.' + y) for y in image_types)] if document_choice else []
+        img_file = [x for x in document_choice if
+                    any(x.endswith('.' + y) for y in image_types)] if document_choice else []
 
     if not isinstance(img_file, list):
         img_file = [img_file]
@@ -280,8 +316,9 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
     for img_file1 in img_file:
         if convert:
             if img_file1 and os.path.isfile(img_file1):
-                from src.vision.utils_vision import img_to_base64
-                img_file1 = img_to_base64(img_file1, str_bytes=str_bytes)
+                from vision.utils_vision import img_to_base64
+                img_file1 = img_to_base64(img_file1, str_bytes=str_bytes, resolution=image_resolution,
+                                          output_format=image_format)
             elif isinstance(img_file1, str):
                 # assume already bytes
                 img_file1 = img_file1
@@ -289,4 +326,11 @@ def get_image_file(image_file, image_control, document_choice, convert=False, st
                 img_file1 = None
         final_img_files.append(img_file1)
     final_img_files = [x for x in final_img_files if x]
+    if base_model and images_num_max == -1:
+        images_num_max = images_num_max_dict.get(base_model, 1)
+    if base_model and images_num_max is None:
+        images_num_max = images_num_max_dict.get(base_model, 1) or 1
+    if images_num_max is None:
+        images_num_max = 1
+    final_img_files = final_img_files[:images_num_max]
     return final_img_files

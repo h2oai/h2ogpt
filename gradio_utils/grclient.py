@@ -13,8 +13,9 @@ import warnings
 from concurrent.futures import Future
 from datetime import timedelta
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
-from typing import Callable, Generator, Any, Union, List, Dict, Optional, Literal
+from typing import Callable, Generator, Any, Union, List, Dict, Literal
 import ast
 import inspect
 import numpy as np
@@ -42,6 +43,8 @@ class ReturnType(BaseModel):
     output_tokens: int = 0
     tokens_per_second: float = 0.0
     time_to_first_token: float = 0.0
+    vision_visible_model: str | None = None
+    batch_num_prompt_tokens: int | None = None
 
 
 try:
@@ -447,19 +450,20 @@ class GradioClient(Client):
         self.server_hash = self.get_server_hash()
 
     def clone(self):
-        if self.config is None:
-            self.setup()
-        client = GradioClient("")
-        for k, v in self.__dict__.items():
-            setattr(client, k, v)
-        client.reset_session()
+        with threading.Lock():
+            if self.config is None:
+                self.setup()
+            client = GradioClient("")
+            for k, v in self.__dict__.items():
+                setattr(client, k, v)
+            client.reset_session()
 
-        self.get_endpoints(client)
+            self.get_endpoints(client)
 
-        # transfer internals in case used
-        client.server_hash = self.server_hash
-        client.chat_conversation = self.chat_conversation
-        return client
+            # transfer internals in case used
+            client.server_hash = self.server_hash
+            client.chat_conversation = self.chat_conversation
+            return client
 
     def submit(
         self,
@@ -476,7 +480,12 @@ class GradioClient(Client):
             self.refresh_client_if_should()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
         except Exception as e:
-            print("Hit e=%s\n\n%s" % (str(e), traceback.format_exc()), flush=True)
+            ex = traceback.format_exc()
+            print(
+                "Hit e=%s\n\n%s\n\n%s"
+                % (str(ex), traceback.format_exc(), self.__dict__),
+                flush=True,
+            )
             # force reconfig in case only that
             self.refresh_client()
             job = super().submit(*args, api_name=api_name, fn_index=fn_index)
@@ -607,8 +616,11 @@ class GradioClient(Client):
         client_kwargs = {}
         try:
             from src.evaluate_params import eval_func_param_names
-        except ModuleNotFoundError:
-            from .src.evaluate_params import eval_func_param_names
+        except (ImportError, ModuleNotFoundError):
+            try:
+                from evaluate_params import eval_func_param_names
+            except (ImportError, ModuleNotFoundError):
+                from .src.evaluate_params import eval_func_param_names
 
         for k in eval_func_param_names:
             if k in kwargs:
@@ -656,6 +668,15 @@ class GradioClient(Client):
 
         return fun_kwargs
 
+    @staticmethod
+    def check_error(res_dict):
+        if "error" in res_dict and res_dict["error"]:
+            raise RuntimeError(f"Error from LLM: {res_dict['error']}")
+        if "error_ex" in res_dict and res_dict["error_ex"]:
+            raise RuntimeError(f"Error Traceback from LLM: {res_dict['error_ex']}")
+        if "response" not in res_dict:
+            raise ValueError("No response from LLM")
+
     def query_or_summarize_or_extract(
         self,
         print_error=print,
@@ -696,6 +717,7 @@ class GradioClient(Client):
         json_code_prompt_if_no_schema: str = None,
         json_schema_instruction: str = None,
         model: str | int | None = None,
+        model_lock: dict | None = None,
         stream_output: bool = False,
         do_sample: bool = False,
         seed: int | None = 0,
@@ -722,10 +744,20 @@ class GradioClient(Client):
         metadata_in_context: list = [],
         image_file: Union[str, list] = None,
         image_control: str = None,
+        images_num_max: int = None,
+        image_resolution: tuple = None,
+        image_format: str = None,
+        rotate_align_resize_image: bool = None,
+        video_frame_period: int = None,
+        image_batch_image_prompt: str = None,
+        image_batch_final_prompt: str = None,
+        image_batch_stream: bool = None,
+        visible_vision_models: Union[str, int, list] = None,
+        video_file: Union[str, list] = None,
         response_format: str = "text",
         guided_json: Union[str, dict] = "",
         guided_regex: str = "",
-        guided_choice: str = "",
+        guided_choice: List[str] | None = None,
         guided_grammar: str = "",
         guided_whitespace_pattern: str = None,
         prompt_type: Union[int, str] = None,
@@ -823,6 +855,7 @@ class GradioClient(Client):
             :param model: base_model name or integer index of model_lock on h2oGPT server
                             None results in use of first (0th index) model in server
                    to get list of models do client.list_models()
+            :param model_lock: dict of states or single state, with dict of things like inference server, to use when using dynamic LLM (not from existing model lock on h2oGPT)
             :param pre_prompt_extraction: Same as pre_prompt_summary but for when doing extraction
             :param prompt_extraction: Same as prompt_summary but for when doing extraction
             :param do_sample: see src/gen.py
@@ -867,12 +900,23 @@ class GradioClient(Client):
 
             :param image_file: Initial image for UI (or actual image for CLI) Vision Q/A.  Or list of images for some models
             :param image_control: Initial image for UI Image Control
+            :param images_num_max: Max. number of images per LLM call
+            :param image_resolution: Resolution of any images
+            :param image_format: Image format
+            :param rotate_align_resize_image: Whether to apply rotation, alignment, resize before giving to LLM
+            :param video_frame_period: Period of frames to use from video
+            :param image_batch_image_prompt: Prompt used to query image only if doing batching of images
+            :param image_batch_final_prompt: Prompt used to query result of batching of images
+            :param image_batch_stream: Whether to stream batching of images.
+            :param visible_vision_models: Model to use for vision, e.g. if base LLM has no vision
+                   If 'auto', then use CLI value, else use model display name given here
+            :param video_file: DO NOT USE FOR API, put images, videos, urls, and youtube urls in image_file as list
 
             :param response_format: text or json_object or json_code
             # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L117-L135
-            :param guided_json:
+            :param guided_json: str or dict of JSON schema
             :param guided_regex:
-            :param guided_choice:
+            :param guided_choice: list of strings to have LLM choose from
             :param guided_grammar:
             :param guided_whitespace_pattern:
 
@@ -999,7 +1043,9 @@ class GradioClient(Client):
         )
 
         chat_conversation = (
-            chat_conversation if chat_conversation else self.chat_conversation.copy()
+            chat_conversation
+            if chat_conversation or not self.persist
+            else self.chat_conversation.copy()
         )
 
         locals_for_client = locals().copy()
@@ -1010,7 +1056,8 @@ class GradioClient(Client):
         self.server_hash = client.server_hash
 
         # ensure can fill conversation
-        self.chat_conversation.append((instruction, None))
+        if self.persist:
+            self.chat_conversation.append((instruction, None))
 
         # get result
         actual_llm = None
@@ -1019,6 +1066,8 @@ class GradioClient(Client):
         trials = 3
         t0 = time.time()
         time_to_first_token = None
+        vision_visible_model = None
+        batch_num_prompt_tokens = None
         t_taken_s = None
         for trial in range(trials):
             t0 = time.time()
@@ -1034,6 +1083,7 @@ class GradioClient(Client):
                     # in case server changed, update in case clone()
                     self.server_hash = client.server_hash
                     res_dict = ast.literal_eval(res)
+                    self.check_error(res_dict)
                     response = res_dict["response"]
                     if langchain_action != LangChainAction.EXTRACT.value:
                         response = response.strip()
@@ -1051,7 +1101,7 @@ class GradioClient(Client):
                             f"Unable to access save_dict to get actual_llm: {str(e)}"
                         )
                         actual_llm = (
-                            sanitize_llm(visible_models)
+                            sanitize_llm(visible_models, client=client)
                             if sanitize_llm is not None
                             else visible_models
                         )
@@ -1062,6 +1112,12 @@ class GradioClient(Client):
                         output_tokens = extra_dict["ntokens"]
                         tokens_per_second = np.round(
                             extra_dict["tokens_persecond"], decimals=3
+                        )
+                        vision_visible_model = extra_dict.get(
+                            "batch_vision_visible_model"
+                        )
+                        batch_num_prompt_tokens = extra_dict.get(
+                            "batch_num_prompt_tokens"
                         )
                     except:
                         if os.getenv("HARD_ASSERTS"):
@@ -1084,9 +1140,11 @@ class GradioClient(Client):
                         output_tokens=output_tokens,
                         tokens_per_second=tokens_per_second,
                         time_to_first_token=time_to_first_token,
+                        vision_visible_model=vision_visible_model,
+                        batch_num_prompt_tokens=batch_num_prompt_tokens,
                     )
-
-                    self.chat_conversation[-1] = (instruction, response)
+                    if self.persist:
+                        self.chat_conversation[-1] = (instruction, response)
                 else:
                     job = client.submit(str(dict(client_kwargs)), api_name=api_name)
                     text0 = ""
@@ -1098,6 +1156,7 @@ class GradioClient(Client):
                         if outputs_list:
                             res = outputs_list[-1]
                             res_dict = ast.literal_eval(res)
+                            self.check_error(res_dict)
                             response = res_dict["response"]  # keeps growing
                             prompt_raw = res_dict.get(
                                 "prompt_raw", ""
@@ -1125,7 +1184,7 @@ class GradioClient(Client):
                         ) as e:  # FIXME - except TimeoutError once h2ogpt raises that.
                             if "Abrupt termination of communication" in str(e):
                                 actual_llm = (
-                                    sanitize_llm(visible_models)
+                                    sanitize_llm(visible_models, client=client)
                                     if sanitize_llm is not None
                                     else visible_models
                                 )
@@ -1138,14 +1197,16 @@ class GradioClient(Client):
 
                         res = res_all[-1]
                         res_dict = ast.literal_eval(res)
+                        self.check_error(res_dict)
                         response = res_dict["response"]
                         sources = res_dict["sources"]
                         prompt_raw = res_dict["prompt_raw"]
+                        save_dict = res_dict.get("save_dict", dict(extra_dict={}))
+                        extra_dict = save_dict.get("extra_dict", {})
                         texts_out = [x["content"] for x in sources]
                         t_taken_s = time.time() - t0
                         t_taken = "%.4f" % t_taken_s
 
-                        assert prompt_raw, "must have prompt_raw for final response"
                         if langchain_action != LangChainAction.EXTRACT.value:
                             text_chunk = response.strip()
                         else:
@@ -1153,18 +1214,29 @@ class GradioClient(Client):
 
                         if not text_chunk:
                             actual_llm = (
-                                sanitize_llm(visible_models)
+                                sanitize_llm(visible_models, client=client)
                                 if sanitize_llm is not None
                                 else visible_models
                             )
                             raise TimeoutError(
                                 f"No output from LLM {actual_llm} after {t_taken} seconds."
                             )
+                        if "error" in save_dict and not prompt_raw:
+                            raise RuntimeError(f"Error from LLM: {save_dict['error']}")
+                        assert (
+                            prompt_raw or extra_dict
+                        ), "LLM response failed to return final metadata."
 
                         try:
                             extra_dict = res_dict["save_dict"]["extra_dict"]
                             input_tokens = extra_dict["num_prompt_tokens"]
                             output_tokens = extra_dict["ntokens"]
+                            vision_visible_model = extra_dict.get(
+                                "batch_vision_visible_model"
+                            )
+                            batch_num_prompt_tokens = extra_dict.get(
+                                "batch_num_prompt_tokens"
+                            )
                             tokens_per_second = np.round(
                                 extra_dict["tokens_persecond"], decimals=3
                             )
@@ -1182,7 +1254,7 @@ class GradioClient(Client):
                                 f"Unable to access save_dict to get actual_llm: {str(e)}"
                             )
                             actual_llm = (
-                                sanitize_llm(visible_models)
+                                sanitize_llm(visible_models, client=client)
                                 if sanitize_llm is not None
                                 else visible_models
                             )
@@ -1201,12 +1273,14 @@ class GradioClient(Client):
                             output_tokens=output_tokens,
                             tokens_per_second=tokens_per_second,
                             time_to_first_token=time_to_first_token,
+                            vision_visible_model=vision_visible_model,
+                            batch_num_prompt_tokens=batch_num_prompt_tokens,
                         )
-
-                        self.chat_conversation[-1] = (
-                            instruction,
-                            text_chunk,
-                        )
+                        if self.persist:
+                            self.chat_conversation[-1] = (
+                                instruction,
+                                text_chunk,
+                            )
                     else:
                         assert not success
                         check_job(job, timeout=2.0 * timeout, raise_exception=True)
@@ -1276,24 +1350,45 @@ class GradioClient(Client):
                     f"0 and {len(valid_llms) - 1} or one of the following values: {valid_llms}.{did_you_mean}"
                 )
 
-    def get_models_full(self) -> list[dict[str, Any]]:
+    @staticmethod
+    def _get_ttl_hash(seconds=10):
+        """Return the same value within `seconds` time period"""
+        return round(time.time() / seconds)
+
+    @lru_cache()
+    def _get_models_full(self, ttl_hash=None) -> List[Dict[str, Any]]:
         """
-        Full model info in list if dict
+        Full model info in list if dict (cached)
         """
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
         if self.config is None:
             self.setup()
         return ast.literal_eval(self.predict(api_name="/model_names"))
 
-    def list_models(self) -> list[str]:
+    @lru_cache()
+    def _list_models(self, ttl_hash=None) -> List[str]:
         """
-        Model names available from endpoint
+        Model names available from endpoint (cached)
         """
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
         if self.config is None:
             self.setup()
         return [
             x["display_name"]
             for x in ast.literal_eval(self.predict(api_name="/model_names"))
         ]
+
+    def get_models_full(self) -> List[Dict[str, Any]]:
+        """
+        Full model info in list if dict
+        """
+        return self._get_models_full(ttl_hash=self._get_ttl_hash())
+
+    def list_models(self) -> List[str]:
+        """
+        Model names available from endpoint
+        """
+        return self._list_models(ttl_hash=self._get_ttl_hash())
 
     def simple_stream(
         self,

@@ -12,10 +12,10 @@ import uuid
 import subprocess
 import time
 
-from src.enums import coqui_lock_name
-from src.tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
-from src.tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
-from src.utils import cuda_vis_check, get_lock_file
+from enums import coqui_lock_name
+from tts_sentence_parsing import init_sentence_state, get_sentence, clean_sentence, detect_language
+from tts_utils import prepare_speech, get_no_audio, chunk_speed_change, combine_audios
+from utils import cuda_vis_check, get_lock_file
 
 import torch
 
