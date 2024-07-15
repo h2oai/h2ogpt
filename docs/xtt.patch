@@ -1,5 +1,5 @@
---- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/TTS/tts/layers/xtts/stream_generator.py	2024-05-26 01:16:57.462515037 -0700
-+++ new.py	2024-05-26 01:16:32.077949704 -0700
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/TTS/tts/layers/xtts/stream_generator.py	2024-07-14 17:49:58.051220434 -0700
++++ new.py	2024-07-14 17:49:44.570938022 -0700
 @@ -183,10 +183,12 @@
          requires_attention_mask = "encoder_outputs" not in model_kwargs
  
@@ -15,3 +15,12 @@
              )
  
          # decoder-only models should use left-padding for generation
+@@ -409,7 +411,7 @@
+             )
+         elif is_sample_gen_stream_mode:
+             # 11. prepare logits warper
+-            logits_warper = self._get_logits_warper(generation_config)
++            logits_warper = self._get_logits_warper(generation_config, device=inputs_tensor.device)
+ 
+             # 12. expand input_ids with `num_return_sequences` additional sequences per batch
+             input_ids, model_kwargs = self._expand_inputs_for_generation(
