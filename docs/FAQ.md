@@ -31,7 +31,7 @@ This helps keep the main UI server isolated from ingestion tasks that can consum
 
 Run h2oGPT somehow with OpenAI server active (as is default).
 ```bash
-python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True 
+python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True
 ```
 You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.  One can choose any other [image generation models](#image-generation) or [TTS models](#speech-to-text-stt-and-text-to_speech-tts) as well.
 
