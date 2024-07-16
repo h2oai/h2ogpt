@@ -2747,7 +2747,8 @@ def evaluate(
     if chat_template and hasattr(tokenizer, 'apply_chat_template'):
         try:
             tokenizer.chat_template = base64_decode_jinja_template(tokenizer)
-            messages_test = [dict(role='user', content='Hi'), dict(role='assistant', content='Hello! How can I help you today?')]
+            messages_test = [dict(role='user', content='Hi'),
+                             dict(role='assistant', content='Hello! How can I help you today?')]
             prompt = tokenizer.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
             assert isinstance(prompt, str)
         except Exception as e:

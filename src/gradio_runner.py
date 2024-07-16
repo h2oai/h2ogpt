@@ -5386,7 +5386,8 @@ def go_gradio(**kwargs):
             if chat_template_in and hasattr(tokenizer1, 'apply_chat_template'):
                 try:
                     tokenizer1.chat_template = base64_decode_jinja_template(chat_template_in)
-                    messages_test = [dict(role='user', content='Hi'), dict(role='assistant', content='Hello! How can I help you today?')]
+                    messages_test = [dict(role='user', content='Hi'),
+                                     dict(role='assistant', content='Hello! How can I help you today?')]
                     prompt = tokenizer1.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
                     assert isinstance(prompt, str)
                 except Exception as e:
