@@ -98,7 +98,7 @@ from transformers import GenerationConfig, TextIteratorStreamer
 from prompter import Prompter, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, gradio_to_llm, history_for_llm, apply_chat_template, model_name_to_prompt_type
 from stopping import get_stopping
-from prompter_utils import get_use_chat_template
+from prompter_utils import get_use_chat_template, base64_decode_jinja_template
 
 langchain_actions = [x.value for x in list(LangChainAction)]
 
@@ -2744,6 +2744,17 @@ def evaluate(
     model_lower = base_model.lower()
     llamacpp_dict = str_to_dict(llamacpp_dict)
 
+    if chat_template and hasattr(tokenizer, 'apply_chat_template'):
+        try:
+            tokenizer.chat_template = base64_decode_jinja_template(tokenizer)
+            messages_test = [dict(role='user', content='Hi'), dict(role='assistant', content='Hello! How can I help you today?')]
+            prompt = tokenizer.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
+            assert isinstance(prompt, str)
+        except Exception as e:
+            print("Could not overwrite %s template: %s" % (base_model, str(e)))
+            raise
+        # can't suppoert
+        chat_template = ''
 
     # choose chat or non-chat mode
     if not chat:
