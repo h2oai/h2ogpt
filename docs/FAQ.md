@@ -29,19 +29,19 @@ This helps keep the main UI server isolated from ingestion tasks that can consum
 
 ### Open Web UI
 
+Choose key:
+```bash
+export api_key='EMPTY'
+```
+
 Run h2oGPT somehow with OpenAI server active (as is default).
 ```bash
 python generate.py --save_dir=savegpt3internal --base_model=meta-llama/Meta-Llama-3-8B-Instruct --score_model=None --top_k_docs=-1 --add_disk_models_to_ui=False --enable_tts=True --enable_stt=True --enable_image=True --visible_image_models=['sdxl_turbo'] --pre_load_embedding_model=True
 ```
-You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.  One can choose any other [image generation models](#image-generation) or [TTS models](#speech-to-text-stt-and-text-to_speech-tts) as well.
+You can use ` --openai_port=14365` like default for ollama if desired, then avoid passing `OLLAMA_HOST` below.  One can choose any other [image generation models](#image-generation) or [TTS models](#speech-to-text-stt-and-text-to_speech-tts) as well.  Use `--enforce_h2ogpt_api_key=True` or `--enforce_h2ogpt_ui_key=True` to enforce the API key as required for API or UI, respectively.
 
-Add these if using h2oGPT for file ingestion:
+Then run the Open Web UI docker command (no h2oGPT file handling, but rest of h2oGPT features):
 ```bash
---function_server=True --function_server_port=5002 --function_api_key='EMPTY'
-```
-Then run the Open Web UI docker command:
-```bash
-export api_key='EMPTY'
 docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct \
 -e OPENAI_API_BASE_URL=http://0.0.0.0:5000/v1 \
@@ -71,7 +71,11 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 ```
 Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
 
-Or run as:
+Or to enable h2oGPT backend for file handling, run h2oGPT with these extra arguments:
+```bash
+--function_server=True --function_server_port=5002 --function_api_key=$api_key
+```
+and then run open-webui as:
 ```bash
 # python env
 conda create -n open-webui-run -y
