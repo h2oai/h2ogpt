@@ -2746,7 +2746,7 @@ def evaluate(
 
     if chat_template and hasattr(tokenizer, 'apply_chat_template'):
         try:
-            tokenizer.chat_template = base64_decode_jinja_template(tokenizer)
+            tokenizer.chat_template = base64_decode_jinja_template(chat_template)
             messages_test = [dict(role='user', content='Hi'),
                              dict(role='assistant', content='Hello! How can I help you today?')]
             prompt = tokenizer.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
@@ -2755,6 +2755,7 @@ def evaluate(
             print("Could not overwrite %s template: %s" % (base_model, str(e)))
             # can't support
             chat_template = ''
+            raise
 
     # choose chat or non-chat mode
     if not chat:

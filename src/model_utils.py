@@ -1679,6 +1679,8 @@ def __model_lock_to_state(model_dict1, **kwargs):
         except Exception as e:
             print("Could not overwrite %s template: %s" % (model_state_trial['base_model'], str(e)))
             model_state_trial['chat_template'] = get_chat_template(model_state_trial['tokenizer'])
+            if kwargs['fail_if_cannot_connect']:
+                raise
     elif has_chat_template(model_state_trial['tokenizer']):
         model_state_trial['chat_template'] = get_chat_template(model_state_trial['tokenizer'])
 
