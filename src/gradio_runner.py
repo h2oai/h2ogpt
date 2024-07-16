@@ -336,7 +336,7 @@ def go_gradio(**kwargs):
                                    " use Enter for multiple input lines)"
 
     if kwargs['visible_h2ogpt_links']:
-        description = """<a href="https://gpt-docs.h2o.ai">🎉✨ OpenWebUI ✨🎉</a> <br /> <br /><a href="https://github.com/h2oai/h2ogpt">h2oGPT Code</a> <br /><a href="https://huggingface.co/h2oai">🤗 Models</a> <br /><a href="https://h2o.ai/platform/enterprise-h2ogpt/">h2oGPTe</a>"""
+        description = """<a href="https://gpt-docs.h2o.ai">🎉✨ GO: OpenWebUI ✨🎉</a> <br /> <br /><a href="https://github.com/h2oai/h2ogpt">h2oGPT Code</a> <br /><a href="https://huggingface.co/h2oai">🤗 Models</a> <br /><a href="https://h2o.ai/platform/enterprise-h2ogpt/">h2oGPTe</a>"""
     else:
         description = None
     description_bottom = "If this host is busy, try<br>[Multi-Model](https://gpt.h2o.ai)<br>[CodeLlama](https://codellama.h2o.ai)<br>[Llama2 70B](https://llama.h2o.ai)<br>[Falcon 40B](https://falcon.h2o.ai)<br>[HF Spaces1](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot)<br>[HF Spaces2](https://huggingface.co/spaces/h2oai/h2ogpt-chatbot2)<br>"
