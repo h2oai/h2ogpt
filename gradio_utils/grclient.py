@@ -762,6 +762,7 @@ class GradioClient(Client):
         guided_whitespace_pattern: str = None,
         prompt_type: Union[int, str] = None,
         prompt_dict: Dict = None,
+        chat_template: str = None,
         jq_schema=".[]",
         llava_prompt: str = "auto",
         image_audio_loaders: list = None,
@@ -922,6 +923,7 @@ class GradioClient(Client):
 
             :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
             :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+            :param chat_template: jinja HF transformers chat_template to use.  '' or None means no change to template
 
             :param jq_schema: control json loader
                    By default '.[]' ingests everything in brute-force way, but better to match your schema

@@ -559,6 +559,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 0)
     if images_num_max is None:
         images_num_max = 0
+    if images_num_max <= -1:
+        images_num_max = -images_num_max - 1
+        force_batching = True
 
     do_batching = force_batching or len(image_files) > images_num_max or \
                   visible_vision_models != display_name and \
@@ -589,6 +592,9 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 images_num_max_batch = images_num_max_dict.get(visible_vision_models, 1)
             else:
                 images_num_max_batch = images_num_max_dict.get(visible_vision_models, 0)
+            if images_num_max_batch <= -1:
+                images_num_max_batch = -images_num_max_batch - 1
+                do_batching = True
     else:
         model_batch_choice = None
         images_num_max_batch = images_num_max
