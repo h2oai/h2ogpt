@@ -269,6 +269,7 @@ gpt4turbo_image_num_max = 20
 llava_num_max = 10
 
 # really just limited by GPU memory, beyond 5 fails for single 80GB H100 or up to 8 images works for 2*80GB H100 before tokens run out for 1kx1k images
+# but they don't do good with multiple images, so rely upon batching and pass -2 for model_lock value or CLI value
 internvl_num_max = 5
 internvl2_num_max = 10
 
