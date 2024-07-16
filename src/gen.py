@@ -4997,6 +4997,13 @@ def get_limited_prompt(instruction,
                                                 test_only=True, user_prompt_for_fake_system_prompt=None):
             can_handle_system_prompt = True
 
+        base_size = len(apply_chat_template("Test", None, [], [],
+                                            tokenizer,
+                                            test_only=True, user_prompt_for_fake_system_prompt=None))
+    else:
+        base_size = 0
+    model_max_length -= base_size
+
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
                          allow_chat_system_prompt
