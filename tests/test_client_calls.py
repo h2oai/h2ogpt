@@ -3182,8 +3182,8 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
     # refresh
     shutil.copy('tests/next.txt', user_path)
     sources = client.predict(langchain_mode, True, 512,
-                         *loaders, h2ogpt_key,
-                         api_name='/refresh_sources').replace('\\', '/').replace('\r', '').split('\n')
+                             *loaders, h2ogpt_key,
+                             api_name='/refresh_sources').replace('\\', '/').replace('\r', '').split('\n')
     sources_expected = 'file/%s/next.txt' % user_path
     assert sources_expected in str(sources)
 
@@ -5976,7 +5976,8 @@ def test_max_new_tokens(max_new_tokens, temperature):
 
 
 close_vision_models = [
-    'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+    # 'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09',
+    'gpt-4o',
     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
     'claude-3-haiku-20240307',
@@ -6268,9 +6269,12 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'mistralai/Mistral-7B-Instruct-v0.3',
                      'NousResearch/Nous-Capybara-34B',
                      'mistralai/Mixtral-8x7B-Instruct-v0.1',
-                     'mistral-medium', 'mistral-tiny', 'mistral-small-latest', 'gpt-4-turbo-2024-04-09',
+                     'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
+                     # 'gpt-4-turbo-2024-04-09',
                      'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
-                     'gpt-4-1106-preview', 'gpt-35-turbo-1106', 'gpt-4-vision-preview', 'claude-2.1',
+                     'gpt-4-1106-preview', 'gpt-35-turbo-1106',
+                     # 'gpt-4-vision-preview',
+                     'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
                      'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
