@@ -1468,7 +1468,8 @@ def main(
         if max_visible_models is None and (gradio or function):
             is_gradio_h2oai = get_is_gradio_h2oai()
             max_visible_models = 4 if is_gradio_h2oai else None
-        visible_tos_tab = visible_hosts_tab = True
+        visible_hosts_tab = False
+        visible_tos_tab = True
         if enforce_h2ogpt_api_key is None:
             enforce_h2ogpt_api_key = True
     else:
