@@ -38,7 +38,7 @@ reader_names = [
 ]
 
 eval_func_param_names = (
-        ["instruction", "iinput", "context", "stream_output", "prompt_type", "prompt_dict"]
+        ["instruction", "iinput", "context", "stream_output", "prompt_type", "prompt_dict", "chat_template"]
         + gen_hyper
         + [
             "chat",
@@ -131,8 +131,9 @@ eval_extra_columns = ["prompt", "response", "score", "sources"]
 # override default_kwargs if user_kwargs None for args evaluate() uses that are not just in model_state
 # ensure prompt_type consistent with prep_bot(), so nochat API works same way
 # see how default_kwargs is set in gradio_runner.py
-key_overrides = ["prompt_type", "prompt_dict"]
+key_overrides = ["prompt_type", "prompt_dict", "chat_template"]
 
-in_model_state_and_evaluate = ['prompt_type', 'prompt_dict', 'visible_models', 'h2ogpt_key', 'images_num_max',
+in_model_state_and_evaluate = ['prompt_type', 'prompt_dict', 'chat_template',
+                               'visible_models', 'h2ogpt_key', 'images_num_max',
                                'image_resolution',
                                'image_format', 'video_frame_period', 'visible_vision_models']

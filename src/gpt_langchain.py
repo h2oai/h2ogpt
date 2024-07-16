@@ -933,6 +933,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     iinput: Any = ''
     client: Any = None
     tokenizer: Any = None
+    chat_template: Any = None
 
     add_chat_history_to_context: bool = True
     chat_conversation: Any = []
@@ -1038,6 +1039,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              stream_output=stream_output,
                              prompt_type=prompt_type,
                              prompt_dict='',
+                             chat_template=self.chat_template,
 
                              temperature=self.temperature,
                              top_p=self.top_p,
@@ -1386,6 +1388,7 @@ class GradioLLaVaInference(GradioInference):
                              stream_output=stream_output,
                              prompt_type=self.prompter.prompt_type,
                              prompt_dict='',
+                             chat_template=self.chat_template,
 
                              temperature=self.temperature,
                              top_p=self.top_p,
@@ -2868,6 +2871,7 @@ def get_llm(use_openai_model=False,
             num_return_sequences=1,
             prompt_type=None,
             prompt_dict=None,
+            chat_template=None,
             prompter=None,
             context=None,
             iinput=None,
@@ -3637,6 +3641,7 @@ def get_llm(use_openai_model=False,
                 client=gr_client,
                 sanitize_bot_response=sanitize_bot_response,
                 tokenizer=tokenizer,
+                chat_template=chat_template,
 
                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 json_object_prompt=json_object_prompt,
@@ -6674,6 +6679,7 @@ def _run_qa_db(query=None,
                prompter=None,
                prompt_type=None,
                prompt_dict=None,
+               chat_template=None,
                answer_with_sources=True,
                append_sources_to_answer=False,
                append_sources_to_chat=True,
@@ -6951,6 +6957,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       num_return_sequences=num_return_sequences,
                       prompt_type=prompt_type,
                       prompt_dict=prompt_dict,
+                      chat_template=chat_template,
                       prompter=prompter,
                       context=context,
                       iinput=iinput,

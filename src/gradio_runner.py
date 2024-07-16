@@ -32,6 +32,7 @@ from gradio_funcs import visible_models_to_model_choice, clear_embeddings, fix_t
 from db_utils import set_userid, get_username_direct, get_userid_direct, fetch_user, upsert_user, get_all_usernames, \
     append_to_user_data, append_to_users_data
 from model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models, model_lock_to_state
+from src.prompter_utils import get_chat_template, base64_decode_jinja_template
 from tts_utils import combine_audios
 from vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 
@@ -98,7 +99,7 @@ def get_prompt_type1(is_public, **kwargs):
     prompt_type = gr.Dropdown(prompt_types_strings_used,
                               value=default_prompt_type,
                               label="Choose/Select Prompt Type",
-                              info="Auto-Detected if known (plain means failed to detect)",
+                              info="Auto-Detected if known (template or unknown means will try to use chat template).",
                               visible=not kwargs['model_lock'],
                               interactive=not is_public,
                               )
@@ -115,7 +116,7 @@ def get_prompt_type2(is_public, **kwargs):
     prompt_type2 = gr.Dropdown(prompt_types_strings_used,
                                value=default_prompt_type,
                                label="Choose/Select Prompt Type Model 2",
-                               info="Auto-Detected if known (plain means failed to detect)",
+                               info="Auto-Detected if known (template or unknown means will try to use chat template).",
                                visible=False and not kwargs['model_lock'],
                                interactive=not is_public)
     return prompt_type2
@@ -761,6 +762,7 @@ def go_gradio(**kwargs):
                                    inference_server=kwargs['inference_server'],
                                    prompt_type=kwargs['prompt_type'],
                                    prompt_dict=kwargs['prompt_dict'],
+                                   chat_template=kwargs['chat_template'],
                                    visible_models=visible_models_to_model_choice(kwargs['visible_models'],
                                                                                  model_states),
                                    h2ogpt_key=None,
@@ -2007,9 +2009,14 @@ def go_gradio(**kwargs):
                                                                     interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
                                         prompt_dict = gr.Textbox(label="Current Prompt (or Custom)",
+                                                                 info="for prompt_type not template or unknown",
                                                                  value=pprint.pformat(kwargs['prompt_dict'] or {},
                                                                                       indent=4),
                                                                  interactive=not is_public, lines=6)
+                                        chat_template = gr.Textbox(label="Custom Template",
+                                                                   info="for prompt_type template or unknown",
+                                                                   value=kwargs['chat_template'] or '',
+                                                                   interactive=not is_public, lines=6)
                                     with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len = gr.Number(value=kwargs['max_seq_len'] or -1,
                                                                 minimum=-1,
@@ -2158,9 +2165,14 @@ def go_gradio(**kwargs):
                                                                      interactive=not is_public)
                                     with gr.Accordion("Current or Custom Model Prompt", open=False, visible=True):
                                         prompt_dict2 = gr.Textbox(label="Current Prompt (or Custom) (Model 2)",
+                                                                  info="for prompt_type not template or unknown",
                                                                   value=pprint.pformat(kwargs['prompt_dict'] or {},
                                                                                        indent=4),
                                                                   interactive=not is_public, lines=4)
+                                        chat_template2 = gr.Textbox(label="Custom Template (Model 2)",
+                                                                    info="for prompt_type template or unknown",
+                                                                    value=kwargs['chat_template'] or '',
+                                                                    interactive=not is_public, lines=6)
                                     with gr.Accordion("Current or Custom Context Length", open=False, visible=True):
                                         max_seq_len2 = gr.Number(value=kwargs['max_seq_len'] or -1,
                                                                  minimum=-1,
@@ -5208,6 +5220,7 @@ def go_gradio(**kwargs):
         def load_model(model_name, lora_weights, server_name,
                        model_state_old,
                        prompt_type_old,
+                       chat_template_in,
                        load_8bit, load_4bit, low_bit_mode,
                        load_gptq, load_awq, load_exllama, use_safetensors, revision,
                        use_cpu,
@@ -5291,6 +5304,7 @@ def go_gradio(**kwargs):
                 lora_weights = no_lora_str
                 server_name = no_server_str
                 prompt_type_old = ''
+                chat_template_out = ''
                 model_path_llama1 = ''
                 model_name_gptj1 = ''
                 model_name_gpt4all_llama1 = ''
@@ -5298,7 +5312,7 @@ def go_gradio(**kwargs):
                 load_awq = ''
                 return kwargs['model_state_none'].copy(), \
                     model_name, lora_weights, server_name, \
-                    prompt_type_old, max_seq_len1, \
+                    prompt_type_old, chat_template_out, max_seq_len1, \
                     gr.Slider(maximum=256), \
                     gr.Slider(maximum=256), \
                     model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1, \
@@ -5369,6 +5383,19 @@ def go_gradio(**kwargs):
             model1, tokenizer1, device1 = get_model_retry(**gradio_model_kwargs)
             clear_torch_cache()
 
+            if chat_template_in and hasattr(tokenizer1, 'apply_chat_template'):
+                try:
+                    tokenizer1.chat_template = base64_decode_jinja_template(chat_template_in)
+                    messages_test = [dict(role='user', content='Hi'), dict(role='assistant', content='Hello! How can I help you today?')]
+                    prompt = tokenizer1.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
+                    assert isinstance(prompt, str)
+                except Exception as e:
+                    print("Could not overwrite %s template: %s" % (model_name, str(e)))
+                    raise
+                chat_template_out = chat_template_in
+            else:
+                chat_template_out = get_chat_template(tokenizer1)
+
             tokenizer_base_model = model_name
             prompt_dict1, error0 = get_prompt(prompt_type1, '',
                                               context='', reduced=False, making_context=False,
@@ -5398,7 +5425,7 @@ def go_gradio(**kwargs):
             if kwargs['debug']:
                 print("Post-switch GPU memory: %s" % get_torch_allocated(), flush=True)
             return model_state_new, model_name, lora_weights, server_name, \
-                prompt_type1, max_seq_len1new, \
+                prompt_type1, chat_template_out, max_seq_len1new, \
                 gr.Slider(maximum=max_max_new_tokens1), \
                 gr.Slider(maximum=max_max_new_tokens1), \
                 model_path_llama1, model_name_gptj1, model_name_gpt4all_llama1, \
@@ -5438,6 +5465,7 @@ def go_gradio(**kwargs):
             return gr.Textbox(label=chat_name)
 
         load_model_inputs = [model_choice, lora_choice, server_choice, model_state, prompt_type,
+                             chat_template,
                              model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                              model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                              model_safetensors_checkbox, model_revision,
@@ -5457,7 +5485,7 @@ def go_gradio(**kwargs):
                              ]
         load_model_outputs = [model_state, model_used, lora_used, server_used,
                               # if prompt_type changes, prompt_dict will change via change rule
-                              prompt_type, max_seq_len_used,
+                              prompt_type, chat_template, max_seq_len_used,
                               max_new_tokens, min_new_tokens,
                               model_path_llama, model_name_gptj, model_name_gpt4all_llama,
                               model_load_gptq, model_load_awq, n_gqa,
@@ -5493,6 +5521,7 @@ def go_gradio(**kwargs):
             .then(clear_torch_cache)
 
         load_model_inputs2 = [model_choice2, lora_choice2, server_choice2, model_state2, prompt_type2,
+                              chat_template2,
                               model_load8bit_checkbox2, model_load4bit_checkbox2, model_low_bit_mode2,
                               model_load_gptq2, model_load_awq2, model_load_exllama_checkbox2,
                               model_safetensors_checkbox2, model_revision2,
@@ -5512,7 +5541,7 @@ def go_gradio(**kwargs):
                               ]
         load_model_outputs2 = [model_state2, model_used2, lora_used2, server_used2,
                                # if prompt_type2 changes, prompt_dict2 will change via change rule
-                               prompt_type2, max_seq_len_used2,
+                               prompt_type2, chat_template2, max_seq_len_used2,
                                max_new_tokens2, min_new_tokens2,
                                model_path_llama2, model_name_gptj2, model_name_gpt4all_llama2,
                                model_load_gptq2, model_load_awq2, n_gqa2,
@@ -5733,7 +5762,7 @@ def go_gradio(**kwargs):
                 model_state3['guided_vllm'] = model_state3.get('guided_vllm', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
 
-            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict'] + list(
+            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict', 'chat_template'] + list(
                 kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']

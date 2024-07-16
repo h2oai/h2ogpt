@@ -1,3 +1,4 @@
+import ast
 import functools
 import json
 import os
@@ -8,8 +9,9 @@ import uuid
 
 import pytest
 
-from src.vision.utils_vision import process_file_list
 from tests.utils import wrap_test_forked
+from src.prompter_utils import base64_encode_jinja_template, base64_decode_jinja_template
+from src.vision.utils_vision import process_file_list
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
     deduplicate_names, handle_json, check_input_type, start_faulthandler, remove
@@ -1105,3 +1107,51 @@ def test_update_db():
                                                                "NewMode": "new_mode_path"},
                                       'langchain_mode_types': {'NewMode1': 'shared', "NewMode": "shared"},
                                       'langchain_modes': ['NewMode1', 'NewMode']}}}
+
+
+def test_encode_chat_template():
+    jinja_template = """
+{{ bos_token }}
+{%- if messages[0]['role'] == 'system' -%}
+    {% set system_message = messages[0]['content'].strip() %}
+    {% set loop_messages = messages[1:] %}
+{%- else -%}
+    {% set system_message = 'This is a chat between a user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user\'s questions based on the context. The assistant should also indicate when the answer cannot be found in the context.' %}
+    {% set loop_messages = messages %}
+{%- endif -%}
+
+System: {{ system_message }}
+
+{% for message in loop_messages %}
+    {%- if message['role'] == 'user' -%}
+        User: {{ message['content'].strip() + '\n' }}
+    {%- else -%}
+        Assistant: {{ message['content'].strip() + '\n' }}
+    {%- endif %}
+    {% if loop.last and message['role'] == 'user' %}
+        Assistant:
+    {% endif %}
+{% endfor %}
+"""
+
+    encoded_template = base64_encode_jinja_template(jinja_template)
+    print("\nEncoded Template:", encoded_template)
+
+    model_lock_option = f"""--model_lock="[{{'inference_server': 'vllm_chat:149.130.210.116', 'base_model': 'nvidia/Llama3-ChatQA-1.5-70B', 'visible_models': 'nvidia/Llama3-ChatQA-1.5-70B', 'h2ogpt_key': '62224bfb-c832-4452-81e7-8a4bdabbe164', 'chat_template': '{encoded_template}'}}]"
+"""
+
+    print("Command-Line Option:")
+    print(model_lock_option)
+
+    # Example of decoding back from the command-line option
+    command_line_option = model_lock_option.strip('--model_lock=')
+    # double ast.literal_eval due to quoted quote for model_lock_option
+    parsed_model_lock_option = ast.literal_eval(ast.literal_eval(command_line_option))
+
+    encoded_template_from_option = parsed_model_lock_option[0]['chat_template']
+    decoded_template = base64_decode_jinja_template(encoded_template_from_option)
+
+    print("Decoded Template:")
+    print(decoded_template)
+
+    assert jinja_template == decoded_template

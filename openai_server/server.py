@@ -41,6 +41,7 @@ class H2oGPTParams(BaseModel):
     # handled by extra_body passed to OpenAI API
     prompt_type: str | None = None
     prompt_dict: Dict | str | None = None
+    chat_template: str | None = None
     penalty_alpha: float | None = 0.0
     num_beams: int | None = 1
     min_new_tokens: int | None = 1
