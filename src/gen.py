@@ -98,7 +98,7 @@ from transformers import GenerationConfig, TextIteratorStreamer
 from prompter import Prompter, non_hf_types, PromptType, get_prompt, generate_prompt, \
     openai_gpts, get_vllm_extra_dict, gradio_to_llm, history_for_llm, apply_chat_template, model_name_to_prompt_type
 from stopping import get_stopping
-from prompter_utils import get_use_chat_template
+from prompter_utils import get_use_chat_template, base64_decode_jinja_template
 
 langchain_actions = [x.value for x in list(LangChainAction)]
 
@@ -130,6 +130,7 @@ def main(
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
+        chat_template: str = '',
         system_prompt: str = 'auto',
         allow_chat_system_prompt: bool = True,
 
@@ -638,6 +639,8 @@ def main(
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
+    :param chat_template: jinja HF transformers chat_template to use.  '' or None means no change to template
+           Sometimes hard to pass string with proper escapes etc.  So string can be base64 encoded with base64_encode_jinja_template()
     :param system_prompt: Universal system prompt to use if model supports, like LLaMa2, regardless of prompt_type definition.
            Useful for langchain case to control behavior, or OpenAI and Replicate.
            If None, 'None', or 'auto', then for LLaMa or other models that internally have system_prompt, will use default for each model
@@ -1866,7 +1869,7 @@ def main(
 
     placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
-        prompt_type, prompt_dict, \
+        prompt_type, prompt_dict, chat_template, \
         temperature, top_p, top_k, penalty_alpha, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
@@ -1881,7 +1884,7 @@ def main(
                             llamacpp_dict,
                             chat,
                             stream_output, show_examples,
-                            prompt_type, prompt_dict,
+                            prompt_type, prompt_dict, chat_template,
                             system_prompt,
                             pre_prompt_query, prompt_query,
                             pre_prompt_summary, prompt_summary, hyde_llm_prompt,
@@ -2179,7 +2182,7 @@ def main(
     # get score model
     score_model_state0 = dict(model=None, tokenizer=None, device=None,
                               base_model=None, display_name=None, tokenizer_base_model='', lora_weights='',
-                              inference_server='', prompt_type='', prompt_dict='',
+                              inference_server='', prompt_type='', prompt_dict='', chat_template=None,
                               visible_models=None, h2ogpt_key=None,
                               reward_model=None)
     if score_model:
@@ -2199,6 +2202,7 @@ def main(
                           tokenizer_base_model=verifier_tokenizer_base_model,
                           inference_server=verifier_inference_server,
                           prompt_type=noop_prompt_type, prompt_dict={},
+                          chat_template=None,
                           visible_models=None, h2ogpt_key=None)
         smodel, stokenizer, sdevice = get_model_retry(reward_type=False,
                                                       **get_kwargs(get_model, exclude_names=['reward_type'],
@@ -2216,7 +2220,8 @@ def main(
     model_state_base0.update(model_state_none)
     model_state_base0.update(dict(base_model=base_model, base_model0=base_model0,
                                   tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
-                                  inference_server=inference_server, prompt_type=prompt_type, prompt_dict=prompt_dict,
+                                  inference_server=inference_server,
+                                  prompt_type=prompt_type, prompt_dict=prompt_dict, chat_template=chat_template,
                                   display_name=base_model))
     model_state_base0.update(other_model_state_defaults)
     # for allowing rest of eval_func_param_names.  We don't want to force CLI values always by default
@@ -2371,6 +2376,7 @@ def evaluate(
         stream_output,
         prompt_type,
         prompt_dict,
+        chat_template,
         temperature,
         top_p,
         top_k,
@@ -2738,6 +2744,18 @@ def evaluate(
     model_lower = base_model.lower()
     llamacpp_dict = str_to_dict(llamacpp_dict)
 
+    if chat_template and hasattr(tokenizer, 'apply_chat_template'):
+        try:
+            tokenizer.chat_template = base64_decode_jinja_template(chat_template)
+            messages_test = [dict(role='user', content='Hi'),
+                             dict(role='assistant', content='Hello! How can I help you today?')]
+            prompt = tokenizer.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
+            assert isinstance(prompt, str)
+        except Exception as e:
+            print("Could not overwrite %s template: %s" % (base_model, str(e)))
+            # can't support
+            chat_template = ''
+            raise
 
     # choose chat or non-chat mode
     if not chat:
@@ -3157,6 +3175,7 @@ def evaluate(
                 top_k_docs=top_k_docs,
                 prompt_type=prompt_type,
                 prompt_dict=prompt_dict,
+                chat_template=chat_template,
                 pre_prompt_query=pre_prompt_query,
                 prompt_query=prompt_query,
                 pre_prompt_summary=pre_prompt_summary,
@@ -3620,6 +3639,7 @@ def evaluate(
                         gr_prompt = prompt  # already prepared prompt
                         gr_context = ''
                         gr_iinput = ''
+                        gr_chat_template = None
                     else:
                         # if already have prompt_type that is not plain, None, or '', then already applied some prompting
                         #  But assume server can handle prompting, and need to avoid double-up.
@@ -3633,6 +3653,7 @@ def evaluate(
                         gr_iinput = iinput
                         gr_prompt_type = prompt_type
                         gr_prompt_dict = prompt_dict
+                        gr_chat_template = chat_template
 
                     # ensure image in correct format
                     from image_utils import get_image_file
@@ -3652,6 +3673,7 @@ def evaluate(
 
                                          prompt_type=gr_prompt_type,
                                          prompt_dict=gr_prompt_dict,
+                                         chat_template=gr_chat_template,
 
                                          instruction_nochat=gr_prompt if not chat_client else '',
                                          iinput_nochat=gr_iinput,  # only for chat=False
@@ -4256,7 +4278,7 @@ def get_generate_params(model_lower,
                         llamacpp_dict,
                         chat,
                         stream_output, show_examples,
-                        prompt_type, prompt_dict,
+                        prompt_type, prompt_dict, chat_template,
                         system_prompt,
                         pre_prompt_query, prompt_query,
                         pre_prompt_summary, prompt_summary, hyde_llm_prompt,
@@ -4438,7 +4460,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
     params_list = ["",
                    stream_output,
-                   prompt_type, prompt_dict,
+                   prompt_type, prompt_dict, chat_template,
                    temperature, top_p, top_k, penalty_alpha, num_beams,
                    max_new_tokens, min_new_tokens,
                    early_stopping, max_time, repetition_penalty, num_return_sequences, do_sample, seed]
@@ -4582,7 +4604,7 @@ y = np.random.randint(0, 1, 100)
 
     return placeholder_instruction, placeholder_input, \
         stream_output, show_examples, \
-        prompt_type, prompt_dict, \
+        prompt_type, prompt_dict, chat_template, \
         temperature, top_p, top_k, penalty_alpha, num_beams, \
         max_new_tokens, min_new_tokens, early_stopping, max_time, \
         repetition_penalty, num_return_sequences, \
@@ -4986,6 +5008,13 @@ def get_limited_prompt(instruction,
                                                 tokenizer,
                                                 test_only=True, user_prompt_for_fake_system_prompt=None):
             can_handle_system_prompt = True
+
+        base_size = len(apply_chat_template("Test", None, [], [],
+                                            tokenizer,
+                                            test_only=True, user_prompt_for_fake_system_prompt=None))
+    else:
+        base_size = 0
+    model_max_length -= base_size
 
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
