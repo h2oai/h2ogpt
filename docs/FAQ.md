@@ -37,7 +37,7 @@ You can use ` --openai_port=14365` like default for ollama if desired, then avoi
 
 Add these if using h2oGPT for file ingestion:
 ```bash
---function_server=True --function_server_port=5003 --function_api_key='EMPTY'
+--function_server=True --function_server_port=5002 --function_api_key='EMPTY'
 ```
 Then run the Open Web UI docker command:
 ```bash
@@ -113,7 +113,10 @@ export ENABLE_LITELLM=False
 export ENABLE_OLLAMA_API=False
 export ENABLE_OPENAI_API=True
 export SERPER_API_KEY=''  # fill me
-export H2OGPT_FUNCTION_SERVER_PORT=5003  # match with --function_server_port
+
+export H2OGPT_FUNCTION_SERVER_HOST=0.0.0.0
+export H2OGPT_FUNCTION_SERVER_PORT=5002  # match with --function_server_port
+export H2OGPT_FUNCTION_SERVER_API_KEY=$api_key
 # run
 open-webui serve
 ```
