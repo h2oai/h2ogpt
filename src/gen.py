@@ -2753,9 +2753,8 @@ def evaluate(
             assert isinstance(prompt, str)
         except Exception as e:
             print("Could not overwrite %s template: %s" % (base_model, str(e)))
-            raise
-        # can't suppoert
-        chat_template = ''
+            # can't support
+            chat_template = ''
 
     # choose chat or non-chat mode
     if not chat:

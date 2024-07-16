@@ -1664,13 +1664,17 @@ def __model_lock_to_state(model_dict1, **kwargs):
     model_state_trial = {}
     model_state_trial.update(model_dict)
     model_state_trial.update(dict(model=model0, tokenizer=tokenizer0, device=device))
-    if model_state_trial['chat_template'] not in [None, ''] and hasattr(model_state_trial['tokenizer'], 'apply_chat_template'):
+    if model_state_trial['chat_template'] not in [None, ''] and hasattr(model_state_trial['tokenizer'],
+                                                                        'apply_chat_template'):
         try:
-            model_state_trial['tokenizer'].chat_template = base64_decode_jinja_template(model_state_trial['chat_template'])
+            model_state_trial['tokenizer'].chat_template = base64_decode_jinja_template(
+                model_state_trial['chat_template'])
             print("Overwrote chat template for %s with\n%s" % (
-            model_state_trial['base_model'], model_state_trial['tokenizer'].chat_template))
-            messages_test = [dict(role='user', content='Hi'), dict(role='assistant', content='Hello! How can I help you today?')]
-            prompt = model_state_trial['tokenizer'].apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
+                model_state_trial['base_model'], model_state_trial['tokenizer'].chat_template))
+            messages_test = [dict(role='user', content='Hi'),
+                             dict(role='assistant', content='Hello! How can I help you today?')]
+            prompt = model_state_trial['tokenizer'].apply_chat_template(messages_test, tokenize=False,
+                                                                        add_generation_prompt=True)
             assert isinstance(prompt, str)
         except Exception as e:
             print("Could not overwrite %s template: %s" % (model_state_trial['base_model'], str(e)))

@@ -5393,6 +5393,7 @@ def go_gradio(**kwargs):
                 except Exception as e:
                     print("Could not overwrite %s template: %s" % (model_name, str(e)))
                     raise
+                # use if didn't fail
                 chat_template_out = chat_template_in
             else:
                 chat_template_out = get_chat_template(tokenizer1)
