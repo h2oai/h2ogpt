@@ -170,7 +170,7 @@ def test_structure_to_messages():
         {"role": "assistant", "content": "It's expected to rain tomorrow."}
     ]
     instruction_1, system_message_1, history_1, _ = convert_messages_to_structure(messages_1)
-    reconstructed_messages_1 = structure_to_messages(instruction_1, system_message_1, history_1)
+    reconstructed_messages_1 = structure_to_messages(instruction_1, system_message_1, history_1, None)
     assert reconstructed_messages_1 == messages_1
 
     # Second example
@@ -180,7 +180,7 @@ def test_structure_to_messages():
         {"role": "user", "content": "What did I just ask?"}
     ]
     instruction_2, system_message_2, history_2, _ = convert_messages_to_structure(messages_2)
-    reconstructed_messages_2 = structure_to_messages(instruction_2, system_message_2, history_2)
+    reconstructed_messages_2 = structure_to_messages(instruction_2, system_message_2, history_2, None)
     # Adjust for the last user message being moved to instruction
     messages_2[-1] = {"role": "user", "content": "What did I just ask?"}
     assert reconstructed_messages_2 == messages_2
@@ -188,7 +188,7 @@ def test_structure_to_messages():
     # Third example: empty messages
     messages_3 = []
     instruction_3, system_message_3, history_3, _ = convert_messages_to_structure(messages_3)
-    reconstructed_messages_3 = structure_to_messages(instruction_3, system_message_3, history_3)
+    reconstructed_messages_3 = structure_to_messages(instruction_3, system_message_3, history_3, None)
     assert reconstructed_messages_3 == messages_3
 
     # Fourth and fifth examples involve a system message, which is not directly handled in the same way by
