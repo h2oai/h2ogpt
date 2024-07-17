@@ -9,7 +9,7 @@ from tests.utils import wrap_test_forked
 
 def launch_openai_server():
     from openai_server.server_start import run
-    run(is_openai_server=True)
+    run(is_openai_server=True, workers=1)
 
 
 def test_openai_server():
