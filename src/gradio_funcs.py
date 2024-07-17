@@ -488,6 +488,58 @@ def fix_text_for_gradio(text, fix_new_lines=False, fix_latex_dollars=True, fix_a
     return text
 
 
+def get_images_num_max(model_choice, fun_args, visible_vision_models, do_batching, cli_images_num_max):
+    images_num_max1 = None
+    if cli_images_num_max is not None:
+        images_num_max1 = cli_images_num_max
+    if model_choice['images_num_max'] is not None:
+        images_num_max1 = model_choice['images_num_max']
+    images_num_max_api = fun_args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
+    if images_num_max_api is not None:
+        images_num_max1 = images_num_max_api
+    if isinstance(images_num_max1, float):
+        images_num_max1 = int(images_num_max1)
+    if model_choice['images_num_max'] is not None:
+        images_num_max1 = model_choice['images_num_max']
+    if images_num_max1 is None:
+        images_num_max1 = images_num_max_dict.get(visible_vision_models)
+    if images_num_max1 == -1:
+        # treat as if didn't set, but we will just change behavior
+        do_batching = True
+        images_num_max1 = None
+    elif images_num_max1 is not None and images_num_max1 < -1:
+        # super expert control over auto-batching
+        do_batching = True
+        images_num_max1 = -images_num_max1 - 1
+
+    # may be None now, set from model-specific model_lock or dict as final choice
+    if images_num_max1 is None or images_num_max1 <= -1:
+        images_num_max1 = model_choice.get('images_num_max', images_num_max1)
+    if images_num_max1 is None or images_num_max1 <= -1:
+        # in case not coming from api
+        if model_choice.get('is_actually_vision_model'):
+            images_num_max1 = images_num_max_dict.get(visible_vision_models, 1)
+            if images_num_max1 == -1:
+                # mean never set actual value, revert to 1
+                images_num_max1 = 1
+        else:
+            images_num_max1 = images_num_max_dict.get(visible_vision_models, 0)
+            if images_num_max1 == -1:
+                # mean never set actual value, revert to 0
+                images_num_max1 = 0
+    if images_num_max1 < -1:
+        images_num_max1 = -images_num_max1 - 1
+        do_batching = True
+
+    assert images_num_max1 != -1, "Should not be -1 here"
+
+    if images_num_max1 is None:
+        # no target, so just default of no vision
+        images_num_max1 = 0
+
+    return images_num_max1, do_batching
+
+
 def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                  langchain_action1, kwargs={}, api=False, verbose=False):
     if fun1 is None:
@@ -528,40 +580,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     if isinstance(visible_vision_models, list):
         visible_vision_models = visible_vision_models[0]
 
-    images_num_max = None
-    if kwargs['images_num_max'] is not None:
-        images_num_max = kwargs['images_num_max']
-    if chosen_model_state['images_num_max'] is not None:
-        images_num_max = chosen_model_state['images_num_max']
-    images_num_max1 = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
-    if isinstance(images_num_max1, float):
-        images_num_max1 = int(images_num_max1)
-    if images_num_max1 is not None:
-        images_num_max = images_num_max1
-    if images_num_max is None:
-        images_num_max = images_num_max_dict.get(base_model, None)
-
-    force_batching = images_num_max is not None and images_num_max <= -1
-    if force_batching:
-        if images_num_max == -1:
-            # treat as if didn't set, but we will just change behavior
-            images_num_max = None
-        elif images_num_max < -1:
-            # super expert control over auto-batching
-            images_num_max = -images_num_max - 1
-
-    if images_num_max is None:
-        # in case not coming from api or UI
-        images_num_max = images_num_max if images_num_max is not None else chosen_model_state['images_num_max']
-        if chosen_model_state['is_actually_vision_model']:
-            images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 1)
-        else:
-            images_num_max = images_num_max if images_num_max is not None else images_num_max_dict.get(base_model, 0)
-    if images_num_max is None:
-        images_num_max = 0
-    if images_num_max <= -1:
-        images_num_max = -images_num_max - 1
-        force_batching = True
+    force_batching = False
+    images_num_max, force_batching = get_images_num_max(chosen_model_state, fun1.args, visible_vision_models, force_batching, kwargs['images_num_max'])
 
     do_batching = force_batching or len(image_files) > images_num_max or \
                   visible_vision_models != display_name and \
@@ -574,31 +594,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         model_states1 = kwargs['model_states']
         model_batch_choice1 = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
         model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
+        images_num_max_batch, do_batching = get_images_num_max(model_batch_choice, fun1.args, visible_vision_models, do_batching, kwargs['images_num_max'])
 
-        images_num_max_batch = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
-        if isinstance(images_num_max_batch, float):
-            images_num_max_batch = int(images_num_max_batch)
-        if model_batch_choice['images_num_max'] is not None:
-            images_num_max_batch = chosen_model_state['images_num_max']
-        if images_num_max_batch is None:
-            images_num_max_batch = images_num_max_dict.get(visible_vision_models)
-        if images_num_max_batch == -1:
-            # treat as if didn't set, but we will just change behavior
-            images_num_max_batch = None
-        elif images_num_max_batch is not None and images_num_max_batch < -1:
-            # super expert control over auto-batching
-            images_num_max_batch = -images_num_max_batch - 1
-        images_num_max_batch = images_num_max_batch if images_num_max_batch is not None else model_batch_choice.get(
-            'images_num_max', images_num_max_batch)
-        if images_num_max_batch is None:
-            # in case not coming from api
-            if model_batch_choice.get['is_actually_vision_model']:
-                images_num_max_batch = images_num_max_dict.get(visible_vision_models, 1)
-            else:
-                images_num_max_batch = images_num_max_dict.get(visible_vision_models, 0)
-            if images_num_max_batch <= -1:
-                images_num_max_batch = -images_num_max_batch - 1
-                do_batching = True
     else:
         model_batch_choice = None
         images_num_max_batch = images_num_max
