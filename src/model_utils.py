@@ -1706,15 +1706,16 @@ def __model_lock_to_state(model_dict1, **kwargs):
         model_state_trial['is_vision_model'] = is_vision_model(model_state_trial['base_model'],
                                                                all_visible_models=all_visible_models,
                                                                visible_vision_models=model_visible_vision_models)
-    if model_state_trial['is_actually_vision_model']:
-        model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
-                                                                      kwargs['images_num_max'] or 1) or 1
-    elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(
+    if model_state_trial['images_num_max'] is None:
+        if model_state_trial['is_actually_vision_model']:
+            model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
+                                                                          kwargs['images_num_max'] or 1) or 1
+        elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(
             model_visible_vision_models) > 0:
-        model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models[0],
-                                                                      kwargs['images_num_max'] or 1) or 1
-    else:
-        model_state_trial['images_num_max'] = 0
+            model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models[0],
+                                                                          kwargs['images_num_max'] or 1) or 1
+        else:
+            model_state_trial['images_num_max'] = 0
 
     auto_visible_vision_models = None
     if kwargs['visible_vision_models']:
