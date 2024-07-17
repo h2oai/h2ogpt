@@ -44,7 +44,9 @@ class ReturnType(BaseModel):
     tokens_per_second: float = 0.0
     time_to_first_token: float = 0.0
     vision_visible_model: str | None = None
-    batch_num_prompt_tokens: int | None = None
+    vision_batch_input_tokens: int | None = None
+    vision_batch_output_tokens: int | None = None
+    vision_batch_tokens_per_second: float | None = None
 
 
 try:
@@ -1069,7 +1071,9 @@ class GradioClient(Client):
         t0 = time.time()
         time_to_first_token = None
         vision_visible_model = None
-        batch_num_prompt_tokens = None
+        vision_batch_input_tokens = None
+        vision_batch_output_tokens = None
+        vision_batch_tokens_per_second = None
         t_taken_s = None
         for trial in range(trials):
             t0 = time.time()
@@ -1118,13 +1122,13 @@ class GradioClient(Client):
                         vision_visible_model = extra_dict.get(
                             "batch_vision_visible_model"
                         )
-                        batch_num_prompt_tokens = extra_dict.get(
-                            "batch_num_prompt_tokens"
+                        vision_batch_input_tokens = extra_dict.get(
+                            "vision_batch_input_tokens"
                         )
                     except:
                         if os.getenv("HARD_ASSERTS"):
                             raise
-                        input_tokens = output_tokens = tokens_per_second = 0
+                        input_tokens = output_tokens = tokens_per_second = vision_visible_model = vision_batch_input_tokens = 0
                     if asserts:
                         if text and not file and not url:
                             assert any(
@@ -1143,7 +1147,9 @@ class GradioClient(Client):
                         tokens_per_second=tokens_per_second,
                         time_to_first_token=time_to_first_token,
                         vision_visible_model=vision_visible_model,
-                        batch_num_prompt_tokens=batch_num_prompt_tokens,
+                        vision_batch_input_tokens=vision_batch_input_tokens,
+                        vision_batch_output_tokens=vision_batch_output_tokens,
+                        vision_batch_tokens_per_second=vision_batch_tokens_per_second,
                     )
                     if self.persist:
                         self.chat_conversation[-1] = (instruction, response)
@@ -1236,12 +1242,20 @@ class GradioClient(Client):
                             vision_visible_model = extra_dict.get(
                                 "batch_vision_visible_model"
                             )
-                            batch_num_prompt_tokens = extra_dict.get(
+                            vision_batch_input_tokens = extra_dict.get(
                                 "batch_num_prompt_tokens"
                             )
+                            vision_batch_output_tokens = extra_dict.get("batch_ntokens")
                             tokens_per_second = np.round(
                                 extra_dict["tokens_persecond"], decimals=3
                             )
+                            vision_batch_tokens_per_second = extra_dict.get(
+                                "batch_tokens_persecond"
+                            )
+                            if vision_batch_tokens_per_second:
+                                vision_batch_tokens_per_second = np.round(
+                                    vision_batch_tokens_per_second, decimals=3
+                                )
                         except:
                             if os.getenv("HARD_ASSERTS"):
                                 raise
@@ -1276,7 +1290,9 @@ class GradioClient(Client):
                             tokens_per_second=tokens_per_second,
                             time_to_first_token=time_to_first_token,
                             vision_visible_model=vision_visible_model,
-                            batch_num_prompt_tokens=batch_num_prompt_tokens,
+                            vision_batch_input_tokens=vision_batch_input_tokens,
+                            vision_batch_output_tokens=vision_batch_output_tokens,
+                            vision_batch_tokens_per_second=vision_batch_tokens_per_second,
                         )
                         if self.persist:
                             self.chat_conversation[-1] = (
@@ -1353,7 +1369,7 @@ class GradioClient(Client):
                 )
 
     @staticmethod
-    def _get_ttl_hash(seconds=10):
+    def _get_ttl_hash(seconds=60):
         """Return the same value within `seconds` time period"""
         return round(time.time() / seconds)
 
