@@ -578,10 +578,14 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         images_num_max_batch = fun1.args[len(input_args_list) + eval_func_param_names.index('images_num_max')]
         if isinstance(images_num_max_batch, float):
             images_num_max_batch = int(images_num_max_batch)
+        if model_batch_choice['images_num_max'] is not None:
+            images_num_max_batch = chosen_model_state['images_num_max']
+        if images_num_max_batch is None:
+            images_num_max_batch = images_num_max_dict.get(visible_vision_models)
         if images_num_max_batch == -1:
             # treat as if didn't set, but we will just change behavior
             images_num_max_batch = None
-        elif images_num_max_batch < -1:
+        elif images_num_max_batch is not None and images_num_max_batch < -1:
             # super expert control over auto-batching
             images_num_max_batch = -images_num_max_batch - 1
         images_num_max_batch = images_num_max_batch if images_num_max_batch is not None else model_batch_choice.get(
