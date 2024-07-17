@@ -55,7 +55,7 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     # base_model = 'gemini-pro'
 
     if local_server:
-        from gen import main
+        from src.gen import main
         main(base_model=base_model, chat=False,
              stream_output=stream_output, gradio=True,
              num_beams=1, block_gradio_exit=False,
