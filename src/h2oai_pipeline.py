@@ -130,9 +130,15 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
             model_max_length = int(tokenizer.model_max_length)
             if max_prompt_length is not None:
                 model_max_length = int(min(model_max_length, max_prompt_length))
+                buffer = 0
             # cut at some upper likely limit to avoid excessive tokenization etc
             # upper bound of 10 chars/token, e.g. special chars sometimes are long
-            if len(prompt_text) > model_max_length * 10:
+            if model_max_length == 0:
+                len0 = len(prompt_text)
+                prompt_text = ''
+                if verbose:
+                    print("Cut of input: %s -> %s" % (len0, len(prompt_text)), flush=True)
+            elif len(prompt_text) > model_max_length * 10:
                 len0 = len(prompt_text)
                 prompt_text = prompt_text[-model_max_length * 10:]
                 if verbose:
@@ -156,7 +162,7 @@ class H2OTextGenerationPipeline(TextGenerationPipeline):
                     # conservative by using int()
                     chars_per_token = len(prompt_text) / num_prompt_tokens
                     # keep tail, where question is if using langchain
-                    model_max_length_with_buffer = model_max_length - buffer
+                    model_max_length_with_buffer = max(0, model_max_length - buffer)
                     prompt_text = prompt_text[-int(model_max_length_with_buffer * chars_per_token):]
                     if verbose:
                         print("reducing %s tokens, assuming average of %s chars/token for %s characters" % (

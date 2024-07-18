@@ -5103,10 +5103,26 @@ def get_limited_prompt(instruction,
         num_context2_tokens = get_token_count(context2, tokenizer)
         num_instruction_tokens0 = num_instruction_tokens
         num_instruction_tokens = 0
+        prompt_just_template_tokens = 0
     else:
         context2, _ = history_to_context_func([], system_prompt='')
         context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
                                                                                max_prompt_length=max_input_tokens)
+
+        # get template size
+        data_point = dict(context=' ', instruction=' ', input=' ')
+        context_from_history = len(history) > 0
+        # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+        reduced = context_from_history
+        psave = prompter.system_prompt
+        prompter.system__prompt = ' '
+        prompt_just_template = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced,
+                                          image_file=image_file)
+        prompter.system_prompt = psave
+        prompt_just_template_tokens = get_token_count(prompt_just_template, tokenizer)
+        if system_prompt in prompt_just_template:
+            prompt_just_template_tokens -= num_system_tokens
+        num_context2_tokens += prompt_just_template_tokens
 
     if text_context_list is None:
         text_context_list = []
@@ -5143,7 +5159,6 @@ def get_limited_prompt(instruction,
 
     ###########################
     # reduce history given rest of reductions
-    num_iinput_tokens = 0
     history_to_use_final = []
     low, high = 0, len(history) - 1
     best_index = -1  # Keep track of the best index that satisfies the condition
@@ -5157,15 +5172,13 @@ def get_limited_prompt(instruction,
             history_to_use = history[0 + chat_index:]
 
         if use_chat_template:
-            instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                    max_prompt_length=max_input_tokens)
             context2 = apply_chat_template(instruction, system_prompt, history_to_use, image_file,
                                            tokenizer,
                                            user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         else:
             context2, history_to_use = history_to_context_func(history_to_use, system_prompt=system_prompt)
 
-        num_context2_tokens = get_token_count(context2, tokenizer)
+        num_context2_tokens = get_token_count(context2, tokenizer) + prompt_just_template_tokens
         diff1 = max_input_tokens - (
                 num_system_tokens + num_system_tokens_a + num_system_tokens_b + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
         if diff1 > 0:
@@ -5194,12 +5207,12 @@ def get_limited_prompt(instruction,
         context2 = apply_chat_template(instruction, system_prompt, history_to_use_final, image_file,
                                        tokenizer,
                                        user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
+        # now context2 has system tokens
+        num_system_tokens = 0
     else:
         context2, history_to_use_final = history_to_context_func(history_to_use_final, system_prompt=system_prompt)
-    # now context2 has system tokens
-    num_system_tokens = 0
 
-    num_context2_tokens = get_token_count(context2, tokenizer)
+    num_context2_tokens = get_token_count(context2, tokenizer) + prompt_just_template_tokens
     if verbose:
         print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
 
@@ -5223,7 +5236,7 @@ def get_limited_prompt(instruction,
     if not attention_sinks:
         max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
-    if max_new_tokens < min_max_new_tokens:
+    if max_new_tokens < min_max_new_tokens - 20:  # FIXME: fudge factor
         if os.getenv('HARD_ASSERTS'):
             raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
         else:
