@@ -5014,7 +5014,8 @@ def get_limited_prompt(instruction,
                                             test_only=True, user_prompt_for_fake_system_prompt=None))
     else:
         base_size = 0
-    model_max_length -= base_size
+    if max_input_tokens is not None:
+        max_input_tokens -= base_size
 
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
@@ -5041,8 +5042,8 @@ def get_limited_prompt(instruction,
                                                 add_chat_history_to_context=add_chat_history_to_context,
                                                 prompt_type=generate_prompt_type,
                                                 prompt_dict=prompt_dict,
-                                                model_max_length=model_max_length,
                                                 # still model_max_length because subtraction done again inside history_to_context
+                                                model_max_length=model_max_length,
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
                                                 system_prompt=system_prompt_to_use,
@@ -5068,6 +5069,13 @@ def get_limited_prompt(instruction,
     prompt_just_estimated_instruction = prompter.generate_prompt(data_point_just_instruction)
     num_instruction_tokens = get_token_count(prompt_just_estimated_instruction, tokenizer)
 
+    # leave bit for instruction regardless of system prompt
+    system_prompt_to_use, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt_to_use, tokenizer,
+                                                                                     max_prompt_length=int(
+                                                                                         max_input_tokens * 0.9))
+    # reduce max by system prompt since not otherwise reducing system prompt
+    max_input_tokens -= num_system_tokens
+
     # get actual instruction, limited by template limitation
     instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
                                                             max_prompt_length=max_input_tokens - delta_instruction)
@@ -5077,10 +5085,6 @@ def get_limited_prompt(instruction,
 
     iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
                                                                        max_prompt_length=max_input_tokens)
-    # leave bit for instruction regardless of system prompt
-    system_prompt_to_use, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt_to_use, tokenizer,
-                                                                                     max_prompt_length=int(
-                                                                                         max_input_tokens * 0.9))
     if use_chat_template:
         # first limit history
         context2_fake, history = history_to_context_func(history)
@@ -5091,16 +5095,13 @@ def get_limited_prompt(instruction,
         iinput = ''
         context1 = ''
         num_context1_tokens = 0
+        num_context2_tokens = get_token_count(context2, tokenizer)
+        num_instruction_tokens = 0
     else:
         # this also limits history
         context2, history = history_to_context_func(history)
-
-    context2_trial, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                                 max_prompt_length=max_input_tokens)
-    if not use_chat_template:
-        context2 = context2_trial
-    else:
-        num_instruction_tokens = 0
+        context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
+                                                                                     max_prompt_length=max_input_tokens)
 
     # limit system prompt
     if prompter:
