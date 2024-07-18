@@ -8619,10 +8619,10 @@ def get_chain(query=None,
             _, _, \
             _, _, \
             _, system_prompt, pre_prompt_summary, prompt_summary = \
-            get_limited_prompt_func(estimated_prompt_no_docs,
+            get_limited_prompt_func(template_text,
                                     iinput,
                                     tokenizer,
-                                    estimated_instruction=estimated_prompt_no_docs,
+                                    template_text=template_text,
                                     text_context_list=[],
                                     # nothing, just getting base amount for each call
                                     lang_pre_prompt=pre_prompt_summary,

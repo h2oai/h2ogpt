@@ -43,6 +43,11 @@ def count_tokens(x, encoding_name="cl100k_base"):
 
 
 def get_gradio_client(user=None):
+    print("GRADIO_SERVER_PORT:", os.getenv('GRADIO_SERVER_PORT'), file=sys.stderr)
+    print("GRADIO_GUEST_NAME:", os.getenv('GRADIO_GUEST_NAME'), file=sys.stderr)
+    print("GRADIO_AUTH:", os.getenv('GRADIO_AUTH'), file=sys.stderr)
+    print("GRADIO_AUTH_ACCESS:", os.getenv('GRADIO_AUTH_ACCESS'), file=sys.stderr)
+
     try:
         from gradio_utils.grclient import GradioClient as Client
         concurrent_client = True
@@ -100,13 +105,14 @@ def get_gradio_client(user=None):
             client.setup()
     return client
 
-
+print("global gradio_client", file=sys.stderr)
 gradio_client = get_gradio_client()
 
 
 def get_client(user=None):
     # concurrent gradio client
     if gradio_client is None or user is not None:
+        print("Getting fresh client: %s" % str(user), file=sys.stderr)
         # assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
     elif hasattr(gradio_client, 'clone'):
@@ -119,7 +125,7 @@ def get_client(user=None):
                 gradio_client.refresh_client()
     else:
         print(
-            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.")
+            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.", file=sys.stderr)
         client = get_gradio_client(user=user)
 
     # even if not auth, want to login
