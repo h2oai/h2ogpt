@@ -5236,7 +5236,7 @@ def get_limited_prompt(instruction,
     if not attention_sinks:
         max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
-    if max_new_tokens < min_max_new_tokens - 20:  # FIXME: fudge factor
+    if max_new_tokens < min_max_new_tokens - 30:  # FIXME: fudge factor
         if os.getenv('HARD_ASSERTS'):
             raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
         else:
