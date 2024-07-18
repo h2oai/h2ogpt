@@ -3,6 +3,7 @@ import base64
 import io
 import os
 import platform
+import sys
 import time
 import uuid
 from collections import deque
@@ -109,9 +110,9 @@ def get_client(user=None):
         # assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
     elif hasattr(gradio_client, 'clone'):
-        print("gradio_client.auth=%s" % str(gradio_client.auth))
+        print("gradio_client.auth=%s" % str(gradio_client.auth), file=sys.stderr)
         client = gradio_client.clone()
-        print("client.auth=%s" % str(client.auth))
+        print("client.auth=%s" % str(client.auth), file=sys.stderr)
         if client.get_server_hash() != gradio_client.server_hash:
             os.makedirs('locks', exist_ok=True)
             with filelock.FileLock(os.path.join('locks', 'openai_gradio_client.lock')):
