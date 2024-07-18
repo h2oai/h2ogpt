@@ -3299,7 +3299,7 @@ def evaluate(
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         history_to_use_final, external_handle_chat_conversation, \
-        top_k_docs_trial, one_doc_size, truncation_generation, system_prompt = \
+        top_k_docs_trial, one_doc_size, truncation_generation, system_prompt, _, _ = \
         get_limited_prompt(instruction,
                            iinput,
                            tokenizer,
@@ -4915,7 +4915,7 @@ def get_relaxed_max_new_tokens(prompt, tokenizer=None, max_new_tokens=None, max_
 def get_limited_prompt(instruction,
                        iinput,
                        tokenizer,
-                       estimated_instruction=None,
+                       template_text='',
                        prompter=None,
                        base_model=None,
                        inference_server=None,
@@ -4940,6 +4940,8 @@ def get_limited_prompt(instruction,
                        attention_sinks=False,
                        doing_grounding=False,
                        image_file=[],
+                       lang_pre_prompt='',
+                       lang_prompt=''
                        ):
     """
     Take instruction (estimated_instruction for counting token purposes), iinput, system_prompt, context, chat_conversation, text_context_list as inputs
@@ -4953,9 +4955,6 @@ def get_limited_prompt(instruction,
         # these don't support allowing going beyond total context
         truncation_generation = True
 
-    # for templates, use estimated for counting, but adjust instruction as output
-    if estimated_instruction is None:
-        estimated_instruction = instruction
     if chat_conversation is None:
         chat_conversation = []
 
@@ -5014,8 +5013,49 @@ def get_limited_prompt(instruction,
                                             test_only=True, user_prompt_for_fake_system_prompt=None))
     else:
         base_size = 0
-    if max_input_tokens is not None:
-        max_input_tokens -= base_size
+    max_input_tokens -= base_size
+
+    context1 = context
+    if context1 is None:
+        context1 = ''
+
+    from h2oai_pipeline import H2OTextGenerationPipeline
+    template_tokens = get_token_count(template_text, tokenizer)
+    max_input_tokens -= template_tokens
+
+    ###########################
+    # leave bit for instruction regardless of system prompt
+    system_prompt0 = system_prompt
+    system_prompt, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt, tokenizer,
+                                                                              max_prompt_length=int(
+                                                                                  max_input_tokens * 0.9))
+    num_system_tokens0 = num_system_tokens
+    max_input_tokens -= num_system_tokens
+    if prompter:
+        prompter.system_prompt = system_prompt
+
+    lang_prompt, num_system_tokens_a = H2OTextGenerationPipeline.limit_prompt(lang_prompt, tokenizer,
+                                                                              max_prompt_length=int(
+                                                                                  max_input_tokens * 0.45))
+    max_input_tokens -= num_system_tokens_a
+
+    lang_pre_prompt, num_system_tokens_b = H2OTextGenerationPipeline.limit_prompt(lang_pre_prompt, tokenizer,
+                                                                                  max_prompt_length=int(
+                                                                                      max_input_tokens * 0.45))
+    max_input_tokens -= num_system_tokens_b
+
+    # get actual instruction, limited by template limitation
+    instruction, num_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
+                                                                                 max_prompt_length=max_input_tokens)
+    max_input_tokens -= num_instruction_tokens
+
+    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
+                                                                           max_prompt_length=max_input_tokens)
+    max_input_tokens -= num_context1_tokens
+
+    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
+                                                                       max_prompt_length=max_input_tokens)
+    max_input_tokens -= num_iinput_tokens
 
     chat_system_prompt = not external_handle_chat_conversation and \
                          not can_handle_system_prompt and \
@@ -5024,18 +5064,18 @@ def get_limited_prompt(instruction,
         user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
         chat_conversation_system_prompt = [[user_prompt_for_fake_system_prompt, system_prompt]]
         # nuke system prompt else will double-up
-        system_prompt_to_use = ''
+        system_prompt = ''
     else:
         chat_conversation_system_prompt = []
-        system_prompt_to_use = system_prompt
     if not gradio_server:
         # else inner calls will handle LLM prompting and system prompt, so don't double up
         chat_conversation = chat_conversation_system_prompt + chat_conversation
 
+    ###########################
     # merge handles if chat_conversation is None
     history = []
-    history = history_for_llm(history)
-    history = merge_chat_conversation_history(chat_conversation, history)
+    history0 = history_for_llm(history)
+    history = merge_chat_conversation_history(chat_conversation, history0)
 
     history_to_context_func = functools.partial(history_to_context,
                                                 langchain_mode=langchain_mode,
@@ -5046,72 +5086,43 @@ def get_limited_prompt(instruction,
                                                 model_max_length=model_max_length,
                                                 memory_restriction_level=memory_restriction_level,
                                                 keep_sources_in_context=keep_sources_in_context,
-                                                system_prompt=system_prompt_to_use,
+                                                #
                                                 hyde_level=hyde_level,
                                                 gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                                                 min_max_new_tokens=min_max_new_tokens)
 
-    context1 = context
-    if context1 is None:
-        context1 = ''
-
-    # get how many more tokens in templated instruction, somewhat of estimate at fine level
-    num_instruction_tokens = get_token_count(instruction, tokenizer)
-    num_estimated_instruction_tokens = get_token_count(estimated_instruction, tokenizer)
-    delta_instruction = max(0, num_estimated_instruction_tokens - num_instruction_tokens)
-
-    # get estimated templated instruction tokens for counting purposes
-    from h2oai_pipeline import H2OTextGenerationPipeline
-    estimated_instruction, num_estimated_instruction_tokens = H2OTextGenerationPipeline.limit_prompt(
-        estimated_instruction, tokenizer,
-        max_prompt_length=max_input_tokens)
-    data_point_just_instruction = dict(context='', instruction=estimated_instruction, input='')
-    prompt_just_estimated_instruction = prompter.generate_prompt(data_point_just_instruction)
-    num_instruction_tokens = get_token_count(prompt_just_estimated_instruction, tokenizer)
-
-    # leave bit for instruction regardless of system prompt
-    system_prompt_to_use, num_system_tokens = H2OTextGenerationPipeline.limit_prompt(system_prompt_to_use, tokenizer,
-                                                                                     max_prompt_length=int(
-                                                                                         max_input_tokens * 0.9))
-    # reduce max by system prompt since not otherwise reducing system prompt
-    if max_input_tokens is not None:
-        max_input_tokens -= num_system_tokens
-
-    # get actual instruction, limited by template limitation
-    instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                            max_prompt_length=max_input_tokens - delta_instruction)
-
-    context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
-                                                                           max_prompt_length=max_input_tokens)
-
-    iinput, num_iinput_tokens = H2OTextGenerationPipeline.limit_prompt(iinput, tokenizer,
-                                                                       max_prompt_length=max_input_tokens)
+    ###########################
+    # get context2 without history or system_prompt
     if use_chat_template:
-        # first limit history
-        context2_fake, history = history_to_context_func(history)
-        # now apply chat template
-        context2 = apply_chat_template(instruction, system_prompt_to_use, history, image_file,
+        context2 = apply_chat_template(instruction, '', [], image_file,
                                        tokenizer,
                                        user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         iinput = ''
         context1 = ''
         num_context1_tokens = 0
         num_context2_tokens = get_token_count(context2, tokenizer)
+        num_instruction_tokens0 = num_instruction_tokens
         num_instruction_tokens = 0
+        prompt_just_template_tokens = 0
     else:
-        # this also limits history
-        context2, history = history_to_context_func(history)
+        context2, _ = history_to_context_func([], system_prompt='')
         context2, num_context2_tokens = H2OTextGenerationPipeline.limit_prompt(context2, tokenizer,
-                                                                                     max_prompt_length=max_input_tokens)
+                                                                               max_prompt_length=max_input_tokens)
 
-    # limit system prompt
-    if prompter:
-        prompter.system_prompt = system_prompt_to_use
-    if external_handle_chat_conversation:
-        pass
-    else:
-        # already accounted for in instruction
-        num_system_tokens = 0
+        # get template size
+        data_point = dict(context=' ', instruction=' ', input=' ')
+        context_from_history = len(history) > 0
+        # if used history -> context2, then already have (if exists) system prompt etc., just get rest of reduced prompt
+        reduced = context_from_history
+        psave = prompter.system_prompt
+        prompter.system__prompt = ' '
+        prompt_just_template = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced,
+                                          image_file=image_file)
+        prompter.system_prompt = psave
+        prompt_just_template_tokens = get_token_count(prompt_just_template, tokenizer)
+        if system_prompt in prompt_just_template:
+            prompt_just_template_tokens -= num_system_tokens
+        num_context2_tokens += prompt_just_template_tokens
 
     if text_context_list is None:
         text_context_list = []
@@ -5124,135 +5135,86 @@ def get_limited_prompt(instruction,
     # handle overhead by lowering locally max input tokens, since not removable
     max_input_tokens -= num_doc_overhead_tokens
 
-    num_doc_tokens = sum([get_token_count(x + docs_joiner, tokenizer) for x in text_context_list])
+    num_doc_tokens0 = sum([get_token_count(x + docs_joiner, tokenizer) for x in text_context_list])
 
     num_prompt_tokens0 = (num_system_tokens or 0) + \
+                         (num_system_tokens_a or 0) + \
+                         (num_system_tokens_b or 0) + \
                          (num_instruction_tokens or 0) + \
                          (num_context1_tokens or 0) + \
                          (num_context2_tokens or 0) + \
                          (num_iinput_tokens or 0) + \
-                         (num_doc_tokens or 0)
+                         (num_doc_tokens0 or 0)
 
     # go down to no less than 256, about 1 paragraph
     # use max_new_tokens before use num_prompt_tokens0 else would be negative or ~0
     min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
-    # by default assume can handle all chat and docs
-    history_to_use_final = history.copy()
 
-    # allowed residual is either half of what is allowed if doc exceeds half, or is rest of what doc didn't consume
-    num_non_doc_tokens = num_prompt_tokens0 - num_doc_tokens
-    # to doc first then non-doc, shouldn't matter much either way
-    doc_max_length = max(max_input_tokens - num_non_doc_tokens, int(doc_importance * max_input_tokens))
+    ###########################
+    # reduce docs
+    # leave bit for history
     top_k_docs, one_doc_size, num_doc_tokens = get_docs_tokens(tokenizer, text_context_list=text_context_list,
-                                                               max_input_tokens=doc_max_length)
-    non_doc_max_length = max(max_input_tokens - num_doc_tokens, int((1.0 - doc_importance) * max_input_tokens))
+                                                               max_input_tokens=int(max_input_tokens * 0.9))
+    max_input_tokens -= num_doc_tokens
 
-    if num_non_doc_tokens > non_doc_max_length:
-        # need to limit in some way, keep portion of history but all of context and instruction
-        # 1) drop iinput (unusual to include anyways)
-        # 2) reduce history
-        # 3) reduce context1
-        # 4) limit instruction so will fit
-        # 5) limit system prompt
-        diff1 = non_doc_max_length - (
-                num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
-        diff2 = non_doc_max_length - (num_system_tokens + num_instruction_tokens + num_context1_tokens)
-        diff3 = non_doc_max_length - (num_system_tokens + num_instruction_tokens)
-        diff4 = non_doc_max_length - int(num_system_tokens + max_input_tokens * 0.1)
-        diff5 = non_doc_max_length
+    ###########################
+    # reduce history given rest of reductions
+    history_to_use_final = []
+    low, high = 0, len(history) - 1
+    best_index = -1  # Keep track of the best index that satisfies the condition
+    chat_index = 0
+    while low <= high:
+        chat_index = (low + high) // 2  # Find the middle index
+        if chat_system_prompt and history:  # should always have history[0] but just protection in case
+            # Don't ever lose system prompt if putting into chat
+            history_to_use = [history[0]] + history[1 + chat_index:]
+        else:
+            history_to_use = history[0 + chat_index:]
+
+        if use_chat_template:
+            context2 = apply_chat_template(instruction, system_prompt, history_to_use, image_file,
+                                           tokenizer,
+                                           user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
+        else:
+            context2, history_to_use = history_to_context_func(history_to_use, system_prompt=system_prompt)
+
+        num_context2_tokens = get_token_count(context2, tokenizer) + prompt_just_template_tokens
+        diff1 = max_input_tokens - (
+                num_system_tokens + num_system_tokens_a + num_system_tokens_b + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
         if diff1 > 0:
-            # then should be able to do #1
-            iinput = ''
-            num_iinput_tokens = 0
-        elif diff2 > 0 > diff1:
-            # then may be able to do #1 + #2
-            iinput = ''
-            num_iinput_tokens = 0
-            history_to_use_final = []
-            low, high = 0, len(history) - 1
-            best_index = -1  # Keep track of the best index that satisfies the condition
-            chat_index = 0
-            while low <= high:
-                chat_index = (low + high) // 2  # Find the middle index
-                if chat_system_prompt and history:  # should always have history[0] but just protection in case
-                    # Don't ever lose system prompt if putting into chat
-                    history_to_use = [history[0]] + history[1 + chat_index:]
-                else:
-                    history_to_use = history[0 + chat_index:]
+            best_index = chat_index  # Update best index
+            # Condition met, try to find if there's a smaller history that still meets the condition
+            history_to_use_final = history_to_use.copy()
+            high = chat_index - 1
+        else:
+            # Condition not met, need to include more history
+            low = chat_index + 1
+        # i.e. if chat_index == len(history), then nothing can be consumed
+    if best_index != -1:
+        chat_index = best_index
+        if chat_system_prompt and history:
+            history_to_use_final = [history[0]] + history[1 + best_index:]
+        else:
+            history_to_use_final = history[0 + best_index:]
+    else:
+        chat_index = -1
+        # can't fit any history
+        history_to_use_final = []
 
-                if use_chat_template:
-                    instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                            max_prompt_length=non_doc_max_length)
-                    context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use, image_file,
-                                                   tokenizer,
-                                                   user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
-                else:
-                    context2, history_to_use = history_to_context_func(history_to_use)
+    ###########################
+    # get final context2
+    if use_chat_template:
+        context2 = apply_chat_template(instruction, system_prompt, history_to_use_final, image_file,
+                                       tokenizer,
+                                       user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
+        # now context2 has system tokens
+        num_system_tokens = 0
+    else:
+        context2, history_to_use_final = history_to_context_func(history_to_use_final, system_prompt=system_prompt)
 
-                num_context2_tokens = get_token_count(context2, tokenizer)
-                diff1 = non_doc_max_length - (
-                        num_system_tokens + num_instruction_tokens + num_context1_tokens + num_context2_tokens)
-                if diff1 > 0:
-                    best_index = chat_index  # Update best index
-                    # Condition met, try to find if there's a smaller history that still meets the condition
-                    history_to_use_final = history_to_use.copy()
-                    high = chat_index - 1
-                else:
-                    # Condition not met, need to include more history
-                    low = chat_index + 1
-                # i.e. if chat_index == len(history), then nothing can be consumed
-            if best_index != -1:
-                chat_index = best_index
-                if chat_system_prompt and history:
-                    history_to_use_final = [history[0]] + history[1 + best_index:]
-                else:
-                    history_to_use_final = history[0 + best_index:]
-            else:
-                chat_index = -1
-                # can't fit any history
-                history_to_use_final = []
-            if use_chat_template:
-                instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                        max_prompt_length=non_doc_max_length)
-                context2 = apply_chat_template(instruction, system_prompt_to_use, history_to_use_final, image_file,
-                                               tokenizer,
-                                               user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
-            else:
-                context2, history_to_use_final = history_to_context_func(history_to_use_final)
-
-            num_context2_tokens = get_token_count(context2, tokenizer)
-            if verbose:
-                print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
-        elif not use_chat_template and diff3 > 0 > diff2:
-            # then may be able to do #1 + #2 + #3
-            iinput = ''
-            num_iinput_tokens = 0
-            context2 = ''
-            num_context2_tokens = 0
-            context1, num_context1_tokens = H2OTextGenerationPipeline.limit_prompt(context1, tokenizer,
-                                                                                   max_prompt_length=diff3)
-            if num_context1_tokens <= diff3:
-                pass
-            else:
-                print("failed to reduce", flush=True)
-        elif not use_chat_template:
-            # then must be able to do #1 + #2 + #3 + #4
-            iinput = ''
-            num_iinput_tokens = 0
-            context2 = ''
-            num_context2_tokens = 0
-            context1 = ''
-            num_context1_tokens = 0
-            # diff4 accounts for real prompting for instruction
-            # FIXME: history_to_context could include instruction, in case system prompt long, we overcount and could have more free tokens
-
-            max_prompt_length = max(0, diff4 - delta_instruction)
-            instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
-                                                                    max_prompt_length=max_prompt_length)
-            # get actual instruction tokens
-            data_point_just_instruction = dict(context='', instruction=instruction, input='')
-            prompt_just_instruction = prompter.generate_prompt(data_point_just_instruction)
-            num_instruction_tokens = get_token_count(prompt_just_instruction, tokenizer) + delta_instruction
+    num_context2_tokens = get_token_count(context2, tokenizer) + prompt_just_template_tokens
+    if verbose:
+        print("chat_conversation used %d entries out of %d" % (chat_index + 1, len(history)), flush=True)
 
     # update full context
     # avoid including chat_conversation if handled externally, only used above for computations of prompt
@@ -5260,6 +5222,8 @@ def get_limited_prompt(instruction,
 
     # update token counts (docs + non-docs, all tokens)
     num_prompt_tokens = (num_system_tokens or 0) + \
+                        (num_system_tokens_a or 0) + \
+                        (num_system_tokens_b or 0) + \
                         (num_instruction_tokens or 0) + \
                         (num_context1_tokens or 0) + \
                         (num_context2_tokens or 0) + \
@@ -5272,7 +5236,7 @@ def get_limited_prompt(instruction,
     if not attention_sinks:
         max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
-    if max_new_tokens < min_max_new_tokens:
+    if max_new_tokens < min_max_new_tokens - 30:  # FIXME: fudge factor
         if os.getenv('HARD_ASSERTS'):
             raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
         else:
@@ -5283,7 +5247,7 @@ def get_limited_prompt(instruction,
         debug = False
         stream_output = False  # doesn't matter
         prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                            system_prompt=system_prompt_to_use, tokenizer=tokenizer)
+                            system_prompt=system_prompt, tokenizer=tokenizer)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type
@@ -5303,17 +5267,23 @@ def get_limited_prompt(instruction,
         prompt = instruction if gradio_server else context2
         if gradio_server and not prompter.can_handle_system_prompt and system_prompt:
             # then must have added in pre-conversation, remove for inner gradio to handle, here we just wanted to count accurately
-            if history_to_use_final and history_to_use_final[0][1] == system_prompt_to_use:
+            if history_to_use_final and history_to_use_final[0][1] == system_prompt:
                 # protection just in case logic isn't perfect
                 history_to_use_final.pop(0)
 
     num_prompt_tokens_actual = get_token_count(prompt, tokenizer)
 
+    if chat_system_prompt and system_prompt:
+        system_prompt_return = system_prompt0
+    else:
+        system_prompt_return = system_prompt
+
     return prompt, \
         instruction, iinput, context, \
         num_prompt_tokens, max_new_tokens, num_prompt_tokens0, num_prompt_tokens_actual, \
         history_to_use_final, external_handle_chat_conversation, \
-        top_k_docs, one_doc_size, truncation_generation, system_prompt
+        top_k_docs, one_doc_size, truncation_generation, \
+        system_prompt_return, lang_pre_prompt, lang_prompt
 
 
 def count_overhead_tokens(tokenizer, doing_grounding=False):
