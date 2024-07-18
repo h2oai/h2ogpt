@@ -5074,7 +5074,8 @@ def get_limited_prompt(instruction,
                                                                                      max_prompt_length=int(
                                                                                          max_input_tokens * 0.9))
     # reduce max by system prompt since not otherwise reducing system prompt
-    max_input_tokens -= num_system_tokens
+    if max_input_tokens is not None:
+        max_input_tokens -= num_system_tokens
 
     # get actual instruction, limited by template limitation
     instruction, _ = H2OTextGenerationPipeline.limit_prompt(instruction, tokenizer,
