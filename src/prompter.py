@@ -2404,6 +2404,8 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
             if not messages:
                 return ''
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            if si == 0 and system_prompt_to_use not in prompt:
+                raise ValueError("System prompt not used: %s" % system_prompt_to_use)
             break
         except Exception as e:
             ex = traceback.format_exc()
@@ -2414,12 +2416,12 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
             history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
 
             exceptions.append(ex)
-            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e)):
+            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e) or 'System prompt not used' in str(e)):
                 if verbose:
                     print("No system prompt supported: %s" % str(ex))
             elif os.getenv('HARD_ASSERTS'):
                 raise
-    assert prompt, "Prompt was not set: %s" % str(exceptions)
+    # prompt can be '' if instruction='' and system prompt not used but no failure, like phi-3-medium
     return prompt
 
 
