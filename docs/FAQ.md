@@ -69,9 +69,16 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e SERPER_API_KEY='' \
 --network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 ```
-Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).
+Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port from 3000 -> 8080).  To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
 
-Or to enable h2oGPT backend for file handling, run h2oGPT with these extra arguments:
+
+If you want to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
+```bash
+-e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
+-e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
+```
+
+To enable h2oGPT backend for document ingestion (much more advanced than OpenWebUI), run h2oGPT with these extra arguments:
 ```bash
 --function_server=True --function_server_port=5002 --function_api_key=$api_key
 ```
@@ -90,7 +97,6 @@ export H2OGPT_LOADERS=1  # for h2oGPT file ingestion
 # ensure certain things not set
 unset OPENAI_API_BASE_URLS
 # bash ENVs
-export api_key='EMPTY'
 export WEBUI_NAME='h2oGPT'
 export DEFAULT_MODELS=meta-llama/Meta-Llama-3-8B-Instruct
 export OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
@@ -99,6 +105,7 @@ export OPENAI_API_KEY=$api_key
 export ENABLE_IMAGE_GENERATION=True
 export IMAGE_GENERATION_ENGINE='openai'
 export IMAGES_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
+# choose sd3 for Stable Diffusion 3 etc. and launch h2oGPT to match
 export IMAGE_GENERATION_MODEL='sdxl_turbo'
 export IMAGES_OPENAI_API_KEY=$api_key
 export AUDIO_STT_ENGINE='openai'
@@ -107,7 +114,11 @@ export AUDIO_STT_OPENAI_API_KEY=$api_key
 export AUDIO_TTS_ENGINE='openai'
 export AUDIO_TTS_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
 export AUDIO_TTS_OPENAI_API_KEY=$api_key
+# can use "Female AI Assistant" for Coqui TTS
+# export AUDIO_TTS_OPENAI_API_VOICE='Female AI Assistant'
 export AUDIO_TTS_OPENAI_API_VOICE='SLT (female)'
+# can use  for Coqui TTS, but just need to launch h2oGPT with it and h2oGPT will divert to correct TTS
+# export AUDIO_TTS_OPENAI_API_MODEL='tts_models/multilingual/multi-dataset/xtts_v2'
 export AUDIO_TTS_OPENAI_API_MODEL='microsoft/speecht5_tts'
 export RAG_EMBEDDING_ENGINE='openai'
 export RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
@@ -121,17 +132,30 @@ export SERPER_API_KEY=''  # fill me
 export H2OGPT_FUNCTION_SERVER_HOST=0.0.0.0
 export H2OGPT_FUNCTION_SERVER_PORT=5002  # match with --function_server_port
 export H2OGPT_FUNCTION_SERVER_API_KEY=$api_key
+
+# choose:
+export ADMIN_EMAIL=admin@domain
+export DEFAULT_USER_ROLE=user
+
+# only for Google OAuth
+# See https://docs.openwebui.com/tutorial/sso/#google
+export ENABLE_OAUTH_SIGNUP=true
+export GOOGLE_CLIENT_ID=FILL
+export GOOGLE_CLIENT_SECRET=FILL
+
+# below is required if google complains about redirect and tries to go to http instead of https
+# only h2oai repo and package has this fix
+export HTTPS_REDIRECT=1
+
+# choose
+export PORT=8080
+
 # run
-open-webui serve
+open-webui serve --host=0.0.0.0 --port=$PORT &> openweb.log &
+disown %1
 ```
 
 Note: The first time you log in to Open Web UI, that user will be the admin user who can set defaults for various admin settings, access the admin panel to control user behavior and settings, etc. Additional users will take the role set by the admin (by default, pending, which can be changed to user for anyone to log in).
-
-If you want to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
-```bash
--e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
--e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
-```
 
 For TTS, if we detect a native OpenAI voice, we translate that into defaults for H2oGPT.  To choose a specific voice, one can go to settings and change Audio -> TTS -> OpenAI and Set Voice to `SLT (female)` (if using Microsoft TTS) or `Female AI Assistant` (if using Coqui TTS).  ENVs do not yet exist to control default voice, but the h2oai version of open-webui chooses OpenAI as default for STT and TTS so can use h2oGPT by default.
 
@@ -143,8 +167,6 @@ Flaws with Open Web UI:
 * You have to choose max_tokens to be reasonable for the model, e.g. less than 4096 for many models.  But it has no per-model settings.
 
 See for more [help](https://docs.openwebui.com/troubleshooting/).
-
-To remove the container do `docker stop <hash> ; docker remove <hash>` for the container ID `<hash>`.
 
 ![openwebui1.png](openwebui1.png)
 
