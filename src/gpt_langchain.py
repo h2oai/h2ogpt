@@ -65,6 +65,7 @@ from db_utils import length_db1, set_dbid, set_userid, get_dbid, get_userid_dire
 from image_utils import fix_image_file, get_image_types, get_image_file
 from output_parser import H2OPythonMRKLOutputParser
 from pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
+from src.h2oai_pipeline import H2OTextGenerationPipeline
 from stopping import update_terminate_responses
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
@@ -2321,7 +2322,8 @@ class ExtraChat:
         messages = []
         count_input_tokens_start = self.count_input_tokens
         if self.system_prompt:
-            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self, H2OChatAnthropic2Sys) or not self.prompter.can_handle_system_prompt:
+            if isinstance(self, (H2OChatAnthropic2, H2OChatGoogle)) and not isinstance(self,
+                                                                                       H2OChatAnthropic2Sys) or not self.prompter.can_handle_system_prompt:
                 user_prompt_for_fake_system_prompt = self.user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
                 self.chat_conversation = [[user_prompt_for_fake_system_prompt,
                                            self.system_prompt]] + self.chat_conversation
@@ -6283,7 +6285,8 @@ def _make_db(use_openai_embedding=False,
                                 )
         new_metadata_sources = set([x.metadata['source'] for x in sources1])
         if new_metadata_sources:
-            new_metadata_sources_real = [x for x in new_metadata_sources if 'rotated' not in x and 'pad_resized' not in x]
+            new_metadata_sources_real = [x for x in new_metadata_sources if
+                                         'rotated' not in x and 'pad_resized' not in x]
             if os.getenv('NO_NEW_FILES') is not None and new_metadata_sources_real:
                 raise RuntimeError("Expected no new files1! %s" % new_metadata_sources_real)
             print("Loaded %s new files as sources to add to %s" % (len(new_metadata_sources), langchain_mode),
@@ -8521,10 +8524,7 @@ def get_chain(query=None,
     if query_action and (top_k_docs == -1 or auto_reduce_chunks):
         top_k_docs_tokenize = 100
         docs_with_score = docs_with_score[:top_k_docs_tokenize]
-        if docs_with_score:
-            estimated_prompt_no_docs = template.format(context='', question=query)
-        else:
-            estimated_prompt_no_docs = template_if_no_docs.format(context='', question=query)
+        template_text = template_if_no_docs.format(context='', question='')
 
         # add metadata to documents and make new copy of docs with them to not contaminate originals
         if metadata_in_context and not doc_json_mode and not doing_grounding:
@@ -8545,13 +8545,32 @@ def get_chain(query=None,
             num_prompt_tokens0, num_prompt_tokens_actual, \
             history_to_use_final, external_handle_chat_conversation, \
             top_k_docs_trial, one_doc_size, \
-            truncation_generation, system_prompt = get_limited_prompt_func(query,
-                                                                           iinput,
-                                                                           tokenizer,
-                                                                           estimated_instruction=estimated_prompt_no_docs,
-                                                                           text_context_list=[x[0].page_content for x in
-                                                                                              docs_with_score],
-                                                                           )
+            truncation_generation, system_prompt, pre_prompt_query, prompt_query = \
+            get_limited_prompt_func(query,
+                                    iinput,
+                                    tokenizer,
+                                    template_text=template_text,
+                                    text_context_list=[x[0].page_content for x in
+                                                       docs_with_score],
+                                    lang_pre_prompt=pre_prompt_query,
+                                    lang_prompt=prompt_query,
+                                    )
+        # redo template in case pre_prompt and prompt changed
+        template, template_if_no_docs, auto_reduce_chunks, query = \
+            get_template(query, iinput,
+                         pre_prompt_query, prompt_query,
+                         pre_prompt_summary, prompt_summary,
+                         langchain_action,
+                         query_action,
+                         summarize_action,
+                         True,  # just to overestimate prompting
+                         auto_reduce_chunks,
+                         add_search_to_context,
+                         system_prompt,
+                         doc_json_mode,
+                         model_name=model_name,
+                         prompter=prompter)
+
         # get updated llm
         llm_kwargs.update(max_new_tokens=max_new_tokens,
                           max_input_tokens=max_input_tokens,
@@ -8590,10 +8609,7 @@ def get_chain(query=None,
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
 
     if summarize_action:
-        if langchain_action in [LangChainAction.SUMMARIZE_MAP.value, LangChainAction.EXTRACT.value]:
-            estimated_prompt_no_docs = template.format(text='', question=query)
-        else:
-            estimated_prompt_no_docs = template.format(input_documents='', question=query)
+        template_text = template_if_no_docs.format(input_documents='', question='')
 
         # first docs_with_score are most important with highest score
         estimated_full_prompt, \
@@ -8602,13 +8618,32 @@ def get_chain(query=None,
             _, _, \
             _, _, \
             _, _, \
-            _, system_prompt = get_limited_prompt_func(estimated_prompt_no_docs,
-                                                       iinput,
-                                                       tokenizer,
-                                                       estimated_instruction=estimated_prompt_no_docs,
-                                                       text_context_list=[],
-                                                       # nothing, just getting base amount for each call
-                                                       )
+            _, system_prompt, pre_prompt_summary, prompt_summary = \
+            get_limited_prompt_func(estimated_prompt_no_docs,
+                                    iinput,
+                                    tokenizer,
+                                    estimated_instruction=estimated_prompt_no_docs,
+                                    text_context_list=[],
+                                    # nothing, just getting base amount for each call
+                                    lang_pre_prompt=pre_prompt_summary,
+                                    lang_prompt=prompt_summary,
+                                    )
+        # get template again in case pre_prompt and prompt changed
+        template, template_if_no_docs, auto_reduce_chunks, query = \
+            get_template(query, iinput,
+                         pre_prompt_query, prompt_query,
+                         pre_prompt_summary, prompt_summary,
+                         langchain_action,
+                         query_action,
+                         summarize_action,
+                         True,  # just to overestimate prompting
+                         auto_reduce_chunks,
+                         add_search_to_context,
+                         system_prompt,
+                         doc_json_mode,
+                         model_name=model_name,
+                         prompter=prompter)
+
         # get updated llm, so includes chat_conversation etc.
         llm_kwargs.update(  # max_new_tokens=max_new_tokens,
             # max_input_tokens=max_input_tokens,
