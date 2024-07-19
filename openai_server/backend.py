@@ -4,6 +4,7 @@ import io
 import os
 import platform
 import sys
+import threading
 import time
 import uuid
 from collections import deque
@@ -105,6 +106,10 @@ def get_gradio_client(user=None):
             client.setup()
     return client
 
+
+# Global lock for synchronizing client access
+client_lock = threading.Lock()
+
 print("global gradio_client", file=sys.stderr)
 gradio_client = get_gradio_client()
 
@@ -121,7 +126,7 @@ def get_client(user=None):
         print("client.auth=%s" % str(client.auth), file=sys.stderr)
         if client.get_server_hash() != gradio_client.server_hash:
             os.makedirs('locks', exist_ok=True)
-            with filelock.FileLock(os.path.join('locks', 'openai_gradio_client.lock')):
+            with client_lock:
                 gradio_client.refresh_client()
     else:
         print(

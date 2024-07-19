@@ -33,6 +33,9 @@ from importlib.metadata import distribution, PackageNotFoundError
 
 from pydantic import BaseModel
 
+# Global lock for synchronizing client access
+client_lock = threading.Lock()
+
 
 class ReturnType(BaseModel):
     reply: str | list[str] | None
@@ -452,7 +455,7 @@ class GradioClient(Client):
         self.server_hash = self.get_server_hash()
 
     def clone(self):
-        with threading.Lock():
+        with client_lock:
             if self.config is None:
                 self.setup()
             client = GradioClient("")
