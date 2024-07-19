@@ -30,7 +30,8 @@ def convert_messages_to_structure(messages):
         assert content, "Missing content"
 
         if previous_role == role:
-            raise ValueError("Consecutive messages with the same role are not allowed")
+            raise ValueError("Consecutive messages with the same role are not allowed: %s %s\n\n%s" % (
+                previous_role, role, messages))
         previous_role = role
 
         if role == "function":
@@ -57,6 +58,7 @@ def convert_messages_to_structure(messages):
             structure["history"].append((last_user_message, None))
 
     return structure['instruction'], structure['system_message'], structure['history'], structure['image_files']
+
 
 def handle_content(content, structure):
     """
