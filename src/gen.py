@@ -516,6 +516,8 @@ def main(
 
         enable_heap_analytics: bool = True,
         heap_app_id: str = "1680123994",
+
+        cert_lookup_directory: str = "/etc/ssl/more-certs",
 ):
     """
 
@@ -739,7 +741,7 @@ def main(
     :param local_files_only: whether to only use local files instead of doing to HF for models
     :param resume_download: whether to resume downloads from HF for models
     :param use_auth_token: whether to use HF auth token (requires CLI did huggingface-cli login before)
-    :param admin_pass: Administator password
+    :param admin_pass: Administrator password
     :param trust_remote_code: whether to use trust any code needed for HF model
     :param rope_scaling:
            For HF transformers model: scaling for rope-based models.
@@ -1325,8 +1327,13 @@ def main(
 
     :param enable_heap_analytics: Toggle telemetry.
     :param heap_app_id: App ID for Heap, change to your ID.
+
+    :param cert_lookup_directory: Defines the directory containing the additional private certs to trust.
     :return:
     """
+
+    append_certificates(cert_lookup_directory)
+
     main_kwargs = locals().copy()
 
     if base_model is None:
@@ -5337,6 +5344,38 @@ def entrypoint_main():
     python generate.py --base_model=h2oai/h2ogpt-oig-oasst1-512-6_9b
     """
     H2O_Fire(main)
+
+
+def append_certificates(certs_dir):
+    import certifi
+    cert_bundle_path = certifi.where()
+
+    ssl_cache_dir = os.getenv("SSL_CACHE_DIR", ".cache/.ssl_cache")
+    ssl_cache_dir = os.path.abspath(makedirs(ssl_cache_dir, exist_ok=True, tmp_ok=True, use_base=True))
+    output_file = os.path.join(ssl_cache_dir, "ca-bundle.pem")
+
+    with open(cert_bundle_path, 'r') as bundle_file:
+        bundle_content = bundle_file.read()
+
+    combined_cert_content = bundle_content
+
+    additional_certs_found = False
+    if certs_dir:
+        for root, _, files in os.walk(certs_dir):
+            for file in files:
+                if file.endswith(('.crt', '.pem')):
+                    cert_file_path = os.path.join(root, file)
+                    print(f"adding cert {os.path.abspath(cert_file_path)}")
+                    with open(cert_file_path, 'r') as cert:
+                        combined_cert_content += '\n' + cert.read()
+                    additional_certs_found = True
+
+    if additional_certs_found:
+        with open(output_file, 'w') as output:
+            output.write(combined_cert_content)
+
+        os.environ['SSL_CERT_FILE'] = output_file
+        print(f"Combined certificate file created at: {output_file}")
 
 
 if __name__ == "__main__":
