@@ -2749,8 +2749,8 @@ def evaluate(
             tokenizer.chat_template = base64_decode_jinja_template(chat_template)
             messages_test = [dict(role='user', content='Hi'),
                              dict(role='assistant', content='Hello! How can I help you today?')]
-            prompt = tokenizer.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
-            assert isinstance(prompt, str)
+            test_prompt = tokenizer.apply_chat_template(messages_test, tokenize=False, add_generation_prompt=True)
+            assert isinstance(test_prompt, str)
         except Exception as e:
             print("Could not overwrite %s template: %s" % (base_model, str(e)))
             # can't support
@@ -3356,7 +3356,7 @@ def evaluate(
             stop_sequences = list(set(terminate_response + [prompter.PreResponse]))
             stop_sequences = [x for x in stop_sequences if x]
             # OpenAI will complain if ask for too many new tokens, takes it as min in some sense, wrongly so.
-            max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens)
+            max_new_tokens_openai = min(max_new_tokens, model_max_length - num_prompt_tokens_actual)
             gen_server_kwargs = dict(temperature=temperature if do_sample else 0,
                                      max_tokens=max_new_tokens_openai,
                                      top_p=top_p if do_sample else 1,
@@ -3451,8 +3451,8 @@ def evaluate(
                                 if message1[1]:
                                     messages0.append(
                                         {'role': 'assistant', 'content': gradio_to_llm(message1[1], bot=True)})
-                    if prompt:
-                        messages0.append({'role': 'user', 'content': prompt})
+                    if instruction:
+                        messages0.append({'role': 'user', 'content': instruction})
 
                     if response_format == 'json_object' and inf_type == 'openai_chat':
                         other_dict.update(dict(response_format=dict(type=response_format)))
@@ -3485,8 +3485,7 @@ def evaluate(
                         if responses.choices is None and responses.model_extra:
                             raise RuntimeError("OpenAI Chat failed: %s" % responses.model_extra)
                         text = responses.choices[0].message.content
-                        response = prompter.get_response(prompt + text, prompt=prompt,
-                                                         sanitize_bot_response=sanitize_bot_response)
+                        response = text
                         if response_format in ['json_object', 'json_code']:
                             response_raw = response
                             response = get_json(response, json_schema_type=json_schema_type)
@@ -3497,8 +3496,7 @@ def evaluate(
                             delta = chunk.choices[0].delta.content
                             if delta:
                                 text += delta
-                                response = prompter.get_response(prompt + text, prompt=prompt,
-                                                                 sanitize_bot_response=sanitize_bot_response)
+                                response = text
                                 if response_format in ['json_object', 'json_code']:
                                     response_raw = response
                                     response = get_json(response, json_schema_type=json_schema_type)
