@@ -5232,7 +5232,6 @@ def get_limited_prompt(instruction,
     # limit so max_new_tokens = prompt + new < max
     # otherwise model can fail etc. e.g. for distilgpt2 asking for 1024 tokens is enough to fail if prompt=1 token
     if not attention_sinks:
-        print('max_new_tokens: %s %s %s' % (max_new_tokens, model_max_length, num_prompt_tokens))
         max_new_tokens = max(1, min(max_new_tokens, model_max_length - num_prompt_tokens))
 
     if max_new_tokens < min_max_new_tokens - 30:  # FIXME: fudge factor
@@ -5240,7 +5239,6 @@ def get_limited_prompt(instruction,
             raise ValueError("Invalid max_new_tokens=%s" % max_new_tokens)
         else:
             max_new_tokens = max(32, max_new_tokens)
-    print('max_new_tokens2: %s %s %s' % (max_new_tokens, model_max_length, num_prompt_tokens))
 
     if prompter is None:
         # get prompter
