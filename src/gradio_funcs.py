@@ -716,7 +716,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
                 save_dict1_saved = save_dict1
                 text = history1[-1][1] or '' if history1 else ''
-            batch_input_tokens += save_dict1_saved['extra_dict']['num_prompt_tokens']
+            batch_input_tokens += save_dict1_saved['extra_dict'].get('num_prompt_tokens', 0)
             save_dict1_saved['extra_dict'] = _save_generate_tokens(text, save_dict1_saved['extra_dict'])
             batch_output_tokens += save_dict1_saved['extra_dict'].get('ntokens', 0)
             batch_tokenspersec += save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
