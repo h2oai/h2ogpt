@@ -276,6 +276,9 @@ spec:
             - name: {{ include "h2ogpt.fullname" . }}-volume
               mountPath: /workspace/save
               subPath: save
+            {{ with .Values.h2ogpt.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: {{ include "h2ogpt.fullname" . }}-volume
           {{- if not .Values.h2ogpt.storage.useEphemeral }}
@@ -308,6 +311,9 @@ spec:
                     storage: {{ .Values.vllm.storage.size | quote }}
                 storageClassName: {{ .Values.vllm.storage.class }}
           {{- end }}
+        {{- end }}
+        {{- with .Values.h2ogpt.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
 {{- end }}
 ---

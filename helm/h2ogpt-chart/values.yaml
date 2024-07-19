@@ -17,7 +17,11 @@ h2ogpt:
     repository:
     tag:
     pullPolicy:
-  
+
+  # extra volumes, for more certs, mount under /etc/ssl/more-certs
+  extraVolumes: []
+  extraVolumeMounts: []
+
   podAffinity:
   # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
   # hostname:
