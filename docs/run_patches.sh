@@ -11,7 +11,8 @@ sed -i  's/with HiddenPrints():/if True:/g' $sp/langchain_community/utilities/se
 #sed -i 's/async for line in response.aiter_text():/async for line in response.aiter_lines():\n                if len(line) == 0:\n                    continue\n                if line == """{"detail":"Not Found"}""":\n                    continue/g' gradio_client/utils.py
 
 # aggressively remove thread-unsafe reassignment of stderr stdout
-find "$sp" -type f -name "*.py" -exec sed -i -E 's/(sys\.stdout\s*=\s*.*)/pass # \1/; s/(sys\.stderr\s*=\s*.*)/pass # \1/' {} +
+# WIP
+# find "$sp" -type f -name "*.py" -exec sed -i -E 's/(sys\.stdout\s*=\s*.*)/pass # \1/; s/(sys\.stderr\s*=\s*.*)/pass # \1/' {} +
 
 # fix pytube to avoid errors for restricted content
 sed -i "s/client='ANDROID_MUSIC'/client='ANDROID'/g" $sp/pytube/innertube.py

@@ -37,6 +37,7 @@ os.environ['OTEL_SDK_DISABLED'] = 'true'
 os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
 os.environ['BITSANDBYTES_NOWELCOME'] = '1'
 warnings.filterwarnings('ignore', category=UserWarning, message='TypedStorage is deprecated')
+os.environ['FIFTYONE_SHOW_PROGRESS_BARS'] = 'false'
 
 # more is not useful typically, don't let these go beyond limits and eat up resources
 max_cores = max(1, os.cpu_count() // 2)
