@@ -10,7 +10,6 @@ import traceback
 import uuid
 from collections import deque
 
-import filelock
 import numpy as np
 
 from log import logger
@@ -146,6 +145,18 @@ def get_client(user=None):
             print(client, file=sys.stderr)
             print("fresh client dict", file=sys.stderr)
             print(client.__dict__, file=sys.stderr)
+            print("cloning back to global", file=sys.stderr)
+            with client_lock:
+                for k, v in client.__dict__.items():
+                    setattr(gradio_client, k, v)
+                gradio_client.reset_session()
+
+                client.get_endpoints(gradio_client)
+
+                # transfer internals in case used
+                gradio_client.server_hash = client.server_hash
+                gradio_client.chat_conversation = client.chat_conversation
+
     else:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.", file=sys.stderr)
