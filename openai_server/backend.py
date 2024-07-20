@@ -6,6 +6,7 @@ import platform
 import sys
 import threading
 import time
+import traceback
 import uuid
 from collections import deque
 
@@ -134,10 +135,17 @@ def get_client(user=None):
             ex = traceback.format_exc()
             print(ex)
             # just get fresh client
-            print(client)
-            print(client.__dict__)
+            print("client", file=sys.stderr)
+            print(client, file=sys.stderr)
+            print("client dict", file=sys.stderr)
+            print(client.__dict__, file=sys.stderr)
+            print("get fresh client", file=sys.stderr)
             client = get_gradio_client(user=user)
-            
+            print("done fresh client", file=sys.stderr)
+            print("fresh client", file=sys.stderr)
+            print(client, file=sys.stderr)
+            print("fresh client dict", file=sys.stderr)
+            print(client.__dict__, file=sys.stderr)
     else:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.", file=sys.stderr)
