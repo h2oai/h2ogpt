@@ -133,7 +133,7 @@ def get_client(user=None):
                     gradio_client.refresh_client()
         except Exception as e:
             ex = traceback.format_exc()
-            print(ex)
+            print(ex, file=sys.stderr)
             # just get fresh client
             print("client", file=sys.stderr)
             print(client, file=sys.stderr)
