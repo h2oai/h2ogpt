@@ -66,6 +66,7 @@ docker run -d -p 3000:8080 -e WEBUI_NAME='h2oGPT' \
 -e ENABLE_OPENAI_API=True \
 -e ENABLE_OLLAMA_API=False \
 -e RAG_EMBEDDING_OPENAI_BATCH_SIZE=1024 \
+-e RAG_TOP_K=20 \
 -e SERPER_API_KEY='' \
 --network host -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
 ```
@@ -124,6 +125,7 @@ export RAG_EMBEDDING_ENGINE='openai'
 export RAG_OPENAI_API_BASE_URL='http://0.0.0.0:5000/v1'
 export RAG_OPENAI_API_KEY=$api_key
 export RAG_EMBEDDING_OPENAI_BATCH_SIZE=1024
+export RAG_TOP_K=20
 export ENABLE_LITELLM=False
 export ENABLE_OLLAMA_API=False
 export ENABLE_OPENAI_API=True
