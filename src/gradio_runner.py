@@ -3303,6 +3303,11 @@ def go_gradio(**kwargs):
             if text_output21 is None:
                 text_output21 = []
             if num_model_lock is not None and num_model_lock > 0:
+                # try to fix
+                if get_depth(text_outputs1) == 2:
+                    text_outputs1 = [text_outputs1]
+                if get_depth(text_outputs1) == 4 and len(text_outputs1) > 0:
+                    text_outputs1 = text_outputs1[0]
                 text_outputs1_copy = deepcopy_by_pickle_object(text_outputs1)
                 # try to fix
                 text_outputs1 = [None] * num_model_lock
@@ -3395,7 +3400,9 @@ def go_gradio(**kwargs):
                             auth_user['text_output2'] = text_output21
                         if text_outputs1:
                             if isinstance(text_outputs1, tuple) and len(text_outputs1) > 0:
-                                text_outputs1 = text_outputs1[0]
+                                if get_depth(text_outputs1) == 4:
+                                    text_outputs1 = text_outputs1[0]
+                                text_outputs1 = list(text_outputs1)
                             auth_user['text_outputs'] = text_outputs1
                         if langchain_mode1:
                             auth_user['langchain_mode'] = langchain_mode1
@@ -5068,7 +5075,8 @@ def go_gradio(**kwargs):
         radio_chats.input(switch_chat_fun,
                           inputs=[radio_chats, chat_state],
                           outputs=[text_output, text_output2] + text_outputs) \
-            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
+            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat]) \
+            .then(**save_auth_kwargs)
 
         def remove_chat(chat_key, chat_state1):
             if isinstance(chat_key, str):
