@@ -242,5 +242,49 @@ vllm:
   podLabels: {}
   autoscaling: {}
 
+internvl:
+  enabled: false
+  replicaCount: 1
+
+  image:
+    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl
+    tag:
+    pullPolicy: IfNotPresent
+
+  podAffinity:
+    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+    # hostname:
+    # zone:
+
+  storage:
+    size: 512Gi
+    class:
+    useEphemeral: true
+
+  overrideConfig:
+  hfSecret:
+  containerArgs:
+    - "OpenGVLab/InternVL-Chat-V1-5"
+
+  service:
+    type: ClusterIP
+    port: 23333
+
+  updateStrategy:
+    type: RollingUpdate
+
+  podSecurityContext:
+  securityContext:
+
+  resources:
+  nodeSelector:
+  tolerations:
+
+  env: {}
+
+  podAnnotations: {}
+  podLabels: {}
+  autoscaling: {}
+
 # -- CA certs
 caCertificates: ""

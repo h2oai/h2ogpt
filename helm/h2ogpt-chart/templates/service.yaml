@@ -66,3 +66,19 @@ spec:
       targetPort: 5000
   type: {{ .Values.vllm.service.type }}
 {{- end }}
+---
+{{- if and (.Values.internvl.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-internvl-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}-internvl-inference
+  ports:
+    - protocol: TCP
+      port: {{ .Values.internvl.service.port }}
+      targetPort: 5000
+  type: {{ .Values.internvl.service.type }}
+{{- end }}
