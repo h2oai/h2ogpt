@@ -5357,6 +5357,7 @@ def append_certificates(certs_dir):
     import certifi
     cert_bundle_path = certifi.where()
 
+    default_bundle_from_helm = "/etc/ssl/certs/root-ca-bundle.crt"
     ssl_cache_dir = os.getenv("SSL_CACHE_DIR", ".cache/.ssl_cache")
     ssl_cache_dir = os.path.abspath(makedirs(ssl_cache_dir, exist_ok=True, tmp_ok=True, use_base=True))
     output_file = os.path.join(ssl_cache_dir, "ca-bundle.pem")
@@ -5376,6 +5377,12 @@ def append_certificates(certs_dir):
                     with open(cert_file_path, 'r') as cert:
                         combined_cert_content += '\n' + cert.read()
                     additional_certs_found = True
+
+    if os.path.exists(default_bundle_from_helm) and os.path.isfile(default_bundle_from_helm):
+        print(f"adding default helm cert {default_bundle_from_helm}")
+        with open(default_bundle_from_helm, 'r') as cert:
+            combined_cert_content += '\n' + cert.read()
+        additional_certs_found = True
 
     if additional_certs_found:
         with open(output_file, 'w') as output:

@@ -297,6 +297,11 @@ spec:
             - name: {{ include "h2ogpt.fullname" . }}-volume
               mountPath: /workspace/save
               subPath: save
+            {{- if .Values.caCertificates }}
+            - name: ca-certificates
+              mountPath: /etc/ssl/certs/root-ca-bundle.crt
+              subPath: root-ca-bundle.crt
+            {{- end }}
             {{ with .Values.h2ogpt.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -332,6 +337,11 @@ spec:
                     storage: {{ .Values.vllm.storage.size | quote }}
                 storageClassName: {{ .Values.vllm.storage.class }}
           {{- end }}
+        {{- end }}
+        {{- if .Values.caCertificates }}
+        - name: ca-certificates
+          configMap:
+            name: {{ include "h2ogpt.fullname" . }}-ca-certificates
         {{- end }}
         {{- with .Values.h2ogpt.extraVolumes }}
         {{- toYaml . | nindent 8 }}
