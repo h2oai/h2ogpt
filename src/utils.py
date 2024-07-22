@@ -2829,3 +2829,10 @@ def get_llama_lower_hf(llama_lower):
     else:
         llama_lower_hf = None
     return llama_lower_hf
+
+
+def get_depth(lst):
+    if isinstance(lst, list) and lst:
+        return 1 + max(get_depth(item) for item in lst)
+    else:
+        return 0
