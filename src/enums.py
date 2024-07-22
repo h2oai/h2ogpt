@@ -191,6 +191,7 @@ gpt_token_mapping = {
     "gpt-4-turbo-2024-04-09": 128000,  # 4096 output
     "gpt-4o": 128000,  # 4096 output
     "gpt-4o-2024-05-13": 128000,  # 4096 output
+    "gpt-4o-mini": 128000,  # 16384 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -276,6 +277,9 @@ internvl2_num_max = 10
 images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'gpt-4-turbo-2024-04-09': gpt4turbo_image_num_max,
                        'gpt-4o': gpt4turbo_image_num_max,
+                       'gpt-4o-2024-05-13': gpt4turbo_image_num_max,
+                       'gpt-4o-mini': gpt4turbo_image_num_max,
+                       'gpt-4o-mini-2024-07-18': gpt4turbo_image_num_max,
                        'gemini-pro-vision': geminiimage_num_max,
                        'gemini-1.5-pro-latest': gemini15image_num_max,
                        'gemini-1.5-flash-latest': gemini15image_num_max,
@@ -351,11 +355,11 @@ mistralai_mapping_outputs = {
 # https://platform.openai.com/docs/guides/function-calling
 openai_supports_functiontools = ["gpt-4-0613", "gpt-4-32k-0613", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-16k-0613",
                                  "gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
-                                 "gpt-4o", "gpt-4o-2024-05-13",
+                                 "gpt-4o", "gpt-4o-2024-05-13", "gpt-4o-mini", "gpt-4o-mini-2024-07-18",
                                  ]
 
 openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
-                             "gpt-4o", "gpt-4o-2024-05-13",
+                             "gpt-4o", "gpt-4o-2024-05-13", "gpt-4o-mini", 'gpt-4o-mini-2024-07-18',
                              ]
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
@@ -367,6 +371,8 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
                                     "gpt-4-turbo-2024-04-09": 4096,
                                     "gpt-4o": 4096,
                                     "gpt-4o-2024-05-13": 4096,
+                                    "gpt-4o-mini": 16384,
+                                    "gpt-4o-mini-2024-07-18": 16384,
                                     }
                                    )
 
@@ -401,7 +407,7 @@ def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[])
     return is_gradio_vision_model(base_model) or \
         base_model.startswith('claude-3-') or \
         base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
-                       'gpt-4o-2024-05-13'] or \
+                       'gpt-4o-2024-05-13', 'gpt-4o-mini', 'gpt-4o-mini-2024-07-18'] or \
         base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest",
                        "gemini-1.5-flash-latest"] or \
         base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"] or \
