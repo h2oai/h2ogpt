@@ -1,12 +1,12 @@
 all: clean dist
 
-PACKAGE_VERSION            := `cat version.txt | tr -d '\n'`
-BUILD_TAG                  := $(shell git describe --always --dirty)
-DOCKER_TEST_IMAGE          := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
+PACKAGE_VERSION       := `cat version.txt | tr -d '\n'`
+BUILD_TAG             := $(shell git describe --always --dirty)
+DOCKER_TEST_IMAGE     := harbor.h2o.ai/h2ogpt/test-image:$(BUILD_TAG)
 DOCKER_TEST_IMAGE_VLLM     := harbor.h2o.ai/h2ogpt/test-image-vllm:$(BUILD_TAG)
 DOCKER_TEST_IMAGE_INTERNVL := harbor.h2o.ai/h2ogpt/test-image-internvl:$(BUILD_TAG)
-PYTHON_BINARY              ?= `which python`
-DEFAULT_MARKERS            ?= "not need_tokens and not need_gpu"
+PYTHON_BINARY         ?= `which python`
+DEFAULT_MARKERS       ?= "not need_tokens and not need_gpu"
 
 .PHONY: venv dist test publish docker_build build_info.txt
 
