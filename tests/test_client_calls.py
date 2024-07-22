@@ -5977,7 +5977,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
 
 close_vision_models = [
     # 'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09',
-    'gpt-4o',
+    'gpt-4o', 'gpt-4o-mini',
     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
     'claude-3-haiku-20240307',
