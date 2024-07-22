@@ -66,7 +66,37 @@ h2ogpt:
   #   max_new_tokens: 1024
 
   overrideConfig:
-
+    visible_login_tab        : False
+    visible_system_tab       : False
+    visible_models_tab       : False
+    visible_hosts_tab        : False
+    # change below to valid vision model or remove this entry
+    visible_vision_models    : "['OpenGVLab/InternVL-Chat-V1-5']"
+    rotate_align_resize_image : False
+    concurrency_count        : 100
+    top_k_docs_max_show      : 100
+    num_async                : 10
+    # change below to valid directory or remove this entry
+    save_dir                 : "/docker_logs"
+    score_model              : "None"
+    enable_tts               : False
+    enable_stt               : False
+    enable_transcriptions    : False
+    embedding_gpu_id         : "cpu"
+    hf_embedding_model       : "fake"
+    openai_server            : True
+    share                    : False
+    enforce_h2ogpt_api_key   : True
+    enforce_h2ogpt_ui_key    : False
+    # change to something secure for ui access to backend
+    h2ogpt_api_keys          : "['api_key_change_me']"
+    metadata_in_context      : ""
+    # change or remove if using model hub
+    use_auth_token           : "hf_xxxxx"
+    # change below to first visible model or remove this entry
+    visible_models           : "['mistralai/Mistral-7B-Instruct-v0.3']"
+    # change so ui or api cannot access without this password
+    admin_pass               : "admin_password_change_me"
 
   service:
     type: NodePort
