@@ -211,3 +211,6 @@ vllm:
   podAnnotations: {}
   podLabels: {}
   autoscaling: {}
+
+# -- CA certs
+caCertificates: ""
