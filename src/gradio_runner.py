@@ -78,7 +78,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username
+    get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, deepcopy_by_pickle_object, get_depth
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     get_model_max_length_from_tokenizer, \
@@ -3293,13 +3293,6 @@ def go_gradio(**kwargs):
                         text_result = "No user %s" % get_show_username(username1)
                 else:
                     text_result = "No auth file"
-            if num_model_lock is not None:
-                if len(text_outputs1) > num_model_lock:
-                    text_outputs1 = text_outputs1[:num_model_lock]
-                elif len(text_outputs1) < num_model_lock:
-                    text_outputs1 = text_outputs1 + [[]] * (num_model_lock - len(text_outputs1))
-            else:
-                text_outputs1 = []
             # ensure when load, even if unused, that has good state.  Can't be [[]]
             if text_output1 is None:
                 text_output1 = []
@@ -3309,11 +3302,26 @@ def go_gradio(**kwargs):
                 text_output21 = []
             if text_output21 is None:
                 text_output21 = []
-            for i in range(len(text_outputs1)):
-                if text_outputs1[i] is None:
-                    text_outputs1[i] = []
-                if not text_outputs1[i] and len(text_outputs1[i]) > 0 and not text_outputs1[i][0]:
-                    text_outputs1[i] = []
+            if num_model_lock is not None and num_model_lock > 0:
+                # try to fix
+                if get_depth(text_outputs1) == 2:
+                    text_outputs1 = [text_outputs1]
+                if get_depth(text_outputs1) == 4 and len(text_outputs1) > 0:
+                    text_outputs1 = text_outputs1[0]
+                text_outputs1_copy = deepcopy_by_pickle_object(text_outputs1)
+                # try to fix
+                text_outputs1 = [None] * num_model_lock
+                for i in range (num_model_lock):
+                    if len(text_outputs1_copy) > 0:
+                        text_outputs1[i] = text_outputs1_copy.pop(0)
+                        # check for extra empty conversations and remove
+                        if text_outputs1[i] is not None and isinstance(text_outputs1[i], list):
+                            text_outputs1[i] = [x for x in text_outputs1[i] if x]
+                    else:
+                        text_outputs1[i] = None
+            else:
+                text_outputs1 = []
+
             return success1, text_result, text_output1, text_output21, text_outputs1, \
                 langchain_mode1, h2ogpt_key2, visible_models1, \
                 side_bar_text1, doc_count_text1, submit_buttons_text1, visible_models_text1, \
@@ -3391,6 +3399,10 @@ def go_gradio(**kwargs):
                         if text_output21:
                             auth_user['text_output2'] = text_output21
                         if text_outputs1:
+                            if isinstance(text_outputs1, tuple) and len(text_outputs1) > 0:
+                                if get_depth(text_outputs1) == 4:
+                                    text_outputs1 = text_outputs1[0]
+                                text_outputs1 = list(text_outputs1)
                             auth_user['text_outputs'] = text_outputs1
                         if langchain_mode1:
                             auth_user['langchain_mode'] = langchain_mode1
@@ -3448,7 +3460,7 @@ def go_gradio(**kwargs):
                       args[22], args[23],
                       # text_output, text_output2
                       args[24], args[25],
-                      # text_outputs
+                      # text_outputs (comes in as tuple
                       args[26:],
                       **kwargs
                       )
@@ -5063,7 +5075,8 @@ def go_gradio(**kwargs):
         radio_chats.input(switch_chat_fun,
                           inputs=[radio_chats, chat_state],
                           outputs=[text_output, text_output2] + text_outputs) \
-            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat])
+            .then(clear_scores, outputs=[score_text, score_text2, score_text_nochat]) \
+            .then(**save_auth_kwargs)
 
         def remove_chat(chat_key, chat_state1):
             if isinstance(chat_key, str):
