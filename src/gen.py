@@ -194,6 +194,8 @@ def main(
         gradio: bool = True,
         function: bool = False,
 
+        force_streaming_on_to_handle_timeouts: bool = True,
+
         openai_server: bool = True,
         openai_port: int = 5001 if sys.platform == "darwin" else 5000,
         openai_workers: int = 1,
@@ -767,6 +769,8 @@ def main(
     :param cli_loop: whether to loop for CLI (False usually only for testing)
     :param gradio: whether to enable gradio, or to enable benchmark mode
     :param function: whether to run function mode to just return locals for function server
+
+    :param force_streaming_on_to_handle_timeouts: whether to force streaming internally even if UI/API doesn't do it, so can handle timeouts and avoid blocking calls.
 
     :param openai_server: whether to launch OpenAI proxy server for local gradio server
            Disabled if API is disabled
@@ -2536,6 +2540,7 @@ def evaluate(
 
         verbose=False,
         gradio=True,
+        force_streaming_on_to_handle_timeouts=True,
         cli=False,
         use_cache=None,
         auto_reduce_chunks=None,
@@ -2859,7 +2864,8 @@ def evaluate(
     # stream if can, so can control task iteration and time of iteration
     # not required, but helpful for max_time control etc.
     stream_output0 = stream_output
-    stream_output = gradio and num_beams == 1
+    if force_streaming_on_to_handle_timeouts:
+        stream_output = gradio and num_beams == 1
 
     from gradio_utils.grclient import GradioClient
     from gradio_client import Client
