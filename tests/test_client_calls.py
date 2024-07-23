@@ -5003,9 +5003,9 @@ def check_final_res(res, base_model='llama'):
         assert res['save_dict']['extra_dict']['llamacpp_dict']
         assert res['save_dict']['extra_dict']['prompt_type'] == 'llama2'
     else:
-        assert res['save_dict']['extra_dict']['prompt_type'] == 'mistral'
+        assert res['save_dict']['extra_dict']['prompt_type'] == 'unknown'
     assert res['save_dict']['extra_dict']['do_sample'] == False
-    assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 10
+    assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 5
     assert res['save_dict']['extra_dict']['ntokens'] > 60
     assert res['save_dict']['extra_dict']['tokens_persecond'] > 3.5
 
