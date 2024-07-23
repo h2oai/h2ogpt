@@ -824,6 +824,8 @@ spec:
           env:
           - name: NCCL_IGNORE_DISABLED_P2P
             value: "1"
+          - name: HF_HOME
+            value: "/workspace/.cache"
           {{- range $key, $value := .Values.internvl.env }}
           - name: "{{ $key }}"
             value: "{{ $value }}"
