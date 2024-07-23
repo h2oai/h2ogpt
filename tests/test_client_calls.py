@@ -6122,6 +6122,7 @@ def get_creation_date(file_path):
 
 # (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 @wrap_test_forked
+@pytest.mark.parametrize("images_num_max", [-2, 1])
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
@@ -6157,7 +6158,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
-                  images_num_max=2 if base_model in open_vision_models else None,  # seems optimal even for InternVL
+                  images_num_max=1 if base_model in open_vision_models else None,  # seems optimal even for InternVL
                   stream_output=False,
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
