@@ -2321,6 +2321,7 @@ def gradio_to_llm(x, bot=False):
     if isinstance(x, (tuple, list)) and len(x) > 0:
         x = list(x)
         for insti, inst in enumerate(x):
+            # ensure below matches `response = (image_file_gen,)` etc. in gen.py
             if isinstance(inst, str) and \
                     (inst.startswith('/tmp/gradio') or inst.startswith(gradio_tmp)) and \
                     os.path.isfile(inst):

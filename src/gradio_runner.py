@@ -78,7 +78,7 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, deepcopy_by_pickle_object, get_depth
+    get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, deepcopy_by_pickle_object, get_gradio_depth
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     get_model_max_length_from_tokenizer, \
@@ -3304,9 +3304,9 @@ def go_gradio(**kwargs):
                 text_output21 = []
             if num_model_lock is not None and num_model_lock > 0:
                 # try to fix
-                if get_depth(text_outputs1) == 2:
+                if get_gradio_depth(text_outputs1) == 2:
                     text_outputs1 = [text_outputs1]
-                if get_depth(text_outputs1) == 4 and len(text_outputs1) > 0:
+                if get_gradio_depth(text_outputs1) == 4 and len(text_outputs1) > 0:
                     text_outputs1 = text_outputs1[0]
                 text_outputs1_copy = deepcopy_by_pickle_object(text_outputs1)
                 # try to fix
@@ -3400,7 +3400,9 @@ def go_gradio(**kwargs):
                             auth_user['text_output2'] = text_output21
                         if text_outputs1:
                             if isinstance(text_outputs1, tuple) and len(text_outputs1) > 0:
-                                if get_depth(text_outputs1) == 4:
+                                if get_gradio_depth(text_outputs1) == 2:
+                                    text_outputs1 = [text_outputs1]
+                                if get_gradio_depth(text_outputs1) == 4:
                                     text_outputs1 = text_outputs1[0]
                                 text_outputs1 = list(text_outputs1)
                             auth_user['text_outputs'] = text_outputs1

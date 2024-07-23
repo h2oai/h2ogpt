@@ -2831,8 +2831,29 @@ def get_llama_lower_hf(llama_lower):
     return llama_lower_hf
 
 
-def get_depth(lst):
+def get_depth_normal(lst):
     if isinstance(lst, list) and lst:
-        return 1 + max(get_depth(item) for item in lst)
+        return 1 + max(get_depth_normal(item) for item in lst)
     else:
         return 0
+
+
+def get_gradio_depth(lst):
+    def get_depth(lst):
+        if isinstance(lst, (tuple, list)) and lst:
+            depths = [get_depth(item) for item in lst]
+            return 1 + max(depths)
+        else:
+            return 0
+
+    def has_single_element_sublist(lst, depth):
+        if depth == 1:
+            return isinstance(lst, (tuple, list)) and len(lst) == 1
+        if isinstance(lst, (tuple, list)):
+            return any(has_single_element_sublist(item, depth - 1) for item in lst)
+        return False
+
+    depth = get_depth(lst)
+    if has_single_element_sublist(lst, depth):
+        depth -= 1
+    return depth
