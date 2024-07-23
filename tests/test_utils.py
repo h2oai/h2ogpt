@@ -14,7 +14,7 @@ from src.prompter_utils import base64_encode_jinja_template, base64_decode_jinja
 from src.vision.utils_vision import process_file_list
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove
+    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove, get_gradio_depth
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
@@ -924,7 +924,8 @@ def test_process_file_list():
     for file in processed_files:
         print(file, file=sys.stderr)
         assert os.path.isfile(file)
-    assert len(processed_files) == len(test_files) - 1 + 17 + 4  # 17 is the number of images generated from the video file
+    assert len(processed_files) == len(
+        test_files) - 1 + 17 + 4  # 17 is the number of images generated from the video file
 
 
 def test_process_file_list_extract_frames():
@@ -1155,3 +1156,66 @@ System: {{ system_message }}
     print(decoded_template)
 
     assert jinja_template == decoded_template
+
+
+def test_depth():
+    example_list = [[['Dog', ['/tmp/gradio/image_Dog_d2b19221_6f70_4987_bda8_09be952eae93.png']],
+                     ['Who are you?', ['/tmp/gradio/image_Wh_480bd8318d01b570b61e77a9306aef87_c41f.png']],
+                     ['Who ar eyou?',
+                      "I apologize for the confusion earlier!\n\nI am LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input in a conversational manner. I'm not a human, but a computer program designed to simulate conversation, answer questions, and even generate text based on the input I receive.\n\nI can assist with a wide range of topics, from general knowledge to entertainment, and even create stories or dialogues. I'm constantly learning and improving my responses based on the interactions I have with users like you.\n\nSo, feel free to ask me anything, and I'll do my best to help!"]],
+                    [], [], [], [], [], [], [], [], [], [], []]
+    assert get_gradio_depth(example_list) == 3
+
+    example_list = [[[['Dog'], ['/tmp/gradio/image_Dog_d2b19221_6f70_4987_bda8_09be952eae93.png']],
+                     ['Who are you?', ['/tmp/gradio/image_Wh_480bd8318d01b570b61e77a9306aef87_c41f.png']],
+                     ['Who ar eyou?',
+                      "I apologize for the confusion earlier!\n\nI am LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input in a conversational manner. I'm not a human, but a computer program designed to simulate conversation, answer questions, and even generate text based on the input I receive.\n\nI can assist with a wide range of topics, from general knowledge to entertainment, and even create stories or dialogues. I'm constantly learning and improving my responses based on the interactions I have with users like you.\n\nSo, feel free to ask me anything, and I'll do my best to help!"]],
+                    [], [], [], [], [], [], [], [], [], [], []]
+    assert get_gradio_depth(example_list) == 3
+
+    example_list = [[['Dog', "Bad Dog"], ['Who are you?', "Image"], ['Who ar eyou?',
+                                                                     "I apologize for the confusion earlier!\n\nI am LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input in a conversational manner. I'm not a human, but a computer program designed to simulate conversation, answer questions, and even generate text based on the input I receive.\n\nI can assist with a wide range of topics, from general knowledge to entertainment, and even create stories or dialogues. I'm constantly learning and improving my responses based on the interactions I have with users like you.\n\nSo, feel free to ask me anything, and I'll do my best to help!"]],
+                    [], [], [], [], [], [], [], [], [], [], []]
+    assert get_gradio_depth(example_list) == 3
+
+    example_list = [[[['Dog', "Bad Dog"], ['Who are you?', "Image"], ['Who ar eyou?',
+                                                                      "I apologize for the confusion earlier!\n\nI am LLaMA, an AI assistant developed by Meta AI that can understand and respond to human input in a conversational manner. I'm not a human, but a computer program designed to simulate conversation, answer questions, and even generate text based on the input I receive.\n\nI can assist with a wide range of topics, from general knowledge to entertainment, and even create stories or dialogues. I'm constantly learning and improving my responses based on the interactions I have with users like you.\n\nSo, feel free to ask me anything, and I'll do my best to help!"]],
+                     [], [], [], [], [], [], [], [], [], [], []]]
+    assert get_gradio_depth(example_list) == 4
+
+    example_list = [['Dog', "Bad Dog"], ['Who are you?', "Image"]]
+    assert get_gradio_depth(example_list) == 2
+
+    # more cases
+    example_list = []
+    assert get_gradio_depth(example_list) == 0
+
+    example_list = [1, 2, 3]
+    assert get_gradio_depth(example_list) == 1
+
+    example_list = [[1], [2], [3]]
+    assert get_gradio_depth(example_list) == 1
+
+    example_list = [[[1]], [[2]], [[3]]]
+    assert get_gradio_depth(example_list) == 2
+
+    example_list = [[[[1]]], [[[2]]], [[[3]]]]
+    assert get_gradio_depth(example_list) == 3
+
+    example_list = [[[[[1]]]], [[[[2]]]], [[[[3]]]]]
+    assert get_gradio_depth(example_list) == 4
+
+    example_list = [[], [1], [2, [3]], [[[4]]]]
+    assert get_gradio_depth(example_list) == 3
+
+    example_list = [[], [[[[1]]]], [2, [3]], [[[4]]]]
+    assert get_gradio_depth(example_list) == 4
+
+    example_list = [[], [[[[[1]]]]], [2, [3]], [[[4]]]]
+    assert get_gradio_depth(example_list) == 5
+
+    example_list = [[[[[1]]]], [[[[2]]]], [[[3]]], [[4]], [5]]
+    assert get_gradio_depth(example_list) == 4
+
+    example_list = [[[[[1]]]], [[[[2]]]], [[[3]]], [[4]], [5], []]
+    assert get_gradio_depth(example_list) == 4

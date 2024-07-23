@@ -2639,6 +2639,7 @@ def evaluate(
             langchain_agents = [langchain_agents]
     if langchain_agents is None:
         langchain_agents = []
+
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
 
@@ -2788,6 +2789,8 @@ def evaluate(
         # make it easy to ignore without needing add_chat_history_to_context
         # some langchain or unit test may need to then handle more general case
         chat_conversation = []
+    # get ready for LLM
+    chat_conversation = history_for_llm(chat_conversation)
 
     # Control generation hyperparameters
     # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
@@ -5085,9 +5088,7 @@ def get_limited_prompt(instruction,
 
     ###########################
     # merge handles if chat_conversation is None
-    history = []
-    history0 = history_for_llm(history)
-    history = merge_chat_conversation_history(chat_conversation, history0)
+    history = merge_chat_conversation_history(chat_conversation, [])
 
     history_to_context_func = functools.partial(history_to_context,
                                                 langchain_mode=langchain_mode,

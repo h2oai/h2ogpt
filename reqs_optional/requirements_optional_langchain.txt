@@ -9,6 +9,7 @@ langchain-community==0.2.6
 langsmith==0.1.82
 langchain-core==0.2.10
 langchain-text-splitters==0.2.2
+langchain_huggingface==0.0.3
 
 pypdf>=3.17.1
 # avoid textract, requires old six
