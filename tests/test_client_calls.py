@@ -6126,7 +6126,7 @@ def get_creation_date(file_path):
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
-def test_client1_images_qa(langchain_action, langchain_mode, base_model):
+def test_client1_images_qa(langchain_action, langchain_mode, base_model, images_num_max):
     if langchain_mode == 'LLM' and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
         # dummy return
         return
