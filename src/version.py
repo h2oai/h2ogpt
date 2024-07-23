@@ -1,5 +1,1 @@
-<<<<<<< Updated upstream
-__version__ = "b0154434282ace2af46684862fff72fde34a774e"
-=======
-__version__ = "b0154434282ace2af46684862fff72fde34a774e"
->>>>>>> Stashed changes
+__version__ = "db9a51609e10143d2c5fb7f4338aa0fe8788043a"
