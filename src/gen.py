@@ -2641,9 +2641,6 @@ def evaluate(
         langchain_agents = []
 
     chat_conversation = str_to_list(chat_conversation)
-    # get ready for LLM
-    chat_conversation = history_for_llm(chat_conversation)
-
     text_context_list = str_to_list(text_context_list)
 
     langchain_modes = selection_docs_state['langchain_modes']
@@ -2792,6 +2789,8 @@ def evaluate(
         # make it easy to ignore without needing add_chat_history_to_context
         # some langchain or unit test may need to then handle more general case
         chat_conversation = []
+    # get ready for LLM
+    chat_conversation = history_for_llm(chat_conversation)
 
     # Control generation hyperparameters
     # adjust for bad inputs, e.g. in case also come from API that doesn't get constrained by gradio sliders
