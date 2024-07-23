@@ -958,7 +958,6 @@ def get_model(
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
-            tokenizer = None
             try:
                 from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
                 tokenizer = MistralTokenizer.from_model(base_model)
