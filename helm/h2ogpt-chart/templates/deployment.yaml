@@ -93,7 +93,7 @@ spec:
             {{- toYaml .Values.vllm.securityContext | nindent 12 }}
           image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
-          command: ["/h2ogpt_conda/vllm_env/bin/python3.10"]
+          command: ["python3"]
           args: 
             - "-m" 
             - "vllm.entrypoints.openai.api_server"
@@ -621,7 +621,7 @@ spec:
             {{- toYaml .Values.vllm.securityContext | nindent 12 }}
           image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
-          command: ["/h2ogpt_conda/vllm_env/bin/python3.10"]
+          command: ["python3"]
           args: 
             - "-m" 
             - "vllm.entrypoints.openai.api_server"
