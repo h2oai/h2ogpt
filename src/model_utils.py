@@ -220,16 +220,32 @@ def get_config(base_model,
             rope_scaling = config.rope_scaling
 
         if rope_scaling:
-            if rope_scaling.get('factor'):
-                # HF transformers
-                max_seq_len *= rope_scaling.get('factor')
-            elif rope_scaling.get('alpha_value'):
+            set_by_rope = False
+            if rope_scaling.get('factor') and rope_scaling.get('original_max_position_embeddings') and \
+                    hasattr(config, 'max_position_embeddings') and \
+                    isinstance(config.max_position_embeddings, int):
+                # HF transformers new way
+                max_seq_len = config.max_position_embeddings
+                set_by_rope = True
+            elif rope_scaling.get('factor') and hasattr(config, 'max_position_embeddings') and \
+                    isinstance(config.max_position_embeddings, int):
+                # HF transformers old way
+                max_seq_len = config.max_position_embeddings * rope_scaling.get('factor')
+                set_by_rope = True
+            elif rope_scaling.get('alpha_value') and hasattr(config, 'max_position_embeddings') and \
+                    isinstance(config.max_position_embeddings, int):
                 # exllama
                 # Note: exllama's own tokenizer has this set correctly in loaders.py, this config will be unused
-                max_seq_len *= rope_scaling.get('alpha_value')
+                max_seq_len = config.max_position_embeddings * rope_scaling.get('alpha_value')
+                set_by_rope = True
             max_seq_len = int(max_seq_len)
-            print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model),
-                  flush=True)
+            if set_by_rope:
+                print("Automatically setting max_seq_len=%d for RoPE scaling for %s" % (max_seq_len, base_model),
+                      flush=True)
+            else:
+                print("Did NOT automatically set max_seq_len=%d for RoPE scaling for %s, \
+                please set max_seq_len if not correct considering RoPE: %s" % (max_seq_len, base_model, rope_scaling),
+                      flush=True)
 
     return config, model, max_seq_len
 
@@ -963,7 +979,8 @@ def get_model(
                 tokenizer = MistralTokenizer.from_model(base_model)
                 tokenizer.model_max_length = max_seq_len
                 from mistral_common.protocol.instruct.request import ChatCompletionRequest
-                encoded_tokenizer = tokenizer.encode_chat_completion(ChatCompletionRequest(messages=[dict(role='user', content='Hello')]))
+                encoded_tokenizer = tokenizer.encode_chat_completion(
+                    ChatCompletionRequest(messages=[dict(role='user', content='Hello')]))
                 assert len(encoded_tokenizer.tokens) > 0, "Invalid MistralAI tokenizer"
                 tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_mistral=True,
                                           tokenizer=tokenizer, encoding_name=base_model)
@@ -1718,7 +1735,7 @@ def __model_lock_to_state(model_dict1, **kwargs):
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_state_trial['base_model'],
                                                                           kwargs['images_num_max'] or 1) or 1
         elif model_state_trial['is_vision_model'] and model_visible_vision_models and len(
-            model_visible_vision_models) > 0:
+                model_visible_vision_models) > 0:
             model_state_trial['images_num_max'] = images_num_max_dict.get(model_visible_vision_models[0],
                                                                           kwargs['images_num_max'] or 1) or 1
         else:
