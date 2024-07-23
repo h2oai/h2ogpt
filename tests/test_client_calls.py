@@ -6209,7 +6209,7 @@ def test_get_image_file():
 
             image_file = ['tests/jon.png', 'tests/fastfood.jpg']
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
-                                      images_num_max=None)) == 1
+                                      images_num_max=None)) == 2
 
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
                                       images_num_max=2)) == 2
