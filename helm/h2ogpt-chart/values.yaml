@@ -180,8 +180,8 @@ vllm:
   replicaCount: 1
 
   image:
-    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
-    tag:
+    repository: vllm/vllm-openai
+    tag: latest
     pullPolicy: IfNotPresent
 
   podAffinity:
