@@ -2405,7 +2405,7 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
             if not messages:
                 return ''
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            if si == 0 and system_prompt_to_use not in prompt:
+            if si == 0 and system_prompt_to_use not in [None, ''] and system_prompt_to_use not in prompt:
                 raise ValueError("System prompt not used: %s" % system_prompt_to_use)
             break
         except Exception as e:

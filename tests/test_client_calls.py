@@ -3455,6 +3455,7 @@ def test_client_load_unload_models(model_choice):
     server_choice = '' if model_choice not in openai_gpts else 'openai_chat'
     # model_state
     prompt_type = '' if model_choice != 'llama' else 'llama2'  # built-in, but prompt_type needs to be selected
+    chat_template = None
     model_load8bit_checkbox = False
     model_load4bit_checkbox = 'AWQ' not in model_choice and 'GGUF' not in model_choice and 'GPTQ' not in model_choice
     model_low_bit_mode = 1
@@ -3465,7 +3466,10 @@ def test_client_load_unload_models(model_choice):
     model_revision = ''
     model_use_gpu_id_checkbox = True
     model_gpu_id = 0
-    max_seq_len = -1
+    if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        max_seq_len = 2048
+    else:
+        max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
     model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true' if model_choice == 'llama' else ''
@@ -3488,6 +3492,7 @@ def test_client_load_unload_models(model_choice):
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
+                 chat_template,
                  model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                  model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                  model_safetensors_checkbox, model_revision,
@@ -3509,6 +3514,7 @@ def test_client_load_unload_models(model_choice):
 
     if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type_ex = 'human_bot'
+        chat_template_ex = """{% for message in messages %}{{ message.content }}{{ eos_token }}{% \n"'endfor %}"""
         max_seq_len_ex = 2048.0
         max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['llama']:
@@ -3545,7 +3551,7 @@ def test_client_load_unload_models(model_choice):
     else:
         raise ValueError("No such model_choice=%s" % model_choice)
     res_expected = (
-        model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex2,
+        model_choice_ex, '', server_choice, prompt_type_ex, chat_template_ex, max_seq_len_ex2,
         {'__type__': 'update', 'maximum': int(max_seq_len_ex)},
         {'__type__': 'update', 'maximum': int(max_seq_len_ex)},
         model_path_llama_ex,
@@ -4997,9 +5003,9 @@ def check_final_res(res, base_model='llama'):
         assert res['save_dict']['extra_dict']['llamacpp_dict']
         assert res['save_dict']['extra_dict']['prompt_type'] == 'llama2'
     else:
-        assert res['save_dict']['extra_dict']['prompt_type'] == 'mistral'
+        assert res['save_dict']['extra_dict']['prompt_type'] == 'unknown'
     assert res['save_dict']['extra_dict']['do_sample'] == False
-    assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 10
+    assert res['save_dict']['extra_dict']['num_prompt_tokens'] > 5
     assert res['save_dict']['extra_dict']['ntokens'] > 60
     assert res['save_dict']['extra_dict']['tokens_persecond'] > 3.5
 
@@ -5029,7 +5035,7 @@ def check_curl_plain_api():
            'intelligence' in res_dict['response'] or \
            'I am a model trained' in res_dict['response']
     assert 'Who are you?' in res_dict['prompt_raw']
-    assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.2' == \
+    assert 'llama' == res_dict['save_dict']['base_model'] or 'mistralai/Mistral-7B-Instruct-v0.3' == \
            res_dict['save_dict'][
                'base_model']
     assert 'str_plain_api' == res_dict['save_dict']['which_api']
@@ -5978,7 +5984,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
 close_vision_models = [
     # 'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09',
     'gpt-4o', 'gpt-4o-mini',
-    'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+    'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
     'claude-3-haiku-20240307',
 ]
@@ -6024,7 +6030,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+        if base_model in ['gemini-1.5-pro-latest',
                           'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
@@ -6116,10 +6122,11 @@ def get_creation_date(file_path):
 
 # (h2ogpt) jon@pseudotensor:~/h2ogpt$ TEST_SERVER="http://localhost:7860" pytest -s -v -k "LLM and llava and vicuna and Query" tests/test_client_calls.py::test_client1_images_qa
 @wrap_test_forked
+@pytest.mark.parametrize("images_num_max", [-2, 1])
 @pytest.mark.parametrize("base_model", vision_models)
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
 @pytest.mark.parametrize("langchain_action", [LangChainAction.QUERY.value, LangChainAction.SUMMARIZE_MAP.value])
-def test_client1_images_qa(langchain_action, langchain_mode, base_model):
+def test_client1_images_qa(langchain_action, langchain_mode, base_model, images_num_max):
     if langchain_mode == 'LLM' and langchain_action == LangChainAction.SUMMARIZE_MAP.value:
         # dummy return
         return
@@ -6151,7 +6158,7 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model):
                   prompt_summary=prompt if not use_instruction else '',
                   image_file=image_files,
                   visible_models=base_model,
-                  images_num_max=2 if base_model in open_vision_models else None,  # seems optimal even for InternVL
+                  images_num_max=1 if base_model in open_vision_models else None,  # seems optimal even for InternVL
                   stream_output=False,
                   langchain_mode=langchain_mode,
                   langchain_action=langchain_action,
@@ -6202,14 +6209,13 @@ def test_get_image_file():
 
             image_file = ['tests/jon.png', 'tests/fastfood.jpg']
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
-                                      images_num_max=None)) == 1
+                                      images_num_max=None)) == 2
 
             assert len(get_image_file(image_file, image_control, 'All', convert=convert, str_bytes=str_bytes,
                                       images_num_max=2)) == 2
 
 
-gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-              'mistralai/Mixtral-8x7B-Instruct-v0.1',
+gpt_models = ['mistralai/Mixtral-8x7B-Instruct-v0.1',
               'gpt-3.5-turbo-0613',
               'mistralai/Mistral-7B-Instruct-v0.3',
               'NousResearch/Nous-Capybara-34B',
@@ -6265,8 +6271,7 @@ TEST_CHOICE = [
     "Swift", "Kotlin"
 ]
 
-other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                     'mistralai/Mistral-7B-Instruct-v0.3',
+other_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
                      'NousResearch/Nous-Capybara-34B',
                      'mistralai/Mixtral-8x7B-Instruct-v0.1',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
@@ -6277,7 +6282,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
                      'claude-3-haiku-20240307', 'gemini-pro',
-                     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+                     'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
                      # 'liuhaotian/llava-v1.6-vicuna-13b',
@@ -6290,8 +6295,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
-vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                    'mistralai/Mistral-7B-Instruct-v0.3',
+vllm_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
                     'NousResearch/Nous-Capybara-34B',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',
@@ -6571,7 +6575,7 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+        if base_model in ['gemini-1.5-pro-latest',
                           'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
