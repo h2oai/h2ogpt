@@ -958,19 +958,27 @@ def get_model(
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
-            # try:
-            #    from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
-            #    raise RuntimeError("WIP")
-            #    tokenizer = MistralTokenizer.from_model(base_model)
-            #    tokenizer.model_max_length = max_seq_len
-            # except Exception as e:
-            #    # FIXME: not all models, only some, so do what can
-            #    print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
-            tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_hf=True,
-                                      tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2',
-                                                                              token=use_auth_token,
-                                                                              trust_remote_code=trust_remote_code,
-                                                                              ))
+            tokenizer = None
+            try:
+                from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+                tokenizer = MistralTokenizer.from_model(base_model)
+                tokenizer.model_max_length = max_seq_len
+                from mistral_common.protocol.instruct.request import ChatCompletionRequest
+                encoded_tokenizer = tokenizer.encode_chat_completion(ChatCompletionRequest(messages=[dict(role='user', content='Hello')]))
+                assert len(encoded_tokenizer.tokens) > 0, "Invalid MistralAI tokenizer"
+                tokenizer = FakeTokenizer(model_max_length=max_seq_len, is_mistral=True,
+                                          tokenizer=tokenizer, encoding_name=base_model)
+
+            except Exception as e:
+                # FIXME: not all models, only some, so do what can
+                print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
+                tokenizer = None
+            if tokenizer is None:
+                tokenizer = FakeTokenizer(model_max_length=max_seq_len - 1000, is_hf=True,
+                                          tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2',
+                                                                                  token=use_auth_token,
+                                                                                  trust_remote_code=trust_remote_code,
+                                                                                  ))
 
         if inference_server.startswith('groq') or base_model in groq_gpts:
             if inference_server.startswith('groq'):
