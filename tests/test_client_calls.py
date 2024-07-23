@@ -3455,6 +3455,7 @@ def test_client_load_unload_models(model_choice):
     server_choice = '' if model_choice not in openai_gpts else 'openai_chat'
     # model_state
     prompt_type = '' if model_choice != 'llama' else 'llama2'  # built-in, but prompt_type needs to be selected
+    chat_template = None
     model_load8bit_checkbox = False
     model_load4bit_checkbox = 'AWQ' not in model_choice and 'GGUF' not in model_choice and 'GPTQ' not in model_choice
     model_low_bit_mode = 1
@@ -3465,7 +3466,10 @@ def test_client_load_unload_models(model_choice):
     model_revision = ''
     model_use_gpu_id_checkbox = True
     model_gpu_id = 0
-    max_seq_len = -1
+    if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
+        max_seq_len = 2048
+    else:
+        max_seq_len = -1
     rope_scaling = '{}'
     # GGML:
     model_path_llama = 'https://huggingface.co/TheBloke/Llama-2-7b-Chat-GGUF/resolve/main/llama-2-7b-chat.Q6_K.gguf?download=true' if model_choice == 'llama' else ''
@@ -3488,6 +3492,7 @@ def test_client_load_unload_models(model_choice):
     args_list = [model_choice, lora_choice, server_choice,
                  # model_state,
                  prompt_type,
+                 chat_template,
                  model_load8bit_checkbox, model_load4bit_checkbox, model_low_bit_mode,
                  model_load_gptq, model_load_awq, model_load_exllama_checkbox,
                  model_safetensors_checkbox, model_revision,
@@ -3509,6 +3514,7 @@ def test_client_load_unload_models(model_choice):
 
     if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type_ex = 'human_bot'
+        chat_template_ex = """{% for message in messages %}{{ message.content }}{{ eos_token }}{% \n"'endfor %}"""
         max_seq_len_ex = 2048.0
         max_seq_len_ex2 = max_seq_len_ex
     elif model_choice in ['llama']:
@@ -3545,7 +3551,7 @@ def test_client_load_unload_models(model_choice):
     else:
         raise ValueError("No such model_choice=%s" % model_choice)
     res_expected = (
-        model_choice_ex, '', server_choice, prompt_type_ex, max_seq_len_ex2,
+        model_choice_ex, '', server_choice, prompt_type_ex, chat_template_ex, max_seq_len_ex2,
         {'__type__': 'update', 'maximum': int(max_seq_len_ex)},
         {'__type__': 'update', 'maximum': int(max_seq_len_ex)},
         model_path_llama_ex,
