@@ -93,8 +93,8 @@ spec:
             {{- toYaml .Values.vllm.securityContext | nindent 12 }}
           image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
-          command: ["python3.10"]
-          args: 
+          command: ["python3"]
+          args:
             - "-m" 
             - "vllm.entrypoints.openai.api_server"
             - "--port"
@@ -621,8 +621,8 @@ spec:
             {{- toYaml .Values.vllm.securityContext | nindent 12 }}
           image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
-          command: ["python3.10"]
-          args: 
+          command: ["python3"]
+          args:
             - "-m" 
             - "vllm.entrypoints.openai.api_server"
             - "--port"
@@ -824,6 +824,8 @@ spec:
           env:
           - name: NCCL_IGNORE_DISABLED_P2P
             value: "1"
+          - name: HF_HOME
+            value: "/workspace/.cache"
           {{- range $key, $value := .Values.internvl.env }}
           - name: "{{ $key }}"
             value: "{{ $value }}"
