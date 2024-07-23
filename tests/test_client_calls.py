@@ -5984,7 +5984,7 @@ def test_max_new_tokens(max_new_tokens, temperature):
 close_vision_models = [
     # 'gpt-4-vision-preview', 'gpt-4-turbo-2024-04-09',
     'gpt-4o', 'gpt-4o-mini',
-    'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+    'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
     'claude-3-haiku-20240307',
 ]
@@ -6030,7 +6030,7 @@ def test_client1_image_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+        if base_model in ['gemini-1.5-pro-latest',
                           'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
@@ -6283,7 +6283,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
                      'claude-3-haiku-20240307', 'gemini-pro',
-                     'gemini-pro-vision', 'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+                     'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
                      'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
                      # 'liuhaotian/llava-v1.6-vicuna-13b',
@@ -6577,7 +6577,7 @@ def test_client1_image_text_qa(langchain_action, langchain_mode, base_model):
     try:
         res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
     except Exception as e:
-        if base_model in ['gemini-pro-vision', 'gemini-1.5-pro-latest',
+        if base_model in ['gemini-1.5-pro-latest',
                           'gemini-1.5-flash-latest'] and """probability: MEDIUM""" in str(e):
             return
         else:
