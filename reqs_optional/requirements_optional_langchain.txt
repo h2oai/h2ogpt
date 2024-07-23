@@ -3,11 +3,11 @@ torch==2.2.1; sys_platform != "darwin" and platform_machine != "arm64"
 torch==2.2.1; sys_platform == "darwin" and platform_machine == "arm64"
 
 # optional for chat with PDF
-langchain==0.2.10
+langchain==0.2.6
 langchain_experimental==0.0.62
-langchain-community==0.2.9
-langsmith==0.1.93
-langchain-core==0.2.22
+langchain-community==0.2.6
+langsmith==0.1.82
+langchain-core==0.2.20
 langchain-text-splitters==0.2.2
 langchain_huggingface==0.0.3
 
