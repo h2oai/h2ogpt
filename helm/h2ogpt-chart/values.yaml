@@ -242,7 +242,7 @@ vllm:
   podLabels: {}
   autoscaling: {}
 
-internvl:
+lmdeploy:
   enabled: false
   replicaCount: 1
 

@@ -1,11 +1,11 @@
 {{- if and .Values.vllm.enabled .Values.tgi.enabled }}
   {{- fail "Both TGI and vLLM cannot be enabled at the same time. Enable only one and try again" }}
 {{- end }}
-{{- if and .Values.vllm.enabled .Values.internvl.enabled }}
-  {{- fail "Both internvl and vLLM cannot be enabled at the same time. Enable only one and try again" }}
+{{- if and .Values.vllm.enabled .Values.lmdeploy.enabled }}
+  {{- fail "Both lmdeploy and vLLM cannot be enabled at the same time. Enable only one and try again" }}
 {{- end }}
-{{- if and .Values.internvl.enabled .Values.tgi.enabled }}
-  {{- fail "Both TGI and internvl cannot be enabled at the same time. Enable only one and try again" }}
+{{- if and .Values.lmdeploy.enabled .Values.tgi.enabled }}
+  {{- fail "Both TGI and lmdeploy cannot be enabled at the same time. Enable only one and try again" }}
 {{- end }}
 {{- if .Values.h2ogpt.stack.enabled }}
   {{- if not (and .Values.vllm.enabled .Values.h2ogpt.enabled) }}
@@ -186,10 +186,10 @@ spec:
               
             python3 /workspace/generate.py
           {{- end }}
-          {{- if and .Values.internvl.enabled (not .Values.h2ogpt.externalLLM.modelLock) }}
+          {{- if and .Values.lmdeploy.enabled (not .Values.h2ogpt.externalLLM.modelLock) }}
           args:
           - >
-            until wget -O- http://{{ include "h2ogpt.fullname" . }}-internvl-inference:{{ .Values.internvl.service.port }}/ >/dev/null 2>&1;
+            until wget -O- http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}/ >/dev/null 2>&1;
               do
                 echo "Waiting for inference service to become ready...";
                 sleep 5;
@@ -197,7 +197,7 @@ spec:
               
             python3 /workspace/generate.py
           {{- end }}
-          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled .Values.internvl.enabled)) }}
+          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled .Values.lmdeploy.enabled)) }}
           args:
           - >
             python3 /workspace/generate.py
@@ -240,9 +240,9 @@ spec:
           - name: h2ogpt_inference_server
             value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
           {{- end }}
-          {{- if and .Values.internvl.enabled (not .Values.h2ogpt.externalLLM.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+          {{- if and .Values.lmdeploy.enabled (not .Values.h2ogpt.externalLLM.enabled) (not .Values.h2ogpt.stack.enabled ) }}
           - name: h2ogpt_inference_server
-            value: "http://{{ include "h2ogpt.fullname" . }}-internvl-inference:{{ .Values.internvl.service.port }}"
+            value: "http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}"
           {{- end }}
           {{- if and .Values.h2ogpt.stack.enabled (not .Values.h2ogpt.externalLLM.enabled)  }}
           - name: h2ogpt_inference_server
@@ -710,50 +710,50 @@ spec:
       storage: {{ .Values.vllm.storage.size | quote }}
 {{- end }}
 ---
-{{- if and (.Values.internvl.enabled) (not .Values.h2ogpt.stack.enabled )}}
+{{- if and (.Values.lmdeploy.enabled) (not .Values.h2ogpt.stack.enabled )}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}-internvl-inference
+  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
   namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
-    app: {{ include "h2ogpt.fullname" . }}-internvl-inference
+    app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
 spec:
-  {{- if not .Values.internvl.autoscaling.enabled }}
-  replicas: {{ .Values.internvl.replicaCount }}
+  {{- if not .Values.lmdeploy.autoscaling.enabled }}
+  replicas: {{ .Values.lmdeploy.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      app: {{ include "h2ogpt.fullname" . }}-internvl-inference
-  {{- if .Values.internvl.updateStrategy }}
-  strategy: {{- toYaml .Values.internvl.updateStrategy | nindent 4 }}
+      app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+  {{- if .Values.lmdeploy.updateStrategy }}
+  strategy: {{- toYaml .Values.lmdeploy.updateStrategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
-      {{- with .Values.internvl.podAnnotations }}
+      {{- with .Values.lmdeploy.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ include "h2ogpt.fullname" . }}-internvl-inference
-        {{- with .Values.internvl.podLabels }}
+        app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+        {{- with .Values.lmdeploy.podLabels }}
         {{ toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.internvl.nodeSelector }}
+      {{- with .Values.lmdeploy.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.internvl.tolerations }}
+      {{- with .Values.lmdeploy.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        {{- toYaml .Values.internvl.podSecurityContext | nindent 8 }}
+        {{- toYaml .Values.lmdeploy.podSecurityContext | nindent 8 }}
       affinity:
-        {{- if .Values.internvl.podAffinity }}
+        {{- if .Values.lmdeploy.podAffinity }}
         podAntiAffinity:
-          {{- if .Values.internvl.podAffinity.hostname }}
+          {{- if .Values.lmdeploy.podAffinity.hostname }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -763,7 +763,7 @@ spec:
                       - {{ include "h2ogpt.fullname" . }}
               topologyKey: kubernetes.io/hostname
           {{- end }}
-          {{- if .Values.internvl.podAffinity.zone }}
+          {{- if .Values.lmdeploy.podAffinity.zone }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -776,71 +776,71 @@ spec:
                 topologyKey: failure-domain.beta.kubernetes.io/zone
           {{- end }}
         {{- end }}
-      {{- with .Values.internvl.extraAffinity }}
+      {{- with .Values.lmdeploy.extraAffinity }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.internvl.imagePullSecrets }}
+      {{- with .Values.lmdeploy.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: {{ include "h2ogpt.fullname" . }}-internvl-inference
+        - name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
           securityContext:
-            {{- toYaml .Values.internvl.securityContext | nindent 12 }}
-          image: "{{ .Values.internvl.image.repository }}:{{ .Values.internvl.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.internvl.image.pullPolicy }}
+            {{- toYaml .Values.lmdeploy.securityContext | nindent 12 }}
+          image: "{{ .Values.lmdeploy.image.repository }}:{{ .Values.lmdeploy.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.lmdeploy.image.pullPolicy }}
           command: ["lmdeploy"]
           args:
             - "serve"
             - "api_server"
-{{- range $arg := .Values.internvl.containerArgs }}
+{{- range $arg := .Values.lmdeploy.containerArgs }}
             - "{{ $arg }}"
 {{- end }}
           ports:
             - name: http
               containerPort: 23333
               protocol: TCP
-          {{- if .Values.internvl.livenessProbe }}
+          {{- if .Values.lmdeploy.livenessProbe }}
           livenessProbe:
             httpGet:
               path:  /
               scheme: HTTP
               port: http
-            {{- toYaml .Values.internvl.livenessProbe | nindent 12 }}
+            {{- toYaml .Values.lmdeploy.livenessProbe | nindent 12 }}
           {{- end }}
-          {{- if .Values.internvl.readinessProbe }}
+          {{- if .Values.lmdeploy.readinessProbe }}
           readinessProbe:
             httpGet:
               path:  /
               scheme: HTTP
               port: http
-            {{- toYaml .Values.internvl.readinessProbe | nindent 12 }}
+            {{- toYaml .Values.lmdeploy.readinessProbe | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml .Values.internvl.resources | nindent 12 }}
+            {{- toYaml .Values.lmdeploy.resources | nindent 12 }}
           envFrom:
             - configMapRef:
-                name: {{ include "h2ogpt.fullname" . }}-internvl-inference-config
+                name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-config
           env:
           - name: NCCL_IGNORE_DISABLED_P2P
             value: "1"
           - name: HF_HOME
             value: "/workspace/.cache"
-          {{- range $key, $value := .Values.internvl.env }}
+          {{- range $key, $value := .Values.lmdeploy.env }}
           - name: "{{ $key }}"
             value: "{{ $value }}"
           {{- end }}
           volumeMounts:
-            - name: {{ include "h2ogpt.fullname" . }}-internvl-inference-volume
+            - name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
               mountPath: /workspace/.cache
               subPath: cache
             - name: shm
               mountPath: /dev/shm
       volumes:
-        - name: {{ include "h2ogpt.fullname" . }}-internvl-inference-volume
-          {{- if not .Values.internvl.storage.useEphemeral }}
+        - name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
+          {{- if not .Values.lmdeploy.storage.useEphemeral }}
           persistentVolumeClaim:
-            claimName: {{ include "h2ogpt.fullname" . }}-internvl-inference-volume
+            claimName: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
           {{- else }}
           ephemeral:
             volumeClaimTemplate:
@@ -849,8 +849,8 @@ spec:
                   - ReadWriteOnce
                 resources:
                   requests:
-                    storage: {{ .Values.internvl.storage.size | quote }}
-                storageClassName: {{ .Values.internvl.storage.class }}
+                    storage: {{ .Values.lmdeploy.storage.size | quote }}
+                storageClassName: {{ .Values.lmdeploy.storage.class }}
           {{- end }}
         - emptyDir:
             medium: Memory
@@ -858,18 +858,18 @@ spec:
           name: shm
 {{- end }}
 ---
-{{- if and (.Values.internvl.enabled) (not .Values.internvl.storage.useEphemeral) }}
+{{- if and (.Values.lmdeploy.enabled) (not .Values.lmdeploy.storage.useEphemeral) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}-internvl-inference-volume
+  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
   namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
-  # storageClassName: {{ .Values.internvl.storage.class | quote }}
-  storageClassName: {{ .Values.internvl.storage.class }}
+  # storageClassName: {{ .Values.lmdeploy.storage.class | quote }}
+  storageClassName: {{ .Values.lmdeploy.storage.class }}
   resources:
     requests:
-      storage: {{ .Values.internvl.storage.size | quote }}
+      storage: {{ .Values.lmdeploy.storage.size | quote }}
 {{- end }}
