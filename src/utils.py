@@ -1291,6 +1291,7 @@ class FakeTokenizer:
                  tokenizer=None,
                  is_llama_cpp=False,
                  is_super_fake=False,
+                 is_mistral=False,
                  ):
         if model_max_length is None:
             assert not (
@@ -1302,6 +1303,7 @@ class FakeTokenizer:
         self.is_hf = is_hf
         self.is_llama_cpp = is_llama_cpp
         self.is_super_fake = is_super_fake
+        self.is_mistral = is_mistral
         self.tokenizer = tokenizer
         self.model_max_length = model_max_length
         if not self.is_openai and not self.is_anthropic and not self.is_llama_cpp:
@@ -1311,7 +1313,7 @@ class FakeTokenizer:
         if self.is_super_fake:
             self.encoding = None
         # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
-        elif not (self.is_anthropic or self.is_google):
+        elif not (self.is_anthropic or self.is_google or self.is_mistral):
             import tiktoken
             self.encoding = tiktoken.get_encoding(self.encoding_name)
         else:
@@ -1335,6 +1337,9 @@ class FakeTokenizer:
             input_ids = [0] * self.tokenizer(x).total_tokens  # fake tokens
         elif self.is_hf:
             input_ids = self.tokenizer.encode(x)
+        elif self.is_mistral:
+            from mistral_common.protocol.instruct.request import ChatCompletionRequest
+            input_ids = self.tokenizer.encode_chat_completion(ChatCompletionRequest(messages=[dict(role='user', content=x)])).tokens
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
@@ -1354,6 +1359,8 @@ class FakeTokenizer:
             return tokenizer.decode(x)
         elif self.is_google:
             return ['a'] * len(x)  # fake
+        elif self.is_mistral:
+            return ['a'] * len(x)  # fake
         elif self.is_hf:
             return self.tokenizer.decode(x)
         # input is input_ids[0] form
@@ -1369,6 +1376,8 @@ class FakeTokenizer:
             return client.count_tokens(prompt)
         elif self.is_google:
             return self.tokenizer(prompt)
+        elif self.is_mistral:
+            return len(self.encode(prompt))
         elif self.is_hf:
             return len(self.tokenizer.encode(prompt))
         num_tokens = len(self.encode(prompt)['input_ids'])
