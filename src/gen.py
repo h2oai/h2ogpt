@@ -2639,7 +2639,11 @@ def evaluate(
             langchain_agents = [langchain_agents]
     if langchain_agents is None:
         langchain_agents = []
+
     chat_conversation = str_to_list(chat_conversation)
+    # get ready for LLM
+    chat_conversation = history_for_llm(chat_conversation)
+
     text_context_list = str_to_list(text_context_list)
 
     langchain_modes = selection_docs_state['langchain_modes']
@@ -5085,9 +5089,7 @@ def get_limited_prompt(instruction,
 
     ###########################
     # merge handles if chat_conversation is None
-    history = []
-    history0 = history_for_llm(history)
-    history = merge_chat_conversation_history(chat_conversation, history0)
+    history = merge_chat_conversation_history(chat_conversation, [])
 
     history_to_context_func = functools.partial(history_to_context,
                                                 langchain_mode=langchain_mode,
