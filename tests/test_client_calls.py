@@ -6215,8 +6215,7 @@ def test_get_image_file():
                                       images_num_max=2)) == 2
 
 
-gpt_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-              'mistralai/Mixtral-8x7B-Instruct-v0.1',
+gpt_models = ['mistralai/Mixtral-8x7B-Instruct-v0.1',
               'gpt-3.5-turbo-0613',
               'mistralai/Mistral-7B-Instruct-v0.3',
               'NousResearch/Nous-Capybara-34B',
@@ -6272,8 +6271,7 @@ TEST_CHOICE = [
     "Swift", "Kotlin"
 ]
 
-other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                     'mistralai/Mistral-7B-Instruct-v0.3',
+other_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
                      'NousResearch/Nous-Capybara-34B',
                      'mistralai/Mixtral-8x7B-Instruct-v0.1',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
@@ -6297,8 +6295,7 @@ other_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
                      'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
-vllm_base_models = ['h2oai/h2ogpt-4096-llama2-70b-chat',
-                    'mistralai/Mistral-7B-Instruct-v0.3',
+vllm_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
                     'NousResearch/Nous-Capybara-34B',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',
