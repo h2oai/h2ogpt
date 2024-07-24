@@ -120,6 +120,7 @@ def main(
         revision: str = None,
         use_gpu_id: bool = True,
         base_model: str = '',
+        display_name: str = None,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -543,6 +544,7 @@ def main(
     :param revision: Which HF revision to use
     :param use_gpu_id: whether to control devices with gpu_id.  If False, then spread across GPUs
     :param base_model: model HF-type name.  If use --base_model to preload model, cannot unload in gradio in models tab
+    :param display_name: display name for model (used in UI and API to access)
     :param tokenizer_base_model: tokenizer HF-type name.  Usually not required, inferred from base_model.
            If model is private or doesn't exist as HF model, can use "tiktoken" and pass max_seq_len and (if different) max_output_seq_len
            For inference servers like OpenAI etc. if have model name, we use tiktoken with known input/output sequence lengths.
@@ -2234,7 +2236,7 @@ def main(
                                   tokenizer_base_model=tokenizer_base_model, lora_weights=lora_weights,
                                   inference_server=inference_server,
                                   prompt_type=prompt_type, prompt_dict=prompt_dict, chat_template=chat_template,
-                                  display_name=base_model))
+                                  display_name=display_name))
     model_state_base0.update(other_model_state_defaults)
     # for allowing rest of eval_func_param_names.  We don't want to force CLI values always by default
     for k in eval_func_param_names:
@@ -2302,14 +2304,20 @@ def main(
     image_batch_final_prompt = image_batch_final_prompt or image_batch_final_prompt0
     # end prompt adjustments
 
-    # get lists of visible models
+    # get initial display name. Use user display name if set
     all_possible_display_names = [
         x.get('base_model', xi) if x.get('base_model', '') != 'llama' or
                                    not x.get('llamacpp_dict').get('model_path_llama', '')
         else x.get('llamacpp_dict').get('model_path_llama', '')
         for xi, x in enumerate(model_states)]
+    [x.update(
+        dict(display_name=x.get('display_name', all_possible_display_names[xi]) or all_possible_display_names[xi])) for
+     xi, x in enumerate(model_states)]
+    # dedup display names
+    all_possible_display_names = [x['display_name'] for x in model_states]
     display_names = deduplicate_names([x for x in all_possible_display_names])
     all_possible_display_names = display_names
+    # save display names
     [x.update(dict(display_name=display_names[xi])) for xi, x in enumerate(model_states)]
     visible_models_state0 = [x for xi, x in enumerate(all_possible_display_names) if
                              visible_models is None or
@@ -5129,8 +5137,9 @@ def get_limited_prompt(instruction,
         reduced = context_from_history
         psave = prompter.system_prompt
         prompter.system__prompt = ' '
-        prompt_just_template = prompter.generate_prompt(data_point, context_from_history=context_from_history, reduced=reduced,
-                                          image_file=image_file)
+        prompt_just_template = prompter.generate_prompt(data_point, context_from_history=context_from_history,
+                                                        reduced=reduced,
+                                                        image_file=image_file)
         prompter.system_prompt = psave
         prompt_just_template_tokens = get_token_count(prompt_just_template, tokenizer)
         if system_prompt in prompt_just_template:
