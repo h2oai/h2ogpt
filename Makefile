@@ -50,7 +50,7 @@ git_hash.txt:
 	@echo "$(shell git rev-parse HEAD)" >> $@
 
 
-DOCKER_BASE_OS_IMAGE := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:4
+DOCKER_BASE_OS_IMAGE := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:5
 DOCKER_VLLM_IMAGE    := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.3.post1-5618b96e
 
 docker_build: build_info.txt git_hash.txt
