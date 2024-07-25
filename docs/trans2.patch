@@ -1,0 +1,43 @@
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/generation/utils.py	2024-07-25 14:52:00.809023484 -0700
++++ /home/jon/utils.py	2024-07-25 14:51:31.280385967 -0700
+@@ -695,9 +695,9 @@
+                     dim=-1,
+                 )
+ 
+-        if model_kwargs.get("use_cache", True):
++        if model_kwargs.get("use_cache", True) and "cache_position" in model_kwargs:
+             model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
+-        else:
++        elif "cache_position" in model_kwargs:
+             past_positions = model_kwargs.pop("cache_position")
+             new_positions = torch.arange(
+                 past_positions[-1] + 1, past_positions[-1] + num_new_tokens + 1, dtype=past_positions.dtype
+@@ -868,8 +868,8 @@
+             )
+         if (
+             generation_config.min_length is not None
+-            and generation_config._eos_token_tensor is not None
+             and generation_config.min_length > 0
++            and generation_config._eos_token_tensor is not None
+         ):
+             processors.append(
+                 MinLengthLogitsProcessor(
+@@ -880,8 +880,8 @@
+             )
+         if (
+             generation_config.min_new_tokens is not None
+-            and generation_config._eos_token_tensor is not None
+             and generation_config.min_new_tokens > 0
++            and generation_config._eos_token_tensor is not None
+         ):
+             processors.append(
+                 MinNewTokensLengthLogitsProcessor(
+@@ -997,7 +997,7 @@
+                     "stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`."
+                 )
+             criteria.append(StopStringCriteria(stop_strings=generation_config.stop_strings, tokenizer=tokenizer))
+-        if generation_config._eos_token_tensor is not None:
++        if hasattr(generation_config, '_eos_token_tensor') and generation_config._eos_token_tensor is not None:
+             criteria.append(EosTokenCriteria(eos_token_id=generation_config._eos_token_tensor))
+         criteria = self._merge_criteria_processor_list(criteria, stopping_criteria)
+         return criteria
