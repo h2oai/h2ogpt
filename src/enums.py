@@ -516,7 +516,8 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
     else:
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
-        prompt_query1 = "According to only the information in the document sources provided within the context above, write an insightful and well-structured response to: "
+        prompt_query1 = """According to only the information in any chat history, any images given, or any document text provided within the context above, give a well-structured response (that starts with "According to") to:"""
+
 
     pre_prompt_summary1 = """In order to write a concise summary, pay attention to the following text."""
     prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise well-structured Markdown summary of key results."
