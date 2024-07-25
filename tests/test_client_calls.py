@@ -4876,6 +4876,7 @@ def test_client1_tts(tts_model):
     main(base_model='llama', chat=False,
          tts_model=tts_model,
          enable_tts=True,
+         add_disk_models_to_ui=False,
          stream_output=False, gradio=True, num_beams=1, block_gradio_exit=False)
 
     sr = set_env(tts_model)
@@ -4934,6 +4935,7 @@ def play_audio(audio, sr=16000):
 def test_client1_tts_stream(tts_model, base_model):
     from src.gen import main
     main(base_model=base_model, chat=False,
+         add_disk_models_to_ui=False,
          tts_model=tts_model,
          enable_tts=True,
          save_dir='foodir',

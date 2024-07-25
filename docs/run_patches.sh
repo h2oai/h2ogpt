@@ -44,3 +44,6 @@ patch $sp/transformers/modeling_utils.py docs/trans.patch
 
 # diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/TTS/tts/layers/xtts/stream_generator.py new.py > docs/xtt.patch
 patch $sp/TTS/tts/layers/xtts/stream_generator.py docs/xtt.patch
+
+# diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/transformers/generation/utils.py ~/utils.py  > docs/trans2.patch
+patch $sp/transformers/generation/utils.py docs/trans2.patch
