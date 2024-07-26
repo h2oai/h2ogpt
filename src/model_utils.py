@@ -1741,6 +1741,9 @@ def __model_lock_to_state(model_dict1, **kwargs):
         else:
             model_state_trial['images_num_max'] = 0
 
+    if hasattr(tokenizer0, 'max_output_len') and tokenizer0.max_output_len is not None:
+        model_state_trial['max_output_seq_len'] = tokenizer0.max_output_len
+
     auto_visible_vision_models = None
     if kwargs['visible_vision_models']:
         # if in UI, 'auto' is default, but CLI has another default, so use that if set
