@@ -1,0 +1,14 @@
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/langchain_google_genai/chat_models.py	2024-07-25 17:02:46.040222538 -0700
++++ /home/jon/chat_models.py	2024-07-25 17:01:48.722952945 -0700
+@@ -550,7 +550,10 @@
+     for candidate in response.candidates:
+         generation_info = {}
+         if candidate.finish_reason:
+-            generation_info["finish_reason"] = candidate.finish_reason.name
++            if hasattr(candidate.finish_reason, 'name'):
++                generation_info["finish_reason"] = candidate.finish_reason.name
++            else:
++                generation_info["finish_reason"] = 'unknown'
+         generation_info["safety_ratings"] = [
+             proto.Message.to_dict(safety_rating, use_integers_for_enums=False)
+             for safety_rating in candidate.safety_ratings
