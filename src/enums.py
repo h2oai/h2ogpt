@@ -415,7 +415,11 @@ def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[])
         base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5",
                        "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8",
                        "OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
-                       "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40"] or \
+                       "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40",
+                       "OpenGVLab/InternVL2-Llama3-76B",
+                       "OpenGVLab/InternVL2-40B-AWQ", "OpenGVLab/InternVL2-26B-AWQ", "OpenGVLab/InternVL2-8B-AWQ",
+                       "OpenGVLab/InternVL2-2B-AWQ",
+                       "OpenGVLab/InternVL2-Llama3-76B-AWQ"] or \
         base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B",
                        "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"] or \
         base_model in ["microsoft/Phi-3-vision-128k-instruct"]
