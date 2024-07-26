@@ -2849,6 +2849,7 @@ def evaluate(
         docs_joiner = docs_joiner_default
     model_max_length = get_model_max_length(chosen_model_state)
     max_new_tokens = min(max(1, int(max_new_tokens)), max_max_new_tokens)
+    min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
     min_new_tokens = min(max(0, int(min_new_tokens)), max_new_tokens)
     max_time = min(max(0, max_time), max_max_time)
     repetition_penalty = min(max(0.01, repetition_penalty), 3.0)

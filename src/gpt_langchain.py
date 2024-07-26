@@ -8287,6 +8287,10 @@ def get_chain(query=None,
         else:
             max_input_tokens = max_input_tokens_default
 
+        # don't let breach
+        max_new_tokens = model_max_length - max_input_tokens
+        min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
+
     else:
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
