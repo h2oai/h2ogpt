@@ -1,5 +1,9 @@
 # Run or Build h2oGPT Docker
 
+* Install Docker for [Linux](https://docs.docker.com/engine/install/ubuntu/)
+* Install Docker for [Windows](https://docs.docker.com/desktop/install/windows-install/)
+* Install Docker for [MAC](https://docs.docker.com/desktop/install/mac-install/)
+
 ## Setup Docker for CPU Inference
 
 No special docker instructions are required, just follow [these instructions](https://docs.docker.com/engine/install/ubuntu/) to get docker setup at all, i.e.:
