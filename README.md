@@ -4,15 +4,17 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 
 Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
+## Live Demo
+
+[![img-small.png](docs/img-small.png) Gradio Demo](https://gpt.h2o.ai/)
+
+[![img-small.png](docs/img-small.png) OpenWebUI Demo](https://gpt-docs.h2o.ai/)
+
 ## Video Demo
 
 https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79abc6
 
 [![img-small.png](docs/img-small.png) YouTube 4K Video](https://www.youtube.com/watch?v=_iktbj4obAI)
-
-[![img-small.png](docs/img-small.png) Live h2oGPT Demo](https://gpt.h2o.ai/)
-
-[![img-small.png](docs/img-small.png) Live h2oGPT-OpenWebUI Demo](https://gpt-docs.h2o.ai/)
 
 ## Features
 
