@@ -59,8 +59,11 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/h2oai/h2ogpt/blob/main/docs/README_DOCKER.md)
 
 ### Install h2oGPT
+
+Docker is recommended for Linux, Windows, and MAC for full capabilities.  Linux Script also has full capability, while Windows and MAC scripts have less capabilities than using Docker.
+
 * [Docker Build and Run Docs (Linux, Windows, MAC)](docs/README_DOCKER.md)
-* [Linux Manual Install and Run Docs](docs/README_LINUX.md)
+* [Linux Install and Run Docs](docs/README_LINUX.md)
 * [Windows 10/11 Installation Script](docs/README_WINDOWS.md)
 * [MAC Install and Run Docs](docs/README_MACOS.md)
 * [Quick Start on any Platform](docs/README_quickstart.md)
@@ -80,7 +83,6 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 - [YouTube: Ultimate Open-Source LLM Showdown (6 Models Tested) - Surprising Results!](https://www.youtube.com/watch?v=FTm5C_vV_EY)
 - [YouTube: Blazing Fast Falcon 40b 🚀 Uncensored, Open-Source, Fully Hosted, Chat With Your Docs](https://www.youtube.com/watch?v=H8Dx-iUY49s)
 - [Technical Paper: https://arxiv.org/pdf/2306.08161.pdf](https://arxiv.org/pdf/2306.08161.pdf)
-
 
 ### Docs Guide
 <!--  cat README.md | ./gh-md-toc  -  But Help is heavily processed -->
