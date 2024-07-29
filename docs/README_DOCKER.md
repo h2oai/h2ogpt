@@ -4,7 +4,7 @@
 * Install Docker for [Windows](https://docs.docker.com/desktop/install/windows-install/)
 * Install Docker for [MAC](https://docs.docker.com/desktop/install/mac-install/)
 
-## Setup Docker for CPU Inference
+## Linux Ubuntu: Setup Docker for CPU Inference
 
 No special docker instructions are required, just follow [these instructions](https://docs.docker.com/engine/install/ubuntu/) to get docker setup at all, i.e.:
 ```bash
@@ -28,7 +28,7 @@ newgrp docker
 ```
 which avoids having to reboot.  Or just reboot to have docker access.  If this cannot be done without entering root access, then edit the `/etc/group` and add your user to group `docker`.
 
-## Setup Docker for GPU Inference
+## Linux Ubuntu: Setup Docker for GPU Inference
 
 Ensure docker installed and ready (requires sudo), can skip if system is already capable of running nvidia containers.  Example here is for Ubuntu, see [NVIDIA Containers](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker) for more examples.
 ```bash
@@ -49,7 +49,7 @@ sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 
 If running on A100's, might require [Installing Fabric Manager](INSTALL.md#install-and-run-nvidia-fabric-manager-on-systems-with-multiple-a100-or-h100-gpus) and [Installing GPU Manager](INSTALL.md#install-nvidia-gpu-manager-on-systems-with-multiple-a100-or-h100-gpus).
 
-## Run h2oGPT using Docker
+## Prebuild Docker for Windows/Linux x86
 
 All available public h2oGPT docker images can be found in [Google Container Registry](https://console.cloud.google.com/gcr/images/vorvan/global/h2oai/h2ogpt-runtime).  These require cuda drivers that handle CUDA 12.1 or higher.
 
@@ -57,6 +57,29 @@ Ensure image is up-to-date by running:
 ```bash
 docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1
 ```
+
+## Build Docker
+
+The GCR contains nightly and released images for x86.  To build the docker image yourself, run:
+
+```bash
+# build image
+touch build_info.txt
+docker build -t h2ogpt .
+```
+then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1` with `h2ogpt:latest` in above run command.
+
+### MAC Metal or other architectures
+
+Choose your llama_cpp_python options, by changing `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
+
+For example, for Metal M1/M2, one should change `CMAKE_ARGS` in [docker_build_script_ubuntu.sh](../docker_build_script_ubuntu.sh) to have:
+```bash
+export CMAKE_ARGS="-DLLAMA_METAL=on"
+```
+and remove `LLAMA_CUBLAS=1`, so that the docker image is Metal Compatible for llama.cpp GGUF files.  Otherwise, Torch supports Metal M1/M2 directly without changes.
+
+## Linux: Run h2oGPT using Docker
 
 An example running h2oGPT via docker using Zephyr 7B Beta model is:
 ```bash
@@ -122,7 +145,7 @@ For single GPU use `--gpus '"device=0"'` or for 2 GPUs use `--gpus '"device=0,1"
 
 See [README_GPU](README_GPU.md) for more details about what to run.
 
-## Run h2oGPT in docker offline:
+## Linux: Run h2oGPT in docker offline:
 
 Ensure $HOME/users and $HOME/db_nonusers are writeable by user running docker, then run:
 ```bash
@@ -467,14 +490,8 @@ docker run \
 
 For a more detailed description of other parameters of the make_db script, checkout the definition in this file: https://github.com/h2oai/h2ogpt/blob/main/src/make_db.py
 
-## Build Docker
 
-```bash
-# build image
-touch build_info.txt
-docker build -t h2ogpt .
-```
-then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1` with `h2ogpt:latest` in above run command.
+
 
 ## Docker Compose Setup & Inference
 
@@ -499,4 +516,3 @@ then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/
     ```bash
     docker-compose down --volumes --rmi all
     ```
-
