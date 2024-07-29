@@ -11,8 +11,8 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 [![img-small.png](docs/img-small.png) YouTube 4K Video](https://www.youtube.com/watch?v=_iktbj4obAI)
 
 [![img-small.png](docs/img-small.png) Live h2oGPT Demo](https://gpt.h2o.ai/)
-[![img-small.png](docs/img-small.png) Live h2oGPT-OpenWebUI Demo](https://gpt-docs.h2o.ai/)
 
+[![img-small.png](docs/img-small.png) Live h2oGPT-OpenWebUI Demo](https://gpt-docs.h2o.ai/)
 
 ## Features
 
