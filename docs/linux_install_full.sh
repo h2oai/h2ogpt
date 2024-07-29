@@ -57,9 +57,20 @@ export LLAMA_CUBLAS=1
 export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
 
+# get patches
+curl -O  https://h2o-release.s3.amazonaws.com/h2ogpt/run_patches.sh
+curl -O https://h2o-release.s3.amazonaws.com/h2ogpt/trans.patch
+curl -O https://h2o-release.s3.amazonaws.com/h2ogpt/xtt.patch
+curl -O https://h2o-release.s3.amazonaws.com/h2ogpt/trans2.patch
+curl -O https://h2o-release.s3.amazonaws.com/h2ogpt/google.patch
+mkdir -p docs
+alias cp='cp'
+cp run_patches.sh trans.patch xtt.patch trans2.patch google.patch docs/
+
 echo "Installing fresh h2oGPT"
 set +x
 export GPLOK=1
 curl -fsSL https://h2o-release.s3.amazonaws.com/h2ogpt/linux_install.sh | bash
+
 
 echo -e "\n\n\n\t\t h2oGPT installation FINISHED\n\n\n";
