@@ -1,8 +1,10 @@
+import asyncio
 import os
 import tempfile
 import typing
 from contextlib import asynccontextmanager, AsyncExitStack
 from traceback import print_exception
+from threading import Thread
 
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException
@@ -12,7 +14,7 @@ from fastapi.responses import JSONResponse, Response, PlainTextResponse
 
 from autogen.io.websockets import IOWebsockets
 from websockets.sync.client import connect as ws_connect
-import asyncio
+from websockets import connect as ws_async_connect
 
 model_name = "gpt-4o"
 api_key = os.getenv('OPENAI_API_KEY')
@@ -31,15 +33,16 @@ class InvalidRequestError(Exception):
     pass
 
 
+from autogen import ConversableAgent
+from autogen.coding import LocalCommandLineCodeExecutor
+
+
 def on_connect(iostream: IOWebsockets) -> typing.List:
     print(f" - on_connect(): Connected to client using IOWebsockets {iostream}", flush=True)
     print(" - on_connect(): Receiving message from client.", flush=True)
 
     # 1. Receive Initial Message
     query = iostream.input()
-
-    from autogen import ConversableAgent
-    from autogen.coding import LocalCommandLineCodeExecutor
 
     # Create a temporary directory to store the code files.
     temp_dir = tempfile.TemporaryDirectory()
@@ -115,20 +118,34 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
 websocket_instance = None  # Global variable to store the websocket instance
 
 
-@asynccontextmanager
-async def run_websocket_server():
+def run_websocket_server():
     global websocket_instance
-    async with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8080) as uri:
+    with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8080) as uri:
         websocket_instance = ws_connect(uri)  # Connect and store the instance
         print(f"Websocket server started at {uri}.", flush=True)
+        while True:
+            pass  # Keep the server running
+
+
+@asynccontextmanager
+async def run_websocket_server_async():
+    global websocket_instance
+    loop = asyncio.get_event_loop()
+    thread = Thread(target=run_websocket_server)
+    thread.start()
+    while not websocket_instance:
+        await asyncio.sleep(0.1)
+    try:
         yield
-        websocket_instance = None  # Clean up
+    finally:
+        thread.join()
+        websocket_instance = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with AsyncExitStack() as stack:
-        await stack.enter_async_context(run_websocket_server())
+        await stack.enter_async_context(run_websocket_server_async())
         yield
 
 
