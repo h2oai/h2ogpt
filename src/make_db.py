@@ -195,7 +195,7 @@ def make_db_main(use_openai_embedding: bool = False,
     python src/make_db.py --download_one=db_dir_DriverlessAI_docs.zip
 
     :param use_openai_embedding: Whether to use OpenAI embedding
-    :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'hkunlp/instructor-large' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
+    :param hf_embedding_model: HF embedding model to use. Like generate.py, uses 'BAAI/bge-large-en-v1.5-instruct' if have GPUs, else "sentence-transformers/all-MiniLM-L6-v2"
     :param migrate_embedding_model: whether to migrate to newly chosen hf_embedding_model or stick with one in db
     :param persist_directory: where to persist db (note generate.py always uses db_dir_<collection name>
            If making personal database for user, set persistent_directory to users/<username>/db_dir_<collection name>
@@ -269,7 +269,7 @@ def make_db_main(use_openai_embedding: bool = False,
     else:
         if hf_embedding_model is None:
             # if still None, then set default
-            hf_embedding_model = 'hkunlp/instructor-large'
+            hf_embedding_model = 'BAAI/bge-large-en-v1.5-instruct'
 
     existing_db = False
 

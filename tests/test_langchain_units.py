@@ -344,7 +344,7 @@ def test_qa_daidocs_db_chunk_hf_dbs_switch_embedding(db_type):
     query = "Which config.toml enables pytorch for NLP?"
     # chunk_size is chars for each of k=4 chunks
     ret = _run_qa_db(query=query, use_openai_model=False, use_openai_embedding=False,
-                     hf_embedding_model='hkunlp/instructor-large',
+                     hf_embedding_model='BAAI/bge-large-en-v1.5-instruct',
                      migrate_embedding_model=True,
                      model=model,
                      tokenizer=tokenizer,
@@ -522,7 +522,7 @@ def test_make_add_db(repeat, db_type):
                     with open(test_file2_my, "wt") as f:
                         f.write(msg1up)
                     kwargs = dict(use_openai_embedding=False,
-                                  hf_embedding_model='hkunlp/instructor-large',
+                                  hf_embedding_model='BAAI/bge-large-en-v1.5-instruct',
                                   migrate_embedding_model=True,
                                   caption_loader=False,
                                   doctr_loader=False,
@@ -1698,7 +1698,7 @@ def test_many_text(db_type, num):
     sources = [Document(page_content=str(i)) for i in range(0, num)]
     hf_embedding_model = "fake"
     # hf_embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-    # hf_embedding_model = 'hkunlp/instructor-large'
+    # hf_embedding_model = 'BAAI/bge-large-en-v1.5-instruct'
     db = get_db(sources, db_type=db_type, langchain_mode='ManyTextData', hf_embedding_model=hf_embedding_model)
     documents = get_documents(db)['documents']
     assert len(documents) == num

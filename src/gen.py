@@ -1062,7 +1062,8 @@ def main(
     :param hf_embedding_model: Which HF embedding model to use for vector db
            Default is instructor-large with 768 parameters per embedding if have GPUs, else all-MiniLM-L6-v2 if no GPUs
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
-           Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
+           A better choice is: 'BAAI/bge-large-en-v1.5'
+           For multilingual can use intfloat/multilingual-e5-large
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
     :param migrate_embedding_model: whether to use hf_embedding_model embedding even if database already had an embedding set.
            used to migrate all embeddings to a new one, but will take time to re-embed.
@@ -1789,7 +1790,7 @@ def main(
                 score_model = ''
         if hf_embedding_model is None:
             # if still None, then set default
-            hf_embedding_model = 'hkunlp/instructor-large'
+            hf_embedding_model = 'BAAI/bge-large-en-v1.5'
 
     # get defaults
     if base_model:
@@ -4392,7 +4393,7 @@ def get_generate_params(model_lower,
         if chat:
             show_examples = False
         else:
-            show_examples = True
+            show_examples = False
 
     summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker?
 Philipp: Sure you can use the new Hugging Face Deep Learning Container.
