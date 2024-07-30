@@ -93,6 +93,7 @@ from h2o_serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
     split_merge_docs
+from huggingface_instructor import H2OHuggingFaceInstructEmbeddings
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -548,7 +549,7 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                      encode_kwargs=encode_kwargs,
                                                      **query_kwargs)
                 embedding.client.eval()
-            elif 'instructor' in hf_embedding_model:
+            elif hf_embedding_model in ['hkunlp/instructor-large', 'hkunlp/instructor-base', 'hkunlp/instructor-base']:
                 encode_kwargs = {'normalize_embeddings': True}
                 embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
                                                           model_kwargs=model_kwargs,
