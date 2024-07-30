@@ -115,12 +115,14 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
 websocket_instance = None  # Global variable to store the websocket instance
 
 
+@asynccontextmanager
 async def run_websocket_server():
     global websocket_instance
     async with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8080) as uri:
-        websocket_instance = await ws_connect(uri)  # Connect and store the instance
+        websocket_instance = ws_connect(uri)  # Connect and store the instance
         print(f"Websocket server started at {uri}.", flush=True)
-        yield websocket_instance
+        yield
+        websocket_instance = None  # Clean up
 
 
 @asynccontextmanager
@@ -128,7 +130,6 @@ async def lifespan(app: FastAPI):
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(run_websocket_server())
         yield
-        websocket_instance = None
 
 
 app = FastAPI(lifespan=lifespan)
@@ -165,8 +166,8 @@ async def send_message_to_websocket(request: Request):
     global websocket_instance
     if websocket_instance:
         message = await request.json()
-        await websocket_instance.send(message["text"])  # Send the message to websocket
-        response = await websocket_instance.recv()  # Receive response from websocket
+        websocket_instance.send(message["text"])  # Send the message to websocket
+        response = websocket_instance.recv()  # Receive response from websocket
         return JSONResponse(content={"response": response})
     else:
         return JSONResponse(content={"error": "WebSocket server is not connected"}, status_code=500)
