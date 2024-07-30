@@ -60,24 +60,31 @@ docker pull gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1
 
 ## Build Docker
 
-The GCR contains nightly and released images for x86.  To build the docker image yourself, run:
+The GCR contains nightly and released images for x86.
 
-```bash
-# build image
-touch build_info.txt
-docker build -t h2ogpt .
-```
-then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1` with `h2ogpt:latest` in above run command.
+### x86
+
+The default docker supports CUDA or CPU for x86, and HF models supported by torch on Metal M1/M2.
 
 ### MAC Metal or other architectures
 
 Choose your llama_cpp_python options, by changing `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
 
-For example, for Metal M1/M2, one should change `CMAKE_ARGS` in [docker_build_script_ubuntu.sh](../docker_build_script_ubuntu.sh) to have:
+For example, for Metal M1/M2 support of llama.cpp GGUF files, one should change `CMAKE_ARGS` in [docker_build_script_ubuntu.sh](../docker_build_script_ubuntu.sh) to have:
 ```bash
 export CMAKE_ARGS="-DLLAMA_METAL=on"
 ```
 and remove `LLAMA_CUBLAS=1`, so that the docker image is Metal Compatible for llama.cpp GGUF files.  Otherwise, Torch supports Metal M1/M2 directly without changes.
+
+### Build
+
+To build the docker image after any local changes (to support Metal for GGUF files, etc.):
+```bash
+# build image
+touch build_info.txt
+docker build -t h2ogpt .
+```
+then to run this version of the docker image, just replace `gcr.io/vorvan/h2oai/h2ogpt-runtime:0.2.1` with `h2ogpt:latest` in any docker run commands.
 
 ## Linux: Run h2oGPT using Docker
 
