@@ -1,4 +1,3 @@
-import asyncio
 import os
 import tempfile
 import typing
@@ -13,6 +12,7 @@ from fastapi.responses import JSONResponse, Response, PlainTextResponse
 
 from autogen.io.websockets import IOWebsockets
 from websockets.sync.client import connect as ws_connect
+import asyncio
 
 model_name = "gpt-4o"
 api_key = os.getenv('OPENAI_API_KEY')
@@ -22,7 +22,6 @@ base_url = "https://api.openai.com/v1/"
 def verify_api_key(authorization: str = Header(None)) -> None:
     server_api_key = os.getenv('H2OGPT_AUTOGEN_API_KEY', 'EMPTY')
     if server_api_key == 'EMPTY':
-        # dummy case since '' cannot be handled
         return
     if server_api_key and (authorization is None or authorization != f"Bearer {server_api_key}"):
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -34,16 +33,10 @@ class InvalidRequestError(Exception):
 
 def on_connect(iostream: IOWebsockets) -> typing.List:
     print(f" - on_connect(): Connected to client using IOWebsockets {iostream}", flush=True)
-
     print(" - on_connect(): Receiving message from client.", flush=True)
 
     # 1. Receive Initial Message
     query = iostream.input()
-
-    # NOTE: In some cases docker gets stuck
-    # https://stackoverflow.com/questions/44761246/temporary-failure-in-name-resolution-errno-3-with-docker
-    # So do:
-    # sudo systemctl restart docker
 
     from autogen import ConversableAgent
     from autogen.coding import LocalCommandLineCodeExecutor
@@ -57,7 +50,6 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
         executor = DockerCommandLineCodeExecutor(
-            # image="python:3.12-slim",  # Execute code using the given docker image name.
             image="python:3.10-slim-bullseye",
             timeout=20,  # Timeout for each code execution in seconds.
             work_dir=temp_dir.name,  # Use the temporary directory to store the code files.
@@ -123,27 +115,20 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
 websocket_instance = None  # Global variable to store the websocket instance
 
 
-def run_websocket_server_sync():
+async def run_websocket_server():
     global websocket_instance
-    with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8080) as uri:
-        websocket_instance = ws_connect(uri)  # Connect and store the instance
+    async with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8080) as uri:
+        websocket_instance = await ws_connect(uri)  # Connect and store the instance
         print(f"Websocket server started at {uri}.", flush=True)
-        while True:
-            pass  # Keep the server running
-
-
-websocket_server_exit_stack = AsyncExitStack()
+        yield websocket_instance
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start the websocket server in a separate thread
-    loop = asyncio.get_event_loop()
-    websocket_thread = loop.run_in_executor(None, run_websocket_server_sync)
-    try:
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(run_websocket_server())
         yield
-    finally:
-        websocket_thread.cancel()
+        websocket_instance = None
 
 
 app = FastAPI(lifespan=lifespan)
