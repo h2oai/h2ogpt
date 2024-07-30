@@ -1,18 +1,37 @@
 import os
 import tempfile
 import typing
-from datetime import datetime
-from tempfile import TemporaryDirectory
+from contextlib import asynccontextmanager
+from traceback import print_exception
 
-from websockets.sync.client import connect as ws_connect
+import uvicorn
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request, Depends
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+from sse_starlette import EventSourceResponse
+from starlette.responses import PlainTextResponse
 
-import autogen
 from autogen.io.websockets import IOWebsockets
-
+from websockets.sync.client import connect as ws_connect
+from contextlib import AsyncExitStack
 
 model_name = "gpt-4o"
 api_key = os.getenv('OPENAI_API_KEY')
 base_url = "https://api.openai.com/v1/"
+
+
+def verify_api_key(authorization: str = Header(None)) -> None:
+    server_api_key = os.getenv('H2OGPT_AUTOGEN_API_KEY', 'EMPTY')
+    if server_api_key == 'EMPTY':
+        # dummy case since '' cannot be handled
+        return
+    if server_api_key and (authorization is None or authorization != f"Bearer {server_api_key}"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+class InvalidRequestError(Exception):
+    pass
 
 
 def on_connect(iostream: IOWebsockets) -> typing.List:
@@ -101,66 +120,77 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
     return os.listdir(temp_dir.name)
 
 
-from contextlib import asynccontextmanager  # noqa: E402
-from pathlib import Path  # noqa: E402
+@asynccontextmanager
+async def run_websocket_server():
+    global websocket_instance
+    with IOWebsockets.run_server_in_thread(on_connect=on_connect, host='0.0.0.0', port=8080) as uri:
+        websocket_instance = IOWebsockets.connect(uri)  # Connect and store the instance
+        print(f"Websocket server started at {uri}.", flush=True)
+        yield
+        websocket_instance = None  # Clean up
 
-from fastapi import FastAPI  # noqa: E402
-from fastapi.responses import HTMLResponse  # noqa: E402
-
-PORT = 8005
-
-html = """
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>Autogen websocket test</title>
-    </head>
-    <body>
-        <h1>WebSocket Chat</h1>
-        <form action="" onsubmit="sendMessage(event)">
-            <input type="text" id="messageText" autocomplete="off"/>
-            <button>Send</button>
-        </form>
-        <ul id='messages'>
-        </ul>
-        <script>
-            var ws = new WebSocket("ws://localhost:8080/ws");
-            ws.onmessage = function(event) {
-                var messages = document.getElementById('messages')
-                var message = document.createElement('li')
-                var content = document.createTextNode(event.data)
-                message.appendChild(content)
-                messages.appendChild(message)
-            };
-            function sendMessage(event) {
-                var input = document.getElementById("messageText")
-                ws.send(input.value)
-                input.value = ''
-                event.preventDefault()
-            }
-        </script>
-    </body>
-</html>
-"""
+websocket_server_exit_stack = AsyncExitStack()
 
 
 @asynccontextmanager
-async def run_websocket_server(app):
-    with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=PORT) as uri:
-        print(f"Websocket server started at {uri}.", flush=True)
-
-        yield
-
-
-app = FastAPI(lifespan=run_websocket_server)
+async def lifespan(app: FastAPI):
+    # Code to execute during startup
+    await websocket_server_exit_stack.enter_async_context(run_websocket_server())
+    yield
+    # Code to execute during shutdown
+    await websocket_server_exit_stack.aclose()
 
 
-@app.get("/")
-async def get():
-    return HTMLResponse(html)
+app = FastAPI(lifespan=lifespan)
+check_key = [Depends(verify_api_key)]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
-import uvicorn  # noqa: E402
 
-config = uvicorn.Config(app)
-server = uvicorn.Server(config)
-server.serve()  # noqa: F704
+@app.get("/health")
+async def health() -> Response:
+    """Health check."""
+    return Response(status_code=200)
+
+
+@app.exception_handler(Exception)
+async def validation_exception_handler(request, exc):
+    print_exception(exc)
+    exc2 = InvalidRequestError(str(exc))
+    return PlainTextResponse(str(exc2), status_code=400)
+
+
+@app.options("/", dependencies=check_key)
+async def options_route():
+    return JSONResponse(content="OK")
+
+
+websocket_instance = None  # Global variable to store the websocket instance
+
+
+@app.post("/send_message")
+async def send_message_to_websocket(request: Request):
+    global websocket_instance
+    if websocket_instance:
+        message = await request.json()
+        await websocket_instance.send(message["text"])  # Send the message to websocket
+        response = await websocket_instance.receive()  # Receive response from websocket
+        return JSONResponse(content={"response": response})
+    else:
+        return JSONResponse(content={"error": "WebSocket server is not connected"}, status_code=500)
+
+
+if __name__ == '__main__':
+    host = '0.0.0.0'
+    port = 8057
+    ssl_certfile = None
+    ssl_keyfile = None
+    workers = 1
+    uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile,
+                workers=workers,
+                )
