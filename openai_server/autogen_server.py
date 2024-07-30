@@ -1,20 +1,18 @@
+import asyncio
 import os
 import tempfile
 import typing
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, AsyncExitStack
 from traceback import print_exception
 
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request, Depends
-from fastapi.responses import JSONResponse, Response, StreamingResponse
-from sse_starlette import EventSourceResponse
-from starlette.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, Response, PlainTextResponse
 
 from autogen.io.websockets import IOWebsockets
 from websockets.sync.client import connect as ws_connect
-from contextlib import AsyncExitStack
 
 model_name = "gpt-4o"
 api_key = os.getenv('OPENAI_API_KEY')
@@ -42,7 +40,9 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
     # 1. Receive Initial Message
     query = iostream.input()
 
+    # NOTE: In some cases docker gets stuck
     # https://stackoverflow.com/questions/44761246/temporary-failure-in-name-resolution-errno-3-with-docker
+    # So do:
     # sudo systemctl restart docker
 
     from autogen import ConversableAgent
@@ -57,7 +57,7 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
         executor = DockerCommandLineCodeExecutor(
-            #image="python:3.12-slim",  # Execute code using the given docker image name.
+            # image="python:3.12-slim",  # Execute code using the given docker image name.
             image="python:3.10-slim-bullseye",
             timeout=20,  # Timeout for each code execution in seconds.
             work_dir=temp_dir.name,  # Use the temporary directory to store the code files.
@@ -120,25 +120,30 @@ def on_connect(iostream: IOWebsockets) -> typing.List:
     return os.listdir(temp_dir.name)
 
 
-@asynccontextmanager
-async def run_websocket_server():
+websocket_instance = None  # Global variable to store the websocket instance
+
+
+def run_websocket_server_sync():
     global websocket_instance
-    with IOWebsockets.run_server_in_thread(on_connect=on_connect, host='0.0.0.0', port=8080) as uri:
-        websocket_instance = IOWebsockets.connect(uri)  # Connect and store the instance
+    with IOWebsockets.run_server_in_thread(on_connect=on_connect, port=8080) as uri:
+        websocket_instance = ws_connect(uri)  # Connect and store the instance
         print(f"Websocket server started at {uri}.", flush=True)
-        yield
-        websocket_instance = None  # Clean up
+        while True:
+            pass  # Keep the server running
+
 
 websocket_server_exit_stack = AsyncExitStack()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Code to execute during startup
-    await websocket_server_exit_stack.enter_async_context(run_websocket_server())
-    yield
-    # Code to execute during shutdown
-    await websocket_server_exit_stack.aclose()
+    # Start the websocket server in a separate thread
+    loop = asyncio.get_event_loop()
+    websocket_thread = loop.run_in_executor(None, run_websocket_server_sync)
+    try:
+        yield
+    finally:
+        websocket_thread.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -170,16 +175,13 @@ async def options_route():
     return JSONResponse(content="OK")
 
 
-websocket_instance = None  # Global variable to store the websocket instance
-
-
 @app.post("/send_message")
 async def send_message_to_websocket(request: Request):
     global websocket_instance
     if websocket_instance:
         message = await request.json()
         await websocket_instance.send(message["text"])  # Send the message to websocket
-        response = await websocket_instance.receive()  # Receive response from websocket
+        response = await websocket_instance.recv()  # Receive response from websocket
         return JSONResponse(content={"response": response})
     else:
         return JSONResponse(content={"error": "WebSocket server is not connected"}, status_code=500)
@@ -191,6 +193,4 @@ if __name__ == '__main__':
     ssl_certfile = None
     ssl_keyfile = None
     workers = 1
-    uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile,
-                workers=workers,
-                )
+    uvicorn.run(app, host=host, port=port, ssl_certfile=ssl_certfile, ssl_keyfile=ssl_keyfile, workers=workers)
