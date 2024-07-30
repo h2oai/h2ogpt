@@ -75,7 +75,7 @@ Then go to `http://0.0.0.0:8080/` to see the UI (`--network host` changed port f
 
 If you want to choose a specific model, that is not currently possible through h2oGPT, which uses its fixed single embedding model.  But this may be allowed in future and then one would set:
 ```bash
--e RAG_EMBEDDING_MODEL='hkunlp/instructor-large' \
+-e RAG_EMBEDDING_MODEL='BAAI/bge-large-en-v1.5-instruct' \
 -e RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=True \
 ```
 
@@ -509,7 +509,7 @@ export openai_server=True
 export openai_port=5000
 export llava_model=http://localhost:7860:llava-v1.6-vicuna-13b
 #export hf_embedding_model=tei:http://localhost:5555
-export hf_embedding_model=hkunlp/instructor-large
+export hf_embedding_model=BAAI/bge-large-en-v1.5-instruct
 export cut_distance=1.64
 export auth_filename=all_auth.json
 export max_input_tokens=8192

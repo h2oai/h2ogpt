@@ -3662,7 +3662,7 @@ def test_client_chat_stream_langchain_openai_embeddings():
     from src.gpt_langchain import load_embed
     got_embedding, use_openai_embedding, hf_embedding_model = load_embed(persist_directory='db_dir_UserData')
     assert use_openai_embedding
-    assert hf_embedding_model in ['', 'hkunlp/instructor-large']  # but not used
+    assert hf_embedding_model in ['', 'BAAI/bge-large-en-v1.5-instruct']  # but not used
     assert got_embedding
 
 
