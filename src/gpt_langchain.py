@@ -4621,17 +4621,18 @@ def file_to_doc(file,
             docs1 = Docx2txtLoader(file_path=file).load()
             docs1 = [x for x in docs1 if x.page_content]
             add_meta(docs1, file, parser='Docx2txtLoader')
-        try:
-            # maybe images
-            import docx2txt
+        if os.getenv('H2OGPT_DOCX_EXTRACT_IMAGES', '1') == '1':
+            try:
+                # maybe images
+                import docx2txt
 
-            tmpdir = os.path.join(get_gradio_tmp(), str(uuid.uuid4()))
-            makedirs(tmpdir, exist_ok=True)
-            text = docx2txt.process(file, tmpdir)
-            images = os.listdir(tmpdir)
-            docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
-        except Exception as e:
-            print("docx images failure: %s" % str(e))
+                tmpdir = os.path.join(get_gradio_tmp(), str(uuid.uuid4()))
+                makedirs(tmpdir, exist_ok=True)
+                text = docx2txt.process(file, tmpdir)
+                images = os.listdir(tmpdir)
+                docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
+            except Exception as e:
+                print("docx images failure: %s" % str(e))
 
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
