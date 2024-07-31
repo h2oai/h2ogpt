@@ -60,8 +60,12 @@ def run_server(host: str = '0.0.0.0',
     os.environ['GRADIO_GUEST_NAME'] = guest_name
 
     port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
+    os.environ['H2OGPT_OPENAI_PORT'] = str(port)  # so can know the port
+    os.environ['H2OGPT_OPENAI_HOST'] = str(host)  # so can know the host
     ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
+    prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
+    os.environ['H2OGPT_OPENAI_BASE_URL'] = f'{prefix}://{host}:{port}/v1'
 
     if verbose:
         print('ENVs')
@@ -71,7 +75,6 @@ def run_server(host: str = '0.0.0.0',
     else:
         print("verbose disabled")
 
-    prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
     try:
         from openai_server.log import logger
     except ModuleNotFoundError:

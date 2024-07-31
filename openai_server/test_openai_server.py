@@ -1,3 +1,4 @@
+import sys
 import time
 
 import pytest
@@ -174,6 +175,90 @@ def test_chat(chat, openai_client, async_client, system_prompt, chat_conversatio
             assert 'OpenAI' in text or 'chatbot' in text or 'model' in text or 'AI' in text
         else:
             assert 'birds' in text
+
+
+def test_autogen():
+    from openai import OpenAI
+
+    client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+
+    #prompt = "2+2="
+    import datetime
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    prompt = f"Today is {today}.  Write Python code to plot TSLA's and META's stock price gains YTD, and save the plot to a file named 'stock_gains.png'."
+
+    # vllm_chat:
+
+
+    messages = [
+        {
+            "role": "user",
+            "content": prompt,
+        }
+    ]
+
+    #model = "mistralai/Mistral-7B-Instruct-v0.3"
+    model = "gpt-4o"
+
+    if False:
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            max_tokens=300,
+            extra_body=dict(use_autogen=True),
+        )
+
+        print(response.choices[0])
+
+    # streaming:
+
+    responses = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        stream=True,
+        extra_body=dict(use_autogen=True),
+    )
+
+    text = ''
+    for chunk in responses:
+        delta = chunk.choices[0].delta.content
+        if delta:
+            text += delta
+            print(delta)
+    print(text)
+
+    sys.exit(0)
+
+    ####
+
+    # vllm:
+
+    responses = client.completions.create(
+        model=model,
+        # response_format=dict(type=response_format),  Text Completions API can't handle
+        prompt=prompt,
+        stream=False,
+        extra_body=dict(use_autogen=True),
+    )
+    print(responses.choices[0].text)
+
+    responses = client.completions.create(
+        model=model,
+        # response_format=dict(type=response_format),  Text Completions API can't handle
+        prompt=prompt,
+        stream=True,
+        extra_body=dict(use_autogen=True),
+    )
+
+    collected_events = []
+    for event in responses:
+        collected_events.append(event)  # save the event response
+        delta = event.choices[0].text  # extract the text
+        text += delta  # append the text
+        if delta:
+            print(delta)
+    print(text)
 
 
 if __name__ == '__main__':

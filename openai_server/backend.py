@@ -13,6 +13,7 @@ from collections import deque
 import numpy as np
 
 from log import logger
+from openai_server.autogen_backend import get_autogen_response
 from openai_server.backend_utils import convert_messages_to_structure
 
 
@@ -315,6 +316,8 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         'image_file': image_files,
     })
 
+    using_autogen = gen_kwargs.get('use_autogen', False)
+
     def chat_streaming_chunk(content):
         # begin streaming
         chunk = {
@@ -340,8 +343,12 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
     token_count = count_tokens(instruction)
-    generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
-                             stream_output=stream_output)
+    if using_autogen:
+        generator = get_autogen_response(instruction, gen_kwargs, chunk_response=stream_output,
+                                         stream_output=stream_output)
+    else:
+        generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
+                                 stream_output=stream_output)
 
     answer = ''
     for chunk in generator:
@@ -397,6 +404,8 @@ def completions_action(body: dict, stream_output=False):
     gen_kwargs = body
     gen_kwargs['stream_output'] = stream_output
 
+    using_autogen = gen_kwargs.get('use_autogen', False)
+
     if not stream_output:
         prompt_arg = body[prompt_str]
         if isinstance(prompt_arg, str) or (isinstance(prompt_arg, list) and isinstance(prompt_arg[0], int)):
@@ -410,7 +419,10 @@ def completions_action(body: dict, stream_output=False):
             token_count = count_tokens(prompt)
             total_prompt_token_count += token_count
 
-            response = deque(get_response(prompt, gen_kwargs), maxlen=1).pop()
+            if using_autogen:
+                response = deque(get_autogen_response(prompt, gen_kwargs), maxlen=1).pop()
+            else:
+                response = deque(get_response(prompt, gen_kwargs), maxlen=1).pop()
             if isinstance(response, str):
                 completion_token_count = count_tokens(response)
                 total_completion_token_count += completion_token_count
@@ -463,8 +475,13 @@ def completions_action(body: dict, stream_output=False):
 
             return chunk
 
-        generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                 stream_output=stream_output)
+        if using_autogen:
+            generator = get_autogen_response(prompt, gen_kwargs, chunk_response=stream_output,
+                                             stream_output=stream_output)
+        else:
+            generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
+                                     stream_output=stream_output)
+
         response = ''
         for chunk in generator:
             response += chunk

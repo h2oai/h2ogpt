@@ -153,7 +153,12 @@ class H2oGPTParams(BaseModel):
     )
 
 
-class Params(H2oGPTParams):
+class AutoGenParams(BaseModel):
+    use_autogen: bool | None = False
+    pass
+
+
+class Params(H2oGPTParams, AutoGenParams):
     # https://platform.openai.com/docs/api-reference/completions/create
     user: str | None = Field(default=None, description="Track user")
     model: str | None = Field(default=None, description="Choose model")
