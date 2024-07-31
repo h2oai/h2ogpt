@@ -13,6 +13,13 @@ from autogen.coding import LocalCommandLineCodeExecutor
 from iterators import TimeoutIterator
 from openai_server.backend_utils import convert_gen_kwargs
 
+def terminate_message_func(msg):
+    if (isinstance(msg, dict) and
+        isinstance(msg.get('content', ''), str) and
+            (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == '')):
+        return True
+    return False
+
 
 def run_autogen(query, **kwargs) -> None:
     model = kwargs['visible_models']
@@ -40,6 +47,7 @@ def run_autogen(query, **kwargs) -> None:
             llm_config=False,  # Turn off LLM for this agent.
             code_execution_config={"executor": executor},  # Use the docker command line code executor.
             human_input_mode="NEVER",  # Always take human input for this agent for safety.
+            is_termination_msg=terminate_message_func,
         )
     else:
         # Create a local command line code executor.
@@ -54,6 +62,8 @@ def run_autogen(query, **kwargs) -> None:
             llm_config=False,  # Turn off LLM for this agent.
             code_execution_config={"executor": executor},  # Use the local command line code executor.
             human_input_mode="NEVER",  # Always take human input for this agent for safety.
+            is_termination_msg=terminate_message_func,
+
         )
 
     # The code writer agent's system message is to instruct the LLM on how to use
@@ -87,6 +97,8 @@ def run_autogen(query, **kwargs) -> None:
                                      'max_tokens': max_new_tokens}]},
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
+        is_termination_msg=terminate_message_func,
+
     )
     chat_result = code_executor_agent.initiate_chat(
         code_writer_agent,

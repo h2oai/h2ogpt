@@ -217,7 +217,7 @@ def test_autogen():
         model=model,
         messages=messages,
         stream=True,
-        max_tokens=2048,
+        max_tokens=4096,
         extra_body=dict(use_autogen=True),
     )
 

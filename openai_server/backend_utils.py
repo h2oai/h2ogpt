@@ -30,7 +30,7 @@ def convert_messages_to_structure(messages):
     tuple: A tuple containing the instruction, system_message, history, and image_files.
     """
 
-    messages = concatenate_assistant_messages(messages)
+    # messages = concatenate_assistant_messages(messages)
 
     structure = {
         "instruction": None,
@@ -43,7 +43,7 @@ def convert_messages_to_structure(messages):
         return structure['instruction'], structure['system_message'], structure['history'], structure['image_files']
 
     # Remove None messages
-    messages = [x for x in messages if x.get("content") is not None]
+    messages = [x for x in messages if x.get("content")]
 
     last_user_message = None
     previous_role = None
@@ -51,7 +51,7 @@ def convert_messages_to_structure(messages):
         role = message.get("role")
         assert role, "Missing role"
         content = message.get("content")
-        #assert content, "Missing content"
+        assert content, "Missing content"
 
         if previous_role == role:
             raise ValueError("Consecutive messages with the same role are not allowed: %s %s\n\n%s" % (
