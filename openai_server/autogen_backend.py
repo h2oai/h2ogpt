@@ -11,11 +11,13 @@ from autogen import ConversableAgent
 from autogen.coding import LocalCommandLineCodeExecutor
 
 from iterators import TimeoutIterator
+from openai_server.backend_utils import convert_gen_kwargs
 
 
 def run_autogen(query, **kwargs) -> None:
-    model = kwargs['model']
+    model = kwargs['visible_models']
     stream_output = kwargs['stream_output']
+    max_new_tokens = kwargs['max_new_tokens']
     print(" Using model=%s." % model, flush=True)
 
     # Create a temporary directory to store the code files.
@@ -71,12 +73,18 @@ def run_autogen(query, **kwargs) -> None:
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
     print("base_url: %s" % base_url)
+    print("max_tokens: %s" % max_new_tokens)
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
 
     code_writer_agent = ConversableAgent(
         "code_writer_agent",
         system_message=code_writer_system_message,
-        llm_config={"config_list": [{"model": model, "api_key": api_key, "base_url": base_url, "stream": stream_output}]},
+        llm_config={"config_list": [{"model": model,
+                                     "api_key": api_key,
+                                     "base_url": base_url,
+                                     "stream": stream_output,
+                                     "cache_seed": None,
+                                     'max_tokens': max_new_tokens}]},
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
     )
@@ -103,7 +111,7 @@ class CaptureIOStream(IOStream):
         output = sep.join(map(str, objects)) + end
         self.output_queue.put(output)
 
-    #def input(self, prompt: str = "", *, password: bool = False) -> str:
+    # def input(self, prompt: str = "", *, password: bool = False) -> str:
     #    raise NotImplementedError("Input is not supported in this CaptureIOStream")
 
 
@@ -144,6 +152,7 @@ def get_response(query, **kwargs):
 
 
 def get_autogen_response(query, gen_kwargs, chunk_response=True, stream_output=False):
+    gen_kwargs = convert_gen_kwargs(gen_kwargs)
     kwargs = gen_kwargs.copy()
     kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))
 

@@ -345,3 +345,10 @@ def test_concat():
 
     new_messages = concatenate_assistant_messages(messages)
     convert_messages_to_structure(new_messages)
+
+    messages = [
+        {"role": "user", "content": "Hello!"},
+    ]
+
+    new_messages = concatenate_assistant_messages(messages)
+    assert new_messages == messages

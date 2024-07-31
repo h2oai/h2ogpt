@@ -14,7 +14,7 @@ import numpy as np
 
 from log import logger
 from openai_server.autogen_backend import get_autogen_response
-from openai_server.backend_utils import convert_messages_to_structure
+from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs
 
 
 def decode(x, encoding_name="cl100k_base"):
@@ -205,42 +205,8 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs = dict(instruction=instruction)
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
-    # max_tokens=16 for text completion by default
-    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
-    gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
-    gen_kwargs['top_p'] = gen_kwargs.get('top_p', 1.0)
-    gen_kwargs['top_k'] = gen_kwargs.get('top_k', 1)
-    gen_kwargs['seed'] = gen_kwargs.get('seed', 0)
 
-    if gen_kwargs.get('do_sample') in [False, None]:
-        # be more like OpenAI, only temperature, not do_sample, to control
-        gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
-    # https://platform.openai.com/docs/api-reference/chat/create
-    if gen_kwargs['temperature'] > 0.0:
-        # let temperature control sampling
-        gen_kwargs['do_sample'] = True
-    elif gen_kwargs['top_p'] != 1.0:
-        # let top_p control sampling
-        gen_kwargs['do_sample'] = True
-        if gen_kwargs.get('top_k') == 1 and gen_kwargs.get('temperature') == 0.0:
-            logger.warning("Sampling with top_k=1 has no effect if top_k=1 and temperature=0")
-    else:
-        # no sampling, make consistent
-        gen_kwargs['top_p'] = 1.0
-        gen_kwargs['top_k'] = 1
-    if gen_kwargs['seed'] is None:
-        gen_kwargs['seed'] = 0
-
-    if gen_kwargs.get('repetition_penalty', 1) == 1 and gen_kwargs.get('presence_penalty', 0.0) != 0.0:
-        # then user using presence_penalty, convert to repetition_penalty for h2oGPT
-        # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
-        gen_kwargs['repetition_penalty'] = 0.5 * (gen_kwargs['presence_penalty'] - 0.0) + 1.0
-
-    if gen_kwargs.get('response_format') and hasattr(gen_kwargs.get('response_format'), 'type'):
-        # pydantic ensures type and key
-        # transcribe to h2oGPT way of just value
-        gen_kwargs['response_format'] = gen_kwargs.get('response_format').type
-
+    gen_kwargs = convert_gen_kwargs(gen_kwargs)
     kwargs.update(**gen_kwargs)
 
     # WIP:
