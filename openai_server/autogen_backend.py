@@ -30,10 +30,12 @@ def run_autogen(query, **kwargs) -> None:
     model = kwargs['visible_models']
     stream_output = kwargs['stream_output']
     max_new_tokens = kwargs['max_new_tokens']
+    max_consecutive_auto_reply = 10
+    timeout = 120
     print(" Using model=%s." % model, flush=True)
 
     # Create a temporary directory to store the code files.
-    temp_dir = tempfile.TemporaryDirectory().name
+    # temp_dir = tempfile.TemporaryDirectory().name
     temp_dir = tempfile.mkdtemp()
 
     use_docker = True
@@ -43,7 +45,7 @@ def run_autogen(query, **kwargs) -> None:
         # Create a Docker command line code executor.
         executor = DockerCommandLineCodeExecutor(
             image="python:3.10-slim-bullseye",
-            timeout=120,  # Timeout for each code execution in seconds.
+            timeout=timeout,  # Timeout for each code execution in seconds.
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
 
@@ -58,7 +60,7 @@ def run_autogen(query, **kwargs) -> None:
     else:
         # Create a local command line code executor.
         executor = LocalCommandLineCodeExecutor(
-            timeout=120,  # Timeout for each code execution in seconds.
+            timeout=timeout,  # Timeout for each code execution in seconds.
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
 
@@ -69,7 +71,7 @@ def run_autogen(query, **kwargs) -> None:
             code_execution_config={"executor": executor},  # Use the local command line code executor.
             human_input_mode="NEVER",  # Always take human input for this agent for safety.
             is_termination_msg=terminate_message_func,
-
+            max_consecutive_auto_reply=max_consecutive_auto_reply,
         )
 
     # The code writer agent's system message is to instruct the LLM on how to use
@@ -104,6 +106,7 @@ Reply 'TERMINATE' in the end when everything is done.
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
         is_termination_msg=terminate_message_func,
+        max_consecutive_auto_reply=max_consecutive_auto_reply,
 
     )
     chat_result = code_executor_agent.initiate_chat(
