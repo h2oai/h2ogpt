@@ -13,6 +13,10 @@ from autogen.coding import LocalCommandLineCodeExecutor
 from iterators import TimeoutIterator
 from openai_server.backend_utils import convert_gen_kwargs
 
+# in conversable agent, roles are flipped relative to actual OpenAI, so can't filter by assistant
+#        isinstance(msg.get('role'), str) and
+#        msg.get('role') == 'assistant' and
+
 def terminate_message_func(msg):
     if (isinstance(msg, dict) and
         isinstance(msg.get('content', ''), str) and
