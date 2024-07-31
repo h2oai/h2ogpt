@@ -350,8 +350,11 @@ def test_file_operations(test_file):
     assert retrieve_response.object == "file"
 
     # Test retrieve file content
-    content = client.files.content(file_id)
-    assert content == "Sample file content"
+    content = client.files.content(file_id).content
+    assert content.decode('utf-8') == "Sample file content"
+
+    content = client.files.content(file_id, extra_body=dict(stream=True)).content
+    assert content.decode('utf-8') == "Sample file content"
 
     # Test delete file
     delete_response = client.files.delete(file_id)

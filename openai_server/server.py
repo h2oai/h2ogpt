@@ -11,7 +11,7 @@ from typing import List, Dict, Optional, Literal, Union
 import filelock
 from pydantic import BaseModel, Field
 
-from fastapi import FastAPI, Header, HTTPException, Form
+from fastapi import FastAPI, Header, HTTPException, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -748,7 +748,7 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
 
 
 @app.get("/v1/files/{file_id}/content", dependencies=check_key)
-async def retrieve_file_content(file_id: str, authorization: str = Header(None)):
+async def retrieve_file_content(file_id: str, stream: bool = Query(False), authorization: str = Header(None)):
     base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
     user_dir = os.path.join(base_path, authorization.split(" ")[1])
     file_path = os.path.join(user_dir, file_id)
@@ -756,9 +756,14 @@ async def retrieve_file_content(file_id: str, authorization: str = Header(None))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
 
-    def iter_file():
-        with open(file_path, mode="rb") as file_like:
-            while chunk := file_like.read(1024):
-                yield chunk
+    if stream:
+        def iter_file():
+            with open(file_path, mode="rb") as file_like:
+                while chunk := file_like.read(1024):
+                    yield chunk
+        return StreamingResponse(iter_file(), media_type="application/octet-stream")
+    else:
+        with open(file_path, mode="rb") as file:
+            content = file.read()
+        return Response(content, media_type="application/octet-stream")
 
-    return StreamingResponse(iter_file(), media_type="application/octet-stream")
