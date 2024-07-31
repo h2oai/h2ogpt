@@ -186,7 +186,7 @@ def test_autogen():
     #prompt = "2+2="
     import datetime
     today = datetime.datetime.now().strftime("%Y-%m-%d")
-    prompt = f"Today is {today}.  Write Python code to plot TSLA's and META's stock price gains YTD, and save the plot to a file named 'stock_gains.png'."
+    prompt = f"Today is {today}.  Write Python code to plot TSLA's and META's stock price gains YTD vs. time per week, and save the plot to a file named 'stock_gains.png'."
 
     # vllm_chat:
 
