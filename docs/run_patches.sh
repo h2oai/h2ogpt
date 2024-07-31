@@ -50,3 +50,6 @@ patch $sp/transformers/generation/utils.py docs/trans2.patch
 
 # diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/langchain_google_genai/chat_models.py ~/chat_models.py > docs/google.patch
 patch $sp/langchain_google_genai/chat_models.py docs/google.patch
+
+# diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/autogen/token_count_utils.py ~/token_count_utils.py > docs/autogen.patch
+patch $sp/autogen/token_count_utils.py docs/autogen.patch

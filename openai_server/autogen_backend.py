@@ -1,10 +1,16 @@
+import functools
 import os
+import queue
 import tempfile
+import threading
 import typing
+from contextlib import contextmanager
 
 from autogen.io import IOStream
 from autogen import ConversableAgent
 from autogen.coding import LocalCommandLineCodeExecutor
+
+from iterators import TimeoutIterator
 
 
 def run_autogen(query, **kwargs) -> None:
@@ -64,6 +70,7 @@ def run_autogen(query, **kwargs) -> None:
     """
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
+    print("base_url: %s" % base_url)
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
 
     code_writer_agent = ConversableAgent(
@@ -71,6 +78,7 @@ def run_autogen(query, **kwargs) -> None:
         system_message=code_writer_system_message,
         llm_config={"config_list": [{"model": model, "api_key": api_key, "base_url": base_url, "stream": stream_output}]},
         code_execution_config=False,  # Turn off code execution for this agent.
+        human_input_mode="NEVER",
     )
     chat_result = code_executor_agent.initiate_chat(
         code_writer_agent,
@@ -87,20 +95,6 @@ def run_autogen(query, **kwargs) -> None:
     return os.listdir(temp_dir.name)
 
 
-def get_autogen_response(query, gen_kwargs, chunk_response=True, stream_output=False):
-    kwargs = gen_kwargs.copy()
-    kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))
-    yield from autogen_iostream_generator(query, **kwargs)
-    #return run_autogen(query, **kwargs)
-
-
-from contextlib import contextmanager
-from typing import Generator, Optional
-from io import StringIO
-import threading
-import queue
-
-
 class CaptureIOStream(IOStream):
     def __init__(self, output_queue: queue.Queue):
         self.output_queue = output_queue
@@ -109,12 +103,12 @@ class CaptureIOStream(IOStream):
         output = sep.join(map(str, objects)) + end
         self.output_queue.put(output)
 
-    def input(self, prompt: str = "", *, password: bool = False) -> str:
-        raise NotImplementedError("Input is not supported in this CaptureIOStream")
+    #def input(self, prompt: str = "", *, password: bool = False) -> str:
+    #    raise NotImplementedError("Input is not supported in this CaptureIOStream")
 
 
 @contextmanager
-def capture_iostream(output_queue: queue.Queue) -> Generator[CaptureIOStream, None, None]:
+def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStream, None, None]:
     capture_stream = CaptureIOStream(output_queue)
     with IOStream.set_default(capture_stream):
         yield capture_stream
@@ -128,7 +122,7 @@ def run_autogen_in_thread(output_queue: queue.Queue, query, **kwargs):
         output_queue.put(None)
 
 
-def autogen_iostream_generator(query, **kwargs) -> Generator[str, None, None]:
+def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
     output_queue = queue.Queue()
 
     # Start autogen in a separate thread
@@ -143,3 +137,18 @@ def autogen_iostream_generator(query, **kwargs) -> Generator[str, None, None]:
         yield output
 
     autogen_thread.join()
+
+
+def get_response(query, **kwargs):
+    yield from iostream_generator(query, **kwargs)
+
+
+def get_autogen_response(query, gen_kwargs, chunk_response=True, stream_output=False):
+    kwargs = gen_kwargs.copy()
+    kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))
+
+    gen = get_response(query, **kwargs)
+    gen1 = TimeoutIterator(gen, timeout=0, sentinel=None, raise_on_exception=False, whichi=0)
+
+    for res in gen1:
+        yield res

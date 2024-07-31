@@ -1,3 +1,24 @@
+def concatenate_assistant_messages(messages):
+    """
+    # Function to concatenate back-to-back assistant messages
+    :param messages:
+    :return:
+    """
+    concatenated_messages = []
+    temp_message = ""
+    for message in messages:
+        if message['role'] == 'assistant':
+            temp_message += message['content'] + " "
+        else:
+            if temp_message:
+                concatenated_messages.append({"role": "assistant", "content": temp_message})
+                temp_message = ""
+            concatenated_messages.append(message)
+    if temp_message:
+        concatenated_messages.append({"role": "assistant", "content": temp_message})
+    return concatenated_messages
+
+
 def convert_messages_to_structure(messages):
     """
     Convert a list of messages with roles and content into a structured format.
@@ -8,6 +29,9 @@ def convert_messages_to_structure(messages):
     Returns:
     tuple: A tuple containing the instruction, system_message, history, and image_files.
     """
+
+    messages = concatenate_assistant_messages(messages)
+
     structure = {
         "instruction": None,
         "system_message": None,
@@ -18,8 +42,8 @@ def convert_messages_to_structure(messages):
     if not messages:
         return structure['instruction'], structure['system_message'], structure['history'], structure['image_files']
 
-    # Remove empty messages
-    messages = [x for x in messages if x.get("content")]
+    # Remove None messages
+    messages = [x for x in messages if x.get("content") is not None]
 
     last_user_message = None
     previous_role = None
@@ -27,7 +51,7 @@ def convert_messages_to_structure(messages):
         role = message.get("role")
         assert role, "Missing role"
         content = message.get("content")
-        assert content, "Missing content"
+        #assert content, "Missing content"
 
         if previous_role == role:
             raise ValueError("Consecutive messages with the same role are not allowed: %s %s\n\n%s" % (

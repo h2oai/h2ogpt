@@ -34,6 +34,8 @@ def run_server(host: str = '0.0.0.0',
                workers: int = 1,
                app: Union[str, FastAPI] = None,
                is_openai_server: bool = True,
+               is_autogen_server: bool = False,
+               openai_port: int = None,
                multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
                verbose=False,
@@ -42,7 +44,13 @@ def run_server(host: str = '0.0.0.0',
         workers = min(16, os.cpu_count() * 2 + 1)
     assert app is not None
 
-    name = 'OpenAI' if is_openai_server else 'Function'
+    if openai_port is None:
+        openai_port = port
+
+    if is_autogen_server:
+        name = 'AutoGen'
+    else:
+        name = 'OpenAI' if is_openai_server else 'Function'
 
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
@@ -59,13 +67,12 @@ def run_server(host: str = '0.0.0.0',
     os.environ['GRADIO_AUTH_ACCESS'] = auth_access
     os.environ['GRADIO_GUEST_NAME'] = guest_name
 
-    port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
-    os.environ['H2OGPT_OPENAI_PORT'] = str(port)  # so can know the port
+    os.environ['H2OGPT_OPENAI_PORT'] = str(openai_port)  # so can know the port
     os.environ['H2OGPT_OPENAI_HOST'] = str(host)  # so can know the host
     ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
     prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
-    os.environ['H2OGPT_OPENAI_BASE_URL'] = f'{prefix}://{host}:{port}/v1'
+    os.environ['H2OGPT_OPENAI_BASE_URL'] = f'{prefix}://{host}:{openai_port}/v1'
 
     if verbose:
         print('ENVs')
@@ -125,7 +132,10 @@ def run_server(host: str = '0.0.0.0',
 
 def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
-    name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
+    if kwargs.get('is_autogen_server', False):
+        name = 'AutoGen'
+    else:
+        name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
     if kwargs.get('verbose', False):
         print(kwargs)
 

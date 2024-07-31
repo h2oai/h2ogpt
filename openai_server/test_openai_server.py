@@ -180,7 +180,7 @@ def test_chat(chat, openai_client, async_client, system_prompt, chat_conversatio
 def test_autogen():
     from openai import OpenAI
 
-    client = OpenAI(base_url='http://0.0.0.0:5000/v1')
+    client = OpenAI(base_url='http://0.0.0.0:5004/v1')
 
     #prompt = "2+2="
     import datetime
@@ -205,7 +205,7 @@ def test_autogen():
             model=model,
             messages=messages,
             temperature=0.0,
-            max_tokens=300,
+            max_tokens=2048,
             extra_body=dict(use_autogen=True),
         )
 
@@ -217,6 +217,7 @@ def test_autogen():
         model=model,
         messages=messages,
         stream=True,
+        max_tokens=2048,
         extra_body=dict(use_autogen=True),
     )
 

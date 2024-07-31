@@ -317,6 +317,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     })
 
     using_autogen = gen_kwargs.get('use_autogen', False)
+    model = gen_kwargs.get('model', '')
 
     def chat_streaming_chunk(content):
         # begin streaming
@@ -324,7 +325,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
             "id": req_id,
             "object": object_type,
             "created": created_time,
-            "model": '',
+            "model": model,
             resp_list: [{
                 "index": 0,
                 "finish_reason": None,
@@ -377,7 +378,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
             "id": req_id,
             "object": object_type,
             "created": created_time,
-            "model": '',
+            "model": model,
             resp_list: [{
                 "index": 0,
                 "finish_reason": stop_reason,
