@@ -1,7 +1,9 @@
 import json
 import shutil
 import sys
+import tempfile
 import time
+import uuid
 
 import pytest
 import os
@@ -301,7 +303,7 @@ def test_autogen():
 
 
 @pytest.fixture(scope="module")
-def test_file():
+def text_file():
     base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
     if base_path and base_path != './' and base_path != '.' and base_path != '/':
         shutil.rmtree(base_path)
@@ -315,7 +317,74 @@ def test_file():
     os.remove(filename)
 
 
-def test_file_operations(test_file):
+@pytest.fixture(scope="module")
+def pdf_file():
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    if base_path and base_path != './' and base_path != '.' and base_path != '/':
+        shutil.rmtree(base_path)
+
+    # Create a sample file for testing
+    filename = "test_file.pdf"
+    shutil.copy('tests/2403.09629.pdf', filename)
+    yield filename
+    os.remove(filename)
+
+
+@pytest.fixture(scope="module")
+def image_file():
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    if base_path and base_path != './' and base_path != '.' and base_path != '/':
+        shutil.rmtree(base_path)
+
+    # Create a sample file for testing
+    filename = "test_file.png"
+    shutil.copy('tests/dental.png', filename)
+    yield filename
+    os.remove(filename)
+
+
+@pytest.fixture(scope="module")
+def python_file():
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    if base_path and base_path != './' and base_path != '.' and base_path != '/':
+        shutil.rmtree(base_path)
+
+    filename = "test_file.py"
+    shutil.copy('src/gen.py', filename)
+    yield filename
+    os.remove(filename)
+
+
+@pytest.fixture(scope="module")
+def video_file():
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    if base_path and base_path != './' and base_path != '.' and base_path != '/':
+        shutil.rmtree(base_path)
+
+    filename = "test_file.mp4"
+    shutil.copy('tests/videotest.mp4', filename)
+    yield filename
+    os.remove(filename)
+
+
+@pytest.mark.parametrize("test_file", ["text_file", "pdf_file", "image_file", "python_file", "video_file"])
+def test_file_operations(request, test_file):
+    test_file_type = test_file
+    test_file = request.getfixturevalue(test_file)
+
+    if test_file_type == "text_file":
+        ext = '.txt'
+    elif test_file_type == "pdf_file":
+        ext = '.pdf'
+    elif test_file_type == "image_file":
+        ext = '.png'
+    elif test_file_type == "python_file":
+        ext = '.py'
+    elif test_file_type == "video_file":
+        ext = '.mp4'
+    else:
+        raise ValueError("no such file %s" % test_file_type)
+
     api_key = "EMPTY"
     base_url = "http://0.0.0.0:5000/v1"
     from openai import OpenAI
@@ -330,7 +399,7 @@ def test_file_operations(test_file):
     assert upload_response.purpose == "assistants"
     assert upload_response.created_at
     assert upload_response.bytes > 5
-    assert upload_response.filename == "test_file.txt"
+    assert upload_response.filename == "test_file%s" % ext
 
     file_id = upload_response.id
 
@@ -342,7 +411,7 @@ def test_file_operations(test_file):
     assert list_response[0].purpose == "assistants"
     assert list_response[0].created_at
     assert list_response[0].bytes > 5
-    assert list_response[0].filename == "test_file.txt"
+    assert list_response[0].filename == "test_file%s" % ext
 
     # Test retrieve file
     retrieve_response = client.files.retrieve(file_id)
@@ -351,16 +420,73 @@ def test_file_operations(test_file):
 
     # Test retrieve file content
     content = client.files.content(file_id).content
-    assert content.decode('utf-8') == "Sample file content"
+    check_content(content, test_file_type, test_file)
 
     content = client.files.content(file_id, extra_body=dict(stream=True)).content
-    assert content.decode('utf-8') == "Sample file content"
+    check_content(content, test_file_type, test_file)
 
     # Test delete file
     delete_response = client.files.delete(file_id)
     assert delete_response.id == file_id
     assert delete_response.object == "file"
     assert delete_response.deleted is True
+
+
+def check_content(content, test_file_type, test_file):
+    if test_file_type in ["text_file", "python_file"]:
+        # old
+        with open(test_file, 'rb') as f:
+            old_content = f.read()
+        # new
+        assert content.decode('utf-8') == old_content.decode('utf-8')
+    elif test_file_type == 'pdf_file':
+        import fitz
+        # old
+        assert fitz.open(test_file).is_pdf
+        # new
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            new_file = tmp_file.name
+            with open(new_file, 'wb') as f:
+                f.write(content)
+            assert fitz.open(new_file).is_pdf
+    elif test_file_type == 'image_file':
+        from PIL import Image
+        # old
+        assert Image.open(test_file).format == 'PNG'
+        # new
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            new_file = tmp_file.name
+            with open(new_file, 'wb') as f:
+                f.write(content)
+            assert Image.open(new_file).format == 'PNG'
+    elif test_file_type == 'video_file':
+        import cv2
+        # old
+        cap = cv2.VideoCapture(test_file)
+        if not cap.isOpened():
+            return False
+
+        # Check if we can read the first frame
+        ret, frame = cap.read()
+        if not ret:
+            return False
+        cap.release()
+
+        # new
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            new_file = tmp_file.name
+            with open(new_file, 'wb') as f:
+                f.write(content)
+
+            cap = cv2.VideoCapture(new_file)
+            if not cap.isOpened():
+                return False
+
+            # Check if we can read the first frame
+            ret, frame = cap.read()
+            if not ret:
+                return False
+            cap.release()
 
 
 if __name__ == '__main__':
