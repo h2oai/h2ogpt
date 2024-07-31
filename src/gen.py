@@ -1504,6 +1504,7 @@ def main(
             enforce_h2ogpt_api_key = False
     if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
         h2ogpt_api_keys = str_to_list(h2ogpt_api_keys)
+    os.environ['H2OGPT_H2OGPT_API_KEYS'] = str(h2ogpt_api_keys)
     if isinstance(extra_allowed_paths, str):
         extra_allowed_paths = str_to_list(extra_allowed_paths)
     if memory_restriction_level is None:

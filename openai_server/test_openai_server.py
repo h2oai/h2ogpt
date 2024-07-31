@@ -1,3 +1,5 @@
+import json
+import shutil
 import sys
 import time
 
@@ -37,7 +39,8 @@ def test_openai_client_test2(stream_output, chat, local_server):
     enforce_h2ogpt_api_key = False
     repeat = 1
     openai_workers = 1
-    run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat)
+    run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key,
+                      repeat)
 
 
 @pytest.mark.parametrize("stream_output", [False, True])
@@ -49,11 +52,14 @@ def test_openai_client_test2(stream_output, chat, local_server):
 @pytest.mark.parametrize("enforce_h2ogpt_api_key", [False, True])
 @pytest.mark.parametrize("repeat", list(range(0, repeat0)))
 @wrap_test_forked
-def test_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat):
-    run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat)
+def test_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key,
+                       repeat):
+    run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key,
+                      repeat)
 
 
-def run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key, repeat):
+def run_openai_client(stream_output, chat, local_server, openai_workers, prompt, api_key, enforce_h2ogpt_api_key,
+                      repeat):
     base_model = 'h2oai/h2o-danube2-1.8b-chat'
     # base_model = 'gemini-pro'
 
@@ -199,7 +205,7 @@ def test_autogen():
 
     client = OpenAI(base_url='http://0.0.0.0:5004/v1')
 
-    #prompt = "2+2="
+    # prompt = "2+2="
     import datetime
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     prompt = f"Today is {today}.  Write Python code to plot TSLA's and META's stock price gains YTD vs. time per week, and save the plot to a file named 'stock_gains.png'."
@@ -213,7 +219,7 @@ def test_autogen():
         }
     ]
 
-    #model = "mistralai/Mistral-7B-Instruct-v0.3"
+    # model = "mistralai/Mistral-7B-Instruct-v0.3"
     model = "gpt-4o"
 
     response = client.chat.completions.create(
@@ -228,6 +234,11 @@ def test_autogen():
 
     print(text)
     show_plot(text)
+
+    image_file_id = "file-abc-123"
+    image_file = client.files.content(image_file_id)
+    with open("plot.png", "wb") as f:
+        f.write(image_file.content)
 
     # streaming:
 
@@ -287,6 +298,66 @@ def test_autogen():
 
     print(text)
     show_plot(text)
+
+
+@pytest.fixture(scope="module")
+def test_file():
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    if base_path and base_path != './' and base_path != '.' and base_path != '/':
+        shutil.rmtree(base_path)
+
+    # Create a sample file for testing
+    file_content = b"Sample file content"
+    filename = "test_file.txt"
+    with open(filename, "wb") as f:
+        f.write(file_content)
+    yield filename
+    os.remove(filename)
+
+
+def test_file_operations(test_file):
+    api_key = "EMPTY"
+    base_url = "http://0.0.0.0:5000/v1"
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key)
+
+    # Test file upload
+    with open(test_file, "rb") as f:
+        upload_response = client.files.create(file=f, purpose="assistants")
+    print(upload_response)
+    assert upload_response.id
+    assert upload_response.object == "file"
+    assert upload_response.purpose == "assistants"
+    assert upload_response.created_at
+    assert upload_response.bytes > 5
+    assert upload_response.filename == "test_file.txt"
+
+    file_id = upload_response.id
+
+    # Test list files
+    list_response = client.files.list().data
+    assert isinstance(list_response, list)
+    assert list_response[0].id == file_id
+    assert list_response[0].object == "file"
+    assert list_response[0].purpose == "assistants"
+    assert list_response[0].created_at
+    assert list_response[0].bytes > 5
+    assert list_response[0].filename == "test_file.txt"
+
+    # Test retrieve file
+    retrieve_response = client.files.retrieve(file_id)
+    assert retrieve_response.id == file_id
+    assert retrieve_response.object == "file"
+
+    # Test retrieve file content
+    content = client.files.content(file_id)
+    assert content == "Sample file content"
+
+    # Test delete file
+    delete_response = client.files.delete(file_id)
+    assert delete_response.id == file_id
+    assert delete_response.object == "file"
+    assert delete_response.deleted is True
 
 
 if __name__ == '__main__':

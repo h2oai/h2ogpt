@@ -4,14 +4,18 @@ import sys
 import ast
 import json
 import time
+import uuid
 from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union
+
+import filelock
 from pydantic import BaseModel, Field
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request, Depends
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi import File, UploadFile
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
 
@@ -231,11 +235,37 @@ class ModelListResponse(BaseModel):
 
 def verify_api_key(authorization: str = Header(None)) -> None:
     server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+    if server_api_key:
+        h2ogpt_api_keys = [server_api_key]
+    else:
+        h2ogpt_api_keys = []
+
     if server_api_key == 'EMPTY':
         # dummy case since '' cannot be handled
+        # disables all auth
         return
-    if server_api_key and (authorization is None or authorization != f"Bearer {server_api_key}"):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # assume if set file, shared keys for h2oGPT and OpenAI uses
+    server_api_key_file = os.getenv('H2OGPT_H2OGPT_API_KEYS')
+
+    # string of list case
+    if isinstance(server_api_key_file, str) and not os.path.isfile(server_api_key_file):
+        h2ogpt_api_keys.extend(ast.literal_eval(server_api_key_file))
+
+    # file case
+    if isinstance(server_api_key_file, str) and os.path.isfile(server_api_key_file):
+        with filelock.FileLock(server_api_key_file + '.lock'):
+            with open(server_api_key_file, 'rt') as f:
+                h2ogpt_api_keys.extend(json.load(f))
+
+    # no keys case
+    if len(h2ogpt_api_keys) == 0:
+        return
+
+    if any([authorization is not None and authorization == f"Bearer {x}" for x in h2ogpt_api_keys]):
+        return
+
+    raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 app = FastAPI()
@@ -549,3 +579,186 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
     from openai_server.backend import text_to_embedding
     response = text_to_embedding(model, text, encoding_format)
     return JSONResponse(response)
+
+
+# https://platform.openai.com/docs/api-reference/files
+
+meta_ext = '.____meta______'
+
+
+class UploadFileResponse(BaseModel):
+    id: str
+    object: str
+    bytes: int
+    created_at: int
+    filename: str
+    purpose: str
+
+
+@app.post("/v1/files", response_model=UploadFileResponse, dependencies=check_key)
+async def upload_file(
+    file: UploadFile = File(...),
+    purpose: str = Form(...),
+    authorization: str = Header(None)
+):
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+
+    if not os.path.exists(user_dir):
+        os.makedirs(user_dir)
+
+    file_id = str(uuid.uuid4())
+    file_path = os.path.join(user_dir, file_id)
+    file_path_meta = os.path.join(user_dir, file_id + meta_ext)
+
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    file_stat = os.stat(file_path)
+    response_dict = dict(id=file_id,
+        object="file",
+        bytes=file_stat.st_size,
+        created_at=int(file_stat.st_ctime),
+        filename=file.filename,
+        purpose=purpose
+    )
+    response = UploadFileResponse(**response_dict)
+
+    with open(file_path_meta, "wt") as f:
+        f.write(json.dumps(response_dict))
+
+    return response
+
+
+class FileData(BaseModel):
+    id: str
+    object: str
+    bytes: int
+    created_at: int
+    filename: str
+    purpose: str
+
+
+class ListFilesResponse(BaseModel):
+    data: List[FileData]
+
+
+@app.get("/v1/files", response_model=ListFilesResponse, dependencies=check_key)
+async def list_files(authorization: str = Header(None)):
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+
+    if not user_dir:
+        raise HTTPException(status_code=404, detail="No user_dir for authorization: %s" % authorization)
+
+    if not os.path.isdir(user_dir):
+        os.makedirs(user_dir, exist_ok=True)
+
+    if not os.path.exists(user_dir):
+        raise HTTPException(status_code=404, detail="Directory not found")
+
+    files_list = []
+    for file_id in os.listdir(user_dir):
+        file_path = os.path.join(user_dir, file_id)
+        if file_path.endswith(meta_ext):
+            continue
+        if os.path.isfile(file_path):
+            file_stat = os.stat(file_path)
+            file_path_meta = os.path.join(user_dir, file_id + meta_ext)
+            if os.path.isfile(file_path_meta):
+                with open(file_path_meta, "rt") as f:
+                    meta = json.loads(f.read())
+            else:
+                meta = {}
+
+            files_list.append(
+                FileData(
+                    id=file_id,
+                    object="file",
+                    bytes=file_stat.st_size,
+                    created_at=int(file_stat.st_ctime),
+                    filename=meta.get('filename', file_id),
+                    purpose=meta.get('purpose', "unknown"),
+                )
+            )
+
+    return ListFilesResponse(data=files_list)
+
+
+class RetrieveFileResponse(BaseModel):
+    id: str
+    object: str
+    bytes: int
+    created_at: int
+    filename: str
+    purpose: str
+
+
+@app.get("/v1/files/{file_id}", response_model=RetrieveFileResponse, dependencies=check_key)
+async def retrieve_file(file_id: str, authorization: str = Header(None)):
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    file_path = os.path.join(user_dir, file_id)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_stat = os.stat(file_path)
+    response = RetrieveFileResponse(
+        id=file_id,
+        object="file",
+        bytes=file_stat.st_size,
+        created_at=int(file_stat.st_ctime),
+        filename=file_id,  # Assuming the file_id is the filename, adjust if necessary
+        purpose="unknown"  # Adjust if you have the actual purpose stored somewhere
+    )
+
+    return response
+
+
+class DeleteFileResponse(BaseModel):
+    id: str
+    object: str
+    deleted: bool
+
+
+@app.delete("/v1/files/{file_id}", response_model=DeleteFileResponse, dependencies=check_key)
+async def delete_file(file_id: str, authorization: str = Header(None)):
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    file_path = os.path.join(user_dir, file_id)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        os.remove(file_path)
+        deleted = True
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while deleting the file: {str(e)}")
+
+    response = DeleteFileResponse(
+        id=file_id,
+        object="file",
+        deleted=deleted
+    )
+
+    return response
+
+
+@app.get("/v1/files/{file_id}/content", dependencies=check_key)
+async def retrieve_file_content(file_id: str, authorization: str = Header(None)):
+    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
+    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    file_path = os.path.join(user_dir, file_id)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    def iter_file():
+        with open(file_path, mode="rb") as file_like:
+            while chunk := file_like.read(1024):
+                yield chunk
+
+    return StreamingResponse(iter_file(), media_type="application/octet-stream")
