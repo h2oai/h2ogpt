@@ -1,8 +1,8 @@
 # Windows 10/11
 
-If using GPU on Windows 10/11 Pro 64-bit, we recommend using [Windows installers](../README.md#windows-1011-64-bit-with-full-document-qa-capability).  This excludes DocTR and PlayWright support. 
-
-For newer builds of windows versions of 10/11.
+* Single `.bat` file for installation (if you do not skip any optional packages, takes about 9GB filled on disk).
+* Recommend base Conda env, which allows for DocTR that requires pygobject that has otherwise no support (except `mysys2` that cannot be used by h2oGPT).
+* Also allows for the TTS package by Coqui, which is otherwise not currently enabled in the one-click installer.
 
 ## Install
 * Download Visual Studio 2022: [Download Link](https://visualstudio.microsoft.com/vs/community/)
@@ -93,3 +93,15 @@ See [FAQ](FAQ.md#adding-models) for how to run various models.  See [CPU](README
   ```
   for some options ...
 * For easier handling of command line operations, consider using bash in windows with [coreutils](https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.3/Git-2.41.0.3-64-bit.exe).
+
+## Control ENV
+* In this Python code, set ENVs anywhere before main_h2ogpt() is called
+    * E.g. `os.environ['name'] = 'value'`, e.g. `os.environ['n_jobs'] = '10'` (must be always a string).
+  * Environment variables can be changed, e.g.:
+    * `n_jobs`: number of cores for various tasks
+    * `OMP_NUM_THREADS` thread count for LLaMa
+    * `CUDA_VISIBLE_DEVICES` which GPUs are used.  Recommend set to single fast GPU, e.g. `CUDA_VISIBLE_DEVICES=0` if have multiple GPUs.  Note that UI cannot control which GPUs (or CPU mode) for LLaMa models.
+    * Any CLI argument from `python generate.py --help` with environment variable set as `h2ogpt_x`, e.g. `h2ogpt_h2ocolors` to `False`.
+    * Set env `h2ogpt_server_name` to actual IP address for LAN to see app, e.g. `h2ogpt_server_name` to `192.168.1.172` and allow access through firewall if have Windows Defender activated.
+  * To terminate the app, go to System Tab and click Admin and click Shutdown h2oGPT.
+    * If startup fails, run as console and check for errors, e.g. and kill any old Python processes.

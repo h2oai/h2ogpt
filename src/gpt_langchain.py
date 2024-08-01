@@ -4621,17 +4621,18 @@ def file_to_doc(file,
             docs1 = Docx2txtLoader(file_path=file).load()
             docs1 = [x for x in docs1 if x.page_content]
             add_meta(docs1, file, parser='Docx2txtLoader')
-        try:
-            # maybe images
-            import docx2txt
+        if os.getenv('H2OGPT_DOCX_EXTRACT_IMAGES', '1') == '1':
+            try:
+                # maybe images
+                import docx2txt
 
-            tmpdir = os.path.join(get_gradio_tmp(), str(uuid.uuid4()))
-            makedirs(tmpdir, exist_ok=True)
-            text = docx2txt.process(file, tmpdir)
-            images = os.listdir(tmpdir)
-            docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
-        except Exception as e:
-            print("docx images failure: %s" % str(e))
+                tmpdir = os.path.join(get_gradio_tmp(), str(uuid.uuid4()))
+                makedirs(tmpdir, exist_ok=True)
+                text = docx2txt.process(file, tmpdir)
+                images = os.listdir(tmpdir)
+                docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
+            except Exception as e:
+                print("docx images failure: %s" % str(e))
 
         doc1 = chunk_sources(docs1)
     elif (file.lower().endswith('.xlsx') or file.lower().endswith('.xls')) and (have_libreoffice or True):
@@ -5995,7 +5996,7 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
                     if os.getenv('HARD_ASSERTS'):
                         # unexpected in testing or normally
                         raise RuntimeError("HERE")
-                    hf_embedding_model_save = 'hkunlp/instructor-large'
+                    hf_embedding_model_save = 'BAAI/bge-large-en-v1.5-instruct'
                 pickle.dump((use_openai_embedding, hf_embedding_model_save), f)
     return use_openai_embedding, hf_embedding_model
 
@@ -6017,12 +6018,12 @@ def load_embed(db=None, persist_directory=None, use_openai_embedding=False):
                     use_openai_embedding, hf_embedding_model = pickle.load(f)
                     if not isinstance(hf_embedding_model, str):
                         # work-around bug introduced here: https://github.com/h2oai/h2ogpt/commit/54c4414f1ce3b5b7c938def651c0f6af081c66de
-                        hf_embedding_model = 'hkunlp/instructor-large'
+                        hf_embedding_model = 'BAAI/bge-large-en-v1.5-instruct'
                         # fix file
                         save_embed(db, use_openai_embedding, hf_embedding_model)
                     got_embedding = True
                 except EOFError:
-                    use_openai_embedding, hf_embedding_model = False, 'hkunlp/instructor-large'
+                    use_openai_embedding, hf_embedding_model = False, 'BAAI/bge-large-en-v1.5-instruct'
                     got_embedding = False
                     if os.getenv('HARD_ASSERTS'):
                         # unexpected in testing or normally
@@ -8288,8 +8289,8 @@ def get_chain(query=None,
             max_input_tokens = max_input_tokens_default
 
         # don't let breach
-        max_new_tokens = model_max_length - max_input_tokens
-        min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
+        # max_new_tokens = model_max_length - max_input_tokens
+        # min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
 
     else:
         if max_input_tokens < 0:
@@ -8575,6 +8576,11 @@ def get_chain(query=None,
                          prompter=prompter)
 
         # get updated llm
+        actual_input_tokens = max(num_prompt_tokens, num_prompt_tokens0, num_prompt_tokens_actual)
+        # see if can avoid dropping to min_max_new_tokens and use max_new_tokens
+        max_new_tokens_possible = model_max_length - actual_input_tokens - 32
+        max_new_tokens = max(min(max_new_tokens, max_new_tokens_possible), min_max_new_tokens)
+
         llm_kwargs.update(max_new_tokens=max_new_tokens,
                           max_input_tokens=max_input_tokens,
                           max_total_input_tokens=max_total_input_tokens,

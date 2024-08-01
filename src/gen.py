@@ -76,7 +76,8 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, no_model_str, \
     json_object_prompt0, json_object_prompt_simpler0, json_code_prompt0, user_prompt_for_fake_system_prompt0, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
     is_json_model, is_vision_model, \
-    model_state_none0, other_model_state_defaults0, image_batch_image_prompt0, image_batch_final_prompt0
+    model_state_none0, other_model_state_defaults0, image_batch_image_prompt0, image_batch_final_prompt0, \
+    tokens_per_image
 
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, \
@@ -1062,7 +1063,8 @@ def main(
     :param hf_embedding_model: Which HF embedding model to use for vector db
            Default is instructor-large with 768 parameters per embedding if have GPUs, else all-MiniLM-L6-v2 if no GPUs
            Can also choose simpler model with 384 parameters per embedding: "sentence-transformers/all-MiniLM-L6-v2"
-           Can also choose even better embedding with 1024 parameters: 'hkunlp/instructor-xl'
+           A better choice is: 'BAAI/bge-large-en-v1.5'
+           For multilingual can use intfloat/multilingual-e5-large
            We support automatically changing of embeddings for chroma, with a backup of db made if this is done
     :param migrate_embedding_model: whether to use hf_embedding_model embedding even if database already had an embedding set.
            used to migrate all embeddings to a new one, but will take time to re-embed.
@@ -1789,7 +1791,7 @@ def main(
                 score_model = ''
         if hf_embedding_model is None:
             # if still None, then set default
-            hf_embedding_model = 'hkunlp/instructor-large'
+            hf_embedding_model = 'BAAI/bge-large-en-v1.5'
 
     # get defaults
     if base_model:
@@ -3356,6 +3358,7 @@ def evaluate(
                            gradio_errors_to_chatbot=gradio_errors_to_chatbot,
                            # gradio is pass through, we don't make prompt with images here
                            image_file=image_file if not gradio_server else [],
+                           is_actually_vision_model=is_actually_vision_model1,
                            )
 
     if inference_server.startswith('vllm') or \
@@ -4392,7 +4395,7 @@ def get_generate_params(model_lower,
         if chat:
             show_examples = False
         else:
-            show_examples = True
+            show_examples = False
 
     summarize_example1 = """Jeff: Can I train a ? Transformers model on Amazon SageMaker?
 Philipp: Sure you can use the new Hugging Face Deep Learning Container.
@@ -4965,7 +4968,8 @@ def get_limited_prompt(instruction,
                        doing_grounding=False,
                        image_file=[],
                        lang_pre_prompt='',
-                       lang_prompt=''
+                       lang_prompt='',
+                       is_actually_vision_model=False,
                        ):
     """
     Take instruction (estimated_instruction for counting token purposes), iinput, system_prompt, context, chat_conversation, text_context_list as inputs
@@ -4991,6 +4995,9 @@ def get_limited_prompt(instruction,
     else:
         if max_input_tokens < 0:
             max_input_tokens = model_max_length
+
+    if is_actually_vision_model:
+        max_input_tokens -= tokens_per_image(base_model) * len(image_file)
 
     if prompter:
         prompt_type = prompter.prompt_type

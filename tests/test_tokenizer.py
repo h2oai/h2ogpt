@@ -60,7 +60,7 @@ def run_tokenizer1(prompt):
     llm_tokenizer = AutoTokenizer.from_pretrained('h2oai/h2ogpt-oig-oasst1-512-6_9b')
 
     from InstructorEmbedding import INSTRUCTOR
-    emb = INSTRUCTOR('hkunlp/instructor-large')
+    emb = INSTRUCTOR('BAAI/bge-large-en-v1.5-instruct')
 
     t0 = time.time()
     a = len(regTokenize(prompt))
