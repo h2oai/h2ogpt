@@ -6742,11 +6742,10 @@ def test_max_new_tokens_vs_min_max_new_tokens():
     from src.model_utils import get_inf_models
     model_lock = []
     model_lock.extend(ast.literal_eval(os.environ.get('GPT4o')))
-    base_model = 'gpt-4o'
+    model_lock.extend(ast.literal_eval(os.environ.get('GFLASH')))
 
     from src.gen import main
     main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
-
     client = get_client(serialize=True)
 
     # get file for client to upload
@@ -6772,22 +6771,42 @@ def test_max_new_tokens_vs_min_max_new_tokens():
     assert os.path.basename(test_file_server) in res[2]
     assert res[3] == ''
 
-    api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
-    prompt = "Extract all possible information from the document in well-structured Markdown.  Ensure you extract everything from the entire document in every detail, do not leave anything out.  Then follow-up with a detailed markdown analysis of the document's quality, pros, cons, etc."
-    max_new_tokens = 4096
-    kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
-                  langchain_mode=langchain_mode)
-    res = client.predict(str(dict(kwargs)), api_name=api_name)
-    res = ast.literal_eval(res)
-    print(res, file=sys.stderr)
+    base_models = ['gpt-4o', 'gemini-1.5-flash-latest']
+    for base_model in base_models:
 
-    assert 'base_model' in res['save_dict']
-    assert res['save_dict']['base_model'] == base_model
-    assert res['save_dict']['error'] in [None, '']
-    assert 'extra_dict' in res['save_dict']
-    assert res['save_dict']['extra_dict']['ntokens'] > 1200, res['response']
-    assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
-    assert res['save_dict']['extra_dict']['t_generate'] > 0
-    assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
-    assert res['response']
-    print(res['response'], file=sys.stderr)
+        api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        prompt = "Extract all possible information from the document in well-structured Markdown.  Ensure you extract everything from the entire document in every detail, do not leave anything out.  Then follow-up with a detailed markdown analysis of the document's quality, pros, cons, etc."
+        max_new_tokens = 4096
+        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
+                      langchain_mode=langchain_mode)
+        res = client.predict(str(dict(kwargs)), api_name=api_name)
+        res = ast.literal_eval(res)
+        print(res, file=sys.stderr)
+
+        assert 'base_model' in res['save_dict']
+        assert res['save_dict']['base_model'] == base_model
+        assert res['save_dict']['error'] in [None, '']
+        assert 'extra_dict' in res['save_dict']
+        assert res['save_dict']['extra_dict']['ntokens'] > 1200, res['response']
+        assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+        assert res['save_dict']['extra_dict']['t_generate'] > 0
+        assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+        assert res['response']
+        print(res['response'], file=sys.stderr)
+
+        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
+                      langchain_mode=langchain_mode, langchain_action=LangChainAction.SUMMARIZE_MAP.value)
+        res = client.predict(str(dict(kwargs)), api_name=api_name)
+        res = ast.literal_eval(res)
+        print(res, file=sys.stderr)
+
+        assert 'base_model' in res['save_dict']
+        assert res['save_dict']['base_model'] == base_model
+        assert res['save_dict']['error'] in [None, '']
+        assert 'extra_dict' in res['save_dict']
+        assert res['save_dict']['extra_dict']['ntokens'] > 1200, res['response']
+        assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+        assert res['save_dict']['extra_dict']['t_generate'] > 0
+        assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+        assert res['response']
+        print(res['response'], file=sys.stderr)
