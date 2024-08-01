@@ -1,0 +1,11 @@
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/openai/_streaming.py	2024-07-30 23:11:13.902075163 -0700
++++ /home/jon/_streaming.py	2024-07-30 23:08:59.651464011 -0700
+@@ -58,6 +58,8 @@
+         for sse in iterator:
+             if sse.data.startswith("[DONE]"):
+                 break
++            if sse.event == 'ping':
++                continue
+ 
+             if sse.event is None:
+                 data = sse.json()

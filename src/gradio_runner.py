@@ -6378,6 +6378,8 @@ def go_gradio(**kwargs):
                           guest_name=kwargs['guest_name'],
                           main_kwargs=json.dumps(kwargs['main_kwargs']),
                           verbose=verbose,
+                          autogen_server=kwargs['autogen_server'],
+                          openai_server=kwargs['openai_server'],
                           )
 
         if kwargs['openai_server']:
@@ -6388,6 +6390,7 @@ def go_gradio(**kwargs):
             else:
                 openai_app = 'server:app'
             run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True,
+                openai_port=kwargs['openai_port'],
                 workers=kwargs['openai_workers'],
                 )
 
@@ -6399,7 +6402,21 @@ def go_gradio(**kwargs):
             else:
                 function_app = 'function_server:app'
             run(**run_kwargs, port=kwargs['function_server_port'], app=function_app, is_openai_server=False,
+                openai_port=kwargs['openai_port'],
                 workers=kwargs['function_server_workers'],
+                )
+
+        if kwargs['autogen_server']:
+            if verbose:
+                print("Starting up AutoGen proxy server")
+            if kwargs['autogen_workers'] == 1:
+                from openai_server.server import app as autogen_app
+            else:
+                autogen_app = 'server:app'
+            run(**run_kwargs, port=kwargs['autogen_port'], app=autogen_app, is_openai_server=False,
+                is_autogen_server=True,
+                openai_port=kwargs['openai_port'],
+                workers=kwargs['autogen_workers'],
                 )
 
     if kwargs['block_gradio_exit']:

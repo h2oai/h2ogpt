@@ -7,6 +7,7 @@ import argparse
 import logging
 import typing
 import uuid
+from multiprocessing import Process
 from threading import Thread
 from typing import Union
 
@@ -34,6 +35,10 @@ def run_server(host: str = '0.0.0.0',
                workers: int = 1,
                app: Union[str, FastAPI] = None,
                is_openai_server: bool = True,
+               is_autogen_server: bool = False,
+               openai_port: int = None,
+               autogen_server: bool = False,
+               openai_server: bool = False,
                multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
                verbose=False,
@@ -42,8 +47,18 @@ def run_server(host: str = '0.0.0.0',
         workers = min(16, os.cpu_count() * 2 + 1)
     assert app is not None
 
-    name = 'OpenAI' if is_openai_server else 'Function'
+    if openai_port is None:
+        openai_port = port
 
+    # is_autogen_server is racy, so started this in process instead of thread nominally, or use gunicorn
+    if is_autogen_server:
+        name = 'AutoGen'
+        os.environ['is_autogen_server'] = '1'
+    else:
+        name = 'OpenAI' if is_openai_server else 'Function'
+        os.environ['is_autogen_server'] = '0'
+
+    # Note: These envs are risky for race given thread is launching for all 3 servers
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
     os.environ['GRADIO_SERVER_PORT'] = gradio_port or '7860'
@@ -59,9 +74,12 @@ def run_server(host: str = '0.0.0.0',
     os.environ['GRADIO_AUTH_ACCESS'] = auth_access
     os.environ['GRADIO_GUEST_NAME'] = guest_name
 
-    port = int(os.getenv('H2OGPT_OPENAI_PORT', port))
+    os.environ['H2OGPT_OPENAI_PORT'] = str(openai_port)  # so can know the port
+    os.environ['H2OGPT_OPENAI_HOST'] = str(host)  # so can know the host
     ssl_certfile = os.getenv('H2OGPT_OPENAI_CERT_PATH', ssl_certfile)
     ssl_keyfile = os.getenv('H2OGPT_OPENAI_KEY_PATH', ssl_keyfile)
+    prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
+    os.environ['H2OGPT_OPENAI_BASE_URL'] = f'{prefix}://{host}:{openai_port}/v1'
 
     if verbose:
         print('ENVs')
@@ -71,7 +89,6 @@ def run_server(host: str = '0.0.0.0',
     else:
         print("verbose disabled")
 
-    prefix = 'https' if ssl_keyfile and ssl_certfile else 'http'
     try:
         from openai_server.log import logger
     except ModuleNotFoundError:
@@ -122,7 +139,19 @@ def run_server(host: str = '0.0.0.0',
 
 def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
-    name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
+    if kwargs.get('is_autogen_server', False):
+        name = 'AutoGen'
+        # if openai server, then launch this as process instead of thread to avoid races with env vars
+        as_thread = not kwargs.get('openai_server', False)
+    elif kwargs['is_openai_server']:
+        name = 'OpenAI'
+        # if autogen server, then launch this as process instead of thread to avoid races with env vars
+        as_thread = not kwargs.get('autogen_server', False)
+    else:
+        name = 'Function'
+        # still launch function server as thread since no race for any envs
+        as_thread = True
+
     if kwargs.get('verbose', False):
         print(kwargs)
 
@@ -158,9 +187,14 @@ def run(wait=True, **kwargs):
     else:
         kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
         # launch uvicorn in this process in new thread
-        if kwargs.get('verbose', False):
-            print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
-        Thread(target=run_server, kwargs=kwargs, daemon=True).start()
+        if as_thread:
+            if kwargs.get('verbose', False):
+                print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
+            Thread(target=run_server, kwargs=kwargs, daemon=True).start()
+        else:
+            if kwargs.get('verbose', False):
+                print(f"Single-worker {name} Proxy uvicorn in new process: {kwargs['workers']}")
+            Process(target=run_server, kwargs=kwargs).start()
 
 
 def argv_to_kwargs(argv=None):

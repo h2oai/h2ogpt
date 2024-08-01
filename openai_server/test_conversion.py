@@ -2,7 +2,8 @@ import os
 import sys
 
 sys.path.append('openai_server')
-from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages
+from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages, \
+    concatenate_assistant_messages
 
 
 def test_conversion():
@@ -325,3 +326,29 @@ def test_image_download():
     from src.utils import download_image
     result = download_image(image_url, save_path)
     assert result and os.path.isfile(result)
+
+
+def test_concat():
+    messages = [
+        {"role": "user", "content": "Hello!"},
+        {"role": "assistant", "content": "Hi! How can I help you today?"},
+        {"role": "assistant", "content": "Is there something specific you need?"},
+        {"role": "user", "content": "Tell me about the weather."},
+        {"role": "assistant", "content": "Sure, the weather today is sunny with a high of 25°C."}
+    ]
+
+    new_messages = concatenate_assistant_messages(messages)
+    convert_messages_to_structure(new_messages)
+    print(new_messages)
+
+    messages = [{'content': "You are a helpful AI assistant.\n    Solve tasks using your coding and language skills.\n    In the following cases, suggest python code (in a python coding block) or shell script (in a sh coding block) for the user to execute.\n    1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.\n    2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.\n    Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.\n    When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.\n    If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.\n    If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.\n    When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.\n    Reply 'TERMINATE' in the end when everything is done.\n    ", 'role': 'system'}, {'content': "Today is 2024-07-30.  Write Python code to plot TSLA's and META's stock price gains YTD, and save the plot to a file named 'stock_gains.png'.", 'role': 'user'}, {'role': 'assistant', 'content': "To plot TSLA's and META's stock price gains year-to-date (YTD) and save the plot to a file named 'stock_gains.png', we need to follow these steps:\n\n1. Fetch the stock price data for TSLA and META from the beginning of the year 2024 to the current date.\n2. Calculate the stock price gains YTD for both stocks.\n3. Plot the stock price gains.\n4. Save the plot to a file named 'stock_gains.png'.\n\nWe will use the `yfinance` library to fetch the stock data and `matplotlib` to plot the data. Here is the complete Python code to achieve this:\n\n```python\n# filename: stock_gains.py\nimport yfinance as yf\nimport matplotlib.pyplot as plt\nimport datetime\n\n# Define the stock symbols\nstocks = ['TSLA', 'META']\n\n# Define the start and end dates\nstart_date = '2024-01-01'\nend_date = '2024-07-30'\n\n# Fetch the stock data\ndata = yf.download(stocks, start=start_date, end=end_date)['Adj Close']\n\n# Calculate the YTD gains\nytd_gains = (data / data.iloc[0] - 1) *  "}, {'role': 'assistant', 'content': "Sure, I'll continue from where the response was cut off.\n\n```python\n# filename: stock_gains.py\nimport yfinance as yf\nimport matplotlib.pyplot as plt\nimport datetime\n\n# Define the stock symbols\nstocks = ['TSLA', 'META']\n\n# Define the start and end dates\nstart_date = '2024-01-01'\nend_date = '2024-07-30'\n\n# Fetch the stock data\ndata = yf.download(stocks, start=start_date, end=end_date)['Adj Close']\n\n# Calculate the YTD gains\nytd_gains = (data / data.iloc[0] - 1) * 100\n\n# Plot the YTD gains\nplt.figure(figsize=(10, 6))\nfor stock in stocks:\n    plt.plot(ytd_gains.index, ytd_gains[stock], label=stock)\n\n# Add title and labels\nplt.title('YTD Stock Price Gains for TSLA and META (2024)')\nplt.xlabel('Date')\nplt.ylabel('YTD Gain (%)')\nplt.legend()\nplt.grid(True)\n\n# Save the plot to a file\nplt.savefig('stock_gains.png')\n\n# Show the plot\nplt.show()\n```\n\nThis script will:\n1. Fetch the adjusted closing prices "}, {'content': 'exitcode: 1 (execution failed)\nCode output: Traceback (most recent call last):\n  File "/workspace/stock_gains.py", line 2, in <module>\n    import yfinance as yf\nModuleNotFoundError: No module named \'yfinance\'\n', 'role': 'user'}]
+
+    new_messages = concatenate_assistant_messages(messages)
+    convert_messages_to_structure(new_messages)
+
+    messages = [
+        {"role": "user", "content": "Hello!"},
+    ]
+
+    new_messages = concatenate_assistant_messages(messages)
+    assert new_messages == messages
