@@ -270,7 +270,7 @@ def test_autogen():
             usages.append(chunk.usage)
         if delta:
             text += delta
-            print(delta)
+            print(delta, end='')
 
     print(text)
     assert len(usages) == 1
@@ -313,7 +313,7 @@ def test_autogen():
         delta = event.choices[0].text  # extract the text
         text += delta  # append the text
         if delta:
-            print(delta)
+            print(delta, end='')
 
     print(text)
     assert len(usages) == 1
