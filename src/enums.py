@@ -422,7 +422,44 @@ def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[])
                        "OpenGVLab/InternVL2-Llama3-76B-AWQ"] or \
         base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B",
                        "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"] or \
-        base_model in ["microsoft/Phi-3-vision-128k-instruct"]
+        base_model in ["microsoft/Phi-3-vision-128k-instruct"] or \
+        base_model in ['liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b']
+
+
+def tokens_per_image(base_model):
+    if not is_vision_model(base_model):
+        return 0
+    if base_model.startswith('claude-3-'):
+        return claude3_image_tokens
+    elif base_model in ['gpt-4-vision-preview', 'gpt-4-1106-vision-preview', 'gpt-4-turbo-2024-04-09', 'gpt-4o',
+                        'gpt-4o-2024-05-13', 'gpt-4o-mini', 'gpt-4o-mini-2024-07-18']:
+        return gpt4_image_tokens
+    elif base_model in ["gemini-pro-vision", "gemini-1.0-pro-vision-latest", "gemini-1.5-pro-latest",
+                        "gemini-1.5-flash-latest"]:
+        return gemini_image_tokens
+    elif base_model in ["HuggingFaceM4/idefics2-8b-chatty", "HuggingFaceM4/idefics2-8b-chat"]:
+        return 512
+    elif base_model in ["lmms-lab/llama3-llava-next-8b", "lmms-lab/llava-next-110b", "lmms-lab/llava-next-72b"]:
+        return llava16_image_tokens
+    elif base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5",
+                        "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8",
+                        "OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
+                        "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40",
+                        "OpenGVLab/InternVL2-Llama3-76B",
+                        "OpenGVLab/InternVL2-40B-AWQ", "OpenGVLab/InternVL2-26B-AWQ", "OpenGVLab/InternVL2-8B-AWQ",
+                        "OpenGVLab/InternVL2-2B-AWQ",
+                        "OpenGVLab/InternVL2-Llama3-76B-AWQ"]:
+        return 1024
+    elif base_model in ["THUDM/cogvlm2-llama3-chat-19B", "THUDM/cogvlm2-llama3-chinese-chat-19B",
+                        "THUDM/cogvlm2-llama3-chat-19B-int4", "THUDM/cogvlm2-llama3-chinese-chat-19B-int4"]:
+        return 1500
+    elif base_model in ["microsoft/Phi-3-vision-128k-instruct"]:
+        return 1024
+    elif base_model in ['liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b']:
+        return llava16_image_tokens
+    else:
+        # safety net
+        return 1500
 
 
 def is_video_model(base_model):
@@ -521,7 +558,6 @@ def get_langchain_prompts(pre_prompt_query, prompt_query, pre_prompt_summary, pr
         # older smaller models get confused by this prompt, should use "" instead, but not focusing on such old models anymore, complicates code too much
         pre_prompt_query1 = "Pay attention and remember the information below, which will help to answer the question or imperative after the context ends."
         prompt_query1 = """According to only the information in any chat history, any images given, or any document text provided within the context above, give a well-structured response (that starts with "According to") to:"""
-
 
     pre_prompt_summary1 = """In order to write a concise summary, pay attention to the following text."""
     prompt_summary1 = "Using only the information in the document sources above, write a condensed and concise well-structured Markdown summary of key results."

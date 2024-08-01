@@ -2253,7 +2253,7 @@ def go_gradio(**kwargs):
                             visible_model_btn = gr.Button("Toggle Visible Models", variant="secondary", size="sm")
 
                             col_tabs_scale = gr.Slider(minimum=1, maximum=20, value=10, step=1, label='Window Size')
-                            text_outputs_height = gr.Slider(minimum=100, maximum=2000, value=kwargs['height'] or 400,
+                            text_outputs_height = gr.Slider(minimum=100, maximum=4000, value=kwargs['height'] or 400,
                                                             step=50, label='Chat Height')
                             pdf_height = gr.Slider(minimum=100, maximum=3000, value=kwargs['pdf_height'] or 800,
                                                    step=50, label='PDF Viewer Height',

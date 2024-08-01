@@ -525,7 +525,8 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             if not name.startswith('http'):
                 name = 'http://' + name
             embedding = H2OHuggingFaceHubEmbeddings(model=name,
-                                                    huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN", 'foo'),
+                                                    huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN",
+                                                                                            'foo'),
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock
@@ -8289,8 +8290,8 @@ def get_chain(query=None,
             max_input_tokens = max_input_tokens_default
 
         # don't let breach
-        max_new_tokens = model_max_length - max_input_tokens
-        min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
+        # max_new_tokens = model_max_length - max_input_tokens
+        # min_max_new_tokens = min(min_max_new_tokens, max_new_tokens)
 
     else:
         if max_input_tokens < 0:
@@ -8576,6 +8577,11 @@ def get_chain(query=None,
                          prompter=prompter)
 
         # get updated llm
+        actual_input_tokens = max(num_prompt_tokens, num_prompt_tokens0, num_prompt_tokens_actual)
+        # see if can avoid dropping to min_max_new_tokens and use max_new_tokens
+        max_new_tokens_possible = model_max_length - actual_input_tokens - 32
+        max_new_tokens = max(min(max_new_tokens, max_new_tokens_possible), min_max_new_tokens)
+
         llm_kwargs.update(max_new_tokens=max_new_tokens,
                           max_input_tokens=max_input_tokens,
                           max_total_input_tokens=max_total_input_tokens,
