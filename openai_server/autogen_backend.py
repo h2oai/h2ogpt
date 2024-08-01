@@ -34,6 +34,7 @@ def run_autogen(query, **kwargs) -> dict:
     stream_output = kwargs['stream_output']
     max_new_tokens = kwargs['max_new_tokens']
     authorization = kwargs['authorization']
+    stop_executor = kwargs['stop_executor']
     max_consecutive_auto_reply = 10
     timeout = 120
     print(" Using model=%s." % model, flush=True)
@@ -151,10 +152,11 @@ Reply 'TERMINATE' in the end when everything is done.
 
     # temp_dir.cleanup()
     t0 = time.time()
-    executor.stop()  # Stop the docker command line code executor.
+    if stop_executor:
+        executor.stop()  # Stop the docker command line code executor (takes about 10 seconds, so slow)
     print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
-    return dict(files=files_list, file_ids=file_ids)
+    return dict(files=files_list, file_ids=file_ids, chat_history=chat_result.chat_history, cost=chat_result.cost)
 
 
 class CaptureIOStream(IOStream):

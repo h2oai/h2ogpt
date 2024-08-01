@@ -161,7 +161,7 @@ class H2oGPTParams(BaseModel):
 
 class AutoGenParams(BaseModel):
     use_autogen: bool | None = False
-    pass
+    stop_executor: bool | None = False
 
 
 class Params(H2oGPTParams, AutoGenParams):
