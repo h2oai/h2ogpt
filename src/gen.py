@@ -84,7 +84,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
     have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, get_json, \
-    get_docs_tokens, deduplicate_names
+    get_docs_tokens, deduplicate_names, have_autogen
 
 start_faulthandler()
 import_matplotlib()
@@ -1450,6 +1450,10 @@ def main(
     enable_imagestyle = enable_image and \
                         len(set(visible_image_models).difference(valid_imagestyle_models)) < len(
         set(visible_image_models))
+
+    if autogen_server and not have_autogen:
+        print("Disabled AutoGen since not installed")
+        autogen_server = False
 
     if os.environ.get('SERPAPI_API_KEY') is None and \
             LangChainAgent.SEARCH.value in visible_langchain_agents:
