@@ -143,7 +143,7 @@ Reply 'TERMINATE' in the end when everything is done.
         purpose = 'assistants'
         response_dict = run_upload_api(content, new_path, purpose, authorization)
         file_id = response_dict['id']
-        file_ids.extend(file_id)
+        file_ids.append(file_id)
 
     if add_files_to_context:
         iostream = IOStream.get_default()
