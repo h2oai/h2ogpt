@@ -168,7 +168,7 @@ def count_tokens(prompt, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b'):
     llm_tokenizer = AutoTokenizer.from_pretrained(base_model)
 
     from InstructorEmbedding import INSTRUCTOR
-    emb = INSTRUCTOR('BAAI/bge-large-en-v1.5-instruct')
+    emb = INSTRUCTOR('BAAI/bge-large-en-v1.5')
 
     import nltk
 

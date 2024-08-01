@@ -5997,7 +5997,7 @@ def save_embed(db, use_openai_embedding, hf_embedding_model):
                     if os.getenv('HARD_ASSERTS'):
                         # unexpected in testing or normally
                         raise RuntimeError("HERE")
-                    hf_embedding_model_save = 'BAAI/bge-large-en-v1.5-instruct'
+                    hf_embedding_model_save = 'BAAI/bge-large-en-v1.5'
                 pickle.dump((use_openai_embedding, hf_embedding_model_save), f)
     return use_openai_embedding, hf_embedding_model
 
@@ -6019,12 +6019,12 @@ def load_embed(db=None, persist_directory=None, use_openai_embedding=False):
                     use_openai_embedding, hf_embedding_model = pickle.load(f)
                     if not isinstance(hf_embedding_model, str):
                         # work-around bug introduced here: https://github.com/h2oai/h2ogpt/commit/54c4414f1ce3b5b7c938def651c0f6af081c66de
-                        hf_embedding_model = 'BAAI/bge-large-en-v1.5-instruct'
+                        hf_embedding_model = 'BAAI/bge-large-en-v1.5'
                         # fix file
                         save_embed(db, use_openai_embedding, hf_embedding_model)
                     got_embedding = True
                 except EOFError:
-                    use_openai_embedding, hf_embedding_model = False, 'BAAI/bge-large-en-v1.5-instruct'
+                    use_openai_embedding, hf_embedding_model = False, 'BAAI/bge-large-en-v1.5'
                     got_embedding = False
                     if os.getenv('HARD_ASSERTS'):
                         # unexpected in testing or normally
