@@ -525,7 +525,8 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
             if not name.startswith('http'):
                 name = 'http://' + name
             embedding = H2OHuggingFaceHubEmbeddings(model=name,
-                                                    huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN", 'foo'),
+                                                    huggingfacehub_api_token=os.environ.get("HUGGINGFACEHUB_API_TOKEN",
+                                                                                            'foo'),
                                                     model_kwargs={"truncate": True})
         else:
             # to ensure can fork without deadlock

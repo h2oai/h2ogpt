@@ -6735,3 +6735,78 @@ def test_client1_lock_choose_model_via_api_vision(admin_pass):
     assert model_info[0]['max_seq_len'] == 127950
     assert model_info[0]['actually_image'] is True
     assert model_info[0]['image'] is True
+
+
+@wrap_test_forked
+def test_max_new_tokens_vs_min_max_new_tokens():
+    from src.model_utils import get_inf_models
+    model_lock = []
+    model_lock.extend(ast.literal_eval(os.environ.get('GPT4o')))
+    model_lock.extend(ast.literal_eval(os.environ.get('GFLASH')))
+
+    from src.gen import main
+    main(block_gradio_exit=False, save_dir='save_test', model_lock=model_lock)
+    client = get_client(serialize=True)
+
+    # get file for client to upload
+    url = 'https://cdn.openai.com/papers/whisper.pdf'
+    test_file1 = os.path.join('/tmp/', 'whisper1.pdf')
+    download_simple(url, dest=test_file1)
+
+    # upload file(s).  Can be list or single file
+    test_file_local, test_file_server = client.predict(test_file1, api_name='/upload_api')
+
+    chunk = True
+    chunk_size = 512
+    langchain_mode = 'MyData'
+    loaders = tuple([None, None, None, None, None, None])
+    h2ogpt_key = ''
+    res = client.predict(test_file_server,
+                         langchain_mode, chunk, chunk_size, True,
+                         *loaders,
+                         h2ogpt_key,
+                         api_name='/add_file_api')
+    assert res[0] is None
+    assert res[1] == langchain_mode
+    assert os.path.basename(test_file_server) in res[2]
+    assert res[3] == ''
+
+    base_models = ['gpt-4o', 'gemini-1.5-flash-latest']
+    for base_model in base_models:
+
+        api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
+        prompt = "Extract all possible information from the document in well-structured Markdown.  Ensure you extract everything from the entire document in every detail, do not leave anything out.  Then follow-up with a detailed markdown analysis of the document's quality, pros, cons, etc."
+        max_new_tokens = 4096
+        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
+                      langchain_mode=langchain_mode)
+        res = client.predict(str(dict(kwargs)), api_name=api_name)
+        res = ast.literal_eval(res)
+        print(res, file=sys.stderr)
+
+        assert 'base_model' in res['save_dict']
+        assert res['save_dict']['base_model'] == base_model
+        assert res['save_dict']['error'] in [None, '']
+        assert 'extra_dict' in res['save_dict']
+        assert res['save_dict']['extra_dict']['ntokens'] > 1200, res['response']
+        assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+        assert res['save_dict']['extra_dict']['t_generate'] > 0
+        assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+        assert res['response']
+        print(res['response'], file=sys.stderr)
+
+        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
+                      langchain_mode=langchain_mode, langchain_action=LangChainAction.SUMMARIZE_MAP.value)
+        res = client.predict(str(dict(kwargs)), api_name=api_name)
+        res = ast.literal_eval(res)
+        print(res, file=sys.stderr)
+
+        assert 'base_model' in res['save_dict']
+        assert res['save_dict']['base_model'] == base_model
+        assert res['save_dict']['error'] in [None, '']
+        assert 'extra_dict' in res['save_dict']
+        assert res['save_dict']['extra_dict']['ntokens'] > 1200, res['response']
+        assert res['save_dict']['extra_dict']['ntokens'] <= max_new_tokens
+        assert res['save_dict']['extra_dict']['t_generate'] > 0
+        assert res['save_dict']['extra_dict']['tokens_persecond'] > 0
+        assert res['response']
+        print(res['response'], file=sys.stderr)
