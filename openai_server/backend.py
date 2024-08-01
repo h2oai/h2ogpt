@@ -283,6 +283,9 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     })
 
     using_autogen = gen_kwargs.get('use_autogen', False)
+    if using_autogen and os.environ.get('is_autogen_server', '0') == '0':
+        raise ValueError("Autogen is not enabled on this server.")
+
     model = gen_kwargs.get('model', '')
 
     def chat_streaming_chunk(content):
@@ -377,6 +380,9 @@ def completions_action(body: dict, stream_output=False):
     gen_kwargs['stream_output'] = stream_output
 
     using_autogen = gen_kwargs.get('use_autogen', False)
+    if using_autogen and os.environ.get('is_autogen_server', '0') == '0':
+        raise ValueError("Autogen is not enabled on this server.")
+
     usage = {}
 
     if not stream_output:

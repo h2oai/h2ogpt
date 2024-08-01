@@ -45,6 +45,9 @@ def terminate_message_func(msg):
 
 
 def run_autogen(query, **kwargs) -> dict:
+    # raise openai.BadRequestError("Testing Error Handling")
+    # raise ValueError("Testing Error Handling")
+
     model = kwargs['visible_models']
     stream_output = kwargs['stream_output']
     max_new_tokens = kwargs['max_new_tokens']
@@ -162,7 +165,19 @@ Reply 'TERMINATE' in the end when everything is done.
         executor.stop()  # Stop the docker command line code executor (takes about 10 seconds, so slow)
     print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
-    return dict(files=files_list, file_ids=file_ids, chat_history=chat_result.chat_history, cost=chat_result.cost)
+    ret_dict = {}
+    if files_list:
+        ret_dict.update(dict(files=files_list))
+    if file_ids:
+        ret_dict.update(dict(file_ids=file_ids))
+    if chat_result and hasattr(chat_result, 'chat_history'):
+        ret_dict.update(dict(chat_history=chat_result.chat_history))
+    if chat_result and hasattr(chat_result, 'cost'):
+        ret_dict.update(dict(cost=chat_result.cost))
+    if chat_result and hasattr(chat_result, 'summary'):
+        ret_dict.update(dict(summary=chat_result.summary))
+
+    return ret_dict
 
 
 class CaptureIOStream(IOStream):
@@ -184,31 +199,54 @@ def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStr
         yield capture_stream
 
 
-def run_autogen_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, **kwargs):
-    with capture_iostream(output_queue):
-        # Your autogen code here
-        ret_dict = run_autogen(query, **kwargs)
-        # Signal that autogen has finished
+def run_autogen_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, exception_queue: queue.Queue, **kwargs):
+    ret_dict = None
+    try:
+        # raise ValueError("Testing Error Handling 3")  # works
+
+        with capture_iostream(output_queue):
+            # Your autogen code here
+            ret_dict = run_autogen(query, **kwargs)
+            # Signal that autogen has finished
+            result_queue.put(ret_dict)
+    except BaseException as e:
+        exception_queue.put(e)
+    finally:
         output_queue.put(None)
         result_queue.put(ret_dict)
 
 
 def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
+    # raise ValueError("Testing Error Handling 2")  #works
     output_queue = queue.Queue()
     result_queue = queue.Queue()
+    exception_queue = queue.Queue()
 
     # Start autogen in a separate thread
-    autogen_thread = threading.Thread(target=run_autogen_in_thread, args=(output_queue, query, result_queue), kwargs=kwargs)
+    autogen_thread = threading.Thread(target=run_autogen_in_thread, args=(output_queue, query, result_queue, exception_queue), kwargs=kwargs)
     autogen_thread.start()
 
     # Yield output as it becomes available
     while True:
+        # Check for exceptions
+        if not exception_queue.empty():
+            e = exception_queue.get()
+            raise e
+
         output = output_queue.get()
         if output is None:  # End of autogen execution
             break
         yield output
 
     autogen_thread.join()
+
+    # Return the final result
+    if not exception_queue.empty():
+        e = exception_queue.get()
+        if isinstance(e, SystemExit):
+            raise ValueError("SystemExit")
+        else:
+            raise e
 
     # Return the final result
     ret_dict = result_queue.get() if not result_queue.empty() else None
@@ -221,6 +259,8 @@ def get_response(query, **kwargs):
 
 
 def get_autogen_response(query, gen_kwargs, chunk_response=True, stream_output=False):
+    # raise ValueError("Testing Error Handling 1")  # works
+
     gen_kwargs = convert_gen_kwargs(gen_kwargs)
     kwargs = gen_kwargs.copy()
     kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))

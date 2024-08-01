@@ -6388,6 +6388,7 @@ def go_gradio(**kwargs):
             else:
                 openai_app = 'server:app'
             run(**run_kwargs, port=kwargs['openai_port'], app=openai_app, is_openai_server=True,
+                openai_port=kwargs['openai_port'],
                 workers=kwargs['openai_workers'],
                 )
 
@@ -6407,15 +6408,14 @@ def go_gradio(**kwargs):
             if verbose:
                 print("Starting up AutoGen proxy server")
             if kwargs['autogen_workers'] == 1:
-                from openai_server.server import app as openai_app
+                from openai_server.server import app as autogen_app
             else:
-                openai_app = 'server:app'
-            run(**run_kwargs, port=kwargs['autogen_port'], app=openai_app, is_openai_server=False,
+                autogen_app = 'server:app'
+            run(**run_kwargs, port=kwargs['autogen_port'], app=autogen_app, is_openai_server=False,
                 is_autogen_server=True,
                 openai_port=kwargs['openai_port'],
                 workers=kwargs['autogen_workers'],
                 )
-
 
     if kwargs['block_gradio_exit']:
         demo.block_thread()

@@ -7,6 +7,7 @@ import argparse
 import logging
 import typing
 import uuid
+from multiprocessing import Process
 from threading import Thread
 from typing import Union
 
@@ -47,11 +48,15 @@ def run_server(host: str = '0.0.0.0',
     if openai_port is None:
         openai_port = port
 
+    # is_autogen_server is racy, so started this in process instead of thread nominally, or use gunicorn
     if is_autogen_server:
         name = 'AutoGen'
+        os.environ['is_autogen_server'] = '1'
     else:
         name = 'OpenAI' if is_openai_server else 'Function'
+        os.environ['is_autogen_server'] = '0'
 
+    # Note: These envs are risky for race given thread is launching for all 3 servers
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
     os.environ['GRADIO_SERVER_HOST'] = gradio_host or 'localhost'
     os.environ['GRADIO_SERVER_PORT'] = gradio_port or '7860'
@@ -134,8 +139,11 @@ def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
     if kwargs.get('is_autogen_server', False):
         name = 'AutoGen'
+        as_thread = False
     else:
         name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
+        # still launch function server as thread since no race for any envs
+        as_thread = not kwargs['is_openai_server']
     if kwargs.get('verbose', False):
         print(kwargs)
 
@@ -171,9 +179,14 @@ def run(wait=True, **kwargs):
     else:
         kwargs['multiple_workers_gunicorn'] = False  # force uvicorn since not using multiple workers
         # launch uvicorn in this process in new thread
-        if kwargs.get('verbose', False):
-            print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
-        Thread(target=run_server, kwargs=kwargs, daemon=True).start()
+        if as_thread:
+            if kwargs.get('verbose', False):
+                print(f"Single-worker {name} Proxy uvicorn in new thread: {kwargs['workers']}")
+            Thread(target=run_server, kwargs=kwargs, daemon=True).start()
+        else:
+            if kwargs.get('verbose', False):
+                print(f"Single-worker {name} Proxy uvicorn in new process: {kwargs['workers']}")
+            Process(target=run_server, kwargs=kwargs).start()
 
 
 def argv_to_kwargs(argv=None):
