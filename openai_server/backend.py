@@ -13,7 +13,8 @@ from collections import deque
 import numpy as np
 
 from log import logger
-from openai_server.backend_utils import convert_messages_to_structure
+from openai_server.autogen_backend import get_autogen_response
+from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
 
 
 def decode(x, encoding_name="cl100k_base"):
@@ -204,42 +205,8 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs = dict(instruction=instruction)
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
-    # max_tokens=16 for text completion by default
-    gen_kwargs['max_new_tokens'] = gen_kwargs.pop('max_new_tokens', gen_kwargs.pop('max_tokens', 256))
-    gen_kwargs['visible_models'] = gen_kwargs.pop('visible_models', gen_kwargs.pop('model', 0))
-    gen_kwargs['top_p'] = gen_kwargs.get('top_p', 1.0)
-    gen_kwargs['top_k'] = gen_kwargs.get('top_k', 1)
-    gen_kwargs['seed'] = gen_kwargs.get('seed', 0)
 
-    if gen_kwargs.get('do_sample') in [False, None]:
-        # be more like OpenAI, only temperature, not do_sample, to control
-        gen_kwargs['temperature'] = gen_kwargs.pop('temperature', 0.0)  # unlike OpenAI, default to not random
-    # https://platform.openai.com/docs/api-reference/chat/create
-    if gen_kwargs['temperature'] > 0.0:
-        # let temperature control sampling
-        gen_kwargs['do_sample'] = True
-    elif gen_kwargs['top_p'] != 1.0:
-        # let top_p control sampling
-        gen_kwargs['do_sample'] = True
-        if gen_kwargs.get('top_k') == 1 and gen_kwargs.get('temperature') == 0.0:
-            logger.warning("Sampling with top_k=1 has no effect if top_k=1 and temperature=0")
-    else:
-        # no sampling, make consistent
-        gen_kwargs['top_p'] = 1.0
-        gen_kwargs['top_k'] = 1
-    if gen_kwargs['seed'] is None:
-        gen_kwargs['seed'] = 0
-
-    if gen_kwargs.get('repetition_penalty', 1) == 1 and gen_kwargs.get('presence_penalty', 0.0) != 0.0:
-        # then user using presence_penalty, convert to repetition_penalty for h2oGPT
-        # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
-        gen_kwargs['repetition_penalty'] = 0.5 * (gen_kwargs['presence_penalty'] - 0.0) + 1.0
-
-    if gen_kwargs.get('response_format') and hasattr(gen_kwargs.get('response_format'), 'type'):
-        # pydantic ensures type and key
-        # transcribe to h2oGPT way of just value
-        gen_kwargs['response_format'] = gen_kwargs.get('response_format').type
-
+    gen_kwargs = convert_gen_kwargs(gen_kwargs)
     kwargs.update(**gen_kwargs)
 
     # WIP:
@@ -315,13 +282,19 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         'image_file': image_files,
     })
 
+    using_autogen = gen_kwargs.get('use_autogen', False)
+    if using_autogen and os.environ.get('is_autogen_server', '0') == '0':
+        raise ValueError("Autogen is not enabled on this server.")
+
+    model = gen_kwargs.get('model', '')
+
     def chat_streaming_chunk(content):
         # begin streaming
         chunk = {
             "id": req_id,
             "object": object_type,
             "created": created_time,
-            "model": '',
+            "model": model,
             resp_list: [{
                 "index": 0,
                 "finish_reason": None,
@@ -340,29 +313,42 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
     token_count = count_tokens(instruction)
-    generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
-                             stream_output=stream_output)
+    if using_autogen:
+        generator = get_autogen_response(instruction, gen_kwargs, chunk_response=stream_output,
+                                         stream_output=stream_output)
+    else:
+        generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
+                                 stream_output=stream_output)
 
     answer = ''
-    for chunk in generator:
-        if stream_output:
-            answer += chunk
-            chat_chunk = chat_streaming_chunk(chunk)
-            yield chat_chunk
-        else:
-            answer = chunk
+    usage = {}
+    try:
+        while True:
+            chunk = next(generator)
+            if stream_output:
+                answer += chunk
+                chat_chunk = chat_streaming_chunk(chunk)
+                yield chat_chunk
+            else:
+                answer = chunk
+    except StopIteration as e:
+        ret_dict = e.value
+        if isinstance(ret_dict, dict):
+            usage.update(ret_dict)
 
     completion_token_count = count_tokens(answer)
     stop_reason = "stop"
 
+    usage.update({
+            "prompt_tokens": token_count,
+            "completion_tokens": completion_token_count,
+            "total_tokens": token_count + completion_token_count,
+        })
+
     if stream_output:
         chunk = chat_streaming_chunk('')
         chunk[resp_list][0]['finish_reason'] = stop_reason
-        chunk['usage'] = {
-            "prompt_tokens": token_count,
-            "completion_tokens": completion_token_count,
-            "total_tokens": token_count + completion_token_count
-        }
+        chunk['usage'] = usage
 
         yield chunk
     else:
@@ -370,17 +356,13 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
             "id": req_id,
             "object": object_type,
             "created": created_time,
-            "model": '',
+            "model": model,
             resp_list: [{
                 "index": 0,
                 "finish_reason": stop_reason,
                 "message": {"role": "assistant", "content": answer}
             }],
-            "usage": {
-                "prompt_tokens": token_count,
-                "completion_tokens": completion_token_count,
-                "total_tokens": token_count + completion_token_count
-            }
+            "usage": usage
         }
 
         yield resp
@@ -397,6 +379,12 @@ def completions_action(body: dict, stream_output=False):
     gen_kwargs = body
     gen_kwargs['stream_output'] = stream_output
 
+    using_autogen = gen_kwargs.get('use_autogen', False)
+    if using_autogen and os.environ.get('is_autogen_server', '0') == '0':
+        raise ValueError("Autogen is not enabled on this server.")
+
+    usage = {}
+
     if not stream_output:
         prompt_arg = body[prompt_str]
         if isinstance(prompt_arg, str) or (isinstance(prompt_arg, list) and isinstance(prompt_arg[0], int)):
@@ -410,7 +398,13 @@ def completions_action(body: dict, stream_output=False):
             token_count = count_tokens(prompt)
             total_prompt_token_count += token_count
 
-            response = deque(get_response(prompt, gen_kwargs), maxlen=1).pop()
+            if using_autogen:
+                response, ret = get_last_and_return_value(get_autogen_response(prompt, gen_kwargs))
+            else:
+                response, ret = get_last_and_return_value(get_response(prompt, gen_kwargs))
+            if isinstance(ret, dict):
+                usage.update(ret)
+
             if isinstance(response, str):
                 completion_token_count = count_tokens(response)
                 total_completion_token_count += completion_token_count
@@ -428,17 +422,18 @@ def completions_action(body: dict, stream_output=False):
 
             resp_list_data.extend([res_idx])
 
+        usage.update({
+                "prompt_tokens": total_prompt_token_count,
+                "completion_tokens": total_completion_token_count,
+                "total_tokens": total_prompt_token_count + total_completion_token_count,
+            })
         res_dict = {
             "id": res_id,
             "object": object_type,
             "created": created_time,
             "model": '',
             resp_list: resp_list_data,
-            "usage": {
-                "prompt_tokens": total_prompt_token_count,
-                "completion_tokens": total_completion_token_count,
-                "total_tokens": total_prompt_token_count + total_completion_token_count
-            }
+            "usage": usage
         }
 
         yield res_dict
@@ -463,23 +458,36 @@ def completions_action(body: dict, stream_output=False):
 
             return chunk
 
-        generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                 stream_output=stream_output)
+        if using_autogen:
+            generator = get_autogen_response(prompt, gen_kwargs, chunk_response=stream_output,
+                                             stream_output=stream_output)
+        else:
+            generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
+                                     stream_output=stream_output)
+
         response = ''
-        for chunk in generator:
-            response += chunk
-            yield_chunk = text_streaming_chunk(chunk)
-            yield yield_chunk
+        usage = {}
+        try:
+            while True:
+                chunk = next(generator)
+                response += chunk
+                yield_chunk = text_streaming_chunk(chunk)
+                yield yield_chunk
+        except StopIteration as e:
+            # Get the return value
+            if isinstance(e.value, dict):
+                usage.update(e.value)
 
         completion_token_count = count_tokens(response)
         stop_reason = "stop"
         chunk = text_streaming_chunk('')
         chunk[resp_list][0]["finish_reason"] = stop_reason
-        chunk["usage"] = {
+        usage.update({
             "prompt_tokens": token_count,
             "completion_tokens": completion_token_count,
-            "total_tokens": token_count + completion_token_count
-        }
+            "total_tokens": token_count + completion_token_count,
+        })
+        chunk["usage"] = usage
         yield chunk
 
 

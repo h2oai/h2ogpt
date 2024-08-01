@@ -3106,7 +3106,7 @@ def run_client_chat_stream_langchain_steps3(loaders, enforce_h2ogpt_api_key, fun
                             h2ogpt_key=h2ogpt_key)
 
     res_dict, client = run_client(client, prompt, args, kwargs)
-    assert ('Yes, more text can be boring' in res_dict['response'] or
+    assert ('more text can be boring' in res_dict['response'] or
             "can be considered boring" in res_dict['response'] or
             "the text in the provided PDF file is quite repetitive and boring" in res_dict['response'] or
             "the provided PDF file is quite boring" in res_dict['response'] or

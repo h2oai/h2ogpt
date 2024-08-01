@@ -1,0 +1,24 @@
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/autogen/token_count_utils.py	2024-07-29 21:31:51.630851528 -0700
++++ /home/jon/token_count_utils.py	2024-07-30 19:13:10.160760647 -0700
+@@ -116,19 +116,9 @@
+     elif "gpt-4" in model:
+         logger.info("gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+         return _num_token_from_messages(messages, model="gpt-4-0613")
+-    elif "gemini" in model:
+-        logger.info("Gemini is not supported in tiktoken. Returning num tokens assuming gpt-4-0613.")
+-        return _num_token_from_messages(messages, model="gpt-4-0613")
+-    elif "claude" in model:
+-        logger.info("Claude is not supported in tiktoken. Returning num tokens assuming gpt-4-0613.")
+-        return _num_token_from_messages(messages, model="gpt-4-0613")
+-    elif "mistral-" in model or "mixtral-" in model:
+-        logger.info("Mistral.AI models are not supported in tiktoken. Returning num tokens assuming gpt-4-0613.")
+-        return _num_token_from_messages(messages, model="gpt-4-0613")
+     else:
+-        raise NotImplementedError(
+-            f"""_num_token_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+-        )
++        logger.info("%s model is not supported in tiktoken. Returning num tokens assuming gpt-4-0613." % model)
++        return _num_token_from_messages(messages, model="gpt-4-0613")
+     num_tokens = 0
+     for message in messages:
+         num_tokens += tokens_per_message

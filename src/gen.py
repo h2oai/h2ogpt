@@ -84,7 +84,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
     have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, get_json, \
-    get_docs_tokens, deduplicate_names
+    get_docs_tokens, deduplicate_names, have_autogen
 
 start_faulthandler()
 import_matplotlib()
@@ -206,6 +206,10 @@ def main(
         function_server_port: int = 5003 if sys.platform == "darwin" else 5002,
         function_server_workers: int = 1,
         function_api_key: str = None,
+
+        autogen_server: bool = False,  # WIP
+        autogen_port: int = 5004 if sys.platform == "darwin" else 5004,
+        autogen_workers: int = 1,
 
         multiple_workers_gunicorn: bool = False,
 
@@ -784,6 +788,11 @@ def main(
     :param function_server_port: port for OpenAI proxy server
     :param function_server_workers: number of workers for Function Server (1 means 1 worker, 0 means all physical cores, else choose)
     :param function_api_key: API key for function server, auto-set if not provided, uses first key like OpenAI proxy server does as well
+
+    :param autogen_server: whether to launch AutoGen proxy server for local gradio server
+           Disabled if API is disabled
+    :param autogen_port: port for AutoGen proxy server
+    :param autogen_workers: number of workers for AutoGen (1 means 1 worker, 0 means all physical cores, else choose)
 
     :param multiple_workers_gunicorn: whether to use gunicorn (True) or uvicorn (False) for multiple workers
 
@@ -1442,6 +1451,10 @@ def main(
                         len(set(visible_image_models).difference(valid_imagestyle_models)) < len(
         set(visible_image_models))
 
+    if autogen_server and not have_autogen:
+        print("Disabled AutoGen since not installed")
+        autogen_server = False
+
     if os.environ.get('SERPAPI_API_KEY') is None and \
             LangChainAgent.SEARCH.value in visible_langchain_agents:
         visible_langchain_agents.remove(LangChainAgent.SEARCH.value)
@@ -1496,6 +1509,7 @@ def main(
             enforce_h2ogpt_api_key = False
     if isinstance(h2ogpt_api_keys, str) and not os.path.isfile(h2ogpt_api_keys):
         h2ogpt_api_keys = str_to_list(h2ogpt_api_keys)
+    os.environ['H2OGPT_H2OGPT_API_KEYS'] = str(h2ogpt_api_keys)
     if isinstance(extra_allowed_paths, str):
         extra_allowed_paths = str_to_list(extra_allowed_paths)
     if memory_restriction_level is None:
@@ -1727,6 +1741,9 @@ def main(
     if openai_server and not allow_api:
         print("Cannot enable OpenAI server when allow_api=False")
         openai_server = False
+    if autogen_server and not allow_api:
+        print("Cannot enable AutoGen server when allow_api=False")
+        autogen_server = False
 
     if not os.getenv('CLEAR_CLEAR_TORCH'):
         if clear_torch_cache_level == 0:

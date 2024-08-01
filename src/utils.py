@@ -1185,6 +1185,14 @@ except (PackageNotFoundError, AssertionError):
     pass
 
 
+have_autogen = False
+try:
+    assert distribution('autogen') is not None
+    have_autogen = True
+except (PackageNotFoundError, AssertionError):
+    pass
+
+
 def hash_file(file):
     try:
         import hashlib
