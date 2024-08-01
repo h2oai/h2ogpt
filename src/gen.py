@@ -207,7 +207,7 @@ def main(
         function_server_workers: int = 1,
         function_api_key: str = None,
 
-        autogen_server: bool = True,
+        autogen_server: bool = False,  # WIP
         autogen_port: int = 5004 if sys.platform == "darwin" else 5004,
         autogen_workers: int = 1,
 
