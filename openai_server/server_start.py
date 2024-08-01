@@ -37,6 +37,8 @@ def run_server(host: str = '0.0.0.0',
                is_openai_server: bool = True,
                is_autogen_server: bool = False,
                openai_port: int = None,
+               autogen_server: bool = False,
+               openai_server: bool = False,
                multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
                verbose=False,
@@ -139,11 +141,17 @@ def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
     if kwargs.get('is_autogen_server', False):
         name = 'AutoGen'
-        as_thread = False
+        # if openai server, then launch this as process instead of thread to avoid races with env vars
+        as_thread = not kwargs.get('openai_server', False)
+    elif kwargs['is_openai_server']:
+        name = 'OpenAI'
+        # if autogen server, then launch this as process instead of thread to avoid races with env vars
+        as_thread = not kwargs.get('autogen_server', False)
     else:
-        name = 'OpenAI' if kwargs['is_openai_server'] else 'Function'
+        name = 'Function'
         # still launch function server as thread since no race for any envs
-        as_thread = not kwargs['is_openai_server']
+        as_thread = True
+
     if kwargs.get('verbose', False):
         print(kwargs)
 

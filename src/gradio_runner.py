@@ -6378,6 +6378,8 @@ def go_gradio(**kwargs):
                           guest_name=kwargs['guest_name'],
                           main_kwargs=json.dumps(kwargs['main_kwargs']),
                           verbose=verbose,
+                          autogen_server=kwargs['autogen_server'],
+                          openai_server=kwargs['openai_server'],
                           )
 
         if kwargs['openai_server']:
