@@ -14,7 +14,7 @@ import numpy as np
 
 from log import logger
 from openai_server.autogen_backend import get_autogen_response
-from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs
+from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
 
 
 def decode(x, encoding_name="cl100k_base"):
@@ -318,25 +318,34 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
                                  stream_output=stream_output)
 
     answer = ''
-    for chunk in generator:
-        if stream_output:
-            answer += chunk
-            chat_chunk = chat_streaming_chunk(chunk)
-            yield chat_chunk
-        else:
-            answer = chunk
+    usage = {}
+    try:
+        while True:
+            chunk = next(generator)
+            if stream_output:
+                answer += chunk
+                chat_chunk = chat_streaming_chunk(chunk)
+                yield chat_chunk
+            else:
+                answer = chunk
+    except StopIteration as e:
+        ret_dict = e.value
+        if isinstance(ret_dict, dict):
+            usage.update(ret_dict)
 
     completion_token_count = count_tokens(answer)
     stop_reason = "stop"
 
+    usage.update({
+            "prompt_tokens": token_count,
+            "completion_tokens": completion_token_count,
+            "total_tokens": token_count + completion_token_count,
+        })
+
     if stream_output:
         chunk = chat_streaming_chunk('')
         chunk[resp_list][0]['finish_reason'] = stop_reason
-        chunk['usage'] = {
-            "prompt_tokens": token_count,
-            "completion_tokens": completion_token_count,
-            "total_tokens": token_count + completion_token_count
-        }
+        chunk['usage'] = usage
 
         yield chunk
     else:
@@ -350,11 +359,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
                 "finish_reason": stop_reason,
                 "message": {"role": "assistant", "content": answer}
             }],
-            "usage": {
-                "prompt_tokens": token_count,
-                "completion_tokens": completion_token_count,
-                "total_tokens": token_count + completion_token_count
-            }
+            "usage": usage
         }
 
         yield resp
@@ -372,6 +377,7 @@ def completions_action(body: dict, stream_output=False):
     gen_kwargs['stream_output'] = stream_output
 
     using_autogen = gen_kwargs.get('use_autogen', False)
+    usage = {}
 
     if not stream_output:
         prompt_arg = body[prompt_str]
@@ -387,9 +393,12 @@ def completions_action(body: dict, stream_output=False):
             total_prompt_token_count += token_count
 
             if using_autogen:
-                response = deque(get_autogen_response(prompt, gen_kwargs), maxlen=1).pop()
+                response, ret = get_last_and_return_value(get_autogen_response(prompt, gen_kwargs))
             else:
-                response = deque(get_response(prompt, gen_kwargs), maxlen=1).pop()
+                response, ret = get_last_and_return_value(get_response(prompt, gen_kwargs))
+            if isinstance(ret, dict):
+                usage.update(ret)
+
             if isinstance(response, str):
                 completion_token_count = count_tokens(response)
                 total_completion_token_count += completion_token_count
@@ -407,17 +416,18 @@ def completions_action(body: dict, stream_output=False):
 
             resp_list_data.extend([res_idx])
 
+        usage.update({
+                "prompt_tokens": total_prompt_token_count,
+                "completion_tokens": total_completion_token_count,
+                "total_tokens": total_prompt_token_count + total_completion_token_count,
+            })
         res_dict = {
             "id": res_id,
             "object": object_type,
             "created": created_time,
             "model": '',
             resp_list: resp_list_data,
-            "usage": {
-                "prompt_tokens": total_prompt_token_count,
-                "completion_tokens": total_completion_token_count,
-                "total_tokens": total_prompt_token_count + total_completion_token_count
-            }
+            "usage": usage
         }
 
         yield res_dict
@@ -450,20 +460,28 @@ def completions_action(body: dict, stream_output=False):
                                      stream_output=stream_output)
 
         response = ''
-        for chunk in generator:
-            response += chunk
-            yield_chunk = text_streaming_chunk(chunk)
-            yield yield_chunk
+        usage = {}
+        try:
+            while True:
+                chunk = next(generator)
+                response += chunk
+                yield_chunk = text_streaming_chunk(chunk)
+                yield yield_chunk
+        except StopIteration as e:
+            # Get the return value
+            if isinstance(e.value, dict):
+                usage.update(e.value)
 
         completion_token_count = count_tokens(response)
         stop_reason = "stop"
         chunk = text_streaming_chunk('')
         chunk[resp_list][0]["finish_reason"] = stop_reason
-        chunk["usage"] = {
+        usage.update({
             "prompt_tokens": token_count,
             "completion_tokens": completion_token_count,
-            "total_tokens": token_count + completion_token_count
-        }
+            "total_tokens": token_count + completion_token_count,
+        })
+        chunk["usage"] = usage
         yield chunk
 
 

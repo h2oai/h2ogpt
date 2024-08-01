@@ -19,6 +19,8 @@ from fastapi import File, UploadFile
 from sse_starlette import EventSourceResponse
 from starlette.responses import PlainTextResponse
 
+from openai_server.backend_utils import get_user_dir, run_upload_api, meta_ext
+
 sys.path.append('openai_server')
 
 
@@ -305,11 +307,14 @@ async def options_route():
 
 
 @app.post('/v1/completions', response_model=TextResponse, dependencies=check_key)
-async def openai_completions(request: Request, request_data: TextRequest):
+async def openai_completions(request: Request, request_data: TextRequest, authorization: str = Header(None)):
+    request_data_dict = dict(request_data)
+    request_data_dict['authorization'] = authorization
+
     if request_data.stream:
         async def generator():
             from openai_server.backend import stream_completions
-            response = stream_completions(dict(request_data))
+            response = stream_completions(request_data_dict)
             for resp in response:
                 disconnected = await request.is_disconnected()
                 if disconnected:
@@ -321,17 +326,20 @@ async def openai_completions(request: Request, request_data: TextRequest):
 
     else:
         from openai_server.backend import completions
-        response = completions(dict(request_data))
+        response = completions(request_data_dict)
         return JSONResponse(response)
 
 
 @app.post('/v1/chat/completions', response_model=ChatResponse, dependencies=check_key)
-async def openai_chat_completions(request: Request, request_data: ChatRequest):
+async def openai_chat_completions(request: Request, request_data: ChatRequest, authorization: str = Header(None)):
+    request_data_dict = dict(request_data)
+    request_data_dict['authorization'] = authorization
+
     if request_data.stream:
         from openai_server.backend import stream_chat_completions
 
         async def generator():
-            response = stream_chat_completions(dict(request_data))
+            response = stream_chat_completions(request_data_dict)
             for resp in response:
                 disconnected = await request.is_disconnected()
                 if disconnected:
@@ -342,7 +350,7 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest):
         return EventSourceResponse(generator())
     else:
         from openai_server.backend import chat_completions
-        response = chat_completions(dict(request_data))
+        response = chat_completions(request_data_dict)
         return JSONResponse(response)
 
 
@@ -583,9 +591,6 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
 
 # https://platform.openai.com/docs/api-reference/files
 
-meta_ext = '.____meta______'
-
-
 class UploadFileResponse(BaseModel):
     id: str
     object: str
@@ -601,33 +606,11 @@ async def upload_file(
     purpose: str = Form(...),
     authorization: str = Header(None)
 ):
-    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
-    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    content = await file.read()
+    filename = file.filename
+    response_dict = run_upload_api(content, filename, purpose, authorization)
 
-    if not os.path.exists(user_dir):
-        os.makedirs(user_dir)
-
-    file_id = str(uuid.uuid4())
-    file_path = os.path.join(user_dir, file_id)
-    file_path_meta = os.path.join(user_dir, file_id + meta_ext)
-
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-
-    file_stat = os.stat(file_path)
-    response_dict = dict(id=file_id,
-        object="file",
-        bytes=file_stat.st_size,
-        created_at=int(file_stat.st_ctime),
-        filename=file.filename,
-        purpose=purpose
-    )
     response = UploadFileResponse(**response_dict)
-
-    with open(file_path_meta, "wt") as f:
-        f.write(json.dumps(response_dict))
-
     return response
 
 
@@ -646,8 +629,7 @@ class ListFilesResponse(BaseModel):
 
 @app.get("/v1/files", response_model=ListFilesResponse, dependencies=check_key)
 async def list_files(authorization: str = Header(None)):
-    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
-    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    user_dir = get_user_dir(authorization)
 
     if not user_dir:
         raise HTTPException(status_code=404, detail="No user_dir for authorization: %s" % authorization)
@@ -697,8 +679,7 @@ class RetrieveFileResponse(BaseModel):
 
 @app.get("/v1/files/{file_id}", response_model=RetrieveFileResponse, dependencies=check_key)
 async def retrieve_file(file_id: str, authorization: str = Header(None)):
-    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
-    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    user_dir = get_user_dir(authorization)
     file_path = os.path.join(user_dir, file_id)
 
     if not os.path.exists(file_path):
@@ -725,8 +706,7 @@ class DeleteFileResponse(BaseModel):
 
 @app.delete("/v1/files/{file_id}", response_model=DeleteFileResponse, dependencies=check_key)
 async def delete_file(file_id: str, authorization: str = Header(None)):
-    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
-    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    user_dir = get_user_dir(authorization)
     file_path = os.path.join(user_dir, file_id)
 
     if not os.path.exists(file_path):
@@ -749,8 +729,7 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
 
 @app.get("/v1/files/{file_id}/content", dependencies=check_key)
 async def retrieve_file_content(file_id: str, stream: bool = Query(False), authorization: str = Header(None)):
-    base_path = os.getenv('H2OGPT_OPENAI_BASE_FILE_PATH', './openai_files/')
-    user_dir = os.path.join(base_path, authorization.split(" ")[1])
+    user_dir = get_user_dir(authorization)
     file_path = os.path.join(user_dir, file_id)
 
     if not os.path.exists(file_path):
@@ -766,4 +745,3 @@ async def retrieve_file_content(file_id: str, stream: bool = Query(False), autho
         with open(file_path, mode="rb") as file:
             content = file.read()
         return Response(content, media_type="application/octet-stream")
-

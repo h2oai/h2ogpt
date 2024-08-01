@@ -202,6 +202,38 @@ def show_plot(text):
     im.show()
 
 
+def show_plot_from_ids(text, client):
+    pattern = r'<file_ids>(.*?)</file_ids>'
+    # re.DOTALL allows dot (.) to match newlines as well
+    import re
+    file_ids = ast.literal_eval(re.findall(pattern, text, re.DOTALL)[0])
+    list_response = client.files.list().data
+    assert isinstance(list_response, list)
+    response_dict = {item['id']: {key: value for key, value in item.items() if key != 'id'} for item in list_response}
+
+    test_dir = 'openai_files_testing'
+    if os.path.exists(test_dir):
+        shutil.rmtree(test_dir)
+    os.makedirs(test_dir, exist_ok=True)
+    files = []
+    for file_id in file_ids:
+        filename = response_dict[file_id]['filename']
+        content = client.files.content(file_id).content
+        with open(filename, 'wb') as f:
+            f.write(content)
+        files.append(filename)
+
+    images = [x for x in files if x.endswith('.png') or x.endswith('.jpeg')]
+
+    print(files)
+    print(images)
+
+    from PIL import Image
+    im = Image.open(images[0])
+    im.show()
+
+
+
 def test_autogen():
     from openai import OpenAI
 
@@ -236,11 +268,7 @@ def test_autogen():
 
     print(text)
     show_plot(text)
-
-    image_file_id = "file-abc-123"
-    image_file = client.files.content(image_file_id)
-    with open("plot.png", "wb") as f:
-        f.write(image_file.content)
+    show_plot_from_ids(text, client)
 
     # streaming:
 
@@ -261,6 +289,7 @@ def test_autogen():
 
     print(text)
     show_plot(text)
+    show_plot_from_ids(text, client)
 
     ####
 
@@ -278,6 +307,7 @@ def test_autogen():
 
     print(text)
     show_plot(text)
+    show_plot_from_ids(text, client)
 
     # streaming text completion:
 
@@ -300,6 +330,7 @@ def test_autogen():
 
     print(text)
     show_plot(text)
+    show_plot_from_ids(text, client)
 
 
 @pytest.fixture(scope="module")
@@ -487,6 +518,30 @@ def check_content(content, test_file_type, test_file):
             if not ret:
                 return False
             cap.release()
+
+
+def test_return_generator():
+    import typing
+
+    def generator_function() -> typing.Generator[str, None, str]:
+        yield "Intermediate result 1"
+        yield "Intermediate result 2"
+        return "Final Result"
+
+    # Example usage
+    gen = generator_function()
+
+    # Consume the generator
+    ret_dict = None
+    try:
+        while True:
+            value = next(gen)
+            print(value)
+    except StopIteration as e:
+        ret_dict = e.value
+
+    # Get the final return value
+    assert ret_dict == "Final Result"
 
 
 if __name__ == '__main__':
