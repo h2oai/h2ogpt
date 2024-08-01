@@ -243,7 +243,7 @@ We only support one embedding at a time for each database.
 
 So you could use src/make_db.py to make the DB for different embeddings (`--hf_embedding_model` like gen.py, any HF model) for each collection (e.g. UserData, UserData2) for each source folders (e.g. user_path, user_path2), and then at generate.py time you can specify those different collection names in `--langchain_modes` and `--langchain_modes` and `--langchain_mode_paths`.  For example:
 ```bash
-python src/make_db.py --user_path=user_path --collection_name=UserData --langchain_type=shared --hf_embedding_model=BAAI/bge-large-en-v1.5-instruct
+python src/make_db.py --user_path=user_path --collection_name=UserData --langchain_type=shared --hf_embedding_model=BAAI/bge-large-en-v1.5
 python src/make_db.py --user_path=user_path2 --collection_name=UserData2 --langchain_type=shared --hf_embedding_model=sentence-transformers/all-MiniLM-L6-v2
 ```
 Note that `shared` is the default type already, but we show above to show what options are relevant if want to change them.
@@ -278,7 +278,7 @@ for personal collections.
 
 To make a new one for the user, fill `user_path_jon` with documents (can be soft or hard linked to avoid dups across multiple users), do:
 ```bash
-python src/make_db.py --user_path=user_path_jon --collection_name=JonData --langchain_type=personal --hf_embedding_model=BAAI/bge-large-en-v1.5-instruct --persist_directory=users/jon/db_dir_JonData
+python src/make_db.py --user_path=user_path_jon --collection_name=JonData --langchain_type=personal --hf_embedding_model=BAAI/bge-large-en-v1.5 --persist_directory=users/jon/db_dir_JonData
 ```
 
 Then you'll have:
