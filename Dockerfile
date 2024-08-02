@@ -30,7 +30,8 @@ ARG uid=1000
 ARG gid=1000
 
 RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
-RUN groupadd -g ${gid} docker && useradd -u ${uid} -g ${group} -m ${user}
+# already exists in base image
+# RUN groupadd -g ${gid} docker && useradd -u ${uid} -g ${group} -m ${user}
 
 # Add the user to the docker group
 RUN usermod -aG docker ${user}
