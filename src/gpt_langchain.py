@@ -550,7 +550,6 @@ def get_embedding(use_openai_embedding, hf_embedding_model=None, preload=False, 
                                                      **query_kwargs)
                 embedding.client.eval()
             elif 'instructor' in hf_embedding_model:
-                raise ValueError("Instructor models no longer supported by sentence-transformers and not planned.")
                 encode_kwargs = {'normalize_embeddings': True}
                 embedding = HuggingFaceInstructEmbeddings(model_name=hf_embedding_model,
                                                           model_kwargs=model_kwargs,
