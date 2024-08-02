@@ -3452,9 +3452,9 @@ def evaluate(
                         tgen0 = time.time()
                         for event in responses:
                             collected_events.append(event)  # save the event response
-                            delta = event.choices[0].text  # extract the text
-                            text += delta  # append the text
+                            delta = event.choices[0].text if event.choices else None  # extract the text
                             if delta:
+                                text += delta  # append the text
                                 response = prompter.get_response(prompt + text, prompt=prompt,
                                                                  sanitize_bot_response=sanitize_bot_response)
                                 if response_format in ['json_object', 'json_code']:
@@ -3539,7 +3539,7 @@ def evaluate(
                         # NOTE: If some stream failure like wrong model, don't get back response and no failure
                         tgen0 = time.time()
                         for chunk in responses:
-                            delta = chunk.choices[0].delta.content
+                            delta = chunk.choices[0].delta.content if chunk.choices else None
                             if delta:
                                 text += delta
                                 response = text
