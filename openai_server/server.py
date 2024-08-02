@@ -161,7 +161,11 @@ class H2oGPTParams(BaseModel):
 
 class AutoGenParams(BaseModel):
     use_autogen: bool | None = False
-    stop_executor: bool | None = False
+    autogen_stop_docker_executor: bool | None = False
+    autogen_run_code_in_docker: bool | None = False
+    autogen_max_consecutive_auto_reply: int | None = 10
+    autogen_timeout: int = 120
+    autogen_verbose: bool = False
 
 
 class Params(H2oGPTParams, AutoGenParams):

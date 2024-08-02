@@ -18,6 +18,12 @@ pypdfium2>=4.24.0
 
 # for HF embeddings
 sentence_transformers>=3.0.1
+# https://github.com/h2oai/instructor-embedding/tree/h2ogpt
+# pip wheel .
+InstructorEmbedding @ https://h2o-release.s3.amazonaws.com/h2ogpt/InstructorEmbedding-1.0.1-py3-none-any.whl
+# https://github.com/h2oai/sentence-transformers/tree/h2ogpt
+# pip wheel .
+sentence_transformers_old @ https://h2o-release.s3.amazonaws.com/h2ogpt/sentence_transformers_old-2.2.2-py3-none-any.whl
 
 # optional: for OpenAI endpoint or embeddings (requires key)
 replicate>=0.26.0
