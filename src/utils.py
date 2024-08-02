@@ -1187,7 +1187,7 @@ except (PackageNotFoundError, AssertionError):
 
 have_autogen = False
 try:
-    assert distribution('autogen') is not None
+    assert distribution('pyautogen') is not None
     have_autogen = True
 except (PackageNotFoundError, AssertionError):
     pass
