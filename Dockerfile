@@ -30,12 +30,17 @@ ARG uid=1000
 ARG gid=1000
 
 RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${user}
+RUN groupadd -g ${gid} docker && useradd -u ${uid} -g ${group} -m ${user}
+
+# Add the user to the docker group
+RUN usermod -aG docker ${user}
+
+# Switch to the new user
+USER ${user}
 
 EXPOSE 8888
 EXPOSE 7860
 EXPOSE 5000
 EXPOSE 5004
-
-USER h2ogpt
 
 ENTRYPOINT ["python3.10"]
