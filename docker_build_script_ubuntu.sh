@@ -22,7 +22,8 @@ apt-get update && apt-get install -y \
     libtesseract-dev \
     libreoffice \
     autoconf \
-    libtool
+    libtool \
+    docker.io
 
 # Run upgrades
 apt-get upgrade -y
