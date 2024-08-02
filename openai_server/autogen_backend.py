@@ -8,12 +8,9 @@ import time
 import typing
 from contextlib import contextmanager
 
-from autogen.io import IOStream, OutputStream
-from autogen import ConversableAgent
-from autogen.coding import LocalCommandLineCodeExecutor
-
-from iterators import TimeoutIterator
 from openai_server.backend_utils import convert_gen_kwargs, get_user_dir, run_upload_api
+
+from autogen.io import IOStream, OutputStream
 
 
 class CustomOutputStream(OutputStream):
@@ -38,7 +35,7 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
     if (isinstance(msg, dict) and
-        isinstance(msg.get('content', ''), str) and
+            isinstance(msg.get('content', ''), str) and
             (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == '')):
         return True
     return False
@@ -48,27 +45,48 @@ def run_autogen(query, **kwargs) -> dict:
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
 
+    # handle parameters from chatAPI and OpenAI -> h2oGPT transcription versions
     model = kwargs['visible_models']
+    assert model is not None, "No model specified"
     stream_output = kwargs['stream_output']
+    if stream_output is None:
+        stream_output = False
     max_new_tokens = kwargs['max_new_tokens']
+    assert max_new_tokens is not None, "No max_new_tokens specified"
+
+    # handle parameters from FastAPI
     authorization = kwargs['authorization']
-    stop_executor = kwargs['stop_executor']
-    max_consecutive_auto_reply = 10
-    timeout = 120
-    print(" Using model=%s." % model, flush=True)
+
+    # handle AutoGen specific parameters
+    autogen_stop_docker_executor = kwargs['autogen_stop_docker_executor']
+    if autogen_stop_docker_executor is None:
+        autogen_stop_docker_executor = False
+    autogen_run_code_in_docker = kwargs['autogen_run_code_in_docker']
+    if autogen_run_code_in_docker is None:
+        autogen_run_code_in_docker = False
+    autogen_max_consecutive_auto_reply = kwargs['autogen_max_consecutive_auto_reply']
+    if autogen_max_consecutive_auto_reply is None:
+        autogen_max_consecutive_auto_reply = 10
+    autogen_timeout = kwargs['autogen_timeout']
+    if autogen_timeout is None:
+        autogen_timeout = 120
+    autogen_verbose = kwargs['autogen_verbose']
+    if autogen_verbose is None:
+        autogen_verbose = False
+    if autogen_verbose:
+        print("AutoGen using model=%s." % model, flush=True)
 
     # Create a temporary directory to store the code files.
     # temp_dir = tempfile.TemporaryDirectory().name
     temp_dir = tempfile.mkdtemp()
 
-    use_docker = True
-
-    if use_docker:
+    from autogen import ConversableAgent
+    if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
         executor = DockerCommandLineCodeExecutor(
             image="python:3.10-slim-bullseye",
-            timeout=timeout,  # Timeout for each code execution in seconds.
+            timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
 
@@ -79,11 +97,13 @@ def run_autogen(query, **kwargs) -> dict:
             code_execution_config={"executor": executor},  # Use the docker command line code executor.
             human_input_mode="NEVER",  # Always take human input for this agent for safety.
             is_termination_msg=terminate_message_func,
+            max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
         )
     else:
         # Create a local command line code executor.
+        from autogen.coding import LocalCommandLineCodeExecutor
         executor = LocalCommandLineCodeExecutor(
-            timeout=timeout,  # Timeout for each code execution in seconds.
+            timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
 
@@ -94,7 +114,7 @@ def run_autogen(query, **kwargs) -> dict:
             code_execution_config={"executor": executor},  # Use the local command line code executor.
             human_input_mode="NEVER",  # Always take human input for this agent for safety.
             is_termination_msg=terminate_message_func,
-            max_consecutive_auto_reply=max_consecutive_auto_reply,
+            max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
         )
 
     # The code writer agent's system message is to instruct the LLM on how to use
@@ -113,9 +133,10 @@ Reply 'TERMINATE' in the end when everything is done.
 """
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
-    print("base_url: %s" % base_url)
-    print("max_tokens: %s" % max_new_tokens)
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
+    if autogen_verbose:
+        print("base_url: %s" % base_url)
+        print("max_tokens: %s" % max_new_tokens)
 
     code_writer_agent = ConversableAgent(
         "code_writer_agent",
@@ -129,16 +150,18 @@ Reply 'TERMINATE' in the end when everything is done.
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
         is_termination_msg=terminate_message_func,
-        max_consecutive_auto_reply=max_consecutive_auto_reply,
+        max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
 
     )
     chat_result = code_executor_agent.initiate_chat(
         code_writer_agent,
         message=query,
     )
-    print(chat_result)
+    # DEBUG
+    if autogen_verbose:
+        print(chat_result)
+        print(os.listdir(temp_dir))
 
-    print(os.listdir(temp_dir))
     files_list = [os.path.join(temp_dir, f) for f in os.listdir(temp_dir)]
     # We can see the output scatter.png and the code file generated by the agent.
 
@@ -160,10 +183,11 @@ Reply 'TERMINATE' in the end when everything is done.
         file_ids.append(file_id)
 
     # temp_dir.cleanup()
-    t0 = time.time()
-    if stop_executor:
+    if autogen_run_code_in_docker and autogen_stop_docker_executor:
+        t0 = time.time()
         executor.stop()  # Stop the docker command line code executor (takes about 10 seconds, so slow)
-    print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
+        if autogen_verbose:
+            print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
     ret_dict = {}
     if files_list:
@@ -199,7 +223,8 @@ def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStr
         yield capture_stream
 
 
-def run_autogen_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, exception_queue: queue.Queue, **kwargs):
+def run_autogen_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, exception_queue: queue.Queue,
+                          **kwargs):
     ret_dict = None
     try:
         # raise ValueError("Testing Error Handling 3")  # works
@@ -223,7 +248,8 @@ def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
     exception_queue = queue.Queue()
 
     # Start autogen in a separate thread
-    autogen_thread = threading.Thread(target=run_autogen_in_thread, args=(output_queue, query, result_queue, exception_queue), kwargs=kwargs)
+    autogen_thread = threading.Thread(target=run_autogen_in_thread,
+                                      args=(output_queue, query, result_queue, exception_queue), kwargs=kwargs)
     autogen_thread.start()
 
     # Yield output as it becomes available
@@ -266,7 +292,8 @@ def get_autogen_response(query, gen_kwargs, chunk_response=True, stream_output=F
     kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))
 
     gen = get_response(query, **kwargs)
-    #gen1 = TimeoutIterator(gen, timeout=0, sentinel=None, raise_on_exception=False, whichi=0)
+    # from iterators import TimeoutIterator
+    # gen1 = TimeoutIterator(gen, timeout=0, sentinel=None, raise_on_exception=False, whichi=0)
     gen1 = gen
 
     ret_dict = {}
