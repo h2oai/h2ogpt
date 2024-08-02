@@ -34,6 +34,7 @@ RUN groupadd -g ${gid} ${group} && useradd -u ${uid} -g ${group} -s /bin/bash ${
 EXPOSE 8888
 EXPOSE 7860
 EXPOSE 5000
+EXPOSE 5004
 
 USER h2ogpt
 
