@@ -24,6 +24,8 @@ def run_eval(  # for local function:
         force_seq2seq_type=None, force_t5_type=None,
         load_exllama=None,
 
+        force_streaming_on_to_handle_timeouts=None,
+
         use_pymupdf=None,
         use_unstructured_pdf=None,
         use_pypdf=None,
