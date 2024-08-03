@@ -245,7 +245,7 @@ def test_autogen():
         messages=messages,
         temperature=0.0,
         max_tokens=2048,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
 
     text = response.choices[0].message.content
@@ -259,7 +259,7 @@ def test_autogen():
         messages=messages,
         stream=True,
         max_tokens=4096,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
 
     text = ''
@@ -286,7 +286,7 @@ def test_autogen():
         prompt=prompt,
         stream=False,
         max_tokens=4096,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
     text = responses.choices[0].text
 
@@ -301,7 +301,7 @@ def test_autogen():
         prompt=prompt,
         stream=True,
         max_tokens=4096,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
 
     collected_events = []

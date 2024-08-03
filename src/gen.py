@@ -207,9 +207,9 @@ def main(
         function_server_workers: int = 1,
         function_api_key: str = None,
 
-        autogen_server: bool = False,  # WIP
-        autogen_port: int = 5004 if sys.platform == "darwin" else 5004,
-        autogen_workers: int = 1,
+        agent_server: bool = False,  # WIP
+        agent_port: int = 5004 if sys.platform == "darwin" else 5004,
+        agent_workers: int = 1,
 
         multiple_workers_gunicorn: bool = False,
 
@@ -789,10 +789,10 @@ def main(
     :param function_server_workers: number of workers for Function Server (1 means 1 worker, 0 means all physical cores, else choose)
     :param function_api_key: API key for function server, auto-set if not provided, uses first key like OpenAI proxy server does as well
 
-    :param autogen_server: whether to launch AutoGen proxy server for local gradio server
+    :param agent_server: whether to launch Agent proxy server
            Disabled if API is disabled
-    :param autogen_port: port for AutoGen proxy server
-    :param autogen_workers: number of workers for AutoGen (1 means 1 worker, 0 means all physical cores, else choose)
+    :param agent_port: port for Agent proxy server
+    :param agent_workers: number of workers for Agent Server (1 means 1 worker, 0 means all physical cores, else choose)
 
     :param multiple_workers_gunicorn: whether to use gunicorn (True) or uvicorn (False) for multiple workers
 
@@ -1451,9 +1451,9 @@ def main(
                         len(set(visible_image_models).difference(valid_imagestyle_models)) < len(
         set(visible_image_models))
 
-    if autogen_server and not have_autogen:
-        print("Disabled AutoGen since not installed")
-        autogen_server = False
+    if agent_server and not have_autogen:
+        print("Disabled Agent Server since no Agent package installed")
+        agent_server = False
 
     if os.environ.get('SERPAPI_API_KEY') is None and \
             LangChainAgent.SEARCH.value in visible_langchain_agents:
@@ -1741,9 +1741,9 @@ def main(
     if openai_server and not allow_api:
         print("Cannot enable OpenAI server when allow_api=False")
         openai_server = False
-    if autogen_server and not allow_api:
-        print("Cannot enable AutoGen server when allow_api=False")
-        autogen_server = False
+    if agent_server and not allow_api:
+        print("Cannot enable Agent server when allow_api=False")
+        agent_server = False
 
     if not os.getenv('CLEAR_CLEAR_TORCH'):
         if clear_torch_cache_level == 0:

@@ -159,16 +159,18 @@ class H2oGPTParams(BaseModel):
     )
 
 
-class AutoGenParams(BaseModel):
-    use_autogen: bool | None = False
+class AgentParams(BaseModel):
+    use_agent: bool | None = False
     autogen_stop_docker_executor: bool | None = False
     autogen_run_code_in_docker: bool | None = False
     autogen_max_consecutive_auto_reply: int | None = 10
     autogen_timeout: int = 120
-    autogen_verbose: bool = False
+    agent_verbose: bool = False
+    autogen_cache_seed: int | None = 1234
+    agent_type: str | None = 'auto'
 
 
-class Params(H2oGPTParams, AutoGenParams):
+class Params(H2oGPTParams, AgentParams):
     # https://platform.openai.com/docs/api-reference/completions/create
     user: str | None = Field(default=None, description="Track user")
     model: str | None = Field(default=None, description="Choose model")
