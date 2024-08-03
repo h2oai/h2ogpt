@@ -187,6 +187,8 @@ def test_chat(chat, openai_client, async_client, system_prompt, chat_conversatio
 
 
 def show_plot_from_ids(usage, client):
+    if not hasattr(usage, 'file_ids') or not usage.file_ids:
+        return None
     file_ids = usage.file_ids
 
     list_response = client.files.list().data
@@ -215,6 +217,7 @@ def show_plot_from_ids(usage, client):
     print("START SHOW IMAGE: %s" % images[0], file=sys.stderr)
     im.show()
     print("FINISH SHOW IMAGE", file=sys.stderr)
+    return images
 
 
 def test_autogen():
@@ -252,7 +255,7 @@ def test_autogen():
 
     text = response.choices[0].message.content
     print(text, file=sys.stderr)
-    show_plot_from_ids(response.usage, client)
+    assert show_plot_from_ids(response.usage, client) is not None
 
     print("chat streaming", file=sys.stderr)
 
@@ -276,7 +279,7 @@ def test_autogen():
 
     print(text)
     assert len(usages) == 1
-    show_plot_from_ids(usages[0], client)
+    assert show_plot_from_ids(usages[0], client) is not None
 
     ####
 
@@ -293,7 +296,7 @@ def test_autogen():
     text = responses.choices[0].text
 
     print(text)
-    show_plot_from_ids(responses.usage, client)
+    assert show_plot_from_ids(responses.usage, client) is not None
 
     print("text streaming", file=sys.stderr)
 
@@ -319,7 +322,7 @@ def test_autogen():
 
     print(text)
     assert len(usages) == 1
-    show_plot_from_ids(usages[0], client)
+    assert show_plot_from_ids(usages[0], client) is not None
 
 
 @pytest.fixture(scope="module")
