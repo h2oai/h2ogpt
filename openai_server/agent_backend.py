@@ -57,10 +57,24 @@ def run_agent(query, agent_type=None,
               autogen_cache_seed=None,
               autogen_venv_dir=None,
               agent_verbose=None) -> dict:
-    if agent_type in ['auto', 'autogen']:
-        return run_autogen(**locals())
-    else:
-        raise ValueError("Invalid agent_type: %s" % agent_type)
+    try:
+        if agent_type in ['auto', 'autogen']:
+            ret_dict = run_autogen(**locals())
+        else:
+            ret_dict = {}
+            raise ValueError("Invalid agent_type: %s" % agent_type)
+    except BaseException as e:
+        ret_dict = {}
+        raise
+    finally:
+        if autogen_venv_dir is None and 'autogen_venv_dir' in ret_dict and ret_dict['autogen_venv_dir']:
+            autogen_venv_dir = ret_dict['autogen_venv_dir']
+            if os.path.isdir(autogen_venv_dir):
+                if True or agent_verbose:
+                    print("Clean-up: Removing autogen_venv_dir: %s" % autogen_venv_dir)
+                shutil.rmtree(autogen_venv_dir)
+
+    return ret_dict
 
 
 def run_autogen(query=None, agent_type=None,
@@ -110,22 +124,12 @@ def run_autogen(query=None, agent_type=None,
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
-
-        # Create an agent with code executor configuration that uses docker.
-        code_executor_agent = ConversableAgent(
-            "code_executor_agent_docker",
-            llm_config=False,  # Turn off LLM for this agent.
-            code_execution_config={"executor": executor},  # Use the docker command line code executor.
-            human_input_mode="NEVER",  # Always take human input for this agent for safety.
-            is_termination_msg=terminate_message_func,
-            max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-        )
     else:
         from autogen.code_utils import create_virtual_env
         from autogen.coding import LocalCommandLineCodeExecutor
 
-        username = str(uuid.uuid4())
         if autogen_venv_dir is None:
+            username = str(uuid.uuid4())
             autogen_venv_dir = ".venv_%s" % username
         virtual_env_context = create_virtual_env(autogen_venv_dir)
         # work_dir = ".workdir_%s" % username
@@ -139,15 +143,15 @@ def run_autogen(query=None, agent_type=None,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
 
-        # Create an agent with code executor configuration.
-        code_executor_agent = ConversableAgent(
-            "code_executor_agent",
-            llm_config=False,  # Turn off LLM for this agent.
-            code_execution_config={"executor": executor},  # Use the local command line code executor.
-            human_input_mode="NEVER",  # Always take human input for this agent for safety.
-            is_termination_msg=terminate_message_func,
-            max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-        )
+    # Create an agent with code executor configuration.
+    code_executor_agent = ConversableAgent(
+        "code_executor_agent",
+        llm_config=False,  # Turn off LLM for this agent.
+        code_execution_config={"executor": executor},  # Use the local command line code executor.
+        human_input_mode="NEVER",  # Always take human input for this agent for safety.
+        is_termination_msg=terminate_message_func,
+        max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+    )
 
     # The code writer agent's system message is to instruct the LLM on how to use
     # the code executor in the code executor agent.
@@ -157,12 +161,20 @@ In the following cases, suggest python code (in a python coding block) or shell 
 1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
 2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
 Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
-When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
-If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
-If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
-When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
-Reply 'TERMINATE' in the end when everything is done.
+General instructions:
+* When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
+* If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
+* If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
+* You do not need to create a python virtual environment, all python code provided is already run in such an environment.
+* When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
+Stopping instructions:
+* Reply 'TERMINATE' in the end only when you have verification from the user that the task you specified was done.
+* Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
 """
+
+# FIXME:
+# Auto-pip install
+# Auto-return file list in each turn
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
@@ -248,6 +260,8 @@ Reply 'TERMINATE' in the end when everything is done.
         ret_dict.update(dict(cost=chat_result.cost))
     if chat_result and hasattr(chat_result, 'summary'):
         ret_dict.update(dict(summary=chat_result.summary))
+    if autogen_venv_dir is not None:
+        ret_dict.update(dict(autogen_venv_dir=autogen_venv_dir))
 
     return ret_dict
 
@@ -292,7 +306,7 @@ def filter_kwargs(func, kwargs):
     return valid_kwargs
 
 
-def iostream_generator(query, use_process=True, **kwargs) -> typing.Generator[str, None, None]:
+def iostream_generator(query, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
     # raise ValueError("Testing Error Handling 2")  #works
     if use_process:
         output_queue = multiprocessing.Queue()
@@ -340,7 +354,7 @@ def iostream_generator(query, use_process=True, **kwargs) -> typing.Generator[st
     return ret_dict
 
 
-def get_agent_response(query, gen_kwargs, chunk_response=True, stream_output=False, use_process=True):
+def get_agent_response(query, gen_kwargs, chunk_response=True, stream_output=False, use_process=False):
     # raise ValueError("Testing Error Handling 1")  # works
 
     gen_kwargs = convert_gen_kwargs(gen_kwargs)
