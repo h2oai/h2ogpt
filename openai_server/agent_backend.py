@@ -41,6 +41,13 @@ def terminate_message_func(msg):
     return False
 
 
+def run_agent(query, **kwargs) -> dict:
+    if kwargs['agent_type'] in ['auto', 'autogen']:
+        return run_autogen(query, **kwargs)
+    else:
+        raise ValueError("Invalid agent_type: %s" % kwargs['agent_type'])
+
+
 def run_autogen(query, **kwargs) -> dict:
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
@@ -67,13 +74,15 @@ def run_autogen(query, **kwargs) -> dict:
     autogen_max_consecutive_auto_reply = kwargs['autogen_max_consecutive_auto_reply']
     if autogen_max_consecutive_auto_reply is None:
         autogen_max_consecutive_auto_reply = 10
+    autogen_max_turns = kwargs['autogen_max_turns']
     autogen_timeout = kwargs['autogen_timeout']
     if autogen_timeout is None:
         autogen_timeout = 120
-    autogen_verbose = kwargs['autogen_verbose']
-    if autogen_verbose is None:
-        autogen_verbose = False
-    if autogen_verbose:
+    autogen_cache_seed = kwargs['autogen_cache_seed']
+    agent_verbose = kwargs['agent_verbose']
+    if agent_verbose is None:
+        agent_verbose = False
+    if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
 
     # Create a temporary directory to store the code files.
@@ -134,7 +143,7 @@ Reply 'TERMINATE' in the end when everything is done.
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
-    if autogen_verbose:
+    if agent_verbose:
         print("base_url: %s" % base_url)
         print("max_tokens: %s" % max_new_tokens)
 
@@ -145,7 +154,7 @@ Reply 'TERMINATE' in the end when everything is done.
                                      "api_key": api_key,
                                      "base_url": base_url,
                                      "stream": stream_output,
-                                     "cache_seed": None,
+                                     "cache_seed": autogen_cache_seed,
                                      'max_tokens': max_new_tokens}]},
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
@@ -153,12 +162,25 @@ Reply 'TERMINATE' in the end when everything is done.
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
 
     )
-    chat_result = code_executor_agent.initiate_chat(
-        code_writer_agent,
-        message=query,
-    )
+    chat_kwargs = dict(recipient=code_writer_agent,
+                       max_turns=autogen_max_turns,
+                       message=query,
+                       cache=None,
+                       )
+    if autogen_cache_seed:
+        from autogen import Cache
+        # Use DiskCache as cache
+        cache_root_path = "./autogen_cache"
+        if not os.path.exists(cache_root_path):
+            os.makedirs(cache_root_path, exist_ok=True)
+        with Cache.disk(cache_seed=autogen_cache_seed, cache_path_root=cache_root_path) as cache:
+            chat_kwargs.update(dict(cache=cache))
+            chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+    else:
+        chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+
     # DEBUG
-    if autogen_verbose:
+    if agent_verbose:
         print(chat_result)
         print(os.listdir(temp_dir))
 
@@ -186,7 +208,7 @@ Reply 'TERMINATE' in the end when everything is done.
     if autogen_run_code_in_docker and autogen_stop_docker_executor:
         t0 = time.time()
         executor.stop()  # Stop the docker command line code executor (takes about 10 seconds, so slow)
-        if autogen_verbose:
+        if agent_verbose:
             print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
     ret_dict = {}
@@ -223,16 +245,15 @@ def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStr
         yield capture_stream
 
 
-def run_autogen_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, exception_queue: queue.Queue,
-                          **kwargs):
+def run_agent_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, exception_queue: queue.Queue,
+                        **kwargs):
     ret_dict = None
     try:
         # raise ValueError("Testing Error Handling 3")  # works
 
         with capture_iostream(output_queue):
-            # Your autogen code here
-            ret_dict = run_autogen(query, **kwargs)
-            # Signal that autogen has finished
+            ret_dict = run_agent(query, **kwargs)
+            # Signal that agent has finished
             result_queue.put(ret_dict)
     except BaseException as e:
         exception_queue.put(e)
@@ -247,10 +268,10 @@ def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
     result_queue = queue.Queue()
     exception_queue = queue.Queue()
 
-    # Start autogen in a separate thread
-    autogen_thread = threading.Thread(target=run_autogen_in_thread,
-                                      args=(output_queue, query, result_queue, exception_queue), kwargs=kwargs)
-    autogen_thread.start()
+    # Start agent in a separate thread
+    agent_thread = threading.Thread(target=run_agent_in_thread,
+                                    args=(output_queue, query, result_queue, exception_queue), kwargs=kwargs)
+    agent_thread.start()
 
     # Yield output as it becomes available
     while True:
@@ -260,11 +281,11 @@ def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
             raise e
 
         output = output_queue.get()
-        if output is None:  # End of autogen execution
+        if output is None:  # End of agent execution
             break
         yield output
 
-    autogen_thread.join()
+    agent_thread.join()
 
     # Return the final result
     if not exception_queue.empty():
@@ -284,7 +305,7 @@ def get_response(query, **kwargs):
     return ret_dict
 
 
-def get_autogen_response(query, gen_kwargs, chunk_response=True, stream_output=False):
+def get_agent_response(query, gen_kwargs, chunk_response=True, stream_output=False):
     # raise ValueError("Testing Error Handling 1")  # works
 
     gen_kwargs = convert_gen_kwargs(gen_kwargs)

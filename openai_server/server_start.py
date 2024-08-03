@@ -35,9 +35,9 @@ def run_server(host: str = '0.0.0.0',
                workers: int = 1,
                app: Union[str, FastAPI] = None,
                is_openai_server: bool = True,
-               is_autogen_server: bool = False,
+               is_agent_server: bool = False,
                openai_port: int = None,
-               autogen_server: bool = False,
+               agent_server: bool = False,
                openai_server: bool = False,
                multiple_workers_gunicorn: bool = False,
                main_kwargs: str = "",  # json.dumped dict
@@ -50,13 +50,13 @@ def run_server(host: str = '0.0.0.0',
     if openai_port is None:
         openai_port = port
 
-    # is_autogen_server is racy, so started this in process instead of thread nominally, or use gunicorn
-    if is_autogen_server:
-        name = 'AutoGen'
-        os.environ['is_autogen_server'] = '1'
+    # is_agent_server is racy, so started this in process instead of thread nominally, or use gunicorn
+    if is_agent_server:
+        name = 'Agent'
+        os.environ['is_agent_server'] = '1'
     else:
         name = 'OpenAI' if is_openai_server else 'Function'
-        os.environ['is_autogen_server'] = '0'
+        os.environ['is_agent_server'] = '0'
 
     # Note: These envs are risky for race given thread is launching for all 3 servers
     os.environ['GRADIO_PREFIX'] = gradio_prefix or 'http'
@@ -139,14 +139,14 @@ def run_server(host: str = '0.0.0.0',
 
 def run(wait=True, **kwargs):
     assert 'is_openai_server' in kwargs
-    if kwargs.get('is_autogen_server', False):
-        name = 'AutoGen'
+    if kwargs.get('is_agent_server', False):
+        name = 'Agent'
         # if openai server, then launch this as process instead of thread to avoid races with env vars
         as_thread = not kwargs.get('openai_server', False)
     elif kwargs['is_openai_server']:
         name = 'OpenAI'
-        # if autogen server, then launch this as process instead of thread to avoid races with env vars
-        as_thread = not kwargs.get('autogen_server', False)
+        # if agent server, then launch this as process instead of thread to avoid races with env vars
+        as_thread = not kwargs.get('agent_server', False)
     else:
         name = 'Function'
         # still launch function server as thread since no race for any envs

@@ -5,3 +5,4 @@ gradio_client==0.15.1
 transformers>=4.43.2
 # https://github.com/langchain-ai/langchain/issues/22972
 tenacity==8.3.0
+pydantic==2.7.0

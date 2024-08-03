@@ -13,7 +13,7 @@ from collections import deque
 import numpy as np
 
 from log import logger
-from openai_server.autogen_backend import get_autogen_response
+from openai_server.agent_backend import get_agent_response
 from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
 
 
@@ -160,7 +160,8 @@ def get_client(user=None):
 
     else:
         print(
-            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.", file=sys.stderr)
+            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.",
+            file=sys.stderr)
         client = get_gradio_client(user=user)
 
     # even if not auth, want to login
@@ -210,7 +211,7 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs.update(**gen_kwargs)
 
     # WIP:
-    #if gen_kwargs.get('skip_gradio'):
+    # if gen_kwargs.get('skip_gradio'):
     #    fun_with_dict_str_plain
 
     # concurrent gradio client
@@ -282,9 +283,9 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         'image_file': image_files,
     })
 
-    using_autogen = gen_kwargs.get('use_autogen', False)
-    if using_autogen and os.environ.get('is_autogen_server', '0') == '0':
-        raise ValueError("Autogen is not enabled on this server.")
+    use_agent = gen_kwargs.get('use_agent', False)
+    if use_agent and os.environ.get('is_agent_server', '0') == '0':
+        raise ValueError("Agent is not enabled on this server.")
 
     model = gen_kwargs.get('model', '')
 
@@ -313,9 +314,9 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
     token_count = count_tokens(instruction)
-    if using_autogen:
-        generator = get_autogen_response(instruction, gen_kwargs, chunk_response=stream_output,
-                                         stream_output=stream_output)
+    if use_agent:
+        generator = get_agent_response(instruction, gen_kwargs, chunk_response=stream_output,
+                                       stream_output=stream_output)
     else:
         generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
                                  stream_output=stream_output)
@@ -340,10 +341,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     stop_reason = "stop"
 
     usage.update({
-            "prompt_tokens": token_count,
-            "completion_tokens": completion_token_count,
-            "total_tokens": token_count + completion_token_count,
-        })
+        "prompt_tokens": token_count,
+        "completion_tokens": completion_token_count,
+        "total_tokens": token_count + completion_token_count,
+    })
 
     if stream_output:
         chunk = chat_streaming_chunk('')
@@ -379,9 +380,9 @@ def completions_action(body: dict, stream_output=False):
     gen_kwargs = body
     gen_kwargs['stream_output'] = stream_output
 
-    using_autogen = gen_kwargs.get('use_autogen', False)
-    if using_autogen and os.environ.get('is_autogen_server', '0') == '0':
-        raise ValueError("Autogen is not enabled on this server.")
+    use_agent = gen_kwargs.get('use_agent', False)
+    if use_agent and os.environ.get('is_agent_server', '0') == '0':
+        raise ValueError("Agents not enabled on this server.")
 
     usage = {}
 
@@ -398,8 +399,8 @@ def completions_action(body: dict, stream_output=False):
             token_count = count_tokens(prompt)
             total_prompt_token_count += token_count
 
-            if using_autogen:
-                response, ret = get_last_and_return_value(get_autogen_response(prompt, gen_kwargs))
+            if use_agent:
+                response, ret = get_last_and_return_value(get_agent_response(prompt, gen_kwargs))
             else:
                 response, ret = get_last_and_return_value(get_response(prompt, gen_kwargs))
             if isinstance(ret, dict):
@@ -423,10 +424,10 @@ def completions_action(body: dict, stream_output=False):
             resp_list_data.extend([res_idx])
 
         usage.update({
-                "prompt_tokens": total_prompt_token_count,
-                "completion_tokens": total_completion_token_count,
-                "total_tokens": total_prompt_token_count + total_completion_token_count,
-            })
+            "prompt_tokens": total_prompt_token_count,
+            "completion_tokens": total_completion_token_count,
+            "total_tokens": total_prompt_token_count + total_completion_token_count,
+        })
         res_dict = {
             "id": res_id,
             "object": object_type,
@@ -458,9 +459,9 @@ def completions_action(body: dict, stream_output=False):
 
             return chunk
 
-        if using_autogen:
-            generator = get_autogen_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                             stream_output=stream_output)
+        if use_agent:
+            generator = get_agent_response(prompt, gen_kwargs, chunk_response=stream_output,
+                                           stream_output=stream_output)
         else:
             generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
                                      stream_output=stream_output)
