@@ -160,7 +160,8 @@ def get_client(user=None):
 
     else:
         print(
-            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.", file=sys.stderr)
+            "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.",
+            file=sys.stderr)
         client = get_gradio_client(user=user)
 
     # even if not auth, want to login
@@ -210,7 +211,7 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
     kwargs.update(**gen_kwargs)
 
     # WIP:
-    #if gen_kwargs.get('skip_gradio'):
+    # if gen_kwargs.get('skip_gradio'):
     #    fun_with_dict_str_plain
 
     # concurrent gradio client
@@ -340,10 +341,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     stop_reason = "stop"
 
     usage.update({
-            "prompt_tokens": token_count,
-            "completion_tokens": completion_token_count,
-            "total_tokens": token_count + completion_token_count,
-        })
+        "prompt_tokens": token_count,
+        "completion_tokens": completion_token_count,
+        "total_tokens": token_count + completion_token_count,
+    })
 
     if stream_output:
         chunk = chat_streaming_chunk('')
@@ -423,10 +424,10 @@ def completions_action(body: dict, stream_output=False):
             resp_list_data.extend([res_idx])
 
         usage.update({
-                "prompt_tokens": total_prompt_token_count,
-                "completion_tokens": total_completion_token_count,
-                "total_tokens": total_prompt_token_count + total_completion_token_count,
-            })
+            "prompt_tokens": total_prompt_token_count,
+            "completion_tokens": total_completion_token_count,
+            "total_tokens": total_prompt_token_count + total_completion_token_count,
+        })
         res_dict = {
             "id": res_id,
             "object": object_type,

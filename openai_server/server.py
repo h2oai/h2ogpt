@@ -463,7 +463,7 @@ def modify_wav_header(wav_bytes):
     # print("Original size:", original_size)
 
     # Calculate fake size (Maximum value for 32-bit unsigned int minus 8)
-    fake_size = (2**30 - 1) - 8
+    fake_size = (2 ** 30 - 1) - 8
     modified_size_bytes = fake_size.to_bytes(4, byteorder='little')
 
     # Replace the original size with the fake size in the RIFF header
@@ -476,9 +476,9 @@ def modify_wav_header(wav_bytes):
 
     # Set a large fake size for the data chunk as well
     modified_wav_bytes = (
-        modified_wav_bytes[:data_chunk_pos + 4] +  # 'data' text
-        modified_size_bytes +  # fake size for data chunk
-        modified_wav_bytes[data_chunk_pos + 8:]  # rest of data
+            modified_wav_bytes[:data_chunk_pos + 4] +  # 'data' text
+            modified_size_bytes +  # fake size for data chunk
+            modified_wav_bytes[data_chunk_pos + 8:]  # rest of data
     )
 
     return modified_wav_bytes
@@ -511,6 +511,7 @@ async def handle_audio_to_speech(
 
                 yield chunk
                 chunki += 1
+
         return StreamingResponse(generator(), media_type="audio/%s" % audio_request.response_format)
     else:
         from openai_server.backend import text_to_audio
@@ -608,9 +609,9 @@ class UploadFileResponse(BaseModel):
 
 @app.post("/v1/files", response_model=UploadFileResponse, dependencies=check_key)
 async def upload_file(
-    file: UploadFile = File(...),
-    purpose: str = Form(...),
-    authorization: str = Header(None)
+        file: UploadFile = File(...),
+        purpose: str = Form(...),
+        authorization: str = Header(None)
 ):
     content = await file.read()
     filename = file.filename
@@ -746,6 +747,7 @@ async def retrieve_file_content(file_id: str, stream: bool = Query(False), autho
             with open(file_path, mode="rb") as file_like:
                 while chunk := file_like.read(1024):
                     yield chunk
+
         return StreamingResponse(iter_file(), media_type="application/octet-stream")
     else:
         with open(file_path, mode="rb") as file:
