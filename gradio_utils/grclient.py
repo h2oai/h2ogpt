@@ -20,6 +20,17 @@ import ast
 import inspect
 import numpy as np
 
+try:
+    from gradio_utils.yield_utils import ReturnType
+except (ImportError, ModuleNotFoundError):
+    try:
+        from yield_utils import ReturnType
+    except (ImportError, ModuleNotFoundError):
+        try:
+            from src.yield_utils import ReturnType
+        except (ImportError, ModuleNotFoundError):
+            from .src.yield_utils import ReturnType
+
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
 from huggingface_hub import SpaceStage
@@ -31,26 +42,7 @@ from gradio_client import utils
 
 from importlib.metadata import distribution, PackageNotFoundError
 
-from pydantic import BaseModel
-
-# Global lock for synchronizing client access
-client_lock = threading.Lock()
-
-
-class ReturnType(BaseModel):
-    reply: str | list[str] | None
-    prompt_raw: str | None = None
-    actual_llm: str | None = None
-    text_context_list: list[str] | None = []
-    input_tokens: int = 0
-    output_tokens: int = 0
-    tokens_per_second: float = 0.0
-    time_to_first_token: float = 0.0
-    vision_visible_model: str | None = None
-    vision_batch_input_tokens: int | None = None
-    vision_batch_output_tokens: int | None = None
-    vision_batch_tokens_per_second: float | None = None
-
+lock = threading.Lock()
 
 try:
     assert distribution("gradio_client") is not None
@@ -367,11 +359,15 @@ class GradioClient(Client):
         # This regex checks for exactly 40 hexadecimal characters.
         return bool(re.fullmatch(r"[0-9a-f]{40}", s))
 
-    def get_server_hash(self):
+    def get_server_hash(self) -> str:
+        return self._get_server_hash(ttl_hash=self._get_ttl_hash())
+
+    def _get_server_hash(self, ttl_hash=None) -> str:
         """
         Get server hash using super without any refresh action triggered
         Returns: git hash of gradio server
         """
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
         t0 = time.time()
         if self.config is None:
             self.setup()
@@ -455,7 +451,7 @@ class GradioClient(Client):
         self.server_hash = self.get_server_hash()
 
     def clone(self):
-        with client_lock:
+        with lock:
             if self.config is None:
                 self.setup()
             client = GradioClient("")
@@ -675,12 +671,19 @@ class GradioClient(Client):
 
     @staticmethod
     def check_error(res_dict):
+        actual_llm = ""
+        try:
+            actual_llm = res_dict["save_dict"]["display_name"]
+        except:
+            pass
         if "error" in res_dict and res_dict["error"]:
-            raise RuntimeError(f"Error from LLM: {res_dict['error']}")
+            raise RuntimeError(f"Error from LLM {actual_llm}: {res_dict['error']}")
         if "error_ex" in res_dict and res_dict["error_ex"]:
-            raise RuntimeError(f"Error Traceback from LLM: {res_dict['error_ex']}")
+            raise RuntimeError(
+                f"Error Traceback from LLM {actual_llm}: {res_dict['error_ex']}"
+            )
         if "response" not in res_dict:
-            raise ValueError("No response from LLM")
+            raise ValueError(f"No response from LLM {actual_llm}")
 
     def query_or_summarize_or_extract(
         self,
@@ -972,298 +975,142 @@ class GradioClient(Client):
             client = self
         else:
             client = self.clone()
-        h2ogpt_key = h2ogpt_key or self.h2ogpt_key
-        client.h2ogpt_key = h2ogpt_key
+        try:
+            h2ogpt_key = h2ogpt_key or self.h2ogpt_key
+            client.h2ogpt_key = h2ogpt_key
 
-        if model is not None and visible_models is None:
-            visible_models = model
-        self.check_model(model)
+            if model is not None and visible_models is None:
+                visible_models = model
+            client.check_model(model)
 
-        # chunking not used here
-        # MyData specifies scratch space, only persisted for this individual client call
-        langchain_mode = langchain_mode or "MyData"
-        loaders = tuple([None, None, None, None, None, None])
-        doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
-        asserts |= bool(os.getenv("HARD_ASSERTS", False))
-        if (
-            text
-            and isinstance(text, list)
-            and not file
-            and not url
-            and not text_context_list
-        ):
-            # then can do optimized text-only path
-            text_context_list = text
-            text = None
+            # chunking not used here
+            # MyData specifies scratch space, only persisted for this individual client call
+            langchain_mode = langchain_mode or "MyData"
+            loaders = tuple([None, None, None, None, None, None])
+            doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
+            asserts |= bool(os.getenv("HARD_ASSERTS", False))
+            if (
+                text
+                and isinstance(text, list)
+                and not file
+                and not url
+                and not text_context_list
+            ):
+                # then can do optimized text-only path
+                text_context_list = text
+                text = None
 
-        res = []
-        if text:
+            res = []
+            if text:
+                t0 = time.time()
+                res = client.predict(
+                    text, *doc_options, *loaders, h2ogpt_key, api_name="/add_text"
+                )
+                t1 = time.time()
+                print_info("upload text: %s" % str(timedelta(seconds=t1 - t0)))
+                if asserts:
+                    assert res[0] is None
+                    assert res[1] == langchain_mode
+                    assert "user_paste" in res[2]
+                    assert res[3] == ""
+            if file:
+                # upload file(s).  Can be list or single file
+                # after below call, "file" replaced with remote location of file
+                _, file = client.predict(file, api_name="/upload_api")
+
+                res = client.predict(
+                    file, *doc_options, *loaders, h2ogpt_key, api_name="/add_file_api"
+                )
+                if asserts:
+                    assert res[0] is None
+                    assert res[1] == langchain_mode
+                    assert os.path.basename(file) in res[2]
+                    assert res[3] == ""
+            if url:
+                res = client.predict(
+                    url, *doc_options, *loaders, h2ogpt_key, api_name="/add_url"
+                )
+                if asserts:
+                    assert res[0] is None
+                    assert res[1] == langchain_mode
+                    assert url in res[2]
+                    assert res[3] == ""
+                    assert res[4]  # should have file name or something similar
+            if res and not res[4] and "Exception" in res[2]:
+                print_error("Exception: %s" % res[2])
+
+            # ask for summary, need to use same client if using MyData
+            api_name = "/submit_nochat_api"  # NOTE: like submit_nochat but stable API for string dict passing
+
+            pre_prompt_summary = (
+                pre_prompt_summary
+                if langchain_action == LangChainAction.SUMMARIZE_MAP.value
+                else pre_prompt_extraction
+            )
+            prompt_summary = (
+                prompt_summary
+                if langchain_action == LangChainAction.SUMMARIZE_MAP.value
+                else prompt_extraction
+            )
+
+            chat_conversation = (
+                chat_conversation
+                if chat_conversation or not self.persist
+                else self.chat_conversation.copy()
+            )
+
+            locals_for_client = locals().copy()
+            locals_for_client.pop("self", None)
+            client_kwargs = self.get_client_kwargs(**locals_for_client)
+
+            # in case server changed, update in case clone()
+            with lock:
+                self.server_hash = client.server_hash
+
+            # ensure can fill conversation
+            if self.persist:
+                self.chat_conversation.append((instruction, None))
+
+            # get result
+            actual_llm = visible_models
+            response = ""
+            texts_out = []
+            trials = 3
             t0 = time.time()
-            res = client.predict(
-                text, *doc_options, *loaders, h2ogpt_key, api_name="/add_text"
-            )
-            t1 = time.time()
-            print_info("upload text: %s" % str(timedelta(seconds=t1 - t0)))
-            if asserts:
-                assert res[0] is None
-                assert res[1] == langchain_mode
-                assert "user_paste" in res[2]
-                assert res[3] == ""
-        if file:
-            # upload file(s).  Can be list or single file
-            # after below call, "file" replaced with remote location of file
-            _, file = client.predict(file, api_name="/upload_api")
-
-            res = client.predict(
-                file, *doc_options, *loaders, h2ogpt_key, api_name="/add_file_api"
-            )
-            if asserts:
-                assert res[0] is None
-                assert res[1] == langchain_mode
-                assert os.path.basename(file) in res[2]
-                assert res[3] == ""
-        if url:
-            res = client.predict(
-                url, *doc_options, *loaders, h2ogpt_key, api_name="/add_url"
-            )
-            if asserts:
-                assert res[0] is None
-                assert res[1] == langchain_mode
-                assert url in res[2]
-                assert res[3] == ""
-                assert res[4]  # should have file name or something similar
-        if res and not res[4] and "Exception" in res[2]:
-            print_error("Exception: %s" % res[2])
-
-        # ask for summary, need to use same client if using MyData
-        api_name = "/submit_nochat_api"  # NOTE: like submit_nochat but stable API for string dict passing
-
-        pre_prompt_summary = (
-            pre_prompt_summary
-            if langchain_action == LangChainAction.SUMMARIZE_MAP.value
-            else pre_prompt_extraction
-        )
-        prompt_summary = (
-            prompt_summary
-            if langchain_action == LangChainAction.SUMMARIZE_MAP.value
-            else prompt_extraction
-        )
-
-        chat_conversation = (
-            chat_conversation
-            if chat_conversation or not self.persist
-            else self.chat_conversation.copy()
-        )
-
-        locals_for_client = locals().copy()
-        locals_for_client.pop("self", None)
-        client_kwargs = self.get_client_kwargs(**locals_for_client)
-
-        # in case server changed, update in case clone()
-        self.server_hash = client.server_hash
-
-        # ensure can fill conversation
-        if self.persist:
-            self.chat_conversation.append((instruction, None))
-
-        # get result
-        actual_llm = None
-        response = ""
-        texts_out = []
-        trials = 3
-        t0 = time.time()
-        time_to_first_token = None
-        vision_visible_model = None
-        vision_batch_input_tokens = None
-        vision_batch_output_tokens = None
-        vision_batch_tokens_per_second = None
-        t_taken_s = None
-        for trial in range(trials):
-            t0 = time.time()
-            try:
-                if not stream_output:
-                    res = client.predict(
-                        str(dict(client_kwargs)),
-                        api_name=api_name,
-                    )
-                    if time_to_first_token is None:
-                        time_to_first_token = time.time() - t0
-                    t_taken_s = time.time() - t0
-                    # in case server changed, update in case clone()
-                    self.server_hash = client.server_hash
-                    res_dict = ast.literal_eval(res)
-                    self.check_error(res_dict)
-                    response = res_dict["response"]
-                    if langchain_action != LangChainAction.EXTRACT.value:
-                        response = response.strip()
-                    else:
-                        response = [r.strip() for r in ast.literal_eval(response)]
-                    sources = res_dict["sources"]
-                    scores_out = [x["score"] for x in sources]
-                    texts_out = [x["content"] for x in sources]
-                    prompt_raw = res_dict.get("prompt_raw", "")
-
-                    try:
-                        actual_llm = res_dict["save_dict"]["display_name"]  # fast path
-                    except Exception as e:
-                        print_warning(
-                            f"Unable to access save_dict to get actual_llm: {str(e)}"
+            input_tokens = 0
+            output_tokens = 0
+            tokens_per_second = 0
+            time_to_first_token = None
+            vision_visible_model = None
+            vision_batch_input_tokens = None
+            vision_batch_output_tokens = None
+            vision_batch_tokens_per_second = None
+            t_taken_s = None
+            for trial in range(trials):
+                t0 = time.time()
+                try:
+                    if not stream_output:
+                        res = client.predict(
+                            str(dict(client_kwargs)),
+                            api_name=api_name,
                         )
-                        actual_llm = (
-                            sanitize_llm(visible_models, client=client)
-                            if sanitize_llm is not None
-                            else visible_models
-                        )
-
-                    try:
-                        extra_dict = res_dict["save_dict"]["extra_dict"]
-                        input_tokens = extra_dict["num_prompt_tokens"]
-                        output_tokens = extra_dict["ntokens"]
-                        tokens_per_second = np.round(
-                            extra_dict["tokens_persecond"], decimals=3
-                        )
-                        vision_visible_model = extra_dict.get(
-                            "batch_vision_visible_model"
-                        )
-                        vision_batch_input_tokens = extra_dict.get(
-                            "vision_batch_input_tokens"
-                        )
-                    except:
-                        if os.getenv("HARD_ASSERTS"):
-                            raise
-                        input_tokens = output_tokens = tokens_per_second = vision_visible_model = vision_batch_input_tokens = 0
-                    if asserts:
-                        if text and not file and not url:
-                            assert any(
-                                text[:cutoff] == texts_out
-                                for cutoff in range(len(text))
-                            )
-                        assert len(texts_out) == len(scores_out)
-
-                    yield ReturnType(
-                        reply=response,
-                        text_context_list=texts_out,
-                        prompt_raw=prompt_raw,
-                        actual_llm=actual_llm,
-                        input_tokens=input_tokens,
-                        output_tokens=output_tokens,
-                        tokens_per_second=tokens_per_second,
-                        time_to_first_token=time_to_first_token,
-                        vision_visible_model=vision_visible_model,
-                        vision_batch_input_tokens=vision_batch_input_tokens,
-                        vision_batch_output_tokens=vision_batch_output_tokens,
-                        vision_batch_tokens_per_second=vision_batch_tokens_per_second,
-                    )
-                    if self.persist:
-                        self.chat_conversation[-1] = (instruction, response)
-                else:
-                    job = client.submit(str(dict(client_kwargs)), api_name=api_name)
-                    text0 = ""
-                    while not job.done():
-                        e = check_job(job, timeout=0, raise_exception=False)
-                        if e is not None:
-                            break
-                        outputs_list = job.outputs().copy()
-                        if outputs_list:
-                            res = outputs_list[-1]
-                            res_dict = ast.literal_eval(res)
-                            self.check_error(res_dict)
-                            response = res_dict["response"]  # keeps growing
-                            prompt_raw = res_dict.get(
-                                "prompt_raw", ""
-                            )  # only filled at end
-                            text_chunk = response[len(text0) :]  # only keep new stuff
-                            if not text_chunk:
-                                time.sleep(0.001)
-                                continue
-                            text0 = response
-                            assert text_chunk, "must yield non-empty string"
-                            if time_to_first_token is None:
-                                time_to_first_token = time.time() - t0
-                            yield ReturnType(reply=text_chunk)  # streaming part
-                        time.sleep(0.005)
-
-                    # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
-                    res_all = job.outputs().copy()
-                    success = job.communicator.job.latest_status.success
-                    timeout = 0.1 if success else 10
-                    if len(res_all) > 0:
-                        try:
-                            check_job(job, timeout=timeout, raise_exception=True)
-                        except (
-                            Exception
-                        ) as e:  # FIXME - except TimeoutError once h2ogpt raises that.
-                            if "Abrupt termination of communication" in str(e):
-                                actual_llm = (
-                                    sanitize_llm(visible_models, client=client)
-                                    if sanitize_llm is not None
-                                    else visible_models
-                                )
-                                t_taken = "%.4f" % (time.time() - t0)
-                                raise TimeoutError(
-                                    f"LLM {actual_llm} timed out after {t_taken} seconds."
-                                )
-                            else:
-                                raise
-
-                        res = res_all[-1]
+                        if time_to_first_token is None:
+                            time_to_first_token = time.time() - t0
+                        t_taken_s = time.time() - t0
+                        # in case server changed, update in case clone()
+                        with lock:
+                            self.server_hash = client.server_hash
                         res_dict = ast.literal_eval(res)
                         self.check_error(res_dict)
                         response = res_dict["response"]
-                        sources = res_dict["sources"]
-                        prompt_raw = res_dict["prompt_raw"]
-                        save_dict = res_dict.get("save_dict", dict(extra_dict={}))
-                        extra_dict = save_dict.get("extra_dict", {})
-                        texts_out = [x["content"] for x in sources]
-                        t_taken_s = time.time() - t0
-                        t_taken = "%.4f" % t_taken_s
-
                         if langchain_action != LangChainAction.EXTRACT.value:
-                            text_chunk = response.strip()
+                            response = response.strip()
                         else:
-                            text_chunk = [r.strip() for r in ast.literal_eval(response)]
-
-                        if not text_chunk:
-                            actual_llm = (
-                                sanitize_llm(visible_models, client=client)
-                                if sanitize_llm is not None
-                                else visible_models
-                            )
-                            raise TimeoutError(
-                                f"No output from LLM {actual_llm} after {t_taken} seconds."
-                            )
-                        if "error" in save_dict and not prompt_raw:
-                            raise RuntimeError(f"Error from LLM: {save_dict['error']}")
-                        assert (
-                            prompt_raw or extra_dict
-                        ), "LLM response failed to return final metadata."
-
-                        try:
-                            extra_dict = res_dict["save_dict"]["extra_dict"]
-                            input_tokens = extra_dict["num_prompt_tokens"]
-                            output_tokens = extra_dict["ntokens"]
-                            vision_visible_model = extra_dict.get(
-                                "batch_vision_visible_model"
-                            )
-                            vision_batch_input_tokens = extra_dict.get(
-                                "batch_num_prompt_tokens"
-                            )
-                            vision_batch_output_tokens = extra_dict.get("batch_ntokens")
-                            tokens_per_second = np.round(
-                                extra_dict["tokens_persecond"], decimals=3
-                            )
-                            vision_batch_tokens_per_second = extra_dict.get(
-                                "batch_tokens_persecond"
-                            )
-                            if vision_batch_tokens_per_second:
-                                vision_batch_tokens_per_second = np.round(
-                                    vision_batch_tokens_per_second, decimals=3
-                                )
-                        except:
-                            if os.getenv("HARD_ASSERTS"):
-                                raise
-                            input_tokens = output_tokens = tokens_per_second = 0
-
+                            response = [r.strip() for r in ast.literal_eval(response)]
+                        sources = res_dict["sources"]
+                        scores_out = [x["score"] for x in sources]
+                        texts_out = [x["content"] for x in sources]
+                        prompt_raw = res_dict.get("prompt_raw", "")
                         try:
                             actual_llm = res_dict["save_dict"][
                                 "display_name"
@@ -1272,19 +1119,32 @@ class GradioClient(Client):
                             print_warning(
                                 f"Unable to access save_dict to get actual_llm: {str(e)}"
                             )
-                            actual_llm = (
-                                sanitize_llm(visible_models, client=client)
-                                if sanitize_llm is not None
-                                else visible_models
+                        try:
+                            extra_dict = res_dict["save_dict"]["extra_dict"]
+                            input_tokens = extra_dict["num_prompt_tokens"]
+                            output_tokens = extra_dict["ntokens"]
+                            tokens_per_second = np.round(
+                                extra_dict["tokens_persecond"], decimals=3
                             )
+                            vision_visible_model = extra_dict.get(
+                                "batch_vision_visible_model"
+                            )
+                            vision_batch_input_tokens = extra_dict.get(
+                                "vision_batch_input_tokens", 0
+                            )
+                        except:
+                            if os.getenv("HARD_ASSERTS"):
+                                raise
+                        if asserts:
+                            if text and not file and not url:
+                                assert any(
+                                    text[:cutoff] == texts_out
+                                    for cutoff in range(len(text))
+                                )
+                            assert len(texts_out) == len(scores_out)
 
-                        if text_context_list:
-                            assert texts_out, "No texts_out 1"
-
-                        if time_to_first_token is None:
-                            time_to_first_token = time.time() - t0
                         yield ReturnType(
-                            reply=text_chunk,
+                            reply=response,
                             text_context_list=texts_out,
                             prompt_raw=prompt_raw,
                             actual_llm=actual_llm,
@@ -1298,59 +1158,201 @@ class GradioClient(Client):
                             vision_batch_tokens_per_second=vision_batch_tokens_per_second,
                         )
                         if self.persist:
-                            self.chat_conversation[-1] = (
-                                instruction,
-                                text_chunk,
-                            )
+                            self.chat_conversation[-1] = (instruction, response)
                     else:
-                        assert not success
-                        check_job(job, timeout=2.0 * timeout, raise_exception=True)
-                break
-            except Exception as e:
-                print_error(
-                    "h2oGPT predict failed: %s %s"
-                    % (str(e), "".join(traceback.format_tb(e.__traceback__))),
-                )
-                if "invalid model" in str(e).lower():
-                    raise
-                if bad_error_string and bad_error_string in str(e):
-                    # no need to do 3 trials if have disallowed stuff, unlikely that LLM will change its mind
-                    raise
-                if trial == trials - 1:
-                    print_error("trying again failed: %s" % trial)
-                    raise
-                else:
-                    # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
-                    if "Overloaded" in str(traceback.format_tb(e.__traceback__)):
-                        sleep_time = 30 + 2 ** (trial + 1)
-                    else:
-                        sleep_time = 1 * trial
-                    print_warning(
-                        "trying again: %s in %s seconds" % (trial, sleep_time)
-                    )
-                    time.sleep(sleep_time)
-            finally:
-                # in case server changed, update in case clone()
-                self.server_hash = client.server_hash
+                        job = client.submit(str(dict(client_kwargs)), api_name=api_name)
+                        text0 = ""
+                        while not job.done():
+                            e = check_job(job, timeout=0, raise_exception=False)
+                            if e is not None:
+                                break
+                            outputs_list = job.outputs().copy()
+                            if outputs_list:
+                                res = outputs_list[-1]
+                                res_dict = ast.literal_eval(res)
+                                self.check_error(res_dict)
+                                response = res_dict["response"]  # keeps growing
+                                prompt_raw = res_dict.get(
+                                    "prompt_raw", ""
+                                )  # only filled at end
+                                text_chunk = response[
+                                    len(text0) :
+                                ]  # only keep new stuff
+                                if not text_chunk:
+                                    time.sleep(0.001)
+                                    continue
+                                text0 = response
+                                assert text_chunk, "must yield non-empty string"
+                                if time_to_first_token is None:
+                                    time_to_first_token = time.time() - t0
+                                yield ReturnType(
+                                    reply=text_chunk,
+                                    actual_llm=actual_llm,
+                                )  # streaming part
+                            time.sleep(0.005)
 
-        t1 = time.time()
-        print_info(
-            dict(
-                api="submit_nochat_api",
-                streaming=stream_output,
-                texts_in=len(text or []) + len(text_context_list or []),
-                texts_out=len(texts_out),
-                images=len(image_file)
-                if isinstance(image_file, list)
-                else 1
-                if image_file
-                else 0,
-                response_time=str(timedelta(seconds=t1 - t0)),
-                response_len=len(response),
-                llm=visible_models,
-                actual_llm=actual_llm,
+                        # Get final response (if anything left), but also get the actual references (texts_out), above is empty.
+                        res_all = job.outputs().copy()
+                        success = job.communicator.job.latest_status.success
+                        timeout = 0.1 if success else 10
+                        if len(res_all) > 0:
+                            try:
+                                check_job(job, timeout=timeout, raise_exception=True)
+                            except (
+                                Exception
+                            ) as e:  # FIXME - except TimeoutError once h2ogpt raises that.
+                                if "Abrupt termination of communication" in str(e):
+                                    t_taken = "%.4f" % (time.time() - t0)
+                                    raise TimeoutError(
+                                        f"LLM {actual_llm} timed out after {t_taken} seconds."
+                                    )
+                                else:
+                                    raise
+
+                            res = res_all[-1]
+                            res_dict = ast.literal_eval(res)
+                            self.check_error(res_dict)
+                            response = res_dict["response"]
+                            sources = res_dict["sources"]
+                            prompt_raw = res_dict["prompt_raw"]
+                            save_dict = res_dict.get("save_dict", dict(extra_dict={}))
+                            extra_dict = save_dict.get("extra_dict", {})
+                            texts_out = [x["content"] for x in sources]
+                            t_taken_s = time.time() - t0
+                            t_taken = "%.4f" % t_taken_s
+
+                            if langchain_action != LangChainAction.EXTRACT.value:
+                                text_chunk = response.strip()
+                            else:
+                                text_chunk = [
+                                    r.strip() for r in ast.literal_eval(response)
+                                ]
+
+                            if not text_chunk:
+                                raise TimeoutError(
+                                    f"No output from LLM {actual_llm} after {t_taken} seconds."
+                                )
+                            if "error" in save_dict and not prompt_raw:
+                                raise RuntimeError(
+                                    f"Error from LLM {actual_llm}: {save_dict['error']}"
+                                )
+                            assert (
+                                prompt_raw or extra_dict
+                            ), "LLM response failed to return final metadata."
+
+                            try:
+                                extra_dict = res_dict["save_dict"]["extra_dict"]
+                                input_tokens = extra_dict["num_prompt_tokens"]
+                                output_tokens = extra_dict["ntokens"]
+                                vision_visible_model = extra_dict.get(
+                                    "batch_vision_visible_model"
+                                )
+                                vision_batch_input_tokens = extra_dict.get(
+                                    "batch_num_prompt_tokens", 0
+                                )
+                                vision_batch_output_tokens = extra_dict.get(
+                                    "batch_ntokens", 0
+                                )
+                                tokens_per_second = np.round(
+                                    extra_dict["tokens_persecond"], decimals=3
+                                )
+                                vision_batch_tokens_per_second = extra_dict.get(
+                                    "batch_tokens_persecond", 0
+                                )
+                                if vision_batch_tokens_per_second:
+                                    vision_batch_tokens_per_second = np.round(
+                                        vision_batch_tokens_per_second, decimals=3
+                                    )
+                            except:
+                                if os.getenv("HARD_ASSERTS"):
+                                    raise
+                            try:
+                                actual_llm = res_dict["save_dict"][
+                                    "display_name"
+                                ]  # fast path
+                            except Exception as e:
+                                print_warning(
+                                    f"Unable to access save_dict to get actual_llm: {str(e)}"
+                                )
+
+                            if text_context_list:
+                                assert texts_out, "No texts_out 1"
+
+                            if time_to_first_token is None:
+                                time_to_first_token = time.time() - t0
+                            yield ReturnType(
+                                reply=text_chunk,
+                                text_context_list=texts_out,
+                                prompt_raw=prompt_raw,
+                                actual_llm=actual_llm,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                tokens_per_second=tokens_per_second,
+                                time_to_first_token=time_to_first_token,
+                                vision_visible_model=vision_visible_model,
+                                vision_batch_input_tokens=vision_batch_input_tokens,
+                                vision_batch_output_tokens=vision_batch_output_tokens,
+                                vision_batch_tokens_per_second=vision_batch_tokens_per_second,
+                            )
+                            if self.persist:
+                                self.chat_conversation[-1] = (
+                                    instruction,
+                                    text_chunk,
+                                )
+                        else:
+                            assert not success
+                            check_job(job, timeout=2.0 * timeout, raise_exception=True)
+                    break
+                except Exception as e:
+                    print_error(
+                        "h2oGPT predict failed: %s %s"
+                        % (str(e), "".join(traceback.format_tb(e.__traceback__))),
+                    )
+                    if "invalid model" in str(e).lower():
+                        raise
+                    if bad_error_string and bad_error_string in str(e):
+                        # no need to do 3 trials if have disallowed stuff, unlikely that LLM will change its mind
+                        raise
+                    if trial == trials - 1:
+                        print_error("trying again failed: %s" % trial)
+                        raise
+                    else:
+                        # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
+                        if "Overloaded" in str(traceback.format_tb(e.__traceback__)):
+                            sleep_time = 30 + 2 ** (trial + 1)
+                        else:
+                            sleep_time = 1 * trial
+                        print_warning(
+                            "trying again: %s in %s seconds" % (trial, sleep_time)
+                        )
+                        time.sleep(sleep_time)
+                finally:
+                    # in case server changed, update in case clone()
+                    with lock:
+                        self.server_hash = client.server_hash
+
+            t1 = time.time()
+            print_info(
+                dict(
+                    api="submit_nochat_api",
+                    streaming=stream_output,
+                    texts_in=len(text or []) + len(text_context_list or []),
+                    texts_out=len(texts_out),
+                    images=len(image_file)
+                    if isinstance(image_file, list)
+                    else 1
+                    if image_file
+                    else 0,
+                    response_time=str(timedelta(seconds=t1 - t0)),
+                    response_len=len(response),
+                    llm=visible_models,
+                    actual_llm=actual_llm,
+                )
             )
-        )
+        finally:
+            # in case server changed, update in case clone()
+            with lock:
+                self.server_hash = client.server_hash
 
     def check_model(self, model):
         if model != 0 and self.check_model_name:
@@ -1384,20 +1386,12 @@ class GradioClient(Client):
         del ttl_hash  # to emphasize we don't use it and to shut pylint up
         if self.config is None:
             self.setup()
-        return ast.literal_eval(self.predict(api_name="/model_names"))
-
-    @lru_cache()
-    def _list_models(self, ttl_hash=None) -> List[str]:
-        """
-        Model names available from endpoint (cached)
-        """
-        del ttl_hash  # to emphasize we don't use it and to shut pylint up
-        if self.config is None:
-            self.setup()
-        return [
-            x["display_name"]
-            for x in ast.literal_eval(self.predict(api_name="/model_names"))
-        ]
+        client = self.clone()
+        try:
+            return ast.literal_eval(client.predict(api_name="/model_names"))
+        finally:
+            with lock:
+                self.server_hash = client.server_hash
 
     def get_models_full(self) -> List[Dict[str, Any]]:
         """
@@ -1409,7 +1403,7 @@ class GradioClient(Client):
         """
         Model names available from endpoint
         """
-        return self._list_models(ttl_hash=self._get_ttl_hash())
+        return [x["display_name"] for x in self.get_models_full()]
 
     def simple_stream(
         self,
