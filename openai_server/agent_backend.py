@@ -1,4 +1,6 @@
 import functools
+import inspect
+import multiprocessing
 import os
 import queue
 import shutil
@@ -41,45 +43,45 @@ def terminate_message_func(msg):
     return False
 
 
-def run_agent(query, **kwargs) -> dict:
-    if kwargs['agent_type'] in ['auto', 'autogen']:
-        return run_autogen(query, **kwargs)
+def run_agent(query, agent_type=None,
+              visible_models=None, stream_output=None, max_new_tokens=None, authorization=None,
+              autogen_stop_docker_executor=None,
+              autogen_run_code_in_docker=None, autogen_max_consecutive_auto_reply=None, autogen_max_turns=None,
+              autogen_timeout=None,
+              autogen_cache_seed=None, agent_verbose=None) -> dict:
+    if agent_type in ['auto', 'autogen']:
+        return run_autogen(**locals())
     else:
-        raise ValueError("Invalid agent_type: %s" % kwargs['agent_type'])
+        raise ValueError("Invalid agent_type: %s" % agent_type)
 
 
-def run_autogen(query, **kwargs) -> dict:
+def run_autogen(query=None, agent_type=None,
+                visible_models=None, stream_output=None, max_new_tokens=None, authorization=None,
+                autogen_stop_docker_executor=None,
+                autogen_run_code_in_docker=None, autogen_max_consecutive_auto_reply=None, autogen_max_turns=None,
+                autogen_timeout=None,
+                autogen_cache_seed=None, agent_verbose=None) -> dict:
+    assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
 
     # handle parameters from chatAPI and OpenAI -> h2oGPT transcription versions
-    model = kwargs['visible_models']
-    assert model is not None, "No model specified"
-    stream_output = kwargs['stream_output']
+    assert visible_models is not None, "No visible_models specified"
+    model = visible_models  # transcribe early
+
     if stream_output is None:
         stream_output = False
-    max_new_tokens = kwargs['max_new_tokens']
     assert max_new_tokens is not None, "No max_new_tokens specified"
 
-    # handle parameters from FastAPI
-    authorization = kwargs['authorization']
-
     # handle AutoGen specific parameters
-    autogen_stop_docker_executor = kwargs['autogen_stop_docker_executor']
     if autogen_stop_docker_executor is None:
         autogen_stop_docker_executor = False
-    autogen_run_code_in_docker = kwargs['autogen_run_code_in_docker']
     if autogen_run_code_in_docker is None:
         autogen_run_code_in_docker = False
-    autogen_max_consecutive_auto_reply = kwargs['autogen_max_consecutive_auto_reply']
     if autogen_max_consecutive_auto_reply is None:
         autogen_max_consecutive_auto_reply = 10
-    autogen_max_turns = kwargs['autogen_max_turns']
-    autogen_timeout = kwargs['autogen_timeout']
     if autogen_timeout is None:
         autogen_timeout = 120
-    autogen_cache_seed = kwargs['autogen_cache_seed']
-    agent_verbose = kwargs['agent_verbose']
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
@@ -245,8 +247,7 @@ def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStr
         yield capture_stream
 
 
-def run_agent_in_thread(output_queue: queue.Queue, query, result_queue: queue.Queue, exception_queue: queue.Queue,
-                        **kwargs):
+def run_agent_in_proc(output_queue, query, result_queue, exception_queue, **kwargs):
     ret_dict = None
     try:
         # raise ValueError("Testing Error Handling 3")  # works
@@ -262,16 +263,33 @@ def run_agent_in_thread(output_queue: queue.Queue, query, result_queue: queue.Qu
         result_queue.put(ret_dict)
 
 
-def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
+def filter_kwargs(func, kwargs):
+    # Get the parameter list of the function
+    sig = inspect.signature(func)
+    valid_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+    return valid_kwargs
+
+
+def iostream_generator(query, use_process=True, **kwargs) -> typing.Generator[str, None, None]:
     # raise ValueError("Testing Error Handling 2")  #works
-    output_queue = queue.Queue()
-    result_queue = queue.Queue()
-    exception_queue = queue.Queue()
+    if use_process:
+        output_queue = multiprocessing.Queue()
+        result_queue = multiprocessing.Queue()
+        exception_queue = multiprocessing.Queue()
+        proc_cls = multiprocessing.Process
+    else:
+        output_queue = queue.Queue()
+        result_queue = queue.Queue()
+        exception_queue = queue.Queue()
+        proc_cls = threading.Thread
+
+    # Filter kwargs based on the function signature of run_agent to avoid passing non-picklable things through
+    filtered_kwargs = filter_kwargs(run_agent, kwargs)
 
     # Start agent in a separate thread
-    agent_thread = threading.Thread(target=run_agent_in_thread,
-                                    args=(output_queue, query, result_queue, exception_queue), kwargs=kwargs)
-    agent_thread.start()
+    agent_proc = proc_cls(target=run_agent_in_proc,
+                          args=(output_queue, query, result_queue, exception_queue), kwargs=filtered_kwargs)
+    agent_proc.start()
 
     # Yield output as it becomes available
     while True:
@@ -285,7 +303,7 @@ def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
             break
         yield output
 
-    agent_thread.join()
+    agent_proc.join()
 
     # Return the final result
     if not exception_queue.empty():
@@ -300,27 +318,18 @@ def iostream_generator(query, **kwargs) -> typing.Generator[str, None, None]:
     return ret_dict
 
 
-def get_response(query, **kwargs):
-    ret_dict = yield from iostream_generator(query, **kwargs)
-    return ret_dict
-
-
-def get_agent_response(query, gen_kwargs, chunk_response=True, stream_output=False):
+def get_agent_response(query, gen_kwargs, chunk_response=True, stream_output=False, use_process=True):
     # raise ValueError("Testing Error Handling 1")  # works
 
     gen_kwargs = convert_gen_kwargs(gen_kwargs)
     kwargs = gen_kwargs.copy()
     kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))
-
-    gen = get_response(query, **kwargs)
-    # from iterators import TimeoutIterator
-    # gen1 = TimeoutIterator(gen, timeout=0, sentinel=None, raise_on_exception=False, whichi=0)
-    gen1 = gen
+    gen = iostream_generator(query, use_process=use_process, **kwargs)
 
     ret_dict = {}
     try:
         while True:
-            res = next(gen1)
+            res = next(gen)
             yield res
     except StopIteration as e:
         ret_dict = e.value
