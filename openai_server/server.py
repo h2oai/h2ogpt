@@ -168,6 +168,7 @@ class AgentParams(BaseModel):
     autogen_timeout: int = 120
     agent_verbose: bool = False
     autogen_cache_seed: int | None = None
+    autogen_venv_dir: str | None = None
     agent_type: str | None = 'auto'
 
 
