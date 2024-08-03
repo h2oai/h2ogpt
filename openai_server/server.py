@@ -167,7 +167,7 @@ class AgentParams(BaseModel):
     autogen_max_turns: int | None = None
     autogen_timeout: int = 120
     agent_verbose: bool = False
-    autogen_cache_seed: int | None = 1234
+    autogen_cache_seed: int | None = None
     agent_type: str | None = 'auto'
 
 

@@ -10,4 +10,11 @@ sympy>=1.12
 
 
 # for AutoGen
-pyautogen>=0.2.32
+pyautogen>=0.2.33
+pyautogen[redis]
+#pyautogen[ipython]
+pyautogen[retrievechat]
+pyautogen[lmm]
+#pyautogen[mathchat]<0.2
+pyautogen[graph]
+pyautogen[long-context]
