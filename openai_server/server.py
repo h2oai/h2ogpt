@@ -164,6 +164,7 @@ class AgentParams(BaseModel):
     autogen_stop_docker_executor: bool | None = False
     autogen_run_code_in_docker: bool | None = False
     autogen_max_consecutive_auto_reply: int | None = 10
+    autogen_max_turns: int | None = None
     autogen_timeout: int = 120
     agent_verbose: bool = False
     autogen_cache_seed: int | None = 1234

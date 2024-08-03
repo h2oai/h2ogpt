@@ -74,6 +74,7 @@ def run_autogen(query, **kwargs) -> dict:
     autogen_max_consecutive_auto_reply = kwargs['autogen_max_consecutive_auto_reply']
     if autogen_max_consecutive_auto_reply is None:
         autogen_max_consecutive_auto_reply = 10
+    autogen_max_turns = kwargs['autogen_max_turns']
     autogen_timeout = kwargs['autogen_timeout']
     if autogen_timeout is None:
         autogen_timeout = 120
@@ -163,6 +164,7 @@ Reply 'TERMINATE' in the end when everything is done.
     )
     chat_result = code_executor_agent.initiate_chat(
         code_writer_agent,
+        max_turns=autogen_max_turns,
         message=query,
     )
     # DEBUG
