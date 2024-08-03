@@ -162,11 +162,23 @@ Reply 'TERMINATE' in the end when everything is done.
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
 
     )
-    chat_result = code_executor_agent.initiate_chat(
-        code_writer_agent,
-        max_turns=autogen_max_turns,
-        message=query,
-    )
+    chat_kwargs = dict(recipient=code_writer_agent,
+                       max_turns=autogen_max_turns,
+                       message=query,
+                       cache=None,
+                       )
+    if autogen_cache_seed:
+        from autogen import Cache
+        # Use DiskCache as cache
+        cache_root_path = "./autogen_cache"
+        if not os.path.exists(cache_root_path):
+            os.makedirs(cache_root_path, exist_ok=True)
+        with Cache.disk(cache_seed=autogen_cache_seed, cache_path_root=cache_root_path) as cache:
+            chat_kwargs.update(dict(cache=cache))
+            chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+    else:
+        chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+
     # DEBUG
     if agent_verbose:
         print(chat_result)
