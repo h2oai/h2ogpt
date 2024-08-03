@@ -586,6 +586,11 @@ def sanitize_filename(name, file_length_limit=250):
 
 
 def shutil_rmtree(*args, **kwargs):
+    path = args[0]
+    assert not os.path.samefile(path,
+                                '/'), "Should not be trying to remove entire root directory: %s" % str(path)
+    assert not os.path.samefile(path,
+                                './'), "Should not be trying to remove entire local directory: %s" % str(path)
     return shutil.rmtree(*args, **kwargs)
 
 
@@ -650,6 +655,60 @@ def atomic_move_simple(src, dst):
     except (shutil.Error, FileExistsError):
         pass
     remove(src)
+
+
+def atomic_copy(src="", dst=None, content=None):
+    my_uuid = uuid.uuid4()
+    src_tmp = None
+    if content is not None:
+        src_tmp = os.path.join('./', str(my_uuid))
+        with open(src_tmp, 'wt') as f:
+            f.write(content)
+    elif src != "":
+        src_tmp = src + str(my_uuid)
+        shutil.copy(src, src_tmp)
+    if src_tmp is not None:
+        makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.move(src_tmp, dst)
+        remove(src_tmp)
+
+
+def move_tree(src, dst, include_root=True):
+    makedirs(dst, exist_ok=True)
+    if include_root:
+        shutil.move(src, dst)
+    else:
+        for (path, dirs, files) in os.walk(src):
+            new_path = path.replace(src, dst)
+            makedirs(new_path, exist_ok=True)
+            for file in files:
+                filename = os.path.join(path, file)
+                new_filename = os.path.join(new_path, file)
+                # print("%s -> %s" % (filename, new_filename))
+                try:
+                    # only move if file doesn't already exist
+                    # this ensures use earliest installation if used for pip install race avoidance
+                    if not os.path.isfile(new_filename):
+                        shutil.move(filename, new_filename)
+                except FileExistsError:
+                    pass
+        for (path, dirs, files) in os.walk(src):
+            shutil.rmtree(path, ignore_errors=True)
+
+
+def copy_tree(src, dst, follow_symlink=False):
+    makedirs(dst, exist_ok=True)
+    for (path, dirs, files) in os.walk(src, followlinks=follow_symlink):
+        new_path = path.replace(src, dst)
+        makedirs(new_path, exist_ok=True)
+        for file in files:
+            filename = os.path.join(path, file)
+            new_filename = os.path.join(new_path, file)
+            # print("%s -> %s" % (filename, new_filename))
+            try:
+                atomic_copy(filename, new_filename)
+            except FileNotFoundError:
+                pass
 
 
 def download_simple(url, dest=None, overwrite=False, verbose=False):
@@ -1093,6 +1152,37 @@ class _ForkDataContext(threading.local):
         return func, args, kwargs
 
 
+def using_conda():
+    """
+    Whether using conda and want to use conda
+    :return:
+    """
+    import os, sys
+    return os.path.exists(os.path.join(sys.prefix, 'conda-meta')) and os.environ.get('AVOID_FULL_CONDA') is None
+
+
+def get_python_paths():
+    """
+    Various python paths, same as make/get_python_paths.sh
+    :return:
+    """
+    import os, sys
+    exec_file = sys.executable
+    bpath = os.path.dirname(sys.executable)
+    rootpath = os.path.dirname(os.path.dirname(sys.executable))
+    libpath = os.path.join(rootpath, "lib")
+    includepath = os.path.join(rootpath, "include")
+    from sysconfig import get_paths
+    info = get_paths()
+    spackagespath = info['purelib']
+    pincludepath = info['platinclude']
+    plibpath = info['platstdlib']
+    from distutils.sysconfig import get_config_var
+    plibfile = '%s/%s' % (get_config_var('LIBDIR'), get_config_var('INSTSONAME'))
+    return dict(exec_file=exec_file, bpath=bpath, rootpath=rootpath, libpath=libpath, includepath=includepath,
+                spackagespath=spackagespath, pincludepath=pincludepath, plibpath=plibpath, plibfile=plibfile)
+
+
 forkdatacontext = _ForkDataContext()
 
 
@@ -1183,7 +1273,6 @@ try:
     have_serpapi = True
 except (PackageNotFoundError, AssertionError):
     pass
-
 
 have_autogen = False
 try:
@@ -1347,7 +1436,8 @@ class FakeTokenizer:
             input_ids = self.tokenizer.encode(x)
         elif self.is_mistral:
             from mistral_common.protocol.instruct.request import ChatCompletionRequest
-            input_ids = self.tokenizer.encode_chat_completion(ChatCompletionRequest(messages=[dict(role='user', content=x)])).tokens
+            input_ids = self.tokenizer.encode_chat_completion(
+                ChatCompletionRequest(messages=[dict(role='user', content=x)])).tokens
         else:
             input_ids = self.encoding.encode(x, disallowed_special=())
         if return_tensors == 'pt' and isinstance(input_ids, list):
