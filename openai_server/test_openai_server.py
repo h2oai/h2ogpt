@@ -193,7 +193,7 @@ def show_plot_from_ids(usage, client):
     assert isinstance(list_response, list)
     response_dict = {item.id: {key: value for key, value in dict(item).items() if key != 'id'} for item in list_response}
 
-    test_dir = 'openai_files_testing'
+    test_dir = 'openai_files_testing_%s' % str(uuid.uuid4())
     if os.path.exists(test_dir):
         shutil.rmtree(test_dir)
     os.makedirs(test_dir, exist_ok=True)
@@ -208,11 +208,13 @@ def show_plot_from_ids(usage, client):
     images = [x for x in files if x.endswith('.png') or x.endswith('.jpeg')]
 
     print(files)
-    print(images)
+    print(images, file=sys.stderr)
 
     from PIL import Image
     im = Image.open(images[0])
+    print("START SHOW IMAGE: %s" % images[0], file=sys.stderr)
     im.show()
+    print("FINISH SHOW IMAGE", file=sys.stderr)
 
 
 def test_autogen():
@@ -228,7 +230,7 @@ def test_autogen():
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     prompt = f"Today is {today}.  Write Python code to plot TSLA's and META's stock price gains YTD vs. time per week, and save the plot to a file named 'stock_gains.png'."
 
-    # vllm_chat:
+    print("chat non-streaming", file=sys.stderr)
 
     messages = [
         {
@@ -245,21 +247,21 @@ def test_autogen():
         messages=messages,
         temperature=0.0,
         max_tokens=2048,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
 
     text = response.choices[0].message.content
-    print(text)
+    print(text, file=sys.stderr)
     show_plot_from_ids(response.usage, client)
 
-    # streaming:
+    print("chat streaming", file=sys.stderr)
 
     responses = client.chat.completions.create(
         model=model,
         messages=messages,
         stream=True,
         max_tokens=4096,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
 
     text = ''
@@ -278,7 +280,7 @@ def test_autogen():
 
     ####
 
-    # text completion:
+    print("text non-streaming", file=sys.stderr)
 
     responses = client.completions.create(
         model=model,
@@ -286,14 +288,14 @@ def test_autogen():
         prompt=prompt,
         stream=False,
         max_tokens=4096,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
     text = responses.choices[0].text
 
     print(text)
     show_plot_from_ids(responses.usage, client)
 
-    # streaming text completion:
+    print("text streaming", file=sys.stderr)
 
     responses = client.completions.create(
         model=model,
@@ -301,7 +303,7 @@ def test_autogen():
         prompt=prompt,
         stream=True,
         max_tokens=4096,
-        extra_body=dict(use_autogen=True),
+        extra_body=dict(use_agent=True),
     )
 
     collected_events = []
