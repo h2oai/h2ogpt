@@ -70,7 +70,7 @@ def run_agent(query, agent_type=None,
         if autogen_venv_dir is None and 'autogen_venv_dir' in ret_dict and ret_dict['autogen_venv_dir']:
             autogen_venv_dir = ret_dict['autogen_venv_dir']
             if os.path.isdir(autogen_venv_dir):
-                if True or agent_verbose:
+                if agent_verbose:
                     print("Clean-up: Removing autogen_venv_dir: %s" % autogen_venv_dir)
                 shutil.rmtree(autogen_venv_dir)
 
