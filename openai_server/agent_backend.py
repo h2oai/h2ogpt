@@ -56,6 +56,7 @@ def run_agent(query, agent_type=None,
               autogen_timeout=None,
               autogen_cache_seed=None,
               autogen_venv_dir=None,
+              agent_code_writer_system_message=None,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
@@ -84,6 +85,7 @@ def run_autogen(query=None, agent_type=None,
                 autogen_timeout=None,
                 autogen_cache_seed=None,
                 autogen_venv_dir=None,
+                agent_code_writer_system_message=None,
                 agent_verbose=None) -> dict:
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
@@ -153,9 +155,10 @@ def run_autogen(query=None, agent_type=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    # The code writer agent's system message is to instruct the LLM on how to use
-    # the code executor in the code executor agent.
-    code_writer_system_message = """You are a helpful AI assistant.  Solve tasks using your coding and language skills.
+    if agent_code_writer_system_message is None:
+        # The code writer agent's system message is to instruct the LLM on how to use
+        # the code executor in the code executor agent.
+        agent_code_writer_system_message = """You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 Query understanding instructions:
 * If the user directs you to do something (e.g. make a plot) do it via code generation.
 * If the user just asks a general knowledge question (e.g. who was the first president) code generation is optional.
@@ -190,7 +193,7 @@ Stopping instructions:
 
     code_writer_agent = ConversableAgent(
         "code_writer_agent",
-        system_message=code_writer_system_message,
+        system_message=agent_code_writer_system_message,
         llm_config={"config_list": [{"model": model,
                                      "api_key": api_key,
                                      "base_url": base_url,
@@ -268,6 +271,8 @@ Stopping instructions:
         ret_dict.update(dict(summary=chat_result.summary))
     if autogen_venv_dir is not None:
         ret_dict.update(dict(autogen_venv_dir=autogen_venv_dir))
+    if agent_code_writer_system_message is not None:
+        ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
 
     return ret_dict
 

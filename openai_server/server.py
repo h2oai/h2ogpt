@@ -169,6 +169,7 @@ class AgentParams(BaseModel):
     agent_verbose: bool = False
     autogen_cache_seed: int | None = None
     autogen_venv_dir: str | None = None
+    agent_code_writer_system_message: str | None = None
     agent_type: str | None = 'auto'
 
 
