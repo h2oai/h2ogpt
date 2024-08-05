@@ -3514,6 +3514,7 @@ def test_client_load_unload_models(model_choice):
     model_load_awq_ex = 'model' if 'AWQ' in model_choice else ''
     model_path_llama_ex = 'https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q5_K_M.gguf?download=true' if model_choice == 'llama' else ''
 
+    chat_template_ex = ''
     if model_choice == 'h2oai/h2ogpt-oig-oasst1-512-6_9b':
         prompt_type_ex = 'human_bot'
         chat_template_ex = """{% for message in messages %}{{ message.content }}{{ eos_token }}{% \n"'endfor %}"""
