@@ -1777,6 +1777,9 @@ def set_openai(inference_server, model_name=None):
 
 
 def get_model_name(model_name, openai_client):
+    if os.getenv('DISABLE_OPENAI_AUTO_MODEL_NAME', '0') == '1':
+        return model_name
+
     # override, required for lmdeploy
     # https://github.com/InternLM/lmdeploy/issues/1674
     # https://github.com/InternLM/lmdeploy/blob/e6468e7afda6b29d4c065f296a4e893b52bd33d5/lmdeploy/serve/proxy/proxy.py#L320
