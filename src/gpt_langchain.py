@@ -2511,6 +2511,8 @@ class GenerateStream:
                     result = ret.generations[0].message.content[-1]['input']
                 elif 'partial_json' in ret.generations[0].message.content[-1]:
                     result = json.loads(ret.generations[0].message.content[-1]['partial_json'])
+                else:
+                    result = {}
                 if isinstance(result, dict) and len(result) == 1 and 'properties' in result:
                     result = result['properties']
                 ret.generations[0].text = json.dumps(result)
