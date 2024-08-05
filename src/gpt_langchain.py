@@ -74,7 +74,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube, get_model_name
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -3191,12 +3191,7 @@ def get_llm(use_openai_model=False,
         model_kwargs.update(dict(seed=seed))
 
         if inf_type == 'vllm_chat':
-            # override, required for lmdeploy
-            # https://github.com/InternLM/lmdeploy/issues/1674
-            try:
-                model_name = openai_client.models.list().data[0].id
-            except Exception as e:
-                print("Failed to get model name from OpenAI client, using default", e)
+            model_name = get_model_name(model_name, openai_client)
 
         llm = cls(model_name=model_name,
                   temperature=temperature if do_sample else 0.0,

@@ -1776,6 +1776,23 @@ def set_openai(inference_server, model_name=None):
         return client, async_client, inf_type, deployment_type, base_url, api_version, api_key
 
 
+def get_model_name(model_name, openai_client):
+    # override, required for lmdeploy
+    # https://github.com/InternLM/lmdeploy/issues/1674
+    # https://github.com/InternLM/lmdeploy/blob/e6468e7afda6b29d4c065f296a4e893b52bd33d5/lmdeploy/serve/proxy/proxy.py#L320
+    # https://lmdeploy.readthedocs.io/en/latest/serving/api_server.html#restful-api
+    try:
+        model_names = openai_client.models.list().data
+        if len(model_names) == 1:
+            model_name = openai_client.models.list().data[0].id
+        else:
+            print("Too few or too many models in list so do not know which to chose: given: %s list: %s" % (
+                model_name, model_names))
+    except Exception as e:
+        print("Failed to get model name from OpenAI client, using default", e)
+    return model_name
+
+
 def get_list_or_str(x):
     if isinstance(x, list):
         return x

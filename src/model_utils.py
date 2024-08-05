@@ -990,7 +990,7 @@ def get_model(
                 print("Can't get native Mistral tokenizer for %s: %s" % (base_model, str(e)))
                 tokenizer = None
             if tokenizer is None:
-                tokenizer = FakeTokenizer(model_max_length=max_seq_len - 1000, is_hf=True,
+                tokenizer = FakeTokenizer(model_max_length=max_seq_len - 1500, is_hf=True,
                                           tokenizer=AutoTokenizer.from_pretrained('mistralai/Mistral-7B-Instruct-v0.2',
                                                                                   token=use_auth_token,
                                                                                   trust_remote_code=trust_remote_code,
