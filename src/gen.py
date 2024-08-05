@@ -84,7 +84,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
     have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, get_json, \
-    get_docs_tokens, deduplicate_names, have_autogen
+    get_docs_tokens, deduplicate_names, have_autogen, get_model_name
 
 start_faulthandler()
 import_matplotlib()
@@ -3505,14 +3505,7 @@ def evaluate(
 
                     # JSON: https://platform.openai.com/docs/guides/text-generation/json-mode
                     if inf_type == 'vllm_chat':
-                        # https://github.com/InternLM/lmdeploy/blob/e6468e7afda6b29d4c065f296a4e893b52bd33d5/lmdeploy/serve/proxy/proxy.py#L320
-                        # https://lmdeploy.readthedocs.io/en/latest/serving/api_server.html#restful-api
-                        try:
-                            model_name = openai_client.models.list().data[0].id
-                        except Exception as e:
-                            print("Failed to get model name from OpenAI client, using default", e)
-                            # together.ai
-                            model_name = base_model
+                        model_name = get_model_name(base_model, openai_client)
                     else:
                         model_name = base_model
                     responses = openai_client.chat.completions.create(
