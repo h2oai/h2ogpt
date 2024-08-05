@@ -56,6 +56,7 @@ def run_agent(query, agent_type=None,
               autogen_timeout=None,
               autogen_cache_seed=None,
               autogen_venv_dir=None,
+              agent_code_writer_system_message=None,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
@@ -84,6 +85,7 @@ def run_autogen(query=None, agent_type=None,
                 autogen_timeout=None,
                 autogen_cache_seed=None,
                 autogen_venv_dir=None,
+                agent_code_writer_system_message=None,
                 agent_verbose=None) -> dict:
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
@@ -153,14 +155,21 @@ def run_autogen(query=None, agent_type=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    # The code writer agent's system message is to instruct the LLM on how to use
-    # the code executor in the code executor agent.
-    code_writer_system_message = """You are a helpful AI assistant.
-Solve tasks using your coding and language skills.
+    if agent_code_writer_system_message is None:
+        # The code writer agent's system message is to instruct the LLM on how to use
+        # the code executor in the code executor agent.
+        agent_code_writer_system_message = """You are a helpful AI assistant.  Solve tasks using your coding and language skills.
+Query understanding instructions:
+* If the user directs you to do something (e.g. make a plot) do it via code generation.
+* If the user just asks a general knowledge question (e.g. who was the first president) code generation is optional.
+* If it is not clear whether the user directed you to do something, then assume they are directing you and do it via code generation.
+Task solving instructions:
+* Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
+Code generation instructions:
 In the following cases, suggest python code (in a python coding block) or shell script (in a sh coding block) for the user to execute.
-1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
-2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
-Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
+* When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
+* When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
+* Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task.
 General instructions:
 * When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
 * If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
@@ -184,7 +193,7 @@ Stopping instructions:
 
     code_writer_agent = ConversableAgent(
         "code_writer_agent",
-        system_message=code_writer_system_message,
+        system_message=agent_code_writer_system_message,
         llm_config={"config_list": [{"model": model,
                                      "api_key": api_key,
                                      "base_url": base_url,
@@ -262,6 +271,8 @@ Stopping instructions:
         ret_dict.update(dict(summary=chat_result.summary))
     if autogen_venv_dir is not None:
         ret_dict.update(dict(autogen_venv_dir=autogen_venv_dir))
+    if agent_code_writer_system_message is not None:
+        ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
 
     return ret_dict
 
