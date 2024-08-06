@@ -1,8 +1,12 @@
 import os
 import time
+
+import pytest
+
 from tests.utils import wrap_test_forked
 
 
+@pytest.mark.skip  # no longer use
 @wrap_test_forked
 def test_llava_client2():
     file = "models/wizard.jpg"
@@ -13,6 +17,7 @@ def test_llava_client2():
     assert 'pumpkins' in res or 'glowing' in res
 
 
+@pytest.mark.skip  # no longer use
 @wrap_test_forked
 def test_llava_client_stream():
     file = "models/wizard.jpg"

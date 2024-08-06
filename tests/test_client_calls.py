@@ -5303,13 +5303,14 @@ def test_client1_image_qa_original():
     sys.modules.pop('langchain', None)
 
     from src.gen import main
-    assert os.getenv('H2OGPT_LLAVA_MODEL'), "Missing env"
-    llava_model = os.getenv('H2OGPT_LLAVA_MODEL')
+    assert os.getenv('H2OGPT_VISION_MODEL'), "Missing env"
+    vision_model = os.getenv('H2OGPT_VISION_MODEL')
+    vision_model = ast.literal_eval(vision_model)
+    vision_model = vision_model[0]
     main(
         model_lock=[{'base_model': 'llama', 'model_path_llama': 'zephyr-7b-beta.Q5_K_M.gguf', 'prompt_type': 'zephyr'},
-                    {'base_model': 'liuhaotian/llava-v1.6-34b', 'inference_server': llava_model,
-                     'prompt_type': noop_prompt_type}],
-        llava_model=llava_model,
+                    vision_model],
+        llava_model=None,
         gradio=True, num_beams=1, block_gradio_exit=False,
     )
 
@@ -5321,7 +5322,7 @@ def test_client1_image_qa_original():
     image_file = 'tests/driverslicense.jpeg'
     from src.vision.utils_vision import img_to_base64
     image_file = img_to_base64(image_file)
-    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models='liuhaotian/llava-v1.6-34b',
+    kwargs = dict(instruction_nochat=prompt, image_file=image_file, visible_models=vision_model['base_model'],
                   stream_output=False)
     res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
 
