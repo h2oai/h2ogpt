@@ -6383,6 +6383,7 @@ def go_gradio(**kwargs):
                           )
 
         if kwargs['openai_server']:
+            time.sleep(5)
             if verbose:
                 print("Starting up OpenAI proxy server")
             if kwargs['openai_workers'] == 1:
@@ -6395,6 +6396,7 @@ def go_gradio(**kwargs):
                 )
 
         if kwargs['function_server']:
+            time.sleep(5)
             if verbose:
                 print("Starting up Function server")
             if kwargs['function_server_workers'] == 1:
@@ -6407,6 +6409,7 @@ def go_gradio(**kwargs):
                 )
 
         if kwargs['agent_server']:
+            time.sleep(5)
             if verbose:
                 print("Starting up Agent proxy server")
             if kwargs['agent_workers'] == 1:

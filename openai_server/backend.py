@@ -100,10 +100,11 @@ def get_gradio_client(user=None):
         if concurrent_client:
             client.setup()
     else:
-        print("Getting non-user gradio client at %s" % gradio_url, flush=True)
+        print("BEGIN: Getting non-user gradio client at %s" % gradio_url, flush=True)
         client = Client(gradio_url)
         if concurrent_client:
             client.setup()
+        print("END: getting non-user gradio client at %s" % gradio_url, flush=True)
     return client
 
 
@@ -111,15 +112,20 @@ def get_gradio_client(user=None):
 client_lock = threading.Lock()
 
 print("global gradio_client", file=sys.stderr)
-gradio_client = get_gradio_client()
+gradio_client_list = [None]
 
 
 def get_client(user=None):
     # concurrent gradio client
+    with client_lock:
+        gradio_client = gradio_client_list[-1]
     if gradio_client is None or user is not None:
         print("Getting fresh client: %s" % str(user), file=sys.stderr)
         # assert user is not None, "Need user set to username:password"
         client = get_gradio_client(user=user)
+        if user is None:
+            with client_lock:
+                gradio_client_list[0] = client
     elif hasattr(gradio_client, 'clone'):
         print("gradio_client.auth=%s" % str(gradio_client.auth), file=sys.stderr)
         client = gradio_client.clone()
@@ -156,7 +162,7 @@ def get_client(user=None):
                 # transfer internals in case used
                 gradio_client.server_hash = client.server_hash
                 gradio_client.chat_conversation = client.chat_conversation
-
+                gradio_client_list[0] = gradio_client
     else:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.",
