@@ -13,7 +13,6 @@ from collections import deque
 import numpy as np
 
 from log import logger
-from openai_server.agent_backend import get_agent_response
 from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
 
 
@@ -315,6 +314,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     token_count = count_tokens(instruction)
     if use_agent:
+        from openai_server.agent_backend import get_agent_response
         generator = get_agent_response(instruction, gen_kwargs, chunk_response=stream_output,
                                        stream_output=stream_output)
     else:
@@ -400,6 +400,7 @@ def completions_action(body: dict, stream_output=False):
             total_prompt_token_count += token_count
 
             if use_agent:
+                from openai_server.agent_backend import get_agent_response
                 response, ret = get_last_and_return_value(get_agent_response(prompt, gen_kwargs))
             else:
                 response, ret = get_last_and_return_value(get_response(prompt, gen_kwargs))
@@ -460,6 +461,7 @@ def completions_action(body: dict, stream_output=False):
             return chunk
 
         if use_agent:
+            from openai_server.agent_backend import get_agent_response
             generator = get_agent_response(prompt, gen_kwargs, chunk_response=stream_output,
                                            stream_output=stream_output)
         else:
