@@ -77,7 +77,7 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, no_model_str, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
     is_json_model, is_vision_model, \
     model_state_none0, other_model_state_defaults0, image_batch_image_prompt0, image_batch_final_prompt0, \
-    tokens_per_image
+    tokens_per_image, openai_supports_functiontools, openai_supports_parallel_functiontools
 
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, \
@@ -2331,7 +2331,7 @@ def main(
         for xi, x in enumerate(model_states)]
     [x.update(
         dict(display_name=x.get('display_name', all_possible_display_names[xi]) or all_possible_display_names[xi])) for
-     xi, x in enumerate(model_states)]
+        xi, x in enumerate(model_states)]
     # dedup display names
     all_possible_display_names = [x['display_name'] for x in model_states]
     display_names = deduplicate_names([x for x in all_possible_display_names])
@@ -2932,7 +2932,10 @@ def evaluate(
             try:
                 guided_json = guided_json_properties = json.loads(guided_json)
             except (json.decoder.JSONDecodeError, TypeError):
-                guided_json = guided_json_properties = {}
+                try:
+                    guided_json = guided_json_properties = ast.literal_eval(guided_json)
+                except:
+                    guided_json = guided_json_properties = {}
         else:
             guided_json = guided_json_properties = guided_json or {}
         assert isinstance(guided_json_properties, dict), "guided_json_properties must be dict by now"
@@ -2956,11 +2959,17 @@ def evaluate(
         schema_instruction = json_schema_instruction.format(properties_schema=guided_json_properties_json)
 
         pre_instruction = ''
-        if guided_json and response_format == 'json_object' and (json_vllm or
-                                                                 inference_server and inference_server.startswith(
-                    'anthropic') and
-                                                                 is_json_model(base_model, inference_server,
-                                                                               json_vllm=json_vllm)):
+        supports_schema = guided_json and response_format == 'json_object' and is_json_model(base_model,
+                                                                                             inference_server,
+                                                                                             json_vllm=json_vllm)
+        supports_schema &= json_vllm or \
+                           inference_server and \
+                           any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat']) and \
+                           base_model in openai_supports_functiontools + openai_supports_parallel_functiontools or \
+                           inference_server and \
+                           inference_server.startswith('anthropic')
+
+        if supports_schema:
             # for vLLM or claude-3, support schema if given
             # can't give schema both in prompt and tool/guided_json, messes model up
             if json_vllm:

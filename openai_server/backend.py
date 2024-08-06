@@ -1,8 +1,10 @@
 import ast
 import base64
 import io
+import json
 import os
 import platform
+import re
 import sys
 import threading
 import time
@@ -272,6 +274,27 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         yield res['response']
 
 
+# Regular expression to match dictionaries with nested curly braces
+pattern_split_dicts = re.compile(r'({[^{}]*({[^{}]*})*[^{}]*})')
+
+
+def split_concatenated_dicts(concatenated_dicts: str):
+    # Find all matches in the concatenated string
+    matches = pattern_split_dicts.findall(concatenated_dicts)
+
+    if len(matches) == 1 and matches[0][0] == concatenated_dicts.strip():
+        # The input is a single dictionary, not concatenated
+        return [ast.literal_eval(concatenated_dicts)]
+
+    # Extract the actual dictionary strings from the matches
+    dict_strings = [match[0] for match in matches]
+
+    # Convert dictionary strings to actual dictionaries
+    dicts = [ast.literal_eval(d) for d in dict_strings]
+
+    return dicts
+
+
 def chat_completion_action(body: dict, stream_output=False) -> dict:
     messages = body.get('messages', [])
     object_type = 'chat.completions' if not stream_output else 'chat.completions.chunk'
@@ -296,6 +319,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     def chat_streaming_chunk(content):
         # begin streaming
+        msg1 = {'role': 'assistant', 'content': content}
+        if gen_kwargs.get('guided_json', {}):
+            contents = split_concatenated_dicts(msg1['content'])
+            msg1['tool_calls'] = [dict(function=dict(name=gen_kwargs['tool_choice'], arguments=json.dumps(x))) for x in contents]
         chunk = {
             "id": req_id,
             "object": object_type,
@@ -304,8 +331,8 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
             resp_list: [{
                 "index": 0,
                 "finish_reason": None,
-                "message": {'role': 'assistant', 'content': content},
-                "delta": {'role': 'assistant', 'content': content},
+                "message": msg1,
+                "delta": msg1,
             }],
         }
         return chunk
@@ -359,6 +386,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
         yield chunk
     else:
+        msg1 = {"role": "assistant", "content": answer}
+        if gen_kwargs.get('guided_json', {}):
+            contents = split_concatenated_dicts(msg1['content'])
+            msg1['tool_calls'] = [dict(function=dict(name=gen_kwargs['tool_choice'], arguments=json.dumps(x))) for x in contents]
         resp = {
             "id": req_id,
             "object": object_type,
@@ -367,7 +398,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
             resp_list: [{
                 "index": 0,
                 "finish_reason": stop_reason,
-                "message": {"role": "assistant", "content": answer}
+                "message": msg1,
             }],
             "usage": usage
         }

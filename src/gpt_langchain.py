@@ -66,6 +66,7 @@ from image_utils import fix_image_file, get_image_types, get_image_file
 from output_parser import H2OPythonMRKLOutputParser
 from pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
 from src.h2oai_pipeline import H2OTextGenerationPipeline
+from src.langchain_openai import H2OBaseChatOpenAI, H2OBaseAzureChatOpenAI
 from stopping import update_terminate_responses
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
@@ -84,7 +85,8 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     geminiimage_num_max, claude3image_num_max, gpt4image_num_max, llava_num_max, summary_prefix, extract_prefix, \
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
-    is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag
+    is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag, \
+    openai_supports_functiontools, openai_supports_parallel_functiontools
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -2048,8 +2050,7 @@ class H2OHuggingFaceTextGenInference(AGenerateStreamFirst, H2Oagenerate, Hugging
         # return _get_token_ids_default_method(text)
 
 
-from langchain_community.chat_models import ChatOpenAI, AzureChatOpenAI
-from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2
+from langchain_community.chat_models import ChatAnthropic as ChatAnthropic2, ChatOpenAI
 from langchain_anthropic import ChatAnthropic as ChatAnthropic3
 from langchain_community.llms import OpenAI, AzureOpenAI, Replicate
 from langchain_together import ChatTogether
@@ -2652,7 +2653,7 @@ class GenerateStream2:
         return rets
 
 
-class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpenAI):
+class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, H2OBaseChatOpenAI, ChatOpenAI):
     tokenizer: Any = None  # for vllm_chat
     system_prompt: Any = None
     chat_conversation: Any = []
@@ -2672,7 +2673,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatOpe
             return super().get_token_ids(text)
 
 
-class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, AzureChatOpenAI):
+class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, H2OBaseAzureChatOpenAI):
     system_prompt: Any = None
     chat_conversation: Any = []
     user_prompt_for_fake_system_prompt: Any = None
@@ -3106,6 +3107,23 @@ def get_llm(use_openai_model=False,
         else:
             vllm_extra_dict = {}
 
+        if guided_json.get('properties', {}).get('type', '') == 'function':
+            tools_openai = [
+                guided_json['properties']
+            ]
+        else:
+            tools_openai = [
+                {"type": "function",
+                 "function": {
+                     "name": "JSON",
+                     "description": "Document, image, chat history conversion to strict JSON.",
+                     "parameters": guided_json,
+                 }
+                 }
+            ]
+        openai_model_supports_tools = model_name in openai_supports_functiontools + openai_supports_parallel_functiontools
+        openai_model_supports_json = is_json_model(model_name, inference_server)
+        openai_supports_json_or_tools = response_format == 'json_object' and openai_model_supports_json or openai_model_supports_tools and guided_json
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt,
                                      chat_conversation=chat_conversation,
@@ -3128,17 +3146,26 @@ def get_llm(use_openai_model=False,
                                          ))
                 model_kwargs.update(vllm_extra_dict)
             else:
-                if is_json_model(model_name, inference_server) and response_format == 'json_object':
-                    # Not vllm, guided_json not required
-                    kwargs_extra.update(dict(response_format=dict(type=response_format)))
+                if openai_supports_json_or_tools:
+                    if openai_model_supports_tools and guided_json:
+                        model_kwargs.update(dict(tools=tools_openai))
+                        # Not vllm, guided_json not required
+                        # ValueError: Error code: 400 - {'error': {'message': "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", 'type': 'invalid_request_error', 'param': 'messages', 'code': None}}
+                        kwargs_extra.update(dict(response_format=dict(type='text'), parallel_tool_calls=False))
+                    else:
+                        # Not vllm, guided_json not required
+                        kwargs_extra.update(dict(response_format=dict(type=response_format)))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
-            if 'response_format' not in azure_kwargs and \
-                    response_format == 'json_object' and \
-                    is_json_model(model_name, inference_server):
+            if 'response_format' not in azure_kwargs and openai_supports_json_or_tools:
                 # NOTE: not vllm, guided_json not required for json_object
                 # overrides doc_json_mode if set
-                azure_kwargs.update(dict(response_format=dict(type=response_format)))
+                if openai_model_supports_tools and guided_json:
+                    model_kwargs.update(dict(tools=tools_openai))
+                    # ValueError: Error code: 400 - {'error': {'message': "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", 'type': 'invalid_request_error', 'param': 'messages', 'code': None}}
+                    azure_kwargs.update(dict(response_format=dict(type='text')))#, parallel_tool_calls=False))
+                else:
+                    azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
                 dict(system_prompt=system_prompt,
                      chat_conversation=chat_conversation,
