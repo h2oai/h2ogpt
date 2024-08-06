@@ -152,6 +152,10 @@ def run(wait=True, **kwargs):
         # still launch function server as thread since no race for any envs
         as_thread = True
 
+    # has to stay as thread to avoid forking thread issues for gradio
+    # just deal with race via sleep
+    as_thread = True
+
     if kwargs.get('verbose', False):
         print(kwargs)
 

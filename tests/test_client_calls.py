@@ -5995,13 +5995,14 @@ close_vision_models = [
     'claude-3-haiku-20240307',
 ]
 open_vision_models = [
-    'liuhaotian/llava-v1.6-34b',
+    #'liuhaotian/llava-v1.6-34b',
     # 'HuggingFaceM4/idefics2-8b-chatty',
     # 'lmms-lab/llama3-llava-next-8b',
     'OpenGVLab/InternVL-Chat-V1-5',
-    'OpenGVLab/InternVL2-26B',
+    #'OpenGVLab/InternVL2-26B',
     # 'THUDM/cogvlm2-llama3-chat-19B',
     'microsoft/Phi-3-vision-128k-instruct',
+    'OpenGVLab/InternVL2-Llama3-76B',
 ]
 
 vision_models = close_vision_models + open_vision_models
@@ -6221,12 +6222,12 @@ def test_get_image_file():
                                       images_num_max=2)) == 2
 
 
-gpt_models = ['mistralai/Mixtral-8x7B-Instruct-v0.1',
+gpt_models = ['mistralai/Mixtral-8x7B-Instruct-v0.3',
               'gpt-3.5-turbo-0613',
               'mistralai/Mistral-7B-Instruct-v0.3',
-              'NousResearch/Nous-Capybara-34B',
+              #'NousResearch/Nous-Capybara-34B',
               # 'liuhaotian/llava-v1.6-vicuna-13b',
-              # 'liuhaotian/llava-v1.6-34b',
+              ## 'liuhaotian/llava-v1.6-34b',
               'h2oai/h2o-danube-1.8b-chat',
               ]
 
@@ -6277,9 +6278,9 @@ TEST_CHOICE = [
     "Swift", "Kotlin"
 ]
 
-other_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
-                     'NousResearch/Nous-Capybara-34B',
-                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
+other_base_models = [#'mistralai/Mistral-7B-Instruct-v0.3',
+                     #'NousResearch/Nous-Capybara-34B',
+                     #'mistralai/Mixtral-8x7B-Instruct-v0.1',
                      'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
                      # 'gpt-4-turbo-2024-04-09',
                      'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
@@ -6289,22 +6290,25 @@ other_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
                      'claude-3-haiku-20240307', 'gemini-pro',
                      'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-                     'h2oai/h2o-danube2-1.8b-chat',
                      'mixtral-8x7b-32768',
                      # 'liuhaotian/llava-v1.6-vicuna-13b',
-                     'liuhaotian/llava-v1.6-34b',
+                     #'liuhaotian/llava-v1.6-34b',
                      # 'HuggingFaceM4/idefics2-8b-chatty',
                      # 'lmms-lab/llama3-llava-next-8b',
                      'OpenGVLab/InternVL-Chat-V1-5',
                      'OpenGVLab/InternVL2-26B',
                      # 'THUDM/cogvlm2-llama3-chat-19B',
-                     'microsoft/Phi-3-vision-128k-instruct',
                      ]
 
 vllm_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
-                    'NousResearch/Nous-Capybara-34B',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',
+                    'h2oai/h2o-danube3-4b-chat',
+                     'meta-llama/Meta-Llama-3.1-70B-Instruct',
+                     'meta-llama/Meta-Llama-3.1-8B-Instruct',
+                     'meta-llama/Meta-Llama-3.1-405B-Instruct-FP8',
+                     'h2oai/h2o-danube2-1.8b-chat',
+                     'microsoft/Phi-3-vision-128k-instruct',
                     ]
 
 
