@@ -1483,7 +1483,7 @@ def check_source(docs, test_file1):
 @pytest.mark.parametrize("image_file", ['./models/anthropic.png', 'data/pexels-evg-kowalievska-1170986_small.jpg'])
 @pytest.mark.parametrize("db_type", db_types)
 @wrap_test_forked
-def test_llava_add(image_file, db_type):
+def test_caption_add(image_file, db_type):
     kill_weaviate(db_type)
     from src.make_db import make_db_main
     with tempfile.TemporaryDirectory() as tmp_persist_directory:
@@ -1496,7 +1496,7 @@ def test_llava_add(image_file, db_type):
                                                fail_any_exception=True, db_type=db_type,
                                                add_if_exists=False,
                                                enable_llava=True,
-                                               llava_model=os.getenv('H2OGPT_LLAVA_MODEL', 'http://192.168.1.46:7861'),
+                                               llava_model=os.getenv('H2OGPT_LLAVA_MODEL'),
                                                llava_prompt=None,
                                                enable_doctr=False,
                                                enable_captions=False,
