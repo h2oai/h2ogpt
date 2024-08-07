@@ -3311,7 +3311,7 @@ def go_gradio(**kwargs):
                 text_outputs1_copy = deepcopy_by_pickle_object(text_outputs1)
                 # try to fix
                 text_outputs1 = [None] * num_model_lock
-                for i in range (num_model_lock):
+                for i in range(num_model_lock):
                     if len(text_outputs1_copy) > 0:
                         text_outputs1[i] = text_outputs1_copy.pop(0)
                         # check for extra empty conversations and remove
@@ -5769,6 +5769,9 @@ def go_gradio(**kwargs):
             for model_state3 in local_model_states:
                 base_model = model_state3.get('base_model', '')
                 inference_server = model_state3.get('inference_server', '')
+                inference_server_split = inference_server.split(':')
+                inference_server_type = inference_server_split[0].strip() if len(
+                    inference_server_split) > 0 else inference_server
                 model_state3['llm'] = True
                 model_state3['rag'] = True
                 model_state3['image'] = model_state3.get('is_vision_model', False)
@@ -5778,8 +5781,10 @@ def go_gradio(**kwargs):
                 model_state3['json'] = model_state3.get('json', False)
                 model_state3['guided_vllm'] = model_state3.get('guided_vllm', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
+                model_state3['inference_server_type'] = inference_server_type
 
-            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict', 'chat_template'] + list(
+            key_list = ['display_name', 'base_model', 'inference_server_type',
+                        'prompt_type', 'prompt_dict', 'chat_template'] + list(
                 kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
