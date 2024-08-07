@@ -68,7 +68,7 @@ from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, Lang
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
     LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
     summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0, noneset, \
-    is_vision_model, is_video_model, is_json_model
+    is_vision_model, is_video_model, is_json_model, strict_schema_inf_types, strict_schema_model_bads
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -3311,7 +3311,7 @@ def go_gradio(**kwargs):
                 text_outputs1_copy = deepcopy_by_pickle_object(text_outputs1)
                 # try to fix
                 text_outputs1 = [None] * num_model_lock
-                for i in range (num_model_lock):
+                for i in range(num_model_lock):
                     if len(text_outputs1_copy) > 0:
                         text_outputs1[i] = text_outputs1_copy.pop(0)
                         # check for extra empty conversations and remove
@@ -5769,6 +5769,17 @@ def go_gradio(**kwargs):
             for model_state3 in local_model_states:
                 base_model = model_state3.get('base_model', '')
                 inference_server = model_state3.get('inference_server', '')
+                inference_server_split = inference_server.split(':')
+                inference_server_type = inference_server_split[0].strip() if len(
+                    inference_server_split) > 0 else inference_server
+                from gradio_utils.grclient import GradioClient
+                if isinstance(model_state3.get('model', ''), GradioClient):
+                    inference_server_type = 'gradio'
+                    if model_state3.get('prompt_type', '') or '' == 'openai_chat':
+                        inference_server_type = 'gradio_to_openai_chat'
+                    elif model_state3.get('prompt_type', '') or '' == 'openai':
+                        inference_server_type = 'gradio_to_openai'
+                # could be TGI, but then will show up as http(s).
                 model_state3['llm'] = True
                 model_state3['rag'] = True
                 model_state3['image'] = model_state3.get('is_vision_model', False)
@@ -5778,8 +5789,14 @@ def go_gradio(**kwargs):
                 model_state3['json'] = model_state3.get('json', False)
                 model_state3['guided_vllm'] = model_state3.get('guided_vllm', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
-
-            key_list = ['display_name', 'base_model', 'prompt_type', 'prompt_dict', 'chat_template'] + list(
+                model_state3['inference_server_type'] = inference_server_type
+                model_state3['strict_json_schema'] = model_state3.get('guided_vllm', False) or \
+                                                     inference_server_type in strict_schema_inf_types
+                if base_model and base_model in strict_schema_model_bads:
+                    model_state3['strict_json_schema'] = False
+            key_list = ['display_name', 'base_model', 'inference_server_type',
+                        'strict_json_schema',
+                        'prompt_type', 'prompt_dict', 'chat_template'] + list(
                 kwargs['other_model_state_defaults'].keys())
             # don't want to expose backend inference server IP etc.
             # key_list += ['inference_server']
