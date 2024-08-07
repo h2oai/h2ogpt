@@ -5772,6 +5772,14 @@ def go_gradio(**kwargs):
                 inference_server_split = inference_server.split(':')
                 inference_server_type = inference_server_split[0].strip() if len(
                     inference_server_split) > 0 else inference_server
+                from gradio_utils.grclient import GradioClient
+                if isinstance(model_state3.get('model', ''), GradioClient):
+                    inference_server_type = 'gradio'
+                    if model_state3.get('prompt_type', '') or '' == 'openai_chat':
+                        inference_server_type = 'gradio_to_openai_chat'
+                    elif model_state3.get('prompt_type', '') or '' == 'openai':
+                        inference_server_type = 'gradio_to_openai'
+                # could be TGI, but then will show up as http(s).
                 model_state3['llm'] = True
                 model_state3['rag'] = True
                 model_state3['image'] = model_state3.get('is_vision_model', False)
