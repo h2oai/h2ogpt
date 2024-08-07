@@ -3240,10 +3240,10 @@ def get_llm(use_openai_model=False,
             model_kwargs = dict(tools=[
                 {
                     "name": "JSON",
-                    "description": "Document, image, chat history conversion to strict JSON.",
+                    "description": "Document, image, chat history conversion to strict JSON.  This tool must be used, do not just answer the question from context.",
                     "input_schema": guided_json,
                 }
-            ])
+            ], tool_choice = {"type": "tool", "name": "JSON"})
         else:
             model_kwargs = {}
         kwargs_extra = {}
@@ -7059,7 +7059,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             inference_server.startswith('anthropic') and \
             is_json_model(model_name, inference_server) and \
             guided_json and response_format == 'json_object':
-        extra = '\n\nUse the `JSON` tool.  Do not respond with thinking, just use the tool right away.\n'
+        extra = '\n\nYou must use the `JSON` tool, even if the answer seems obvious.  Do not respond with thinking, you must use the tool right away.\n'
         if query_action:
             query += extra
         prompt_summary += extra
