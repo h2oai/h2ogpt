@@ -64,14 +64,18 @@ class H2OBaseChatOpenAI:
             cg_chunk = ChatGenerationChunk(
                 message=chunk, generation_info=generation_info
             )
-            if 'tools' in self.model_kwargs and self.model_kwargs['tools']:
-                if 'tool_calls' in cg_chunk.message.additional_kwargs:
-                    cg_chunk.message.content = cg_chunk.text = cg_chunk.message.additional_kwargs['tool_calls'][0]['function']['arguments']
-                else:
-                    cg_chunk.text = ''
+            cg_chunk = self.mod_cg_chunk(cg_chunk)
             if run_manager:
                 run_manager.on_llm_new_token(cg_chunk.text, chunk=cg_chunk)
             yield cg_chunk
+
+    def mod_cg_chunk(self, cg_chunk: ChatGenerationChunk) -> ChatGenerationChunk:
+        if 'tools' in self.model_kwargs and self.model_kwargs['tools']:
+            if 'tool_calls' in cg_chunk.message.additional_kwargs:
+                cg_chunk.message.content = cg_chunk.text = cg_chunk.message.additional_kwargs['tool_calls'][0]['function']['arguments']
+            else:
+                cg_chunk.text = ''
+        return cg_chunk
 
     def _generate(
         self,
@@ -104,6 +108,11 @@ class H2OBaseChatOpenAI:
             response = response.dict()
         for res in response["choices"]:
             message = convert_dict_to_message(res["message"])
+
+            if 'tools' in self.model_kwargs and self.model_kwargs['tools']:
+                if 'tool_calls' in message.additional_kwargs:
+                    message.content = ''.join([x['function']['arguments'] for x in message.additional_kwargs['tool_calls']])
+
             generation_info = dict(finish_reason=res.get("finish_reason"))
             if "logprobs" in res:
                 generation_info["logprobs"] = res["logprobs"]
@@ -150,6 +159,7 @@ class H2OBaseChatOpenAI:
             cg_chunk = ChatGenerationChunk(
                 message=chunk, generation_info=generation_info
             )
+            cg_chunk = self.mod_cg_chunk(cg_chunk)
             if run_manager:
                 await run_manager.on_llm_new_token(token=cg_chunk.text, chunk=cg_chunk)
             yield cg_chunk
