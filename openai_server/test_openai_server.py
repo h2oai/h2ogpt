@@ -543,7 +543,7 @@ def test_tool_use():
 
     model1 = 'gpt-4o'
     client = OpenAI(base_url='http://localhost:5000/v1', api_key='EMPTY')
-    # client = OpenAI()
+    #client = OpenAI()
 
     # Example dummy function hard coded to return the same weather
     # In production, this could be your backend API or an external API
@@ -624,7 +624,8 @@ def test_tool_use():
                 model=model,
                 messages=messages,
             )  # get a new response from the model where it can see the function response
-            return second_response
+            print(second_response)
+            return second_response.choices[0].message.content
 
     print(run_conversation(model1))
 

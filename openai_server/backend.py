@@ -322,7 +322,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         msg1 = {'role': 'assistant', 'content': content}
         if gen_kwargs.get('guided_json', {}):
             contents = split_concatenated_dicts(msg1['content'])
-            msg1['tool_calls'] = [dict(function=dict(name=gen_kwargs['tool_choice'], arguments=json.dumps(x))) for x in contents]
+            msg1['tool_calls'] = [
+                dict(function=dict(name=gen_kwargs['tool_choice'], arguments=json.dumps(x)), id=str(uuid.uuid4())) for x
+                in
+                contents]
         chunk = {
             "id": req_id,
             "object": object_type,
@@ -389,7 +392,9 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         msg1 = {"role": "assistant", "content": answer}
         if gen_kwargs.get('guided_json', {}):
             contents = split_concatenated_dicts(msg1['content'])
-            msg1['tool_calls'] = [dict(function=dict(name=gen_kwargs['tool_choice'], arguments=json.dumps(x))) for x in contents]
+            msg1['tool_calls'] = [
+                dict(function=dict(name=gen_kwargs['tool_choice'], arguments=json.dumps(x)), id=str(uuid.uuid4())) for x
+                in contents]
         resp = {
             "id": req_id,
             "object": object_type,

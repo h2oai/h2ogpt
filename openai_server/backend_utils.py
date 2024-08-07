@@ -4,7 +4,7 @@ import typing
 import uuid
 
 
-def concatenate_assistant_messages(messages):
+def concatenate_messages(messages, role='assistant', sep='\n'):
     """
     # Function to concatenate back-to-back assistant messages
     :param messages:
@@ -13,16 +13,43 @@ def concatenate_assistant_messages(messages):
     concatenated_messages = []
     temp_message = ""
     for message in messages:
-        if message['role'] == 'assistant':
-            temp_message += message['content'] + " "
+        if message['role'] == role:
+            temp_message += message['content'] + sep
         else:
             if temp_message:
-                concatenated_messages.append({"role": "assistant", "content": temp_message})
+                concatenated_messages.append({"role": role, "content": temp_message})
                 temp_message = ""
             concatenated_messages.append(message)
     if temp_message:
-        concatenated_messages.append({"role": "assistant", "content": temp_message})
+        concatenated_messages.append({"role": role, "content": temp_message})
     return concatenated_messages
+
+
+def concat_tool_messages(messages):
+    # Initialize an empty list to hold the final messages
+    final_messages = []
+    # Initialize a variable to keep track of the most recent user message
+    last_user_message = None
+
+    for message in messages:
+        if message['role'] == 'user':
+            # Add the last user message to the final list (if it exists)
+            if last_user_message:
+                final_messages.append(last_user_message)
+            # Update the last user message
+            last_user_message = message
+        elif message['role'] == 'tool' and last_user_message:
+            # Concatenate the tool message content to the last user message content
+            last_user_message['content'] = f'# Tool result:\n"{message["content"]}"\n' + last_user_message['content']
+        else:
+            # For non-tool messages, just add them to the final list
+            final_messages.append(message)
+
+    # Ensure the final role is 'user'
+    if last_user_message:
+        final_messages.append(last_user_message)
+
+    return final_messages
 
 
 def convert_messages_to_structure(messages):
@@ -36,7 +63,9 @@ def convert_messages_to_structure(messages):
     tuple: A tuple containing the instruction, system_message, history, and image_files.
     """
 
-    # messages = concatenate_assistant_messages(messages)
+    # messages = concatenate_messages(messages, tole='assistant')
+    messages = concat_tool_messages(messages)
+    #messages = concatenate_messages(messages, role='tool')
 
     structure = {
         "instruction": None,
@@ -51,6 +80,10 @@ def convert_messages_to_structure(messages):
     # Remove None messages
     messages = [x for x in messages if x.get("content")]
 
+    # remove pure tool parts
+    # assume just part of tool processing, "tool" role will have results, put that as user context
+    messages = [x for x in messages if not x.get('tool_calls')]
+
     last_user_message = None
     previous_role = None
     for message in messages:
@@ -59,13 +92,13 @@ def convert_messages_to_structure(messages):
         content = message.get("content")
         assert content, "Missing content"
 
-        if previous_role == role:
+        if previous_role == role and role != 'tool':
             raise ValueError("Consecutive messages with the same role are not allowed: %s %s\n\n%s" % (
                 previous_role, role, messages))
         previous_role = role
 
-        if role == "function":
-            raise NotImplementedError("role: function not implemented")
+        if role in ["function", "tool"]:
+            continue
         elif role == "system" and structure["system_message"] is None:
             structure["system_message"] = content
         elif role == "user":

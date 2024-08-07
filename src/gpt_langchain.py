@@ -3107,11 +3107,11 @@ def get_llm(use_openai_model=False,
         else:
             vllm_extra_dict = {}
 
-        if guided_json.get('properties', {}).get('type', '') == 'function':
+        if guided_json and guided_json.get('properties', {}).get('type', '') == 'function':
             tools_openai = [
                 guided_json['properties']
             ]
-        else:
+        elif guided_json:
             tools_openai = [
                 {"type": "function",
                  "function": {
@@ -3121,6 +3121,8 @@ def get_llm(use_openai_model=False,
                  }
                  }
             ]
+        else:
+            tools_openai = []
         openai_model_supports_tools = model_name in openai_supports_functiontools + openai_supports_parallel_functiontools
         openai_model_supports_json = is_json_model(model_name, inference_server)
         openai_supports_json_or_tools = response_format == 'json_object' and openai_model_supports_json or openai_model_supports_tools and guided_json
