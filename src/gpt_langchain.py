@@ -3364,7 +3364,7 @@ def get_llm(use_openai_model=False,
                     }
                 }
             ],
-                # tool_choice='any'
+                tool_choice='any',  # if model_name not in ['mistral-medium', 'mistral-tiny', 'mistral-small-latest'] else 'auto'
             )
         else:
             model_kwargs = {}
