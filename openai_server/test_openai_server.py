@@ -543,7 +543,8 @@ def test_tool_use():
 
     model1 = 'gpt-4o'
     client = OpenAI(base_url='http://localhost:5000/v1', api_key='EMPTY')
-    #client = OpenAI()
+
+    # client = OpenAI()
 
     # Example dummy function hard coded to return the same weather
     # In production, this could be your backend API or an external API
@@ -552,7 +553,8 @@ def test_tool_use():
         if "tokyo" in location.lower():
             return json.dumps({"location": "Tokyo", "temperature": "10", "unit": unit})
         elif "san francisco" in location.lower():
-            return json.dumps({"location": "San Francisco", "temperature": "72", "unit": unit})
+            return json.dumps(
+                {"location": "San Francisco", "temperature": "72" if unit == "fahrenheit" else "25", "unit": unit})
         elif "paris" in location.lower():
             return json.dumps({"location": "Paris", "temperature": "22", "unit": unit})
         else:
@@ -576,7 +578,7 @@ def test_tool_use():
                             },
                             "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
                         },
-                        "required": ["location"],
+                        "required": ["location", "unit"],
                     },
                 },
             }
@@ -653,13 +655,19 @@ What's the weather like in San Francisco, Tokyo, and Paris?
 Choose the single tool that best solves the task inferred from the prompt.  Never choose more than one tool, i.e. act like parallel_tool_calls=False.  If no tool is a good fit, then only choose the noop tool.
 """
     messages = [{"role": "user", "content": prompt}]
-    tools = [{'type': 'function', 'function': {'name': 'get_current_weather', 'description': 'Get the current weather in a given location', 'parameters': {'type': 'object', 'properties': {'location': {'type': 'string', 'description': 'The city and state, e.g. San Francisco, CA'}, 'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']}}, 'required': ['location']}}}]
+    tools = [{'type': 'function',
+              'function': {'name': 'get_current_weather', 'description': 'Get the current weather in a given location',
+                           'parameters': {'type': 'object', 'properties': {'location': {'type': 'string',
+                                                                                        'description': 'The city and state, e.g. San Francisco, CA'},
+                                                                           'unit': {'type': 'string',
+                                                                                    'enum': ['celsius', 'fahrenheit']}},
+                                          'required': ['location']}}}]
 
     response = client.chat.completions.create(
         model=model,
         messages=messages,
         tools=tools,
-        #parallel_tool_calls=False,
+        # parallel_tool_calls=False,
         tool_choice="auto",  # auto is default, but we'll be explicit
     )
     response_message = response.choices[0].message
