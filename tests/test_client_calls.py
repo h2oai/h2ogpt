@@ -6287,6 +6287,7 @@ other_base_models = [#'mistralai/Mistral-7B-Instruct-v0.3',
                      #'gpt-4-1106-preview',
                      'gpt-35-turbo-1106',
                      # 'gpt-4-vision-preview',
+                     'gpt-4o',
                      #'claude-2.1',
                      'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
                      'claude-3-haiku-20240307',
@@ -6316,7 +6317,7 @@ vllm_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
 
 def get_test_server_client(base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    # inference_server = 'http://localhost:7860'
+    inference_server = 'http://localhost:7860'
     # inference_server = 'http://localhost:7863'
 
     if inference_server == 'https://gpt.h2o.ai':

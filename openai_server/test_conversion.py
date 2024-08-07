@@ -373,11 +373,12 @@ def test_concat_tool():
         {"role": "assistant", "content": "The weather today is sunny with a high of 75°F."}
     ]
 
-    assert concat_tool_messages(messages) == [
-        {'role': 'assistant', 'content': "I'm fine, thank you! How can I help you today?"},
-        {'role': 'user', 'content': 'Hello, how are you?'},
-        {'role': 'assistant', 'content': 'The weather today is sunny with a high of 75°F.'},
-        {'role': 'user', 'content': '# Tool result:\n"Fetching weather information..."\nCan you tell me the weather?'}]
+    assert concat_tool_messages(messages) == [{'role': 'user', 'content': 'Hello, how are you?'}, {'role': 'assistant',
+                                                                                                   'content': "I'm fine, thank you! How can I help you today?"},
+                                              {'role': 'user',
+                                               'content': '# Tool result:\nFetching weather information...\nCan you tell me the weather?'},
+                                              {'role': 'assistant',
+                                               'content': 'The weather today is sunny with a high of 75°F.'}]
 
     messages = [{'role': 'user', 'content': "What's the weather like in San Francisco, Tokyo, and Paris?"}, {
         'content': '{"location": "San Francisco, CA"}{"location": "Tokyo, Japan"}{"location": "Paris, France"}',
@@ -396,18 +397,20 @@ def test_concat_tool():
                  'content': '{"location": "Tokyo", "temperature": "10", "unit": null}'},
                 {'tool_call_id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1', 'role': 'tool', 'name': 'get_current_weather',
                  'content': '{"location": "Paris", "temperature": "22", "unit": null}'}]
-    assert concat_tool_messages(messages) == [
-        {'content': '{"location": "San Francisco, CA"}{"location": "Tokyo, Japan"}{"location": "Paris, France"}',
-         'role': 'assistant', 'tool_calls': [{'id': 'f6739655-137c-486f-98b8-0c98e012abcf',
-                                              'function': {'arguments': '{"location": "San Francisco, CA"}',
-                                                           'name': 'get_current_weather'}},
-                                             {'id': '0ba696dc-be9b-4bf1-8077-bdf9fc4ad2be',
-                                              'function': {'arguments': '{"location": "Tokyo, Japan"}',
-                                                           'name': 'get_current_weather'}},
-                                             {'id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1',
-                                              'function': {'arguments': '{"location": "Paris, France"}',
-                                                           'name': 'get_current_weather'}}]}, {'role': 'user',
-                                                                                               'content': '# Tool result:\n"{"location": "Paris", "temperature": "22", "unit": null}"\n# Tool result:\n"{"location": "Tokyo", "temperature": "10", "unit": null}"\n# Tool result:\n"{"location": "San Francisco", "temperature": "72", "unit": null}"\nWhat\'s the weather like in San Francisco, Tokyo, and Paris?'}]
+    assert concat_tool_messages(messages) == [{'role': 'user',
+                                               'content': '# Tool result:\n{"location": "San Francisco", "temperature": "72", "unit": null}\n\n# Tool result:\n{"location": "Tokyo", "temperature": "10", "unit": null}\n\n# Tool result:\n{"location": "Paris", "temperature": "22", "unit": null}\nWhat\'s the weather like in San Francisco, Tokyo, and Paris?'},
+                                              {
+                                                  'content': '{"location": "San Francisco, CA"}{"location": "Tokyo, Japan"}{"location": "Paris, France"}',
+                                                  'role': 'assistant', 'tool_calls': [
+                                                  {'id': 'f6739655-137c-486f-98b8-0c98e012abcf',
+                                                   'function': {'arguments': '{"location": "San Francisco, CA"}',
+                                                                'name': 'get_current_weather'}},
+                                                  {'id': '0ba696dc-be9b-4bf1-8077-bdf9fc4ad2be',
+                                                   'function': {'arguments': '{"location": "Tokyo, Japan"}',
+                                                                'name': 'get_current_weather'}},
+                                                  {'id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1',
+                                                   'function': {'arguments': '{"location": "Paris, France"}',
+                                                                'name': 'get_current_weather'}}]}]
 
     messages = [
         {"role": "user", "content": "Hello, how are you?"},
@@ -421,10 +424,20 @@ def test_concat_tool():
         {"role": "tool", "content": "News data retrieved."}
     ]
 
-    assert concat_tool_messages(messages) == [
-        {'role': 'assistant', 'content': "I'm fine, thank you! How can I help you today?"},
-        {'role': 'user', 'content': 'Hello, how are you?'},
-        {'role': 'assistant', 'content': 'The weather today is sunny with a high of 75°F.'}, {'role': 'user',
-                                                                                              'content': '# Tool result:\n"Weather data retrieved."\n# Tool result:\n"Fetching weather information..."\nCan you tell me the weather?'},
-        {'role': 'user',
-         'content': '# Tool result:\n"News data retrieved."\n# Tool result:\n"Fetching news..."\nWhat\'s the latest news?'}]
+    assert concat_tool_messages(messages) == [{'role': 'user', 'content': 'Hello, how are you?'}, {'role': 'assistant',
+                                                                                                   'content': "I'm fine, thank you! How can I help you today?"},
+                                              {'role': 'user',
+                                               'content': '# Tool result:\nFetching weather information...\n\n# Tool result:\nWeather data retrieved.\nCan you tell me the weather?'},
+                                              {'role': 'assistant',
+                                               'content': 'The weather today is sunny with a high of 75°F.'},
+                                              {'role': 'user',
+                                               'content': "# Tool result:\nFetching news...\n\n# Tool result:\nNews data retrieved.\nWhat's the latest news?"}]
+
+    messages = [{'role': 'system', 'content': 'you are a helpful assistant'},
+                {'role': 'user', 'content': 'Give an example employee profile.'}, {'role': 'assistant',
+                                                                                   'content': "{'name': 'John Doe', 'age': 30, 'skills': ['Java', 'SQL', 'Python'], 'workhistory': [{'company': 'Tech Solutions', 'duration': '2 years', 'position': 'Software Developer'}, {'company': 'Innovatech', 'duration': '3 years', 'position': 'Senior Developer'}]}"},
+                {'role': 'user',
+                 'content': 'Give me another example, ensure it has a totally different name and totally different age.'}]
+    assert concat_tool_messages(messages) == messages
+
+
