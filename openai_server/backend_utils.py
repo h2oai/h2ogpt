@@ -26,6 +26,9 @@ def concatenate_messages(messages, role='assistant', sep='\n'):
 
 
 def concat_tool_messages(messages):
+    if not messages:
+        return []
+
     final_messages = []
     current_user_message = None
     tool_contents = []
@@ -34,7 +37,7 @@ def concat_tool_messages(messages):
         if message['role'] == 'user':
             if current_user_message:
                 if tool_contents:
-                    tool_info = '\n'.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+                    tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
                     current_user_message['content'] = f"{tool_info}{current_user_message['content']}"
                     tool_contents = []
                 final_messages.append(current_user_message)
@@ -44,7 +47,7 @@ def concat_tool_messages(messages):
         else:
             if current_user_message:
                 if tool_contents:
-                    tool_info = '\n'.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+                    tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
                     current_user_message['content'] = f"{tool_info}{current_user_message['content']}"
                     tool_contents = []
                 final_messages.append(current_user_message)
@@ -54,21 +57,20 @@ def concat_tool_messages(messages):
     # Handle case where the last message(s) are tool messages
     if tool_contents:
         if current_user_message:
-            tool_info = '\n'.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+            tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
             current_user_message['content'] = f"{tool_info}{current_user_message['content']}"
             final_messages.append(current_user_message)
         else:
             # If there's no current user message, append to the last user message
             for i in range(len(final_messages) - 1, -1, -1):
                 if final_messages[i]['role'] == 'user':
-                    tool_info = '\n'.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+                    tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
                     final_messages[i]['content'] = f"{tool_info}{final_messages[i]['content']}"
                     break
     elif current_user_message:
         final_messages.append(current_user_message)
 
     return final_messages
-
 
 def convert_messages_to_structure(messages):
     """

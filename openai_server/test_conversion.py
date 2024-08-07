@@ -1,5 +1,8 @@
 import os
 import sys
+from typing import List, Dict
+
+import pytest
 
 sys.path.append('openai_server')
 from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages, \
@@ -398,7 +401,7 @@ def test_concat_tool():
                 {'tool_call_id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1', 'role': 'tool', 'name': 'get_current_weather',
                  'content': '{"location": "Paris", "temperature": "22", "unit": null}'}]
     assert concat_tool_messages(messages) == [{'role': 'user',
-                                               'content': '# Tool result:\n{"location": "San Francisco", "temperature": "72", "unit": null}\n\n# Tool result:\n{"location": "Tokyo", "temperature": "10", "unit": null}\n\n# Tool result:\n{"location": "Paris", "temperature": "22", "unit": null}\nWhat\'s the weather like in San Francisco, Tokyo, and Paris?'},
+                                               'content': '# Tool result:\n{"location": "San Francisco", "temperature": "72", "unit": null}\n# Tool result:\n{"location": "Tokyo", "temperature": "10", "unit": null}\n# Tool result:\n{"location": "Paris", "temperature": "22", "unit": null}\nWhat\'s the weather like in San Francisco, Tokyo, and Paris?'},
                                               {
                                                   'content': '{"location": "San Francisco, CA"}{"location": "Tokyo, Japan"}{"location": "Paris, France"}',
                                                   'role': 'assistant', 'tool_calls': [
@@ -427,11 +430,11 @@ def test_concat_tool():
     assert concat_tool_messages(messages) == [{'role': 'user', 'content': 'Hello, how are you?'}, {'role': 'assistant',
                                                                                                    'content': "I'm fine, thank you! How can I help you today?"},
                                               {'role': 'user',
-                                               'content': '# Tool result:\nFetching weather information...\n\n# Tool result:\nWeather data retrieved.\nCan you tell me the weather?'},
+                                               'content': '# Tool result:\nFetching weather information...\n# Tool result:\nWeather data retrieved.\nCan you tell me the weather?'},
                                               {'role': 'assistant',
                                                'content': 'The weather today is sunny with a high of 75°F.'},
                                               {'role': 'user',
-                                               'content': "# Tool result:\nFetching news...\n\n# Tool result:\nNews data retrieved.\nWhat's the latest news?"}]
+                                               'content': "# Tool result:\nFetching news...\n# Tool result:\nNews data retrieved.\nWhat's the latest news?"}]
 
     messages = [{'role': 'system', 'content': 'you are a helpful assistant'},
                 {'role': 'user', 'content': 'Give an example employee profile.'}, {'role': 'assistant',
@@ -441,3 +444,127 @@ def test_concat_tool():
     assert concat_tool_messages(messages) == messages
 
 
+@pytest.mark.parametrize("messages, expected", [
+    # Test case 1: Single user message, no tools
+    (
+            [{"role": "user", "content": "Hello"}],
+            [{"role": "user", "content": "Hello"}]
+    ),
+    # Test case 2: Alternating user and assistant messages
+    (
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there!"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "assistant", "content": "I'm doing well, thanks!"}
+            ],
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there!"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "assistant", "content": "I'm doing well, thanks!"}
+            ]
+    ),
+    # Test case 3: Single tool message between user messages
+    (
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "tool", "content": "Sunny, 25°C"},
+                {"role": "user", "content": "Thanks!"}
+            ],
+            [
+                {"role": "user", "content": "# Tool result:\nSunny, 25°C\nWhat's the weather?"},
+                {"role": "user", "content": "Thanks!"}
+            ]
+    ),
+    # Test case 4: Multiple tool messages between user messages
+    (
+            [
+                {"role": "user", "content": "Tell me about the weather and time."},
+                {"role": "tool", "content": "Weather: Sunny, 25°C"},
+                {"role": "tool", "content": "Time: 14:30"},
+                {"role": "user", "content": "Thanks!"}
+            ],
+            [
+                {"role": "user",
+                 "content": "# Tool result:\nWeather: Sunny, 25°C\n# Tool result:\nTime: 14:30\nTell me about the weather and time."},
+                {"role": "user", "content": "Thanks!"}
+            ]
+    ),
+    # Test case 5: Tool messages at the end
+    (
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "tool", "content": "Sunny, 25°C"},
+                {"role": "tool", "content": "High: 28°C, Low: 20°C"}
+            ],
+            [
+                {"role": "user",
+                 "content": "# Tool result:\nSunny, 25°C\n# Tool result:\nHigh: 28°C, Low: 20°C\nWhat's the weather?"}
+            ]
+    ),
+    # Test case 6: Tool messages at the beginning
+    (
+            [
+                {"role": "tool", "content": "System initialized"},
+                {"role": "tool", "content": "Ready for input"},
+                {"role": "user", "content": "Hello"}
+            ],
+            [
+                {"role": "user",
+                 "content": "# Tool result:\nSystem initialized\n# Tool result:\nReady for input\nHello"}
+            ]
+    ),
+    # Test case 7: Mix of user, assistant, and tool messages
+    (
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "assistant", "content": "Let me check that for you."},
+                {"role": "tool", "content": "Sunny, 25°C"},
+                {"role": "assistant", "content": "The weather is sunny and 25°C."},
+                {"role": "user", "content": "Thanks!"}
+            ],
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "assistant", "content": "Let me check that for you."},
+                {"role": "assistant", "content": "The weather is sunny and 25°C."},
+                {"role": "user", "content": "# Tool result:\nSunny, 25°C\nThanks!"}
+            ]
+    ),
+    # Test case 8: Multiple user messages without tools in between
+    (
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "user", "content": "What's the weather?"}
+            ],
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "user", "content": "What's the weather?"}
+            ]
+    ),
+    # Test case 9: Empty message list
+    (
+            [],
+            []
+    ),
+    # Test case 10: Tool messages between each user message
+    (
+            [
+                {"role": "user", "content": "Question 1"},
+                {"role": "tool", "content": "Answer 1"},
+                {"role": "user", "content": "Question 2"},
+                {"role": "tool", "content": "Answer 2"},
+                {"role": "user", "content": "Question 3"}
+            ],
+            [
+                {"role": "user", "content": "# Tool result:\nAnswer 1\nQuestion 1"},
+                {"role": "user", "content": "# Tool result:\nAnswer 2\nQuestion 2"},
+                {"role": "user", "content": "Question 3"}
+            ]
+    )
+])
+def test_concat_tool_messages(messages: List[Dict[str, str]], expected: List[Dict[str, str]]):
+    result = concat_tool_messages(messages)
+    assert result == expected, f"Expected {expected}, but got {result}"
