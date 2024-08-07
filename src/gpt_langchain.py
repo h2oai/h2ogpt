@@ -2507,9 +2507,9 @@ class GenerateStream:
             else:
                 # -1 is last, to skip first thinking step for opus/sonnet
                 # bug in claude with sonnet:
-                if ret.generations[0].message.content[-1]['input']:
+                if 'input' in ret.generations[0].message.content[-1] and ret.generations[0].message.content[-1]['input']:
                     result = ret.generations[0].message.content[-1]['input']
-                elif 'partial_json' in ret.generations[0].message.content[-1]:
+                elif 'partial_json' in ret.generations[0].message.content[-1] and ret.generations[0].message.content[-1]['partial_json']:
                     result = json.loads(ret.generations[0].message.content[-1]['partial_json'])
                 else:
                     result = {}
