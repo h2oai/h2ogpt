@@ -24,6 +24,8 @@ def test_openai_server():
     # Shell 1: CUDA_VISIBLE_DEVICES=0 python generate.py --verbose=True --score_model=None --pre_load_embedding_model=False --gradio_offline_level=2 --base_model=h2oai/h2o-danube2-1.8b-chat --inference_server=vllm:ip:port --max_seq_len=4096 --save_dir=duder1 --verbose --concurrency_count=64 --openai_server=False --add_disk_models_to_ui=False
     # Shell 2: pytest -s -v openai_server/test_openai_server.py::test_openai_server  # once client done, hit CTRL-C, should pass
     # Shell 3: pytest -s -v openai_server/test_openai_server.py::test_openai_client_test2  # should pass
+    # for rest of tests:
+    # Shell 1: pytest -s -v openai_server/test_openai_server.py -k 'serverless or needs_server or has_server or serverless'
     launch_openai_server()
 
 
@@ -31,6 +33,7 @@ def test_openai_server():
 repeat0 = 1
 
 
+@pytest.mark.needs_server
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
 @pytest.mark.parametrize("local_server", [False])
@@ -45,6 +48,7 @@ def test_openai_client_test2(stream_output, chat, local_server):
                       repeat)
 
 
+@pytest.mark.has_server
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
 @pytest.mark.parametrize("local_server", [True])  # choose False if start local server
@@ -105,8 +109,8 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     async_client = AsyncOpenAI(**client_args)
 
     try:
-        test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
-                  prompt, client_kwargs, stream_output, verbose, base_model)
+        run_test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
+                      prompt, client_kwargs, stream_output, verbose, base_model)
     except AssertionError as e:
         if enforce_h2ogpt_api_key and api_key is None:
             print("Expected to fail since no key but enforcing.")
@@ -125,8 +129,8 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
 
 
-def test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
-              prompt, client_kwargs, stream_output, verbose, base_model):
+def run_test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
+                  prompt, client_kwargs, stream_output, verbose, base_model):
     # COMPLETION
 
     if chat:
@@ -221,6 +225,7 @@ def show_plot_from_ids(usage, client):
     return images
 
 
+@pytest.mark.needs_server
 def test_autogen():
     if os.path.exists('./openai_files'):
         shutil.rmtree('./openai_files')
@@ -391,6 +396,7 @@ def video_file():
     os.remove(filename)
 
 
+@pytest.mark.needs_server
 @pytest.mark.parametrize("test_file", ["text_file", "pdf_file", "image_file", "python_file", "video_file"])
 def test_file_operations(request, test_file):
     test_file_type = test_file
@@ -513,6 +519,7 @@ def check_content(content, test_file_type, test_file):
             cap.release()
 
 
+@pytest.mark.serverless
 def test_return_generator():
     import typing
 
@@ -537,6 +544,7 @@ def test_return_generator():
     assert ret_dict == "Final Result"
 
 
+@pytest.mark.needs_server
 def test_tool_use():
     from openai import OpenAI
     import json
@@ -632,6 +640,7 @@ def test_tool_use():
     print(run_conversation(model1))
 
 
+@pytest.mark.needs_server
 def test_tool_use2():
     from openai import OpenAI
     import json
