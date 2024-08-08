@@ -21,6 +21,8 @@ import time
 import traceback
 import zipfile
 import tarfile
+from array import array
+from collections import deque
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from typing import Tuple, Callable, Dict
@@ -2985,3 +2987,37 @@ def get_gradio_depth(lst):
     if has_single_element_sublist(lst, depth):
         depth -= 1
     return depth
+
+
+def is_empty(obj):
+    if obj is None:
+        return True
+    if isinstance(obj, (str, list, tuple, dict, set)):
+        return len(obj) == 0
+    if isinstance(obj, bool):
+        return False
+    if isinstance(obj, (int, float)):
+        # Numbers can't be "empty" in the traditional sense, so go by value for them
+        return False if 0 else True
+    if isinstance(obj, complex):
+        return obj == 0
+    if isinstance(obj, bytes):
+        return len(obj) == 0
+    if isinstance(obj, bytearray):
+        return len(obj) == 0
+    if isinstance(obj, memoryview):
+        return len(obj) == 0
+    if isinstance(obj, range):
+        return len(obj) == 0
+    if isinstance(obj, frozenset):
+        return len(obj) == 0
+    if isinstance(obj, deque):
+        return len(obj) == 0
+    if isinstance(obj, array):
+        return len(obj) == 0
+    if isinstance(obj, (map, filter, zip)):
+        # These are iterators and need to be converted to a list to check if they are empty
+        return len(list(obj)) == 0
+    if hasattr(obj, '__len__'):
+        return len(obj) == 0
+    return False

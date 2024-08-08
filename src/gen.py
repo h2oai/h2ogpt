@@ -84,7 +84,7 @@ from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, ETh
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
     have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, get_json, \
-    get_docs_tokens, deduplicate_names, have_autogen, get_model_name
+    get_docs_tokens, deduplicate_names, have_autogen, get_model_name, is_empty
 
 start_faulthandler()
 import_matplotlib()
@@ -2959,14 +2959,15 @@ def evaluate(
         schema_instruction = json_schema_instruction.format(properties_schema=guided_json_properties_json)
 
         pre_instruction = ''
-        supports_schema = guided_json and response_format == 'json_object' and is_json_model(base_model,
-                                                                                             inference_server,
-                                                                                             json_vllm=json_vllm)
+        supports_schema = not is_empty(guided_json) and \
+                          response_format == 'json_object' and \
+                          is_json_model(base_model, inference_server, json_vllm=json_vllm)
         supports_schema &= json_vllm or \
-                           inference_server and \
+                           not is_empty(inference_server) and \
                            any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat']) and \
-                           base_model in openai_supports_functiontools + openai_supports_parallel_functiontools or \
-                           inference_server and \
+                           not is_empty(
+                               base_model) and base_model in openai_supports_functiontools + openai_supports_parallel_functiontools or \
+                           not is_empty(inference_server) and \
                            inference_server.startswith('anthropic')
 
         if supports_schema:
