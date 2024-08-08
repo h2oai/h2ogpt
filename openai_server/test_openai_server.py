@@ -20,7 +20,7 @@ def launch_openai_server():
 
 
 def test_openai_server():
-    # for manual separate OpenAI server on existing h2oGPT, run:
+    # for manual separate OpenAI server on existing h2oGPT, run (choose vllm:ip:port and/or base_model):
     # Shell 1: CUDA_VISIBLE_DEVICES=0 python generate.py --verbose=True --score_model=None --pre_load_embedding_model=False --gradio_offline_level=2 --base_model=h2oai/h2o-danube2-1.8b-chat --inference_server=vllm:ip:port --max_seq_len=4096 --save_dir=duder1 --verbose --concurrency_count=64 --openai_server=False --add_disk_models_to_ui=False
     # Shell 2: pytest -s -v openai_server/test_openai_server.py::test_openai_server  # once client done, hit CTRL-C, should pass
     # Shell 3: pytest -s -v openai_server/test_openai_server.py::test_openai_client_test2  # should pass
