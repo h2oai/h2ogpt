@@ -2538,7 +2538,7 @@ on CPU, or for GPU:
 git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp
 make clean
-make LLAMA_CUBLAS=1
+make GGML_CUDA=1
 ```
 etc. following different [scenarios](https://github.com/ggerganov/llama.cpp#build).
 
@@ -2928,8 +2928,8 @@ Other workarounds:
 * Workaround 2: Follow normal directions for installation, but replace 0.2.76 with 0.2.26, e.g. for CUDA with Linux:
     ```bash
     pip uninstall llama_cpp_python llama_cpp_python_cuda -y
-    export LLAMA_CUBLAS=1
-    export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+    export GGML_CUDA=1
+    export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all"
     export FORCE_CMAKE=1
     pip install llama_cpp_python==0.2.26 --no-cache-dir
     ```

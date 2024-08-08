@@ -26,7 +26,7 @@ appdirs>=1.4.4
 fire>=0.5.0
 docutils>=0.20.1
 torch==2.2.1; sys_platform != "darwin" and platform_machine != "arm64"
-torch==2.2.1; sys_platform == "darwin" and platform_machine == "arm64"
+torch==2.3.1; sys_platform == "darwin" and platform_machine == "arm64"
 evaluate>=0.4.0
 rouge_score>=0.1.2
 sacrebleu>=2.3.1
@@ -40,7 +40,9 @@ matplotlib>=3.7.1
 
 # transformers
 loralib>=0.1.2
-bitsandbytes>=0.43.1
+bitsandbytes>=0.43.1; sys_platform != "darwin" and platform_machine != "arm64"
+#bitsandbytes downgraded because of Mac M1/M2 support issue. See https://github.com/axolotl-ai-cloud/axolotl/issues/1436
+bitsandbytes==0.42.0; sys_platform == "darwin" and platform_machine == "arm64"
 accelerate>=0.30.1
 peft>=0.7.0
 transformers>=4.43.2
@@ -90,7 +92,7 @@ text-generation>=0.7.0
 tiktoken>=0.5.2
 
 # optional: for OpenAI endpoint
-openai>=1.27.0
+openai>=1.40.1
 
 requests>=2.31.0
 httpx>=0.24.1

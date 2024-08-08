@@ -13,8 +13,8 @@ Install in fresh env, avoiding being inside h2ogpt directory or a directory wher
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
-set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
-set LLAMA_CUBLAS=1
+set CMAKE_ARGS=-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all
+set GGML_CUDA=1
 set FORCE_CMAKE=1
 ```
 for the cmake args, choose e llama_cpp_python ARGS for your system according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).  Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
@@ -37,7 +37,7 @@ conda install weasyprint pygobject -c conda-forge -y
 ```
 second run:
 ```bash
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
 pip install h2ogpt==0.2.0[cuda] --index-url https://downloads.h2ogpt.h2o.ai --extra-index-url https://pypi.org/simple --no-cache
@@ -65,7 +65,7 @@ which can be installed with basic CUDA support like:
 ```bash
 # For other GPUs etc. see: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends
 # required for PyPi wheels that do not allow URLs, so uses generic llama_cpp_python package:
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121 https://huggingface.github.io/autogptq-index/whl/cu121"
 # below [cuda] assumes CUDA 12.1 for some packages like AutoAWQ etc.
