@@ -53,8 +53,8 @@ conda install python=3.10 -c conda-forge -y
 
 export CUDA_HOME=/usr/local/cuda-12.1
 export PIP_EXTRA_INDEX_URL="https://download.pytorch.org/whl/cu121"
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export GGML_CUDA=1
+export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
 
 # get patches

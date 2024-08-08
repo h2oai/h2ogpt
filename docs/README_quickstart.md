@@ -17,15 +17,15 @@ To quickly try out h2oGPT with limited document Q/A capability, create a fresh P
 Then choose your llama_cpp_python options, by changing `CMAKE_ARGS` to whichever system you have according to [llama_cpp_python backend documentation](https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#supported-backends).
 E.g. CUDA on Linux:
 ```bash
-export LLAMA_CUBLAS=1
-export CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all"
+export GGML_CUDA=1
+export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all"
 export FORCE_CMAKE=1
 ```
 Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.
 Windows CUDA:
 ```cmdline
-set CMAKE_ARGS=-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all
-set LLAMA_CUBLAS=1
+set CMAKE_ARGS=-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all
+set GGML_CUDA=1
 set FORCE_CMAKE=1
 ```
 Note for some reason things will fail with llama_cpp_python if don't add all cuda arches, and building with all those arches does take some time.

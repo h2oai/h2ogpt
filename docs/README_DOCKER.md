@@ -74,7 +74,7 @@ For example, for Metal M1/M2 support of llama.cpp GGUF files, one should change 
 ```bash
 export CMAKE_ARGS="-DLLAMA_METAL=on"
 ```
-and remove `LLAMA_CUBLAS=1`, so that the docker image is Metal Compatible for llama.cpp GGUF files.  Otherwise, Torch supports Metal M1/M2 directly without changes.
+and remove `GGML_CUDA=1`, so that the docker image is Metal Compatible for llama.cpp GGUF files.  Otherwise, Torch supports Metal M1/M2 directly without changes.
 
 ### Build
 
