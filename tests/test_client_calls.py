@@ -6348,7 +6348,7 @@ def get_test_server_client(base_model):
 @pytest.mark.parametrize("guided_json", ['', TEST_SCHEMA])
 @pytest.mark.parametrize("stream_output", [True, False])
 @pytest.mark.parametrize("base_model", other_base_models)
-@pytest.mark.parametrize("response_format", ['json_object', 'json_code'])
+@pytest.mark.parametrize("response_format", ['json_object', 'json_code', 'json_schema'])
 # @pytest.mark.parametrize("base_model", [gpt_models[1]])
 # @pytest.mark.parametrize("base_model", ['CohereForAI/c4ai-command-r-v01'])
 @pytest.mark.parametrize("langchain_mode", ['LLM', 'MyData'])
@@ -6359,6 +6359,8 @@ def test_guided_json(langchain_action, langchain_mode, response_format, base_mod
             (langchain_action == LangChainAction.SUMMARIZE_MAP.value or
              langchain_action == LangChainAction.EXTRACT.value):
         # dummy return
+        return
+    if response_format == 'json_schema' and api == 'gradio':
         return
 
     client, base_models = get_test_server_client(base_model)
@@ -6465,9 +6467,14 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
         "role": "user",
         "content": old_prompt,
     }]
+    if kwargs.get('response_format') == 'json_schema':
+        response_format = {"type": "json_schema", 'json_schema': {"name": "JSON", "schema": kwargs.get('guided_json')}}
+    else:
+        response_format = {"type": "json_object"}
+
     chat_kwargs = dict(model=base_model,
                        max_tokens=1024,
-                       response_format={"type": "json_object"},
+                       response_format=response_format,
                        extra_body=dict(guided_json=TEST_SCHEMA,
                                        guided_whitespace_pattern=None,
                                        prompt_query=kwargs.get('prompt_query'),
@@ -6478,10 +6485,19 @@ def openai_guided_json(gradio_client, base_model, kwargs, use_instruction):
                                        h2ogpt_key=kwargs.get('h2ogpt_key'),
                                        )
                        )
-    chat_completion = client.chat.completions.create(
-        messages=messages,
-        **chat_kwargs,
-    )
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            **chat_kwargs,
+        )
+    except openai.BadRequestError as e:
+        if kwargs.get('response_format') == 'json_schema' and not kwargs.get('guided_json'):
+            if 'Inner schema key should contain at least' in str(e):
+                return
+            else:
+                raise
+        else:
+            raise
     message = chat_completion.choices[0].message
     assert message.content is not None
     response = message.content

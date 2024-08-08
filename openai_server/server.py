@@ -7,7 +7,7 @@ import json
 import time
 import uuid
 from traceback import print_exception
-from typing import List, Dict, Optional, Literal, Union
+from typing import List, Dict, Optional, Literal, Union, Any
 
 import filelock
 import jsonschema
@@ -40,7 +40,9 @@ class Generation(BaseModel):
 
 class ResponseFormat(BaseModel):
     # type must be "json_object" or "text"
-    type: str = Literal["text", "json_object", "json_code"]
+    type: str = Literal["text", "json_object", "json_code", "json_schema"]
+    json_schema: Optional[Dict[str, Any]] = None
+    strict: Optional[bool] = True
 
 
 # https://github.com/vllm-project/vllm/blob/a3c226e7eb19b976a937e745f3867eb05f809278/vllm/entrypoints/openai/protocol.py#L62
@@ -134,10 +136,11 @@ class H2oGPTParams(BaseModel):
 
     response_format: Optional[ResponseFormat] = Field(
         default=None,
-        description=
-        ("Similar to chat completion, this parameter specifies the format of "
-         "output. Only {'type': 'text' } or {'type': 'json_object'} or {'type': 'json_code'} are "
-         "supported."),
+        description=(
+            "Similar to chat completion, this parameter specifies the format of "
+            "output. Only {'type': 'text' } or {'type': 'json_object'} or {'type': 'json_code'} or {'type': 'json_schema'} are "
+            "supported."
+        ),
     )
     guided_json: Optional[Union[str, dict, BaseModel]] = Field(
         default=None,
@@ -465,6 +468,10 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
     request_data_dict = dict(request_data)
     request_data_dict['authorization'] = authorization
 
+    # don't allow tool use with guided_json for now
+    if request_data_dict['guided_json'] and request_data_dict.get('tools'):
+        raise NotImplementedError("Cannot use tools with guided_json, because guided_json used for tool use.")
+
     # extract tool or do auto
     if request_data_dict.get('tool_choice') == 'auto' and request_data_dict.get('tools'):
         tool_name_chosen, tool_chosen = await get_tool(request, request_data, authorization)
@@ -474,6 +481,29 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
             request_data_dict['tool_choice'] = tool_name_chosen
         else:
             request_data_dict['tool_choice'] = 'auto'
+
+    # handle json_schema -> guided_json
+    # https://platform.openai.com/docs/guides/structured-outputs/how-to-use?context=without_parse&lang=python
+    if request_data_dict['response_format'] and request_data_dict['response_format'].type == 'json_schema':
+        json_schema = request_data_dict['response_format'].json_schema
+        if json_schema:
+            # try to json.loads schema to ensure correct
+            if not isinstance(json_schema, dict):
+                json_schema_dict = json.loads(json_schema)
+            else:
+                json_schema_dict = json_schema
+            assert 'schema' in json_schema_dict, "Schema should start by containing 'name' and 'schema' keys."
+            schema = json_schema_dict['schema']
+            assert schema, "Inner schema key should contain at least 'type: 'object' and 'properties' keys and can include 'required' or 'additionalProperties'"
+            if not isinstance(schema, dict):
+                schema_dict = json.loads(schema)
+            else:
+                schema_dict = schema
+            assert schema_dict, "Inner schema key should contain at least 'type: 'object' and 'properties' keys and can include 'required' or 'additionalProperties'"
+            request_data_dict['guided_json'] = schema_dict
+        else:
+            raise ValueError("Specified response_format type json_schema but no json_schema provided.")
+        request_data_dict['response_format'] = ResponseFormat(type='json_object')
 
     if request_data.stream:
         from openai_server.backend import stream_chat_completions
