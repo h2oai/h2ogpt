@@ -225,6 +225,7 @@ def show_plot_from_ids(usage, client):
     return images
 
 
+# NOTE: Should test with --force_streaming_on_to_handle_timeouts=False and --force_streaming_on_to_handle_timeouts=True
 @pytest.mark.needs_server
 def test_autogen():
     if os.path.exists('./openai_files'):
