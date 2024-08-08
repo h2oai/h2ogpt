@@ -1,9 +1,14 @@
 import os
 import sys
+from typing import List, Dict
+
+import pytest
+
 
 sys.path.append('openai_server')
 from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages, \
-    concatenate_assistant_messages
+    concatenate_messages, concat_tool_messages
+from openai_server.backend import split_concatenated_dicts
 
 
 def test_conversion():
@@ -337,18 +342,294 @@ def test_concat():
         {"role": "assistant", "content": "Sure, the weather today is sunny with a high of 25°C."}
     ]
 
-    new_messages = concatenate_assistant_messages(messages)
+    new_messages = concatenate_messages(messages)
     convert_messages_to_structure(new_messages)
     print(new_messages)
 
-    messages = [{'content': "You are a helpful AI assistant.\n    Solve tasks using your coding and language skills.\n    In the following cases, suggest python code (in a python coding block) or shell script (in a sh coding block) for the user to execute.\n    1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.\n    2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.\n    Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.\n    When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.\n    If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.\n    If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.\n    When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.\n    Reply 'TERMINATE' in the end when everything is done.\n    ", 'role': 'system'}, {'content': "Today is 2024-07-30.  Write Python code to plot TSLA's and META's stock price gains YTD, and save the plot to a file named 'stock_gains.png'.", 'role': 'user'}, {'role': 'assistant', 'content': "To plot TSLA's and META's stock price gains year-to-date (YTD) and save the plot to a file named 'stock_gains.png', we need to follow these steps:\n\n1. Fetch the stock price data for TSLA and META from the beginning of the year 2024 to the current date.\n2. Calculate the stock price gains YTD for both stocks.\n3. Plot the stock price gains.\n4. Save the plot to a file named 'stock_gains.png'.\n\nWe will use the `yfinance` library to fetch the stock data and `matplotlib` to plot the data. Here is the complete Python code to achieve this:\n\n```python\n# filename: stock_gains.py\nimport yfinance as yf\nimport matplotlib.pyplot as plt\nimport datetime\n\n# Define the stock symbols\nstocks = ['TSLA', 'META']\n\n# Define the start and end dates\nstart_date = '2024-01-01'\nend_date = '2024-07-30'\n\n# Fetch the stock data\ndata = yf.download(stocks, start=start_date, end=end_date)['Adj Close']\n\n# Calculate the YTD gains\nytd_gains = (data / data.iloc[0] - 1) *  "}, {'role': 'assistant', 'content': "Sure, I'll continue from where the response was cut off.\n\n```python\n# filename: stock_gains.py\nimport yfinance as yf\nimport matplotlib.pyplot as plt\nimport datetime\n\n# Define the stock symbols\nstocks = ['TSLA', 'META']\n\n# Define the start and end dates\nstart_date = '2024-01-01'\nend_date = '2024-07-30'\n\n# Fetch the stock data\ndata = yf.download(stocks, start=start_date, end=end_date)['Adj Close']\n\n# Calculate the YTD gains\nytd_gains = (data / data.iloc[0] - 1) * 100\n\n# Plot the YTD gains\nplt.figure(figsize=(10, 6))\nfor stock in stocks:\n    plt.plot(ytd_gains.index, ytd_gains[stock], label=stock)\n\n# Add title and labels\nplt.title('YTD Stock Price Gains for TSLA and META (2024)')\nplt.xlabel('Date')\nplt.ylabel('YTD Gain (%)')\nplt.legend()\nplt.grid(True)\n\n# Save the plot to a file\nplt.savefig('stock_gains.png')\n\n# Show the plot\nplt.show()\n```\n\nThis script will:\n1. Fetch the adjusted closing prices "}, {'content': 'exitcode: 1 (execution failed)\nCode output: Traceback (most recent call last):\n  File "/workspace/stock_gains.py", line 2, in <module>\n    import yfinance as yf\nModuleNotFoundError: No module named \'yfinance\'\n', 'role': 'user'}]
+    messages = [{
+        'content': "You are a helpful AI assistant.\n    Solve tasks using your coding and language skills.\n    In the following cases, suggest python code (in a python coding block) or shell script (in a sh coding block) for the user to execute.\n    1. When you need to collect info, use the code to output the info you need, for example, browse or search the web, download/read a file, print the content of a webpage or a file, get the current date/time, check the operating system. After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.\n    2. When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.\n    Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.\n    When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.\n    If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.\n    If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.\n    When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.\n    Reply 'TERMINATE' in the end when everything is done.\n    ",
+        'role': 'system'}, {
+        'content': "Today is 2024-07-30.  Write Python code to plot TSLA's and META's stock price gains YTD, and save the plot to a file named 'stock_gains.png'.",
+        'role': 'user'}, {'role': 'assistant',
+                          'content': "To plot TSLA's and META's stock price gains year-to-date (YTD) and save the plot to a file named 'stock_gains.png', we need to follow these steps:\n\n1. Fetch the stock price data for TSLA and META from the beginning of the year 2024 to the current date.\n2. Calculate the stock price gains YTD for both stocks.\n3. Plot the stock price gains.\n4. Save the plot to a file named 'stock_gains.png'.\n\nWe will use the `yfinance` library to fetch the stock data and `matplotlib` to plot the data. Here is the complete Python code to achieve this:\n\n```python\n# filename: stock_gains.py\nimport yfinance as yf\nimport matplotlib.pyplot as plt\nimport datetime\n\n# Define the stock symbols\nstocks = ['TSLA', 'META']\n\n# Define the start and end dates\nstart_date = '2024-01-01'\nend_date = '2024-07-30'\n\n# Fetch the stock data\ndata = yf.download(stocks, start=start_date, end=end_date)['Adj Close']\n\n# Calculate the YTD gains\nytd_gains = (data / data.iloc[0] - 1) *  "},
+        {'role': 'assistant',
+         'content': "Sure, I'll continue from where the response was cut off.\n\n```python\n# filename: stock_gains.py\nimport yfinance as yf\nimport matplotlib.pyplot as plt\nimport datetime\n\n# Define the stock symbols\nstocks = ['TSLA', 'META']\n\n# Define the start and end dates\nstart_date = '2024-01-01'\nend_date = '2024-07-30'\n\n# Fetch the stock data\ndata = yf.download(stocks, start=start_date, end=end_date)['Adj Close']\n\n# Calculate the YTD gains\nytd_gains = (data / data.iloc[0] - 1) * 100\n\n# Plot the YTD gains\nplt.figure(figsize=(10, 6))\nfor stock in stocks:\n    plt.plot(ytd_gains.index, ytd_gains[stock], label=stock)\n\n# Add title and labels\nplt.title('YTD Stock Price Gains for TSLA and META (2024)')\nplt.xlabel('Date')\nplt.ylabel('YTD Gain (%)')\nplt.legend()\nplt.grid(True)\n\n# Save the plot to a file\nplt.savefig('stock_gains.png')\n\n# Show the plot\nplt.show()\n```\n\nThis script will:\n1. Fetch the adjusted closing prices "},
+        {
+            'content': 'exitcode: 1 (execution failed)\nCode output: Traceback (most recent call last):\n  File "/workspace/stock_gains.py", line 2, in <module>\n    import yfinance as yf\nModuleNotFoundError: No module named \'yfinance\'\n',
+            'role': 'user'}]
 
-    new_messages = concatenate_assistant_messages(messages)
+    new_messages = concatenate_messages(messages)
     convert_messages_to_structure(new_messages)
 
     messages = [
         {"role": "user", "content": "Hello!"},
     ]
 
-    new_messages = concatenate_assistant_messages(messages)
+    new_messages = concatenate_messages(messages)
     assert new_messages == messages
+
+
+def test_concat_tool():
+    messages = [
+        {"role": "user", "content": "Hello, how are you?"},
+        {"role": "assistant", "content": "I'm fine, thank you! How can I help you today?"},
+        {"role": "user", "content": "Can you tell me the weather?"},
+        {"role": "tool", "content": "Fetching weather information..."},
+        {"role": "assistant", "content": "The weather today is sunny with a high of 75°F."}
+    ]
+
+    assert concat_tool_messages(messages) == [{'role': 'user', 'content': 'Hello, how are you?'}, {'role': 'assistant',
+                                                                                                   'content': "I'm fine, thank you! How can I help you today?"},
+                                              {'role': 'user',
+                                               'content': '# Tool result:\nFetching weather information...\nCan you tell me the weather?'},
+                                              {'role': 'assistant',
+                                               'content': 'The weather today is sunny with a high of 75°F.'}]
+
+    messages = [{'role': 'user', 'content': "What's the weather like in San Francisco, Tokyo, and Paris?"}, {
+        'content': '{"location": "San Francisco, CA"}{"location": "Tokyo, Japan"}{"location": "Paris, France"}',
+        'role': 'assistant', 'tool_calls': [{'id': 'f6739655-137c-486f-98b8-0c98e012abcf',
+                                             'function': {'arguments': '{"location": "San Francisco, CA"}',
+                                                          'name': 'get_current_weather'}},
+                                            {'id': '0ba696dc-be9b-4bf1-8077-bdf9fc4ad2be',
+                                             'function': {'arguments': '{"location": "Tokyo, Japan"}',
+                                                          'name': 'get_current_weather'}},
+                                            {'id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1',
+                                             'function': {'arguments': '{"location": "Paris, France"}',
+                                                          'name': 'get_current_weather'}}]},
+                {'tool_call_id': 'f6739655-137c-486f-98b8-0c98e012abcf', 'role': 'tool', 'name': 'get_current_weather',
+                 'content': '{"location": "San Francisco", "temperature": "72", "unit": null}'},
+                {'tool_call_id': '0ba696dc-be9b-4bf1-8077-bdf9fc4ad2be', 'role': 'tool', 'name': 'get_current_weather',
+                 'content': '{"location": "Tokyo", "temperature": "10", "unit": null}'},
+                {'tool_call_id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1', 'role': 'tool', 'name': 'get_current_weather',
+                 'content': '{"location": "Paris", "temperature": "22", "unit": null}'}]
+    assert concat_tool_messages(messages) == [{'role': 'user',
+                                               'content': '# Tool result:\n{"location": "San Francisco", "temperature": "72", "unit": null}\n# Tool result:\n{"location": "Tokyo", "temperature": "10", "unit": null}\n# Tool result:\n{"location": "Paris", "temperature": "22", "unit": null}\nWhat\'s the weather like in San Francisco, Tokyo, and Paris?'},
+                                              {
+                                                  'content': '{"location": "San Francisco, CA"}{"location": "Tokyo, Japan"}{"location": "Paris, France"}',
+                                                  'role': 'assistant', 'tool_calls': [
+                                                  {'id': 'f6739655-137c-486f-98b8-0c98e012abcf',
+                                                   'function': {'arguments': '{"location": "San Francisco, CA"}',
+                                                                'name': 'get_current_weather'}},
+                                                  {'id': '0ba696dc-be9b-4bf1-8077-bdf9fc4ad2be',
+                                                   'function': {'arguments': '{"location": "Tokyo, Japan"}',
+                                                                'name': 'get_current_weather'}},
+                                                  {'id': '1dd5da7d-3490-4e76-9ce8-f275a98222d1',
+                                                   'function': {'arguments': '{"location": "Paris, France"}',
+                                                                'name': 'get_current_weather'}}]}]
+
+    messages = [
+        {"role": "user", "content": "Hello, how are you?"},
+        {"role": "assistant", "content": "I'm fine, thank you! How can I help you today?"},
+        {"role": "user", "content": "Can you tell me the weather?"},
+        {"role": "tool", "content": "Fetching weather information..."},
+        {"role": "tool", "content": "Weather data retrieved."},
+        {"role": "assistant", "content": "The weather today is sunny with a high of 75°F."},
+        {"role": "user", "content": "What's the latest news?"},
+        {"role": "tool", "content": "Fetching news..."},
+        {"role": "tool", "content": "News data retrieved."}
+    ]
+
+    assert concat_tool_messages(messages) == [{'role': 'user', 'content': 'Hello, how are you?'}, {'role': 'assistant',
+                                                                                                   'content': "I'm fine, thank you! How can I help you today?"},
+                                              {'role': 'user',
+                                               'content': '# Tool result:\nFetching weather information...\n# Tool result:\nWeather data retrieved.\nCan you tell me the weather?'},
+                                              {'role': 'assistant',
+                                               'content': 'The weather today is sunny with a high of 75°F.'},
+                                              {'role': 'user',
+                                               'content': "# Tool result:\nFetching news...\n# Tool result:\nNews data retrieved.\nWhat's the latest news?"}]
+
+    messages = [{'role': 'system', 'content': 'you are a helpful assistant'},
+                {'role': 'user', 'content': 'Give an example employee profile.'}, {'role': 'assistant',
+                                                                                   'content': "{'name': 'John Doe', 'age': 30, 'skills': ['Java', 'SQL', 'Python'], 'workhistory': [{'company': 'Tech Solutions', 'duration': '2 years', 'position': 'Software Developer'}, {'company': 'Innovatech', 'duration': '3 years', 'position': 'Senior Developer'}]}"},
+                {'role': 'user',
+                 'content': 'Give me another example, ensure it has a totally different name and totally different age.'}]
+    assert concat_tool_messages(messages) == messages
+
+
+@pytest.mark.parametrize("messages, expected", [
+    # Test case 1: Single user message, no tools
+    (
+            [{"role": "user", "content": "Hello"}],
+            [{"role": "user", "content": "Hello"}]
+    ),
+    # Test case 2: Alternating user and assistant messages
+    (
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there!"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "assistant", "content": "I'm doing well, thanks!"}
+            ],
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": "Hi there!"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "assistant", "content": "I'm doing well, thanks!"}
+            ]
+    ),
+    # Test case 3: Single tool message between user messages
+    (
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "tool", "content": "Sunny, 25°C"},
+                {"role": "user", "content": "Thanks!"}
+            ],
+            [
+                {"role": "user", "content": "# Tool result:\nSunny, 25°C\nWhat's the weather?"},
+                {"role": "user", "content": "Thanks!"}
+            ]
+    ),
+    # Test case 4: Multiple tool messages between user messages
+    (
+            [
+                {"role": "user", "content": "Tell me about the weather and time."},
+                {"role": "tool", "content": "Weather: Sunny, 25°C"},
+                {"role": "tool", "content": "Time: 14:30"},
+                {"role": "user", "content": "Thanks!"}
+            ],
+            [
+                {"role": "user",
+                 "content": "# Tool result:\nWeather: Sunny, 25°C\n# Tool result:\nTime: 14:30\nTell me about the weather and time."},
+                {"role": "user", "content": "Thanks!"}
+            ]
+    ),
+    # Test case 5: Tool messages at the end
+    (
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "tool", "content": "Sunny, 25°C"},
+                {"role": "tool", "content": "High: 28°C, Low: 20°C"}
+            ],
+            [
+                {"role": "user",
+                 "content": "# Tool result:\nSunny, 25°C\n# Tool result:\nHigh: 28°C, Low: 20°C\nWhat's the weather?"}
+            ]
+    ),
+    # Test case 6: Tool messages at the beginning
+    (
+            [
+                {"role": "tool", "content": "System initialized"},
+                {"role": "tool", "content": "Ready for input"},
+                {"role": "user", "content": "Hello"}
+            ],
+            [
+                {"role": "user",
+                 "content": "# Tool result:\nSystem initialized\n# Tool result:\nReady for input\nHello"}
+            ]
+    ),
+    # Test case 7: Mix of user, assistant, and tool messages
+    (
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "assistant", "content": "Let me check that for you."},
+                {"role": "tool", "content": "Sunny, 25°C"},
+                {"role": "assistant", "content": "The weather is sunny and 25°C."},
+                {"role": "user", "content": "Thanks!"}
+            ],
+            [
+                {"role": "user", "content": "What's the weather?"},
+                {"role": "assistant", "content": "Let me check that for you."},
+                {"role": "assistant", "content": "The weather is sunny and 25°C."},
+                {"role": "user", "content": "# Tool result:\nSunny, 25°C\nThanks!"}
+            ]
+    ),
+    # Test case 8: Multiple user messages without tools in between
+    (
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "user", "content": "What's the weather?"}
+            ],
+            [
+                {"role": "user", "content": "Hello"},
+                {"role": "user", "content": "How are you?"},
+                {"role": "user", "content": "What's the weather?"}
+            ]
+    ),
+    # Test case 9: Empty message list
+    (
+            [],
+            []
+    ),
+    # Test case 10: Tool messages between each user message
+    (
+            [
+                {"role": "user", "content": "Question 1"},
+                {"role": "tool", "content": "Answer 1"},
+                {"role": "user", "content": "Question 2"},
+                {"role": "tool", "content": "Answer 2"},
+                {"role": "user", "content": "Question 3"}
+            ],
+            [
+                {"role": "user", "content": "# Tool result:\nAnswer 1\nQuestion 1"},
+                {"role": "user", "content": "# Tool result:\nAnswer 2\nQuestion 2"},
+                {"role": "user", "content": "Question 3"}
+            ]
+    )
+])
+def test_concat_tool_messages(messages: List[Dict[str, str]], expected: List[Dict[str, str]]):
+    result = concat_tool_messages(messages)
+    assert result == expected, f"Expected {expected}, but got {result}"
+
+
+def test_split_single_dict():
+    input_str = '{"a": 1, "b": 2}'
+    expected = [{"a": 1, "b": 2}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_multiple_simple_dicts():
+    input_str = '{"a": 1}{"b": 2}{"c": 3}'
+    expected = [{"a": 1}, {"b": 2}, {"c": 3}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_multiple_complex_dicts():
+    input_str = '{"a": {"nested": 1}}{"b": [1, 2, 3]}{"c": "string"}'
+    expected = [{"a": {"nested": 1}}, {"b": [1, 2, 3]}, {"c": "string"}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_dicts_with_nested_braces():
+    input_str = '{"a": "{nested}"}{"b": "{{double}}"}{"c": "{}"}'
+    expected = [{"a": "{nested}"}, {"b": "{{double}}"}, {"c": "{}"}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_empty_dicts():
+    input_str = '{}{}{}'
+    expected = [{}, {}, {}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_mixed_empty_and_non_empty_dicts():
+    input_str = '{"a": 1}{}{"b": 2}{}'
+    expected = [{"a": 1}, {}, {"b": 2}, {}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_whitespace_between_dicts():
+    input_str = '{"a": 1}  {"b": 2}    {"c": 3}'
+    expected = [{"a": 1}, {"b": 2}, {"c": 3}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_invalid_input():
+    assert split_concatenated_dicts('{"a": 1}invalid{"b": 2}') == [{"a": 1}, {"b": 2}]
+    assert split_concatenated_dicts('invalid') == []
+
+
+def test_split_empty_input():
+    assert split_concatenated_dicts('') == []
+
+
+def test_split_single_dict_with_whitespace():
+    input_str = '  {"a": 1, "b": 2}  '
+    expected = [{"a": 1, "b": 2}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_dicts_with_escaped_quotes():
+    input_str = '{"a": "quoted \\"string\\""}{"b": "another \\"quote\\""}'
+    expected = [{"a": 'quoted "string"'}, {"b": 'another "quote"'}]
+    assert split_concatenated_dicts(input_str) == expected

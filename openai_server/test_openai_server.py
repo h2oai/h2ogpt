@@ -20,10 +20,12 @@ def launch_openai_server():
 
 
 def test_openai_server():
-    # for manual separate OpenAI server on existing h2oGPT, run:
+    # for manual separate OpenAI server on existing h2oGPT, run (choose vllm:ip:port and/or base_model):
     # Shell 1: CUDA_VISIBLE_DEVICES=0 python generate.py --verbose=True --score_model=None --pre_load_embedding_model=False --gradio_offline_level=2 --base_model=h2oai/h2o-danube2-1.8b-chat --inference_server=vllm:ip:port --max_seq_len=4096 --save_dir=duder1 --verbose --concurrency_count=64 --openai_server=False --add_disk_models_to_ui=False
     # Shell 2: pytest -s -v openai_server/test_openai_server.py::test_openai_server  # once client done, hit CTRL-C, should pass
     # Shell 3: pytest -s -v openai_server/test_openai_server.py::test_openai_client_test2  # should pass
+    # for rest of tests:
+    # Shell 1: pytest -s -v openai_server/test_openai_server.py -k 'serverless or needs_server or has_server or serverless'
     launch_openai_server()
 
 
@@ -31,6 +33,7 @@ def test_openai_server():
 repeat0 = 1
 
 
+@pytest.mark.needs_server
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
 @pytest.mark.parametrize("local_server", [False])
@@ -45,6 +48,7 @@ def test_openai_client_test2(stream_output, chat, local_server):
                       repeat)
 
 
+@pytest.mark.has_server
 @pytest.mark.parametrize("stream_output", [False, True])
 @pytest.mark.parametrize("chat", [False, True])
 @pytest.mark.parametrize("local_server", [True])  # choose False if start local server
@@ -105,8 +109,8 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
     async_client = AsyncOpenAI(**client_args)
 
     try:
-        test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
-                  prompt, client_kwargs, stream_output, verbose, base_model)
+        run_test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
+                      prompt, client_kwargs, stream_output, verbose, base_model)
     except AssertionError as e:
         if enforce_h2ogpt_api_key and api_key is None:
             print("Expected to fail since no key but enforcing.")
@@ -117,16 +121,16 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
 
     # MODELS
     model_info = openai_client.models.retrieve(base_model)
-    assert model_info.base_model == base_model
+    assert model_info.id == base_model
     model_list = openai_client.models.list()
-    assert model_list.data[0].id == base_model
+    assert base_model in [x.id for x in model_list.data]
 
     os.system('pkill -f server_start.py --signal 9')
     os.system('pkill -f "h2ogpt/bin/python -c from multiprocessing" --signal 9')
 
 
-def test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
-              prompt, client_kwargs, stream_output, verbose, base_model):
+def run_test_chat(chat, openai_client, async_client, system_prompt, chat_conversation, add_chat_history_to_context,
+                  prompt, client_kwargs, stream_output, verbose, base_model):
     # COMPLETION
 
     if chat:
@@ -193,7 +197,8 @@ def show_plot_from_ids(usage, client):
 
     list_response = client.files.list().data
     assert isinstance(list_response, list)
-    response_dict = {item.id: {key: value for key, value in dict(item).items() if key != 'id'} for item in list_response}
+    response_dict = {item.id: {key: value for key, value in dict(item).items() if key != 'id'} for item in
+                     list_response}
 
     test_dir = 'openai_files_testing_%s' % str(uuid.uuid4())
     if os.path.exists(test_dir):
@@ -220,6 +225,8 @@ def show_plot_from_ids(usage, client):
     return images
 
 
+# NOTE: Should test with --force_streaming_on_to_handle_timeouts=False and --force_streaming_on_to_handle_timeouts=True
+@pytest.mark.needs_server
 def test_autogen():
     if os.path.exists('./openai_files'):
         shutil.rmtree('./openai_files')
@@ -390,6 +397,7 @@ def video_file():
     os.remove(filename)
 
 
+@pytest.mark.needs_server
 @pytest.mark.parametrize("test_file", ["text_file", "pdf_file", "image_file", "python_file", "video_file"])
 def test_file_operations(request, test_file):
     test_file_type = test_file
@@ -512,6 +520,7 @@ def check_content(content, test_file_type, test_file):
             cap.release()
 
 
+@pytest.mark.serverless
 def test_return_generator():
     import typing
 
@@ -534,6 +543,146 @@ def test_return_generator():
 
     # Get the final return value
     assert ret_dict == "Final Result"
+
+
+@pytest.mark.needs_server
+def test_tool_use():
+    from openai import OpenAI
+    import json
+
+    model1 = 'gpt-4o'
+    client = OpenAI(base_url='http://localhost:5000/v1', api_key='EMPTY')
+
+    # client = OpenAI()
+
+    # Example dummy function hard coded to return the same weather
+    # In production, this could be your backend API or an external API
+    def get_current_weather(location, unit="fahrenheit"):
+        """Get the current weather in a given location"""
+        if "tokyo" in location.lower():
+            return json.dumps({"location": "Tokyo", "temperature": "10", "unit": unit})
+        elif "san francisco" in location.lower():
+            return json.dumps(
+                {"location": "San Francisco", "temperature": "72" if unit == "fahrenheit" else "25", "unit": unit})
+        elif "paris" in location.lower():
+            return json.dumps({"location": "Paris", "temperature": "22", "unit": unit})
+        else:
+            return json.dumps({"location": location, "temperature": "unknown"})
+
+    def run_conversation(model):
+        # Step 1: send the conversation and available functions to the model
+        messages = [{"role": "user", "content": "What's the weather like in San Francisco, Tokyo, and Paris?"}]
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_current_weather",
+                    "description": "Get the current weather in a given location",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. San Francisco, CA",
+                            },
+                            "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                        },
+                        "required": ["location", "unit"],
+                    },
+                },
+            }
+        ]
+
+        model_info = client.models.retrieve(model)
+        assert model_info.id == model
+        model_list = client.models.list()
+        assert model in [x.id for x in model_list.data]
+
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",  # auto is default, but we'll be explicit
+        )
+        response_message = response.choices[0].message
+        tool_calls = response_message.tool_calls
+        # Step 2: check if the model wanted to call a function
+        if tool_calls:
+            # Step 3: call the function
+            # Note: the JSON response may not always be valid; be sure to handle errors
+            available_functions = {
+                "get_current_weather": get_current_weather,
+            }  # only one function in this example, but you can have multiple
+            messages.append(response_message)  # extend conversation with assistant's reply
+            # Step 4: send the info for each function call and function response to the model
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_to_call = available_functions[function_name]
+                function_args = json.loads(tool_call.function.arguments)
+                function_response = function_to_call(
+                    location=function_args.get("location"),
+                    unit=function_args.get("unit"),
+                )
+                messages.append(
+                    {
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": function_response,
+                    }
+                )  # extend conversation with function response
+            second_response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+            )  # get a new response from the model where it can see the function response
+            print(second_response)
+            return second_response.choices[0].message.content
+
+    print(run_conversation(model1))
+
+
+@pytest.mark.needs_server
+def test_tool_use2():
+    from openai import OpenAI
+    import json
+
+    model = 'gpt-4o'
+    client = OpenAI(base_url='http://localhost:5000/v1', api_key='EMPTY')
+    # client = OpenAI()
+
+    prompt = """"# Tool Name
+
+get_current_weather
+# Tool Description:
+
+Get the current weather in a given location
+
+# Prompt
+
+What's the weather like in San Francisco, Tokyo, and Paris?
+
+
+Choose the single tool that best solves the task inferred from the prompt.  Never choose more than one tool, i.e. act like parallel_tool_calls=False.  If no tool is a good fit, then only choose the noop tool.
+"""
+    messages = [{"role": "user", "content": prompt}]
+    tools = [{'type': 'function',
+              'function': {'name': 'get_current_weather', 'description': 'Get the current weather in a given location',
+                           'parameters': {'type': 'object', 'properties': {'location': {'type': 'string',
+                                                                                        'description': 'The city and state, e.g. San Francisco, CA'},
+                                                                           'unit': {'type': 'string',
+                                                                                    'enum': ['celsius', 'fahrenheit']}},
+                                          'required': ['location']}}}]
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        tools=tools,
+        # parallel_tool_calls=False,
+        tool_choice="auto",  # auto is default, but we'll be explicit
+    )
+    response_message = response.choices[0].message
+    tool_calls = response_message.tool_calls
+    assert tool_calls
 
 
 if __name__ == '__main__':

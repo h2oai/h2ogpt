@@ -4,7 +4,7 @@ import typing
 import uuid
 
 
-def concatenate_assistant_messages(messages):
+def concatenate_messages(messages, role='assistant', sep='\n'):
     """
     # Function to concatenate back-to-back assistant messages
     :param messages:
@@ -13,17 +13,64 @@ def concatenate_assistant_messages(messages):
     concatenated_messages = []
     temp_message = ""
     for message in messages:
-        if message['role'] == 'assistant':
-            temp_message += message['content'] + " "
+        if message['role'] == role:
+            temp_message += message['content'] + sep
         else:
             if temp_message:
-                concatenated_messages.append({"role": "assistant", "content": temp_message})
+                concatenated_messages.append({"role": role, "content": temp_message})
                 temp_message = ""
             concatenated_messages.append(message)
     if temp_message:
-        concatenated_messages.append({"role": "assistant", "content": temp_message})
+        concatenated_messages.append({"role": role, "content": temp_message})
     return concatenated_messages
 
+
+def concat_tool_messages(messages):
+    if not messages:
+        return []
+
+    final_messages = []
+    current_user_message = None
+    tool_contents = []
+
+    for message in messages:
+        if message['role'] == 'user':
+            if current_user_message:
+                if tool_contents:
+                    tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+                    current_user_message['content'] = f"{tool_info}{current_user_message['content']}"
+                    tool_contents = []
+                final_messages.append(current_user_message)
+            current_user_message = message.copy()
+        elif message['role'] == 'tool':
+            tool_contents.append(message['content'])
+        else:
+            if current_user_message:
+                if tool_contents:
+                    tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+                    current_user_message['content'] = f"{tool_info}{current_user_message['content']}"
+                    tool_contents = []
+                final_messages.append(current_user_message)
+                current_user_message = None
+            final_messages.append(message)
+
+    # Handle case where the last message(s) are tool messages
+    if tool_contents:
+        if current_user_message:
+            tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+            current_user_message['content'] = f"{tool_info}{current_user_message['content']}"
+            final_messages.append(current_user_message)
+        else:
+            # If there's no current user message, append to the last user message
+            for i in range(len(final_messages) - 1, -1, -1):
+                if final_messages[i]['role'] == 'user':
+                    tool_info = ''.join(f'# Tool result:\n{content}\n' for content in tool_contents)
+                    final_messages[i]['content'] = f"{tool_info}{final_messages[i]['content']}"
+                    break
+    elif current_user_message:
+        final_messages.append(current_user_message)
+
+    return final_messages
 
 def convert_messages_to_structure(messages):
     """
@@ -36,7 +83,9 @@ def convert_messages_to_structure(messages):
     tuple: A tuple containing the instruction, system_message, history, and image_files.
     """
 
-    # messages = concatenate_assistant_messages(messages)
+    # messages = concatenate_messages(messages, tole='assistant')
+    messages = concat_tool_messages(messages)
+    #messages = concatenate_messages(messages, role='tool')
 
     structure = {
         "instruction": None,
@@ -51,6 +100,10 @@ def convert_messages_to_structure(messages):
     # Remove None messages
     messages = [x for x in messages if x.get("content")]
 
+    # remove pure tool parts
+    # assume just part of tool processing, "tool" role will have results, put that as user context
+    messages = [x for x in messages if not x.get('tool_calls')]
+
     last_user_message = None
     previous_role = None
     for message in messages:
@@ -59,13 +112,13 @@ def convert_messages_to_structure(messages):
         content = message.get("content")
         assert content, "Missing content"
 
-        if previous_role == role:
+        if previous_role == role and role != 'tool':
             raise ValueError("Consecutive messages with the same role are not allowed: %s %s\n\n%s" % (
                 previous_role, role, messages))
         previous_role = role
 
-        if role == "function":
-            raise NotImplementedError("role: function not implemented")
+        if role in ["function", "tool"]:
+            continue
         elif role == "system" and structure["system_message"] is None:
             structure["system_message"] = content
         elif role == "user":
