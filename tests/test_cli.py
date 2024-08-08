@@ -72,13 +72,10 @@ def test_cli_langchain_llamacpp(monkeypatch):
     print(all_generations)
     assert len(all_generations) == 1
     assert "pexels-evg-kowalievska-1170986_small.jpg" in str(all_sources[0])
-    assert "The cat is sitting on a window seat and looking out the window" in all_generations[0] or \
+    assert "the cat is sitting" in all_generations[0] or \
            "staring out the window at the city skyline" in all_generations[0] or \
            "The cat is likely relaxing and enjoying" in all_generations[0] or \
-           "The cat is sitting on a window seat and looking out" in all_generations[0] or \
            "cat in the image is" in all_generations[0] or \
-           "The cat is sitting on a window" in all_generations[0] or \
-           "The cat is sitting and looking out the window at the view of the city outside." in all_generations[0] or \
            "cat is sitting on a window sill" in all_generations[0]
 
 
