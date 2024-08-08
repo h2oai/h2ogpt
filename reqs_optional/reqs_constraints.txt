@@ -1,5 +1,5 @@
 # ensure doesn't drift, e.g. Issue #1348
-torch==2.2.1
+torch==2.3.1
 gradio==4.26.0
 gradio_client==0.15.1
 transformers>=4.43.2

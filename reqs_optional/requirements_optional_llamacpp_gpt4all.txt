@@ -1,5 +1,5 @@
 gpt4all==1.0.5
 
 # requires env to be set for specific systems
-llama-cpp-python==0.2.76
+llama-cpp-python==0.2.85
 
