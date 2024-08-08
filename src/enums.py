@@ -371,11 +371,11 @@ openai_supports_parallel_functiontools = ['gpt-4o', 'gpt-4o-2024-05-13', "gpt-4o
 openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-turbo-2024-04-09",
                              "gpt-4o", "gpt-4o-2024-05-13", "gpt-4o-2024-08-06",
                              "gpt-4o-mini", 'gpt-4o-mini-2024-07-18',
-                             ]
+                             ] + openai_supports_functiontools
 
 # those inference types that support strict schema (also guided_vllm, separately accounted for)
 # Only with gpt-4o-2024-08-06 will be highly accurate, however, for openai
-strict_schema_inf_types = ['anthropic', 'mistralai']
+strict_schema_inf_types = ['anthropic', 'mistralai', 'openai_chat', 'openai_azure_chat']
 strict_schema_model_bads = ['mistral-tiny']
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability

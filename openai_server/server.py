@@ -1,13 +1,16 @@
+import copy
 import io
 import os
 import sys
 import ast
 import json
 import time
+import uuid
 from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union
 
 import filelock
+import jsonschema
 from pydantic import BaseModel, Field
 
 from fastapi import FastAPI, Header, HTTPException, Form, Query
@@ -125,7 +128,7 @@ class H2oGPTParams(BaseModel):
     image_batch_final_prompt: str | None = None
     image_batch_stream: bool | None = None
     visible_vision_models: Union[str, int] | None = None
-    video_file: Union[str, list] = None
+    video_file: Union[str, list] | None = None
 
     model_lock: dict | None = None
 
@@ -302,6 +305,17 @@ async def health() -> Response:
     return Response(status_code=200)
 
 
+@app.get("/version")
+async def show_version():
+    try:
+        from ..src.version import __version__
+        githash = __version__
+    except:
+        githash = 'unknown'
+    ver = {"version": githash}
+    return JSONResponse(content=ver)
+
+
 @app.exception_handler(Exception)
 async def validation_exception_handler(request, exc):
     print_exception(exc)
@@ -338,10 +352,128 @@ async def openai_completions(request: Request, request_data: TextRequest, author
         return JSONResponse(response)
 
 
+def random_uuid() -> str:
+    return str(uuid.uuid4().hex)
+
+
+class FunctionCall(BaseModel):
+    name: str
+    arguments: str
+
+
+class ToolCall(BaseModel):
+    id: str = Field(default_factory=lambda: f"chatcmpl-tool-{random_uuid()}")
+    type: Literal["function"] = "function"
+    function: FunctionCall
+
+
+async def get_tool(request: Request, request_data: ChatRequest, authorization: str = Header(None)):
+    request_data_dict = dict(request_data)
+    request_data_dict = copy.deepcopy(request_data_dict)
+
+    tools = request_data_dict.get('tools')
+    model = request_data_dict.get('model')
+    prompt = ""
+    tool_names = []
+    tool_dict = {}
+    tool_dict['noop'] = None
+    for tool in tools:
+        assert tool['type'] == 'function'
+        tool_name = tool['function']['name']
+        tool_dict[tool_name] = tool
+        tool_description = tool['function']['description']
+        if 'claude' in model:
+            prompt += f'<tool>\n<name>\n{tool_name}\n</name>\n<description>\n{tool_description}\n</description>\n</tool>\n'
+        else:
+            prompt += f'# Tool Name\n\n{tool_name}\n# Tool Description:\n\n{tool_description}\n\n'
+        tool_names.append(tool_name)
+    if not request_data_dict['messages']:
+        raise ValueError("No messages in request, required for tool_choice='auto'")
+    original_prompt = request_data_dict['messages'][0]['content']
+    if 'claude' in model:
+        prompt += f"<prompt>\n{original_prompt}\n</prompt>\n"
+    else:
+        prompt += f"# Prompt\n\n{original_prompt}\n\n"
+
+    prompt += """
+Choose the single tool that best solves the task inferred from the prompt.  Never choose more than one tool, i.e. act like parallel_tool_calls=False.  If no tool is a good fit, then only choose the noop tool.
+"""
+    request_data_dict['guided_json'] = {
+        "type": "object",
+        "properties": {
+            "tool": {
+                "type": "string",
+                "description": "The name of the single best tool to use to solve the task inferred from the user prompt.  If no tool is a good fit, then only choose the noop tool.",
+                "enum": tool_names + ['noop'],
+            },
+        },
+        "required": ["tool"]
+    }
+    request_data_dict['response_format'] = dict(type='json_object')
+    request_data_dict['text_context_list'] = []
+    request_data_dict['use_agent'] = False
+    request_data_dict['add_chat_history_to_context'] = False
+    request_data_dict['chat_conversation'] = []
+    request_data_dict['stream_output'] = False
+    request_data_dict['stream'] = False
+    request_data_dict['langchain_action'] = 'Query'
+    request_data_dict['langchain_agents'] = []
+    request_data_dict['system_prompt'] = "You are a JSON maker."
+    request_data_dict['max_tokens'] = max(request_data_dict.get('max_tokens', 256), 256)
+    request_data_dict['hyde_level'] = 0
+
+    messages = [{'content': prompt, 'role': 'user'}]
+    request_data_dict['messages'] = messages
+    # avoid recursion
+    request_data_dict['tools'] = None
+    # recurse
+    request_data = ChatRequest(**request_data_dict)
+
+    trials = 3
+    tool_name = None
+    msgs = []
+    for trial in range(trials):
+        response_json = await openai_chat_completions(request, request_data, authorization)
+        response_all = json.loads(response_json.body)
+        json_answer = json.loads(response_all['choices'][0]['message']['content'])
+        msgs.append(json_answer)
+        print(json_answer)
+        try:
+            jsonschema.validate(instance=json_answer, schema=request_data_dict['guided_json'])
+        except:
+            continue
+        if 'tool' not in json_answer:
+            continue
+        tool_name = json_answer['tool']
+        break
+    print(msgs)
+    if tool_name is None:
+        raise RuntimeError("Failed to get tool choice: %s" % msgs)
+    return tool_name, tool_dict[tool_name]
+
+
+def tool_to_guided_json(tool):
+    guided_json = {
+        "type": "object",
+        "properties": tool,
+    }
+    return guided_json
+
+
 @app.post('/v1/chat/completions', response_model=ChatResponse, dependencies=check_key)
 async def openai_chat_completions(request: Request, request_data: ChatRequest, authorization: str = Header(None)):
     request_data_dict = dict(request_data)
     request_data_dict['authorization'] = authorization
+
+    # extract tool or do auto
+    if request_data_dict.get('tool_choice') == 'auto' and request_data_dict.get('tools'):
+        tool_name_chosen, tool_chosen = await get_tool(request, request_data, authorization)
+        request_data_dict['tools'] = []
+        if tool_name_chosen != 'noop':
+            request_data_dict['guided_json'] = tool_to_guided_json(tool_chosen)
+            request_data_dict['tool_choice'] = tool_name_chosen
+        else:
+            request_data_dict['tool_choice'] = 'auto'
 
     if request_data.stream:
         from openai_server.backend import stream_chat_completions
@@ -380,14 +512,16 @@ async def handle_models(request: Request):
             "object": "list",
             "data": [dict(id=x, object='model', created='NA', owned_by='H2O.ai') for x in base_models],
         }
+        return JSONResponse(response)
     else:
         model_index = base_models.index(model_name)
         if model_index >= 0:
-            response = model_dict[model_index]
+            model_info = model_dict[model_index]
         else:
-            response = dict(model_name='INVALID')
+            raise ValueError("No such model %s" % model_name)
 
-    return JSONResponse(response)
+        response = dict(id=model_info['base_model'], object='model', created='NA', owned_by='H2O.ai')
+        return JSONResponse(response)
 
 
 @app.get("/v1/internal/model/info", response_model=ModelInfoResponse, dependencies=check_key)
