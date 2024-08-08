@@ -274,25 +274,28 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
         yield res['response']
 
 
-# Regular expression to match dictionaries with nested curly braces
-pattern_split_dicts = re.compile(r'({[^{}]*({[^{}]*})*[^{}]*})')
-
-
 def split_concatenated_dicts(concatenated_dicts: str):
-    # Find all matches in the concatenated string
-    matches = pattern_split_dicts.findall(concatenated_dicts)
+    # Improved regular expression to handle nested braces
+    pattern = r'{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*}'
 
-    if len(matches) == 1 and matches[0][0] == concatenated_dicts.strip():
-        # The input is a single dictionary, not concatenated
-        return [ast.literal_eval(concatenated_dicts)]
+    try:
+        matches = re.findall(pattern, concatenated_dicts)
+    except re.error as e:
+        print(f"Regular expression error: {e}")
+        return []
+    except MemoryError:
+        print("Memory error: Input might be too large")
+        return []
 
-    # Extract the actual dictionary strings from the matches
-    dict_strings = [match[0] for match in matches]
+    result = []
+    for match in matches:
+        try:
+            result.append(ast.literal_eval(match))
+        except (ValueError, SyntaxError):
+            # If parsing fails, add the string as is
+            result.append(match)
 
-    # Convert dictionary strings to actual dictionaries
-    dicts = [ast.literal_eval(d) for d in dict_strings]
-
-    return dicts
+    return result
 
 
 def chat_completion_action(body: dict, stream_output=False) -> dict:

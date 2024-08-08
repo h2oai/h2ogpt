@@ -4,9 +4,11 @@ from typing import List, Dict
 
 import pytest
 
+
 sys.path.append('openai_server')
 from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages, \
     concatenate_messages, concat_tool_messages
+from openai_server.backend import split_concatenated_dicts
 
 
 def test_conversion():
@@ -568,3 +570,66 @@ def test_concat_tool():
 def test_concat_tool_messages(messages: List[Dict[str, str]], expected: List[Dict[str, str]]):
     result = concat_tool_messages(messages)
     assert result == expected, f"Expected {expected}, but got {result}"
+
+
+def test_split_single_dict():
+    input_str = '{"a": 1, "b": 2}'
+    expected = [{"a": 1, "b": 2}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_multiple_simple_dicts():
+    input_str = '{"a": 1}{"b": 2}{"c": 3}'
+    expected = [{"a": 1}, {"b": 2}, {"c": 3}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_multiple_complex_dicts():
+    input_str = '{"a": {"nested": 1}}{"b": [1, 2, 3]}{"c": "string"}'
+    expected = [{"a": {"nested": 1}}, {"b": [1, 2, 3]}, {"c": "string"}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_dicts_with_nested_braces():
+    input_str = '{"a": "{nested}"}{"b": "{{double}}"}{"c": "{}"}'
+    expected = [{"a": "{nested}"}, {"b": "{{double}}"}, {"c": "{}"}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_empty_dicts():
+    input_str = '{}{}{}'
+    expected = [{}, {}, {}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_mixed_empty_and_non_empty_dicts():
+    input_str = '{"a": 1}{}{"b": 2}{}'
+    expected = [{"a": 1}, {}, {"b": 2}, {}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_whitespace_between_dicts():
+    input_str = '{"a": 1}  {"b": 2}    {"c": 3}'
+    expected = [{"a": 1}, {"b": 2}, {"c": 3}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_invalid_input():
+    assert split_concatenated_dicts('{"a": 1}invalid{"b": 2}') == [{"a": 1}, {"b": 2}]
+    assert split_concatenated_dicts('invalid') == []
+
+
+def test_split_empty_input():
+    assert split_concatenated_dicts('') == []
+
+
+def test_split_single_dict_with_whitespace():
+    input_str = '  {"a": 1, "b": 2}  '
+    expected = [{"a": 1, "b": 2}]
+    assert split_concatenated_dicts(input_str) == expected
+
+
+def test_split_dicts_with_escaped_quotes():
+    input_str = '{"a": "quoted \\"string\\""}{"b": "another \\"quote\\""}'
+    expected = [{"a": 'quoted "string"'}, {"b": 'another "quote"'}]
+    assert split_concatenated_dicts(input_str) == expected
