@@ -637,8 +637,8 @@ def test_tool_use2():
     import json
 
     model = 'gpt-4o'
-    # client = OpenAI(base_url='http://localhost:5000/v1', api_key='EMPTY')
-    client = OpenAI()
+    client = OpenAI(base_url='http://localhost:5000/v1', api_key='EMPTY')
+    # client = OpenAI()
 
     prompt = """"# Tool Name
 
