@@ -1,4 +1,5 @@
 import ast
+import copy
 import time
 import os
 import traceback
@@ -2389,12 +2390,19 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
                         test_only=False, verbose=False):
     image_file = []  # NA for tokenizer version of things, usually much more specific non-OpenAI compliant thing
     history = get_llm_history(history, only_text=True)
+    if isinstance(history, list):
+        history = copy.deepcopy(history)
     prompt = ''
     exceptions = []
 
     from openai_server.backend_utils import structure_to_messages
 
-    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] else None, None]
+    if history and list(history[0]) == [user_prompt_for_fake_system_prompt, system_prompt]:
+        already_system = True
+    else:
+        already_system = False
+
+    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] and not already_system else None, None]
     for si, system_prompt_to_use in enumerate(system_prompts_to_use):
         try:
             messages = structure_to_messages(instruction,
@@ -2413,8 +2421,9 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
             if test_only:
                 return ''
             # try no direct system prompt, but add as conversation history
-            user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
-            history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
+            if not already_system:
+                user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
+                history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
 
             exceptions.append(ex)
             if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e) or 'System prompt not used' in str(e)):
