@@ -2406,14 +2406,14 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
     for si, system_prompt_to_use in enumerate(system_prompts_to_use):
         try:
             messages = structure_to_messages(instruction,
-                                             system_prompt_to_use,
+                                             system_prompt_to_use.strip() if system_prompt_to_use else system_prompt_to_use,
                                              history,
                                              image_file,
                                              )
             if not messages:
                 return ''
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            if si == 0 and system_prompt_to_use not in [None, ''] and system_prompt_to_use not in prompt:
+            if si == 0 and system_prompt_to_use not in [None, ''] and system_prompt_to_use.strip() != '' and system_prompt_to_use.strip() not in prompt.strip():
                 raise ValueError("System prompt not used: %s" % system_prompt_to_use)
             break
         except Exception as e:
