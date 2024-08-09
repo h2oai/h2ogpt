@@ -8648,16 +8648,23 @@ def get_chain(query=None,
         docs_with_score = select_docs_with_score(docs_with_score, top_k_docs, one_doc_size)
 
     if summarize_action:
-        template_text = template_if_no_docs.format(input_documents='', question='')
+        if '{text}' in template:
+            template_text = template.format(text='')
+        elif '{input_documents}' in template:
+            template_text = template.format(input_documents='')
+        elif '{question}' in template:
+            template_text = template.format(question='')
+        else:
+            template_text = ''
 
         # first docs_with_score are most important with highest score
         estimated_full_prompt, \
             _, iinput, context, \
-            _, _, \
-            _, _, \
-            _, _, \
-            _, _, \
-            _, system_prompt, pre_prompt_summary, prompt_summary = \
+            num_prompt_tokens1, max_new_tokens1, \
+            num_prompt_tokens01, num_prompt_tokens_actual1, \
+            history_to_use_final1, external_handle_chat_conversation1, \
+            top_k_docs1, one_doc_size1, \
+            truncation_generation1, system_prompt, pre_prompt_summary, prompt_summary = \
             get_limited_prompt_func(template_text,
                                     iinput,
                                     tokenizer,
@@ -8696,7 +8703,8 @@ def get_chain(query=None,
                                                            max_input_tokens=max_input_tokens,
                                                            docs_token_handling=docs_token_handling,
                                                            joiner=docs_joiner if not doing_grounding else "Document xx",
-                                                           non_doc_prompt=estimated_full_prompt,
+                                                           # ensure splitting of docs accounts for rest of non-doc prompt
+                                                           non_doc_prompt=estimated_full_prompt + template_text,
                                                            hf_embedding_model=hf_embedding_model,
                                                            verbose=verbose)
         # in case docs_with_score grew due to splitting, limit again by top_k_docs
