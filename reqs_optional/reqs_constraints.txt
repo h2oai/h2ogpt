@@ -7,3 +7,5 @@ transformers>=4.43.2
 # https://github.com/langchain-ai/langchain/issues/22972
 tenacity==8.3.0
 pydantic==2.7.0
+# rust failure with 3.10.7
+orjson==3.10.6
