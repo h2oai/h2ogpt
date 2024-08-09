@@ -4,6 +4,14 @@ set -ex
 
 export WOLFI_OS=true
 
+unset LLAMA_CUBLAS
+unset CMAKE_ARGS
+unset FORCE_CMAKE
+
+export GGML_CUDA=1
+export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.1/bin/nvcc"
+export FORCE_CMAKE=1
+
 bash ./docs/linux_install.sh
 
 # setup tiktoken cache
