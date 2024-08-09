@@ -77,9 +77,13 @@ openpyxl>=3.1.2
 lm_dataformat>=0.0.20
 bioc>=2.0
 
+# for HF embeddings
+sentence_transformers>=3.0.1
+InstructorEmbedding @ https://h2o-release.s3.amazonaws.com/h2ogpt/InstructorEmbedding-1.0.1-py3-none-any.whl
+sentence_transformers_old @ https://h2o-release.s3.amazonaws.com/h2ogpt/sentence_transformers_old-2.2.2-py3-none-any.whl
+
 # falcon
 einops>=0.6.1
-instructorembedding>=1.0.1
 
 # for gpt4all .env file, but avoid worrying about imports
 python-dotenv>=1.0.0
