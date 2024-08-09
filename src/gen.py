@@ -4494,7 +4494,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 512
-        repetition_penalty = repetition_penalty or 1.07
+        repetition_penalty = repetition_penalty or 1.0  # 1.07 causes issues still with more repetition
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     else:
@@ -4504,7 +4504,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         penalty_alpha = 0 if penalty_alpha is None else penalty_alpha
         num_beams = num_beams or 1
         max_new_tokens = max_new_tokens or 1024
-        repetition_penalty = repetition_penalty or 1.07
+        repetition_penalty = repetition_penalty or 1.0  # 1.07 causes issues still with more repetition
         num_return_sequences = min(num_beams, num_return_sequences or 1)
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
