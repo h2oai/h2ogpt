@@ -76,7 +76,6 @@ sentence_transformers_old @ https://h2o-release.s3.amazonaws.com/h2ogpt/sentence
 
 # falcon
 einops>=0.6.1
-instructorembedding>=1.0.1
 
 # for gpt4all .env file, but avoid worrying about imports
 python-dotenv>=1.0.0
