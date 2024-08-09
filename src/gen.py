@@ -3012,12 +3012,15 @@ def evaluate(
                                   pre_instruction + \
                                   '\n###\nEnd response format instructions\n\n'
         if instruction:
-            # FIXME: don't embed instruction with extra JSON stuff
+            # avoid duplication, assuming instruction will be in final prompt after prompt_query or prompt_summary
             instruction = pre_instruction + '\n\n' + instruction
-        pre_prompt_query = ''
-        prompt_query = pre_instruction + prompt_query
-        pre_prompt_summary = ''
-        prompt_summary = pre_instruction + prompt_summary
+            pre_prompt_query = ''
+            pre_prompt_summary = ''
+        else:
+            pre_prompt_query = ''
+            prompt_query = pre_instruction + prompt_query
+            pre_prompt_summary = ''
+            prompt_summary = pre_instruction + prompt_summary
 
     ###############
     # prompt_type and prompter setup
