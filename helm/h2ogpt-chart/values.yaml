@@ -247,7 +247,7 @@ lmdeploy:
   replicaCount: 1
 
   image:
-    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-internvl
+    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy
     tag:
     pullPolicy: IfNotPresent
 
