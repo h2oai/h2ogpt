@@ -410,13 +410,6 @@ def get_githash():
         print("git failed to run: %s" % str(e))
     if githash == git_hash_unset:
         try:
-            with open('git_hash.txt', 'rt') as f:
-                githash = f.read().strip()
-        except Exception as e:
-            print("git_hash.txt failed to be found: %s" % str(e))
-
-    if githash == git_hash_unset:
-        try:
             from version import __version__
             githash = __version__
         except:

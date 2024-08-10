@@ -52,11 +52,8 @@ build_info.txt:
 	@echo "build_user=\"`id -u -n`\"" >> $@
 	@echo "base_version=\"$(PACKAGE_VERSION)\"" >> $@
 
-git_hash.txt:
-	@echo "$(shell git rev-parse HEAD)" >> $@
 
-
-docker_build: build_info.txt git_hash.txt
+docker_build: build_info.txt
 ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET https://gcr.io/v2/vorvan/h2oai/h2oai-h2ogpt-runtime/manifests/$(BUILD_TAG)),200)
 	@echo "Image already pushed to GCR: $(DOCKER_H2OGPT_RUNTIME_IMAGE)"
 	docker pull $(DOCKER_H2OGPT_RUNTIME_IMAGE)

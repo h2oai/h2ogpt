@@ -18,8 +18,6 @@ COPY . /workspace/
 
 COPY build_info.txt /workspace/
 
-COPY git_hash.txt /workspace/
-
 RUN cd /workspace && ./docker_build_script_ubuntu.sh
 
 RUN chmod -R a+rwx /workspace
