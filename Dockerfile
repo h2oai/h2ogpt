@@ -18,7 +18,6 @@ COPY .              /workspace/
 
 # copy build info
 COPY build_info.txt /workspace/
-COPY git_hash.txt   /workspace/
 
 # copy install script
 COPY linux_install_wolfi.sh    /workspace/

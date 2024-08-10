@@ -98,7 +98,6 @@ pip install https://h2o-release.s3.amazonaws.com/h2ogpt/open_webui-0.3.8-py3-non
 
 # Track build info
 cp /workspace/build_info.txt /build_info.txt
-cp /workspace/git_hash.txt /git_hash.txt
 
 mkdir -p /workspace/save
 chmod -R a+rwx /workspace/save
