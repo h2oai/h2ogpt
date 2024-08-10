@@ -75,7 +75,6 @@ COPY --from=intermediate-stage    /docker_cache/onnxruntime/      /usr/lib/pytho
 COPY --from=intermediate-stage    /docker_cache/triton/           /usr/lib/python3.10/site-packages/triton/
 
 COPY --from=intermediate-stage    /workspace/build_info.txt       /build_info.txt
-COPY --from=intermediate-stage    /workspace/git_hash.txt         /git_hash.txt
 COPY --from=intermediate-stage    /workspace                      /workspace
 RUN chmod a+rwx /workspace  # only for top dir, as docker COPY skips it.
 
