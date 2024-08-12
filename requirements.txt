@@ -58,7 +58,7 @@ markdown>=3.4.3
 # data and testing
 pytest>=7.2.2
 pytest-xdist>=3.2.1
-nltk>=3.8.1
+nltk>=3.8.2
 textstat>=0.7.3
 # pandoc==2.3
 pypandoc>=1.11; sys_platform == "darwin" and platform_machine == "arm64"
