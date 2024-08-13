@@ -232,8 +232,9 @@ docker run \
     --rm --init \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e export VLLM_NO_USAGE_STATS=1 -e DO_NOT_TRACK=1 \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
+    -e VLLM_NO_USAGE_STATS=1 \
+    -e DO_NOT_TRACK=1 \
+    -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -273,8 +274,9 @@ docker run -d \
     -p 5000:5000 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e export VLLM_NO_USAGE_STATS=1 -e DO_NOT_TRACK=1 \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
+    -e VLLM_NO_USAGE_STATS=1 \
+    -e DO_NOT_TRACK=1 \
+    -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
@@ -309,8 +311,9 @@ docker run -d \
     -p 5000:5000 \
     -e NCCL_IGNORE_DISABLED_P2P=1 \
     -e HUGGING_FACE_HUB_TOKEN=$HUGGING_FACE_HUB_TOKEN \
-    -e export VLLM_NO_USAGE_STATS=1 -e DO_NOT_TRACK=1 \
-    -e VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2 -e NUMBA_CACHE_DIR=/tmp/ \
+    -e VLLM_NO_USAGE_STATS=1 \
+    -e DO_NOT_TRACK=1 \
+    -e NUMBA_CACHE_DIR=/tmp/ \
     -v /etc/passwd:/etc/passwd:ro \
     -v /etc/group:/etc/group:ro \
     -u `id -u`:`id -g` \
