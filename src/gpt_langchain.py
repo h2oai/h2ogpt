@@ -9057,7 +9057,7 @@ def get_template(query, iinput,
     pre_prompt_query = escape_braces(pre_prompt_query)
     pre_prompt_summary = escape_braces(pre_prompt_summary)
 
-    if all_docs_start_prompt is None and all_docs_finish_prompt is None:
+    if all_docs_start_prompt in ['auto', None] and all_docs_finish_prompt in ['auto', None]:
         if 'h2o-danube2' not in model_name and 'h2o-danube3' not in model_name and 'h2o-danube-' not in model_name:
             # NOTE: enabled generally for now, seems to help generally
             triple_quotes_start = """
