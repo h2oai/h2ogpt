@@ -387,13 +387,16 @@ def main(
         pre_prompt_summary: str = None,
         prompt_summary: str = None,
         hyde_llm_prompt: str = None,
+        all_docs_start_prompt: str = 'auto',
+        all_docs_finish_prompt: str = 'auto',
 
         user_prompt_for_fake_system_prompt: str = None,
-        json_object_prompt=None,
-        json_object_prompt_simpler=None,
-        json_code_prompt=None,
-        json_code_prompt_if_no_schema=None,
-        json_schema_instruction=None,
+        json_object_prompt: str = None,
+        json_object_prompt_simpler: str = None,
+        json_code_prompt: str = None,
+        json_code_prompt_if_no_schema: str = None,
+        json_schema_instruction: str = None,
+        json_preserve_system_prompt: bool = False,
 
         add_chat_history_to_context: bool = True,
         add_search_to_context: bool = False,
@@ -1123,12 +1126,16 @@ def main(
 
     :param hyde_llm_prompt: hyde prompt for first step when using LLM
 
+    :param all_docs_start_prompt: Prompt before all documents
+    :param all_docs_finish_prompt: Prompt after all documents
+
     :param user_prompt_for_fake_system_prompt: user part of pre-conversation if LLM doesn't handle system prompt
     :param json_object_prompt: prompt for getting LLM to do JSON object
     :param json_object_prompt_simpler: simpler of "" for MistralAI
     :param json_code_prompt: prompt for getting LLm to do JSON in code block
     :param json_code_prompt_if_no_schema: prompt part for LLM if not schema, but need good keys etc. for JSON (e.g. due to Claude-3 limitations)
     :param json_schema_instruction: prompt for LLM to use schema
+    :param json_preserve_system_prompt: whether to preserve system_prompt for JSON mode
 
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param metadata_in_context: Keys of metadata to include in LLM context for Query
@@ -1921,6 +1928,8 @@ def main(
                             system_prompt,
                             pre_prompt_query, prompt_query,
                             pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+                            all_docs_start_prompt,
+                            all_docs_finish_prompt,
 
                             user_prompt_for_fake_system_prompt,
                             json_object_prompt,
@@ -1928,6 +1937,7 @@ def main(
                             json_code_prompt,
                             json_code_prompt_if_no_schema,
                             json_schema_instruction,
+                            json_preserve_system_prompt,
 
                             temperature, top_p, top_k, penalty_alpha, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
@@ -2312,6 +2322,10 @@ def main(
     prompt_summary = prompt_summary or prompt_summary1
     hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
 
+    if all_docs_start_prompt == 'auto' or all_docs_finish_prompt == 'auto':
+        all_docs_start_prompt = None
+        all_docs_finish_prompt = None
+
     user_prompt_for_fake_system_prompt = user_prompt_for_fake_system_prompt or user_prompt_for_fake_system_prompt0
     json_object_prompt = json_object_prompt or json_object_prompt0
     json_object_prompt_simpler = json_object_prompt_simpler or json_object_prompt_simpler0
@@ -2452,6 +2466,8 @@ def evaluate(
         pre_prompt_summary,
         prompt_summary,
         hyde_llm_prompt,
+        all_docs_start_prompt,
+        all_docs_finish_prompt,
 
         user_prompt_for_fake_system_prompt,
         json_object_prompt,
@@ -2459,6 +2475,7 @@ def evaluate(
         json_code_prompt,
         json_code_prompt_if_no_schema,
         json_schema_instruction,
+        json_preserve_system_prompt,
 
         system_prompt,
 
@@ -3000,7 +3017,8 @@ def evaluate(
             else:
                 pre_instruction = json_code_prompt + json_code_prompt_if_no_schema
         # ignore these, make no sense for JSON mode
-        system_prompt = ''  # can mess up the model, e.g. 70b
+        if not json_preserve_system_prompt:
+            system_prompt = ''  # can mess up the model, e.g. 70b
         if pre_instruction:
             if True or base_model and base_model in anthropic_mapping:
                 # NOTE: enabled generally for now, seems to help generally
@@ -3239,6 +3257,8 @@ def evaluate(
                 pre_prompt_summary=pre_prompt_summary,
                 prompt_summary=prompt_summary,
                 hyde_llm_prompt=hyde_llm_prompt,
+                all_docs_start_prompt=all_docs_start_prompt,
+                all_docs_finish_prompt=all_docs_finish_prompt,
 
                 user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                 json_object_prompt=json_object_prompt,
@@ -3246,6 +3266,7 @@ def evaluate(
                 json_code_prompt=json_code_prompt,
                 json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                 json_schema_instruction=json_schema_instruction,
+                json_preserve_system_prompt=json_preserve_system_prompt,
 
                 text_context_list=text_context_list,
                 chat_conversation=chat_conversation,
@@ -3754,6 +3775,8 @@ def evaluate(
                                          pre_prompt_summary=pre_prompt_summary,
                                          prompt_summary=prompt_summary,
                                          hyde_llm_prompt=hyde_llm_prompt,
+                                         all_docs_start_prompt=all_docs_start_prompt,
+                                         all_docs_finish_prompt=all_docs_finish_prompt,
 
                                          user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          json_object_prompt=json_object_prompt,
@@ -3761,6 +3784,7 @@ def evaluate(
                                          json_code_prompt=json_code_prompt,
                                          json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                                          json_schema_instruction=json_schema_instruction,
+                                         json_preserve_system_prompt=json_preserve_system_prompt,
 
                                          system_prompt=system_prompt,
                                          image_audio_loaders=image_audio_loaders,
@@ -4332,12 +4356,14 @@ def get_generate_params(model_lower,
                         system_prompt,
                         pre_prompt_query, prompt_query,
                         pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+                        all_docs_start_prompt, all_docs_finish_prompt,
                         user_prompt_for_fake_system_prompt,
                         json_object_prompt,
                         json_object_prompt_simpler,
                         json_code_prompt,
                         json_code_prompt_if_no_schema,
                         json_schema_instruction,
+                        json_preserve_system_prompt,
                         temperature, top_p, top_k, penalty_alpha, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -4571,6 +4597,7 @@ y = np.random.randint(0, 1, 100)
                     [], 'and', [], 'and',
                     pre_prompt_query, prompt_query,
                     pre_prompt_summary, prompt_summary, hyde_llm_prompt,
+                    all_docs_start_prompt, all_docs_finish_prompt,
 
                     user_prompt_for_fake_system_prompt,
                     json_object_prompt,
@@ -4578,6 +4605,7 @@ y = np.random.randint(0, 1, 100)
                     json_code_prompt,
                     json_code_prompt_if_no_schema,
                     json_schema_instruction,
+                    json_preserve_system_prompt,
 
                     system_prompt,
                     image_audio_loaders,

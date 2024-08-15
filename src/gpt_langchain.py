@@ -940,12 +940,15 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     add_chat_history_to_context: bool = True
     chat_conversation: Any = []
+    all_docs_start_prompt: Any = None
+    all_docs_finish_prompt: Any = None
     user_prompt_for_fake_system_prompt: Any = None
     json_object_prompt: Any = None
     json_object_prompt_simpler: Any = None
     json_code_prompt: Any = None
     json_code_prompt_if_no_schema: Any = None
     json_schema_instruction: Any = None
+    json_preserve_system_prompt: bool = False
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -1079,12 +1082,15 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              pre_prompt_summary=None,  # no further langchain summary
                              prompt_summary=None,  # no further langchain summary
                              hyde_llm_prompt=None,  # no further HYDE
+                             all_docs_start_prompt=self.all_docs_start_prompt,
+                             all_docs_finish_prompt=self.all_docs_finish_prompt,
                              user_prompt_for_fake_system_prompt=self.user_prompt_for_fake_system_prompt,
                              json_object_prompt=self.json_object_prompt,
                              json_object_prompt_simpler=self.json_object_prompt_simpler,
                              json_code_prompt=self.json_code_prompt,
                              json_code_prompt_if_no_schema=self.json_code_prompt_if_no_schema,
                              json_schema_instruction=self.json_schema_instruction,
+                             json_preserve_system_prompt=self.json_preserve_system_prompt,
                              system_prompt=self.system_prompt,
                              image_audio_loaders=None,  # don't need to further do doc specific things
                              pdf_loaders=None,  # don't need to further do doc specific things
@@ -2508,9 +2514,11 @@ class GenerateStream:
             else:
                 # -1 is last, to skip first thinking step for opus/sonnet
                 # bug in claude with sonnet:
-                if 'input' in ret.generations[0].message.content[-1] and ret.generations[0].message.content[-1]['input']:
+                if 'input' in ret.generations[0].message.content[-1] and ret.generations[0].message.content[-1][
+                    'input']:
                     result = ret.generations[0].message.content[-1]['input']
-                elif 'partial_json' in ret.generations[0].message.content[-1] and ret.generations[0].message.content[-1]['partial_json']:
+                elif 'partial_json' in ret.generations[0].message.content[-1] and \
+                        ret.generations[0].message.content[-1]['partial_json']:
                     result = json.loads(ret.generations[0].message.content[-1]['partial_json'])
                 else:
                     result = {}
@@ -3165,7 +3173,7 @@ def get_llm(use_openai_model=False,
                 if openai_model_supports_tools and guided_json:
                     model_kwargs.update(dict(tools=tools_openai))
                     # ValueError: Error code: 400 - {'error': {'message': "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", 'type': 'invalid_request_error', 'param': 'messages', 'code': None}}
-                    azure_kwargs.update(dict(response_format=dict(type='text')))#, parallel_tool_calls=False))
+                    azure_kwargs.update(dict(response_format=dict(type='text')))  # , parallel_tool_calls=False))
                 else:
                     azure_kwargs.update(dict(response_format=dict(type=response_format)))
             kwargs_extra.update(
@@ -3272,7 +3280,7 @@ def get_llm(use_openai_model=False,
                     "description": "Document, image, chat history conversion to strict JSON.  This tool must be used, do not just answer the question from context.",
                     "input_schema": guided_json,
                 }
-            ], tool_choice = {"type": "tool", "name": "JSON"})
+            ], tool_choice={"type": "tool", "name": "JSON"})
         else:
             model_kwargs = {}
         kwargs_extra = {}
@@ -3393,7 +3401,8 @@ def get_llm(use_openai_model=False,
                     }
                 }
             ],
-                tool_choice='any',  # if model_name not in ['mistral-medium', 'mistral-tiny', 'mistral-small-latest'] else 'auto'
+                tool_choice='any',
+                # if model_name not in ['mistral-medium', 'mistral-tiny', 'mistral-small-latest'] else 'auto'
             )
         else:
             model_kwargs = {}
@@ -6766,6 +6775,8 @@ def _run_qa_db(query=None,
                pre_prompt_summary=None,
                prompt_summary=None,
                hyde_llm_prompt=None,
+               all_docs_start_prompt=None,
+               all_docs_finish_prompt=None,
                text_context_list=None,
                chat_conversation=None,
 
@@ -6775,6 +6786,7 @@ def _run_qa_db(query=None,
                json_code_prompt=None,
                json_code_prompt_if_no_schema=None,
                json_schema_instruction=None,
+               json_preserve_system_prompt=None,
 
                visible_models=None,
                h2ogpt_key=None,
@@ -7773,6 +7785,8 @@ def get_chain(query=None,
               pre_prompt_summary=None,
               prompt_summary=None,
               hyde_llm_prompt=None,
+              all_docs_start_prompt=None,
+              all_docs_finish_prompt=None,
               text_context_list=None,
               chat_conversation=None,
               user_prompt_for_fake_system_prompt=None,
@@ -8288,6 +8302,8 @@ def get_chain(query=None,
         get_template(query, iinput,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
+                     all_docs_start_prompt,
+                     all_docs_finish_prompt,
                      langchain_action,
                      query_action,
                      summarize_action,
@@ -8502,6 +8518,10 @@ def get_chain(query=None,
 
     if metadata_in_context is None:
         metadata_in_context = []
+    if isinstance(metadata_in_context, str) and metadata_in_context == 'auto':
+        if 'h2o-danube2' in model_name or 'h2o-danube3' in model_name or 'h2o-danube-' in model_name:
+            # model not good enough to handle
+            metadata_in_context = []
     if db is None and text_context_list:
         # not useful then, just mess
         metadata_in_context = []
@@ -8594,6 +8614,8 @@ def get_chain(query=None,
             get_template(query, iinput,
                          pre_prompt_query, prompt_query,
                          pre_prompt_summary, prompt_summary,
+                         all_docs_start_prompt,
+                         all_docs_finish_prompt,
                          langchain_action,
                          query_action,
                          summarize_action,
@@ -8679,6 +8701,8 @@ def get_chain(query=None,
             get_template(query, iinput,
                          pre_prompt_query, prompt_query,
                          pre_prompt_summary, prompt_summary,
+                         all_docs_start_prompt,
+                         all_docs_finish_prompt,
                          langchain_action,
                          query_action,
                          summarize_action,
@@ -8791,6 +8815,8 @@ def get_chain(query=None,
         get_template(query, iinput,
                      pre_prompt_query, prompt_query,
                      pre_prompt_summary, prompt_summary,
+                     all_docs_start_prompt,
+                     all_docs_finish_prompt,
                      langchain_action,
                      query_action,
                      summarize_action,
@@ -9011,6 +9037,8 @@ def escape_braces(text):
 def get_template(query, iinput,
                  pre_prompt_query, prompt_query,
                  pre_prompt_summary, prompt_summary,
+                 all_docs_start_prompt,
+                 all_docs_finish_prompt,
                  langchain_action,
                  query_action,
                  summarize_action,
@@ -9029,18 +9057,22 @@ def get_template(query, iinput,
     pre_prompt_query = escape_braces(pre_prompt_query)
     pre_prompt_summary = escape_braces(pre_prompt_summary)
 
-    if True or model_name and model_name in anthropic_mapping:
-        # NOTE: enabled generally for now, seems to help generally
-        triple_quotes_start = """
+    if all_docs_start_prompt in ['auto', None] or all_docs_finish_prompt in ['auto', None]:
+        if 'h2o-danube2' not in model_name and 'h2o-danube3' not in model_name and 'h2o-danube-' not in model_name:
+            # NOTE: enabled generally for now, seems to help generally
+            triple_quotes_start = """
 <all_documents>
 """
-        triple_quotes_finish = """
+            triple_quotes_finish = """
 </all_documents>
 """
-    else:
-        triple_quotes_start = triple_quotes_finish = """
+        else:
+            triple_quotes_start = triple_quotes_finish = """
 \"\"\"
 """
+    else:
+        triple_quotes_start = all_docs_start_prompt
+        triple_quotes_finish = all_docs_finish_prompt
 
     if got_any_docs and add_search_to_context:
         # modify prompts, assumes patterns like in predefined prompts.  If user customizes, then they'd need to account for that.

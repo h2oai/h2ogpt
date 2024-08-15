@@ -138,6 +138,8 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  'pre_prompt_summary': None,
                  'prompt_summary': None,
                  'hyde_llm_prompt': None,
+                 'all_docs_start_prompt': None,
+                 'all_docs_finish_prompt': None,
 
                  "user_prompt_for_fake_system_prompt": None,
                  "json_object_prompt": None,
@@ -145,6 +147,7 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  "json_code_prompt": None,
                  "json_code_prompt_if_no_schema": None,
                  "json_schema_instruction": None,
+                 "json_preserve_system_prompt": None,
 
                  'system_prompt': 'auto',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),

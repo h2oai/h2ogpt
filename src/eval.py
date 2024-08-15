@@ -64,6 +64,8 @@ def run_eval(  # for local function:
         document_content_substrings_op=None,
         pre_prompt_query=None, prompt_query=None,
         pre_prompt_summary=None, prompt_summary=None, hyde_llm_prompt=None,
+        all_docs_start_prompt=None,
+        all_docs_finish_prompt=None,
 
         user_prompt_for_fake_system_prompt=None,
         json_object_prompt=None,
@@ -71,6 +73,7 @@ def run_eval(  # for local function:
         json_code_prompt=None,
         json_code_prompt_if_no_schema=None,
         json_schema_instruction=None,
+        json_preserve_system_prompt=None,
 
         image_audio_loaders=None,
         pdf_loaders=None,
