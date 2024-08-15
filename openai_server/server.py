@@ -80,6 +80,8 @@ class H2oGPTParams(BaseModel):
     pre_prompt_summary: str | None = None
     prompt_summary: str | None = None
     hyde_llm_prompt: str | None = None
+    all_docs_start_prompt: str | None = None,
+    all_docs_finish_prompt: str | None = None,
 
     user_prompt_for_fake_system_prompt: str | None = None
     json_object_prompt: str | None = None
@@ -87,6 +89,7 @@ class H2oGPTParams(BaseModel):
     json_code_prompt: str | None = None
     json_code_prompt_if_no_schema: str | None = None
     json_schema_instruction: str | None = None
+    json_preserve_system_prompt: bool | None = False
 
     system_prompt: str | None = 'auto'
 
