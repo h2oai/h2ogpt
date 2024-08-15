@@ -1354,7 +1354,6 @@ def get_hf_model(load_8bit: bool = False,
                                 args = tuple([base_model])
                             model = model_loader(
                                 *args,
-                                use_safetensors=use_safetensors,
                                 **model_kwargs,
                             )
                         else:
