@@ -214,12 +214,14 @@ class GradioClient(Client):
         self.server_hash = None  # internal
 
     def __repr__(self):
-        if self.config:
+        if self.config and False:
+            # too slow for guardrails exceptional path
             return self.view_api(print_info=False, return_format="str")
         return "Not setup for %s" % self.src
 
     def __str__(self):
-        if self.config:
+        if self.config and False:
+            # too slow for guardrails exceptional path
             return self.view_api(print_info=False, return_format="str")
         return "Not setup for %s" % self.src
 
@@ -525,7 +527,9 @@ class GradioClient(Client):
             ret = ret1.reply
         return ret
 
-    def question_stream(self, instruction, *args, **kwargs) -> str:
+    def question_stream(
+        self, instruction, *args, **kwargs
+    ) -> Generator[ReturnType, None, None]:
         """
         Prompt LLM (direct to LLM with instruct prompting required for instruct models) and get response
         """
@@ -546,9 +550,7 @@ class GradioClient(Client):
             ret = ret1.reply
         return ret
 
-    def query_stream(
-        self, query, *args, **kwargs
-    ) -> Generator[tuple[str | list[str], list[str]], None, None]:
+    def query_stream(self, query, *args, **kwargs) -> Generator[ReturnType, None, None]:
         """
         Search for documents matching a query, then ask that query to LLM with those documents
         """
@@ -1089,9 +1091,9 @@ class GradioClient(Client):
             tokens_per_second = 0
             time_to_first_token = None
             vision_visible_model = None
-            vision_batch_input_tokens = None
-            vision_batch_output_tokens = None
-            vision_batch_tokens_per_second = None
+            vision_batch_input_tokens = 0
+            vision_batch_output_tokens = 0
+            vision_batch_tokens_per_second = 0
             t_taken_s = None
             for trial in range(trials):
                 t0 = time.time()
