@@ -1499,6 +1499,14 @@ def go_gradio(**kwargs):
                             hyde_llm_prompt = gr.Textbox(label="HYDE LLM Prompt",
                                                          info="When doing HYDE, this is first prompt, and in template the user query comes right after this.",
                                                          value=kwargs['hyde_llm_prompt'] or '')
+                            all_docs_start_prompt = gr.Textbox(label="DocQA Documents Starting Prompt",
+                                                                    info="Goes just before all documents.",
+                                                                    value=kwargs[
+                                                                              'all_docs_start_prompt'] or 'auto')
+                            all_docs_finish_prompt = gr.Textbox(label="DocQA Documents Finishing Prompt",
+                                                                     info="Goes just after all documents.",
+                                                                     value=kwargs[
+                                                                               'all_docs_finish_prompt'] or 'auto')
                             llava_prompt_type = gr.Dropdown(label="LLaVa LLM Prompt Type",
                                                             info="Pick pre-defined LLaVa prompt",
                                                             value=kwargs['llava_prompt'],
@@ -1527,8 +1535,11 @@ def go_gradio(**kwargs):
                                                                        value=kwargs[
                                                                                  'json_code_prompt_if_no_schema'] or '')
                             json_schema_instruction = gr.Textbox(label="JSON Schema Prompt",
-                                                                 info="prompt for LLM to use schema",
-                                                                 value=kwargs['json_schema_instruction'] or '')
+                                                                  info="prompt for LLM to use schema",
+                                                                  value=kwargs['json_schema_instruction'])
+                            json_preserve_system_prompt = gr.Checkbox(label="Preserve System Prompt for JSON Mode",
+                                                                  info="Whether to preserve system prompt when doing JSON mode.",
+                                                                  value=kwargs['json_preserve_system_prompt'])
 
                             def show_llava(x):
                                 return x

@@ -718,12 +718,15 @@ class GradioClient(Client):
         pre_prompt_extraction: str | None = pre_prompt_extraction0,
         prompt_extraction: str | None = prompt_extraction0,
         hyde_llm_prompt: str | None = hyde_llm_prompt0,
+        all_docs_start_prompt: str | None = None,
+        all_docs_finish_prompt: str | None = None,
         user_prompt_for_fake_system_prompt: str = None,
         json_object_prompt: str = None,
         json_object_prompt_simpler: str = None,
         json_code_prompt: str = None,
         json_code_prompt_if_no_schema: str = None,
         json_schema_instruction: str = None,
+        json_preserve_system_prompt: bool = False,
         model: str | int | None = None,
         model_lock: dict | None = None,
         stream_output: bool = False,
@@ -853,6 +856,8 @@ class GradioClient(Client):
                 \"\"\"
                 %s" % (pre_prompt_summary, fstring, prompt_summary)
             :param hyde_llm_prompt: hyde prompt for first step when using LLM
+            :param all_docs_start_prompt: start of document block
+            :param all_docs_finish_prompt: finish of document block
 
             :param user_prompt_for_fake_system_prompt: user part of pre-conversation if LLM doesn't handle system prompt
             :param json_object_prompt: prompt for getting LLM to do JSON object
@@ -860,6 +865,7 @@ class GradioClient(Client):
             :param json_code_prompt: prompt for getting LLm to do JSON in code block
             :param json_code_prompt_if_no_schema: prompt for getting LLM to do JSON in code block if no schema
             :param json_schema_instruction: prompt for LLM to use schema
+            :param json_preserve_system_prompt: Whether to preserve system prompt for json mode
 
             :param h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
             :param model: base_model name or integer index of model_lock on h2oGPT server

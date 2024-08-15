@@ -64,6 +64,8 @@ eval_func_param_names = (
             "pre_prompt_summary",
             "prompt_summary",
             "hyde_llm_prompt",
+            "all_docs_start_prompt",
+            "all_docs_finish_prompt",
 
             "user_prompt_for_fake_system_prompt",
             "json_object_prompt",
@@ -71,6 +73,7 @@ eval_func_param_names = (
             "json_code_prompt",
             "json_code_prompt_if_no_schema",
             "json_schema_instruction",
+            "json_preserve_system_prompt",
 
             "system_prompt",
         ]
