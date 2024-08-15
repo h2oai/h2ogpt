@@ -270,6 +270,10 @@ def run_vllm_docker(inf_port, base_model, tokenizer=None):
                         ] + gpus_cmd() + [
               '--shm-size', '10.24g',
               '-e', 'HUGGING_FACE_HUB_TOKEN=%s' % os.environ['HUGGING_FACE_HUB_TOKEN'],
+<<<<<<< HEAD
+=======
+              '-e', 'VLLM_NCCL_SO_PATH=/usr/local/lib/python3.10/dist-packages/nvidia/nccl/lib/libnccl.so.2',
+>>>>>>> main
               '-p', '%s:5000' % inf_port,
               '-e', 'NCCL_IGNORE_DISABLED_P2P=1',
               '-e', 'NUMBA_CACHE_DIR=/tmp/',
