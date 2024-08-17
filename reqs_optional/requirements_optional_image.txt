@@ -7,5 +7,4 @@ yt-dlp>=2024.5.27
 # moviepy>=0.5.1
 
 # for fiftyone with patches
-# bugs in 6.3.4, stick with 6.2.2
-pytubefix==6.2.2
+pytubefix==6.12.0
