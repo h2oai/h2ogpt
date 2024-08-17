@@ -4515,6 +4515,7 @@ def go_gradio(**kwargs):
                                             roles_state1 if first_visible else {},
                                             tts_speed1 if first_visible else 1.0,
                                             langchain_action1,
+                                            langchain_mode1,
                                             kwargs=kwargs,
                                             api=False,
                                             verbose=verbose,

@@ -29,7 +29,7 @@ from prompter import anthropic_gpts, openai_gpts, google_gpts, mistralai_gpts, g
     prompt_type_to_model_name, get_prompt, model_name_to_prompt_type
 from src.prompter_utils import has_chat_template, get_chat_template, base64_decode_jinja_template
 from utils import url_alive, cuda_vis_check, get_hf_server, is_gradio_version4, clear_torch_cache, set_openai, \
-    FakeTokenizer, get_device, NullContext, get_kwargs, is_json_vllm
+    FakeTokenizer, get_device, NullContext, get_kwargs, is_json_vllm, get_model_name
 
 from loaders import get_loaders
 
@@ -355,7 +355,10 @@ def get_non_lora_model(base_model, model_loader, load_half,
     return model
 
 
-def get_client_from_inference_server(inference_server, base_model=None, raise_connection_exception=False,
+def get_client_from_inference_server(inference_server, base_model=None,
+                                     validate_clients=True,
+                                     fail_if_invalid_client=False,
+                                     raise_connection_exception=False,
                                      verbose=False):
     inference_server, headers, username, password = get_hf_server(inference_server)
     gr_client = None
@@ -407,6 +410,8 @@ def get_client_from_inference_server(inference_server, base_model=None, raise_co
             if raise_connection_exception:
                 raise
         print("HF Client End: %s %s : %s" % (inference_server, base_model, res))
+    if validate_clients and fail_if_invalid_client:
+        assert hf_client is not None or gr_client is not None, "Failed to create Gradio or HF client for %s %s" % (inference_server, base_model)
     return inference_server, gr_client, hf_client
 
 
@@ -541,6 +546,8 @@ def get_model(
         inference_server: str = "",
         regenerate_clients: bool = True,
         regenerate_gradio_clients: bool = False,
+        validate_clients: bool = True,
+        fail_if_invalid_client: bool = False,
         tokenizer_base_model: str = '',
         lora_weights: str = "",
         gpu_id: int = 0,
@@ -729,8 +736,16 @@ def get_model(
     if isinstance(inference_server, str) and inference_server.startswith("http"):
         inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server,
                                                                                   base_model=base_model,
+                                                                                  validate_clients=validate_clients,
+                                                                                  fail_if_invalid_client=fail_if_invalid_client,
                                                                                   verbose=verbose)
         model = gr_client or hf_client
+        if validate_clients:
+            if fail_if_invalid_client:
+                raise ValueError("Failed to get gradio or HF client for %s" % base_model)
+            else:
+                if model is None:
+                    return None, None, None
         if tokenizer is not None:
             return model, tokenizer, inference_server
         # tokenizer may still be None if not HF model
@@ -765,6 +780,44 @@ def get_model(
         if not regenerate_clients:
             model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
                          base_url=base_url, api_version=api_version, api_key=api_key)
+        if validate_clients:
+            if inf_type in ['vllm_chat', 'openai_chat']:
+                model_name = get_model_name(base_model, client)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": "Who are you?"
+                    }
+                ]
+                responses = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    temperature=0.0,
+                    max_tokens=10,
+                )
+                has_response = len(responses.choices[0].message.content) > 0
+                if fail_if_invalid_client:
+                    assert has_response, "Failed to get response from vLLM chat model"
+                elif not has_response:
+                    model = tokenizer = None
+                    return model, tokenizer, inference_server
+                print("%s chat model validated for %s using model_name: %s" % (inf_type, base_model, model_name))
+            elif inf_type in ['vllm', 'openai']:
+                model_name = get_model_name(base_model, client)
+                responses = client.completions.create(
+                    model=model_name,
+                    prompt="Who are you?",
+                    temperature=0.0,
+                    max_tokens=10,
+                )
+                has_response = len(responses.choices[0].text) > 0
+                if fail_if_invalid_client:
+                    assert has_response, "Failed to get response from vLLM chat model"
+                elif not has_response:
+                    model = tokenizer = None
+                    return model, tokenizer, inference_server
+                assert has_response, "Failed to get response from vLLM chat model"
+                print("%s chat model validated for %s using model_name: %s" % (inf_type, base_model, model_name))
         if verbose:
             print("Duration client %s: %s" % (base_model, time.time() - t0), flush=True)
 
@@ -1354,7 +1407,6 @@ def get_hf_model(load_8bit: bool = False,
                                 args = tuple([base_model])
                             model = model_loader(
                                 *args,
-                                use_safetensors=use_safetensors,
                                 **model_kwargs,
                             )
                         else:
