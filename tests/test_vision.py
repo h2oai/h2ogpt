@@ -1,6 +1,4 @@
 import os
-import time
-
 import pytest
 
 from tests.utils import wrap_test_forked
