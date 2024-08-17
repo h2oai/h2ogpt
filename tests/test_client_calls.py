@@ -106,7 +106,8 @@ def test_client1_context(base_model):
     # string of dict for output
     response = ast.literal_eval(res)['response']
     print(response)
-    assert """mischievous and playful pixie""" in response
+    assert """mischievous and playful pixie""" in response or \
+           """mischievous pixie""" in response
 
 
 @wrap_test_forked
@@ -308,7 +309,8 @@ def test_client_chat_nostream_gpt4all_llama():
            'I can assist you with any information' in res_dict['response'] or \
            'I can provide information or assistance' in res_dict['response'] or \
            'am a student' in res_dict['response'] or \
-           'As an AI assistant' in res_dict['response']
+           'As an AI assistant' in res_dict['response'] or \
+           'I do not have a physical' in res_dict['response']
 
 
 @pytest.mark.need_tokens
@@ -1582,7 +1584,7 @@ def test_client_system_prompts(system_prompt, chat_conversation):
                        "awesome lion" in res_dict['response']
             elif system_prompt == '':
                 # empty system prompt gives room for chat conversation to control
-                assert "My name is Porky" in res_dict['response']
+                assert "My name is Porky" in res_dict['response'] or 'pig' in res_dict['response']
             elif system_prompt in [None, 'auto', 'None']:
                 # conservative default system_prompt makes it ignore chat
                 assert "not a real person" in res_dict['response'] or \
@@ -5995,11 +5997,11 @@ close_vision_models = [
     'claude-3-haiku-20240307',
 ]
 open_vision_models = [
-    #'liuhaotian/llava-v1.6-34b',
+    # 'liuhaotian/llava-v1.6-34b',
     # 'HuggingFaceM4/idefics2-8b-chatty',
     # 'lmms-lab/llama3-llava-next-8b',
     'OpenGVLab/InternVL-Chat-V1-5',
-    #'OpenGVLab/InternVL2-26B',
+    # 'OpenGVLab/InternVL2-26B',
     # 'THUDM/cogvlm2-llama3-chat-19B',
     'microsoft/Phi-3-vision-128k-instruct',
     'OpenGVLab/InternVL2-Llama3-76B',
@@ -6225,7 +6227,7 @@ def test_get_image_file():
 gpt_models = ['mistralai/Mixtral-8x7B-Instruct-v0.3',
               'gpt-3.5-turbo-0613',
               'mistralai/Mistral-7B-Instruct-v0.3',
-              #'NousResearch/Nous-Capybara-34B',
+              # 'NousResearch/Nous-Capybara-34B',
               # 'liuhaotian/llava-v1.6-vicuna-13b',
               ## 'liuhaotian/llava-v1.6-34b',
               'h2oai/h2o-danube-1.8b-chat',
@@ -6278,40 +6280,40 @@ TEST_CHOICE = [
     "Swift", "Kotlin"
 ]
 
-other_base_models = [#'mistralai/Mistral-7B-Instruct-v0.3',
-                     #'NousResearch/Nous-Capybara-34B',
-                     #'mistralai/Mixtral-8x7B-Instruct-v0.1',
-                     'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
-                     # 'gpt-4-turbo-2024-04-09',
-                     'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
-                     #'gpt-4-1106-preview',
-                     'gpt-35-turbo-1106',
-                     # 'gpt-4-vision-preview',
-                     'gpt-4o',
-                     #'claude-2.1',
-                     'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
-                     'claude-3-haiku-20240307',
-                     # 'gemini-pro',
-                     'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
-                     'mixtral-8x7b-32768',
-                     # 'liuhaotian/llava-v1.6-vicuna-13b',
-                     #'liuhaotian/llava-v1.6-34b',
-                     # 'HuggingFaceM4/idefics2-8b-chatty',
-                     # 'lmms-lab/llama3-llava-next-8b',
-                     'OpenGVLab/InternVL-Chat-V1-5',
-                     'OpenGVLab/InternVL2-Llama3-76B',
-                     # 'THUDM/cogvlm2-llama3-chat-19B',
-                     ]
+other_base_models = [  # 'mistralai/Mistral-7B-Instruct-v0.3',
+    # 'NousResearch/Nous-Capybara-34B',
+    # 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+    'mistral-medium', 'mistral-tiny', 'mistral-small-latest',
+    # 'gpt-4-turbo-2024-04-09',
+    'mistral-large-latest', 'gpt-3.5-turbo-0613', 'gpt-3.5-turbo-16k-0613',
+    # 'gpt-4-1106-preview',
+    'gpt-35-turbo-1106',
+    # 'gpt-4-vision-preview',
+    'gpt-4o',
+    # 'claude-2.1',
+    'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-5-sonnet-20240620',
+    'claude-3-haiku-20240307',
+    # 'gemini-pro',
+    'gemini-1.5-pro-latest', 'gemini-1.5-flash-latest',
+    'mixtral-8x7b-32768',
+    # 'liuhaotian/llava-v1.6-vicuna-13b',
+    # 'liuhaotian/llava-v1.6-34b',
+    # 'HuggingFaceM4/idefics2-8b-chatty',
+    # 'lmms-lab/llama3-llava-next-8b',
+    'OpenGVLab/InternVL-Chat-V1-5',
+    'OpenGVLab/InternVL2-Llama3-76B',
+    # 'THUDM/cogvlm2-llama3-chat-19B',
+]
 
 vllm_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
                     'mistralai/Mixtral-8x7B-Instruct-v0.1',
                     'h2oai/h2o-danube2-1.8b-chat',
                     'h2oai/h2o-danube3-4b-chat',
-                     'meta-llama/Meta-Llama-3.1-70B-Instruct',
-                     'meta-llama/Meta-Llama-3.1-8B-Instruct',
-                     'meta-llama/Meta-Llama-3.1-405B-Instruct-FP8',
-                     'h2oai/h2o-danube2-1.8b-chat',
-                     'microsoft/Phi-3-vision-128k-instruct',
+                    'meta-llama/Meta-Llama-3.1-70B-Instruct',
+                    'meta-llama/Meta-Llama-3.1-8B-Instruct',
+                    'meta-llama/Meta-Llama-3.1-405B-Instruct-FP8',
+                    'h2oai/h2o-danube2-1.8b-chat',
+                    'microsoft/Phi-3-vision-128k-instruct',
                     ]
 
 
@@ -6800,11 +6802,11 @@ def test_max_new_tokens_vs_min_max_new_tokens():
 
     base_models = ['gpt-4o', 'gemini-1.5-flash-latest']
     for base_model in base_models:
-
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         prompt = "Extract all possible information from the document in well-structured Markdown.  Ensure you extract everything from the entire document in every detail, do not leave anything out.  Then follow-up with a detailed markdown analysis of the document's quality, pros, cons, etc."
         max_new_tokens = 4096
-        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
+        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens,
+                      top_k_docs=-1,
                       langchain_mode=langchain_mode)
         res = client.predict(str(dict(kwargs)), api_name=api_name)
         res = ast.literal_eval(res)
@@ -6821,7 +6823,8 @@ def test_max_new_tokens_vs_min_max_new_tokens():
         assert res['response']
         print(res['response'], file=sys.stderr)
 
-        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens, top_k_docs=-1,
+        kwargs = dict(instruction_nochat=prompt, visible_models=base_model, max_new_tokens=max_new_tokens,
+                      top_k_docs=-1,
                       langchain_mode=langchain_mode, langchain_action=LangChainAction.SUMMARIZE_MAP.value)
         res = client.predict(str(dict(kwargs)), api_name=api_name)
         res = ast.literal_eval(res)

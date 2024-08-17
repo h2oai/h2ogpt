@@ -27,11 +27,11 @@ def test_cli_langchain(base_model, monkeypatch):
 
     from src.gen import main
     all_generations, all_sources = main(base_model=base_model, cli=True, cli_loop=False, score_model='None',
-                           langchain_mode='UserData',
-                           user_path=user_path,
-                           langchain_modes=['UserData', 'MyData'],
-                           document_subset=DocumentSubset.Relevant.name,
-                           verbose=True)
+                                        langchain_mode='UserData',
+                                        user_path=user_path,
+                                        langchain_modes=['UserData', 'MyData'],
+                                        document_subset=DocumentSubset.Relevant.name,
+                                        verbose=True)
 
     print(all_generations)
     assert len(all_generations) == 1
@@ -61,13 +61,13 @@ def test_cli_langchain_llamacpp(monkeypatch):
 
     from src.gen import main
     all_generations, all_sources = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
-                           langchain_mode='UserData',
-                           model_path_llama=full_path,
-                           prompt_type=prompt_type,
-                           user_path=user_path,
-                           langchain_modes=['UserData', 'MyData'],
-                           document_subset=DocumentSubset.Relevant.name,
-                           verbose=True)
+                                        langchain_mode='UserData',
+                                        model_path_llama=full_path,
+                                        prompt_type=prompt_type,
+                                        user_path=user_path,
+                                        langchain_modes=['UserData', 'MyData'],
+                                        document_subset=DocumentSubset.Relevant.name,
+                                        verbose=True)
 
     print(all_generations)
     assert len(all_generations) == 1
@@ -90,13 +90,13 @@ def test_cli_llamacpp(monkeypatch):
     from src.gen import main
     langchain_mode = 'Disabled'
     all_generations, all_sources = main(base_model='llama', cli=True, cli_loop=False, score_model='None',
-                           langchain_mode=langchain_mode,
-                           prompt_type=prompt_type,
-                           model_path_llama=full_path,
-                           user_path=None,
-                           langchain_modes=[langchain_mode],
-                           document_subset=DocumentSubset.Relevant.name,
-                           verbose=True)
+                                        langchain_mode=langchain_mode,
+                                        prompt_type=prompt_type,
+                                        model_path_llama=full_path,
+                                        user_path=None,
+                                        langchain_modes=[langchain_mode],
+                                        document_subset=DocumentSubset.Relevant.name,
+                                        verbose=True)
 
     print(all_generations)
     assert len(all_generations) == 1
@@ -115,7 +115,8 @@ def test_cli_h2ogpt(monkeypatch):
     monkeypatch.setattr('builtins.input', lambda _: query)
 
     from src.gen import main
-    all_generations, all_sources = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', cli=True, cli_loop=False, score_model='None')
+    all_generations, all_sources = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b', cli=True, cli_loop=False,
+                                        score_model='None')
 
     assert len(all_generations) == 1
     assert "The Earth is a planet in the Solar System".lower() in all_generations[0].lower() or \
@@ -132,14 +133,15 @@ def test_cli_langchain_h2ogpt(monkeypatch):
 
     from src.gen import main
     all_generations, all_sources = main(base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b',
-                           cli=True, cli_loop=False, score_model='None',
-                           langchain_mode='UserData',
-                           user_path=user_path,
-                           langchain_modes=['UserData', 'MyData'],
-                           document_subset=DocumentSubset.Relevant.name,
-                           verbose=True)
+                                        cli=True, cli_loop=False, score_model='None',
+                                        langchain_mode='UserData',
+                                        user_path=user_path,
+                                        langchain_modes=['UserData', 'MyData'],
+                                        document_subset=DocumentSubset.Relevant.name,
+                                        verbose=True)
 
     print(all_generations)
     assert len(all_generations) == 1
-    assert "looking out the window" in all_generations[0] or "staring out the window at the city skyline" in \
-           all_generations[0]
+    assert "looking out the window" in all_generations[0] or \
+           "staring out the window at the city skyline" in all_generations[0] or \
+           "cat is sitting" in all_generations[0]

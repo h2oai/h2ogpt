@@ -99,7 +99,7 @@ def get_gpt4all_default_kwargs(max_new_tokens=256,
     max_seq_len_local = max_seq_len if max_seq_len is not None else 2048  # fake for auto mode
     default_kwargs = dict(context_erase=0.5,
                           n_batch=1,
-                          max_tokens=max_seq_len_local - max_new_tokens,
+                          max_tokens=max_new_tokens,
                           n_predict=max_new_tokens,
                           repeat_last_n=64 if repetition_penalty != 1.0 else 0,
                           repeat_penalty=repetition_penalty,
@@ -436,7 +436,7 @@ class H2OLlamaCpp(LlamaCpp):
         assert inner_tokenizer is not None
         from h2oai_pipeline import H2OTextGenerationPipeline
         prompt, num_prompt_tokens = H2OTextGenerationPipeline.limit_prompt(prompt, inner_tokenizer,
-                                                                           max_prompt_length=self.n_ctx)
+                                                                           max_prompt_length=self.max_tokens)
 
         # use instruct prompting
         data_point = dict(context=self.context, instruction=prompt, input=self.iinput)
