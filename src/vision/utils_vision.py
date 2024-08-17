@@ -706,6 +706,8 @@ def get_image_model_dict(enable_image,
                 make_image = functools.partial(make_image,
                                                base_model='stabilityai/stable-diffusion-3-medium-diffusers',
                                                refiner_model=None)
+            elif image_model_name == 'flux.1-dev':
+                from src.vision.flux import get_pipe_make_image, make_image
             elif image_model_name == 'sdxl_change':
                 from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
                 make_image = change_image
