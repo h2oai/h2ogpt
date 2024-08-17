@@ -130,6 +130,8 @@ def main(
         inference_server: str = "",
         regenerate_clients: bool = True,
         regenerate_gradio_clients: bool = False,
+        validate_clients: bool = True,
+        fail_if_invalid_client: bool = False,
 
         prompt_type: Union[int, str] = None,
         prompt_dict: typing.Dict = None,
@@ -651,6 +653,9 @@ def main(
            Maybe risky, some lack of thread safety: https://github.com/encode/httpx/discussions/3043, so disabled
            Because gradio clients take long time to start-up, we don't ever regenerate them each time (including llava models)
     :param regenerate_gradio_clients: Whether to also regenerate gradio clients (slow)
+    :param validate_clients: Whether to validate clients, and if invalid, do not add them to list (e.g. if OpenAI API key is invalid, then just report in logs, do not hard fail, but do not add the model to model list)
+           Currently only done for OpenAI or vLLM endpoints
+    :param fail_if_invalid_client: Whether to fail hard if any client fails validation
 
     :param prompt_type: type of prompt, usually matched to fine-tuned model or plain for foundational model
     :param prompt_dict: If prompt_type=custom, then expects (some) items returned by get_prompt(..., return_dict=True)
@@ -2559,6 +2564,8 @@ def evaluate(
         from_ui=True,
         regenerate_clients=None,
         regenerate_gradio_clients=None,
+        validate_clients=None,
+        fail_if_invalid_client=None,
         max_max_time=None,
         raise_generate_gpu_exceptions=None,
         lora_weights=None,
@@ -3192,6 +3199,8 @@ def evaluate(
                 inference_server=inference_server,
                 regenerate_clients=regenerate_clients,
                 regenerate_gradio_clients=regenerate_gradio_clients,
+                validate_clients=validate_clients,
+                fail_if_invalid_client=fail_if_invalid_client,
                 model_name=base_model, model=model, tokenizer=tokenizer,
                 langchain_only_model=langchain_only_model,
                 load_awq=load_awq,
@@ -3612,6 +3621,8 @@ def evaluate(
             else:
                 inference_server, gr_client, hf_client = get_client_from_inference_server(inference_server0,
                                                                                           base_model=base_model,
+                                                                                          validate_clients=validate_clients,
+                                                                                          fail_if_invalid_client=fail_if_invalid_client,
                                                                                           verbose=verbose)
             llava_direct_gradio = gr_client is not None and '/textbox_api_submit' in [x.api_name for x in
                                                                                       gr_client.endpoints]
