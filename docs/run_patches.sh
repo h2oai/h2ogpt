@@ -25,10 +25,7 @@ sed -i "s/5.16.51/6.40.52/g" $sp/pytube/innertube.py
 sed -i "s/5.21/6.41/g" $sp/pytube/innertube.py
 
 # use pytubefix instead, pytube too old and various issues
-sed -i 's/pytubefixfix/pytubefix/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/Pytube/PytubeFix/g'  $sp/fiftyone/utils/youtube.py
-sed -i 's/PytubeFixFix/PytubeFix/g'  $sp/fiftyone/utils/youtube.py
-sed -i 's/Pytube/Pytubefix/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/pytube>=15/pytube>=6/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/pytube/pytubefix/g' $sp/fiftyone/utils/youtube.py
 
