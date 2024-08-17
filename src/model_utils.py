@@ -781,7 +781,7 @@ def get_model(
             model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
                          base_url=base_url, api_version=api_version, api_key=api_key)
         if validate_clients:
-            if inf_type in ['vllm_chat', 'openai_chat']:
+            if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:
                 model_name = get_model_name(base_model, client)
                 messages = [
                     {
@@ -802,7 +802,7 @@ def get_model(
                     model = tokenizer = None
                     return model, tokenizer, inference_server
                 print("%s chat model validated for %s using model_name: %s" % (inf_type, base_model, model_name))
-            elif inf_type in ['vllm', 'openai']:
+            elif inf_type in ['vllm', 'openai', 'openai_azure']:
                 model_name = get_model_name(base_model, client)
                 responses = client.completions.create(
                     model=model_name,
