@@ -5,7 +5,7 @@ from src.utils import makedirs, sanitize_filename, get_gradio_tmp
 
 
 def extract_unique_frames(urls=None, file=None, download_dir=None, export_dir=None, extract_frames=10):
-    temp_workaround = True
+    temp_workaround = False
     if temp_workaround:
         download_dir = './'
     else:

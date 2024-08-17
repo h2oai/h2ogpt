@@ -22,7 +22,6 @@ sed -i 's/pytube/pytubefix/g' $sp/fiftyone/utils/youtube.py
 # diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/pytubefix/extract.py ~/extract.py > docs/pytubefix.patch
 patch $sp/pytubefix/extract.py docs/pytubefix.patch
 
-
 # fix asyncio same way websockets was fixed, else keep hitting errors in async calls
 # https://github.com/python-websockets/websockets/commit/f9fd2cebcd42633ed917cd64e805bea17879c2d7
 sed -i "s/except OSError:/except (OSError, RuntimeError):/g" $sp/anyio/_backends/_asyncio.py
