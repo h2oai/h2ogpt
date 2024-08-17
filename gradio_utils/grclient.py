@@ -1450,7 +1450,7 @@ class GradioClient(Client):
             if outputs_list:
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
-                text = res_dict["response"]
+                text = res_dict["response"] if "response" in res_dict else ''
                 prompt_and_text = prompt + text
                 if prompter:
                     response = prompter.get_response(

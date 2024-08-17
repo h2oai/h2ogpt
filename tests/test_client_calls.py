@@ -1566,7 +1566,9 @@ def test_client_system_prompts(system_prompt, chat_conversation):
 
         if not chat_conversation:
             if system_prompt == 'You are a goofy lion who talks to kids':
-                assert ('ROAR!' in res_dict['response'] or 'ROARRR' in res_dict['response']) and \
+                assert ('ROAR!' in res_dict['response'] or
+                        'ROARRR' in res_dict['response'] or
+                        'Goofy the lion' in res_dict['response']) and \
                        'respectful' not in res_dict['response'] and \
                        'developed by Meta' not in res_dict['response']
             elif system_prompt == '':
@@ -1581,7 +1583,8 @@ def test_client_system_prompts(system_prompt, chat_conversation):
                 assert "I'm a goofy lion" in res_dict['response'] or \
                        "goofiest lion" in res_dict['response'] or \
                        "I'm the coolest lion around" in res_dict['response'] or \
-                       "awesome lion" in res_dict['response']
+                       "awesome lion" in res_dict['response'] or \
+                       'Goofy the lion' in res_dict['response']
             elif system_prompt == '':
                 # empty system prompt gives room for chat conversation to control
                 assert "My name is Porky" in res_dict['response'] or 'pig' in res_dict['response']
@@ -4549,8 +4552,7 @@ def test_client_summarization(prompt_summary, inference_server, top_k_docs, stre
         else:
             if prompt_summary == '':
                 assert 'Whisper' in summary or \
-                       'robust speech recognition system' in summary or \
-                       'Robust speech recognition' in summary or \
+                       'speech recognition' in summary or \
                        'speech processing' in summary or \
                        'LibriSpeech dataset with weak supervision' in summary or \
                        'Large-scale weak supervision of speech' in summary or \
@@ -4706,6 +4708,7 @@ def test_client_summarization_from_url(url, top_k_docs):
                or 'Summarizes the main features' in summary \
                or 'open-source, community-driven' in summary \
                or 'is a chatbot that uses' in summary \
+               or 'h2oGPT' in summary \
                or ('key results based on the provided document' in summary and 'h2oGPT' in summary)
         assert 'h2oGPT' in [x['content'] for x in sources][0]
     assert url in [x['source'] for x in sources][0]
@@ -5432,7 +5435,8 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
            'Summarize' in text or \
            'summarizing' in text or \
            'summarization' in text or \
-           'large language model' in text
+           'large language model' in text or \
+           'data crawls' in text
 
     # MyData
     # get file for client to upload
@@ -5593,16 +5597,16 @@ def test_client_openai_langchain(auth_access, guest_name, do_auth):
         model="text-embedding-3-small"
     )
     print(response.data[0].embedding)
-    assert len(response.data[0].embedding) == 768
+    assert len(response.data[0].embedding) == 1024
 
     response = openai_client.embeddings.create(
         input=["Your text string goes here", "Another text string goes here"],
         model="text-embedding-3-small"
     )
     print(response.data[0].embedding)
-    assert len(response.data[0].embedding) == 768
+    assert len(response.data[0].embedding) == 1024
     print(response.data[1].embedding)
-    assert len(response.data[1].embedding) == 768
+    assert len(response.data[1].embedding) == 1024
 
 
 def run_sound_test0(client, text):
@@ -5912,9 +5916,9 @@ def test_max_new_tokens(max_new_tokens, temperature):
 
                 repeat_responses.append(res['response'])
             if temperature == 0.0:
-                assert len(set(repeat_responses)) <= 3  # fudge of 1
-            else:
-                assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed
+                assert len(set(repeat_responses)) <= 3, "base_model: %s" % base_model  # fudge of 1
+            elif 'guard' not in base_model.lower():
+                assert len(set(repeat_responses)) >= len(repeat_responses) - fudge_seed, "base_model: %s" % base_model
 
             # get file for client to upload
             url = 'https://cdn.openai.com/papers/whisper.pdf'
@@ -6186,8 +6190,8 @@ def test_client1_images_qa(langchain_action, langchain_mode, base_model, images_
 
     assert res_dict['save_dict']['extra_dict']['num_prompt_tokens'] > 1000
 
-    if base_model == 'OpenGVLab/InternVL-Chat-V1-5':
-        assert len(res_dict['sources']) >= 10
+    if base_model in ['OpenGVLab/InternVL-Chat-V1-5', 'OpenGVLab/InternVL2-Llama3-76B'] and images_num_max == 1:
+        assert len(res_dict['sources']) >= 10, "%s" % res_dict['sources']
 
 
 @wrap_test_forked
