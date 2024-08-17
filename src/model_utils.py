@@ -789,13 +789,17 @@ def get_model(
                         "content": "Who are you?"
                     }
                 ]
-                responses = client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    temperature=0.0,
-                    max_tokens=10,
-                )
-                has_response = len(responses.choices[0].message.content) > 0
+                try:
+                    responses = client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        temperature=0.0,
+                        max_tokens=10,
+                    )
+                    has_response = len(responses.choices[0].message.content) > 0
+                except Exception as e:
+                    print("Failed to get %s response: %s" % (model_name, str(e)))
+                    has_response = False
                 if fail_if_invalid_client:
                     assert has_response, "Failed to get response from vLLM chat model"
                 elif not has_response:
@@ -804,13 +808,17 @@ def get_model(
                 print("%s chat model validated for %s using model_name: %s" % (inf_type, base_model, model_name))
             elif inf_type in ['vllm', 'openai', 'openai_azure']:
                 model_name = get_model_name(base_model, client)
-                responses = client.completions.create(
-                    model=model_name,
-                    prompt="Who are you?",
-                    temperature=0.0,
-                    max_tokens=10,
-                )
-                has_response = len(responses.choices[0].text) > 0
+                try:
+                    responses = client.completions.create(
+                        model=model_name,
+                        prompt="Who are you?",
+                        temperature=0.0,
+                        max_tokens=10,
+                    )
+                    has_response = len(responses.choices[0].text) > 0
+                except Exception as e:
+                    print("Failed to get %s response: %s" % (model_name, str(e)))
+                    has_response = False
                 if fail_if_invalid_client:
                     assert has_response, "Failed to get response from vLLM chat model"
                 elif not has_response:
