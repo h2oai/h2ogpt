@@ -240,6 +240,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                 tts_speed1,
                                 langchain_action1,
+                                langchain_mode1,
                                 kwargs=kwargs,
                                 api=True,
                                 verbose=verbose):
@@ -541,7 +542,7 @@ def get_images_num_max(model_choice, fun_args, visible_vision_models, do_batchin
 
 
 def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
-                 langchain_action1, kwargs={}, api=False, verbose=False):
+                 langchain_action1, langchain_mode1, kwargs={}, api=False, verbose=False):
     if fun1 is None:
         yield from _get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1, tts_speed1,
                                  langchain_action1, kwargs=kwargs, api=api, verbose=verbose)
@@ -581,7 +582,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         visible_vision_models = visible_vision_models[0]
 
     force_batching = False
-    images_num_max, force_batching = get_images_num_max(chosen_model_state, fun1.args, visible_vision_models, force_batching, kwargs['images_num_max'])
+    images_num_max, force_batching = get_images_num_max(chosen_model_state, fun1.args, visible_vision_models,
+                                                        force_batching, kwargs['images_num_max'])
 
     do_batching = force_batching or len(image_files) > images_num_max or \
                   visible_vision_models != display_name and \
@@ -594,7 +596,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         model_states1 = kwargs['model_states']
         model_batch_choice1 = visible_models_to_model_choice(visible_vision_models, model_states1, api=api)
         model_batch_choice = model_states1[model_batch_choice1 % len(model_states1)]
-        images_num_max_batch, do_batching = get_images_num_max(model_batch_choice, fun1.args, visible_vision_models, do_batching, kwargs['images_num_max'])
+        images_num_max_batch, do_batching = get_images_num_max(model_batch_choice, fun1.args, visible_vision_models,
+                                                               do_batching, kwargs['images_num_max'])
 
     else:
         model_batch_choice = None
@@ -710,7 +713,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
             for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                           tts_speed1,
-                                          langchain_action1, kwargs=kwargs, api=api, verbose=verbose):
+                                          langchain_action1,
+                                          kwargs=kwargs, api=api, verbose=verbose):
                 if image_batch_stream:
                     yield response
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
@@ -739,9 +743,16 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         history1 = deepcopy_by_pickle_object(history)
         fun1_args_list2[len(input_args_list) + eval_func_param_names.index('prompt_summary')] = prompt_summary_final
         if langchain_action1 == LangChainAction.QUERY.value:
-            # pre-append to ensure images used, since first is highest priority for text_context_list
-            fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
-                'text_context_list')] = responses + text_context_list_copy
+            instruction = fun1_args_list2[len(input_args_list) + eval_func_param_names.index('instruction')]
+            if langchain_mode1 == LangChainMode.LLM.value and instruction:
+                # pre-append to context directly
+                fun1_args_list2[
+                    len(input_args_list) + eval_func_param_names.index('instruction')] = '\n\n'.join(
+                    responses) + instruction
+            else:
+                # pre-append to ensure images used, since first is highest priority for text_context_list
+                fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
+                    'text_context_list')] = responses + text_context_list_copy
         else:
             # for summary/extract, put at end, so if part of single call similar to Query in order for best_near_prompt
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index(
@@ -1144,6 +1155,7 @@ def bot(*args, retry=False, kwargs_evaluate={}, kwargs={}, db_type=None, dbs=Non
         for res in get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_state1,
                                 tts_speed1,
                                 langchain_action1,
+                                langchain_mode1,
                                 kwargs=kwargs,
                                 api=False,
                                 verbose=verbose,
