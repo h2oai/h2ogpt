@@ -443,6 +443,28 @@ def is_vision_model(base_model, all_visible_models=[], visible_vision_models=[])
         base_model in ['liuhaotian/llava-v1.6-34b', 'liuhaotian/llava-v1.6-vicuna-13b']
 
 
+# https://github.com/vllm-project/vllm/issues/7628
+# https://github.com/vllm-project/vllm/blob/ce143353c622318a9abf113bebee1cfebc274e0f/examples/offline_inference_vision_language.py#L126-L148
+def extra_stop_token_ids(base_model, tokenizer=None, as_ids=False):
+    if base_model is None:
+        return []
+    assert tokenizer is not None or not as_ids
+    if base_model in ["OpenGVLab/InternVL-Chat-V1-5", "OpenGVLab/Mini-InternVL-Chat-2B-V1-5",
+                      "OpenGVLab/Mini-InternVL-Chat-4B-V1-5", "OpenGVLab/InternVL-Chat-V1-5-Int8",
+                      "OpenGVLab/InternVL2-1B", "OpenGVLab/InternVL2-2B", "OpenGVLab/InternVL2-4B",
+                      "OpenGVLab/InternVL2-8B", "OpenGVLab/InternVL2-26B", "OpenGVLab/InternVL2-40",
+                      "OpenGVLab/InternVL2-Llama3-76B",
+                      "OpenGVLab/InternVL2-40B-AWQ", "OpenGVLab/InternVL2-26B-AWQ", "OpenGVLab/InternVL2-8B-AWQ",
+                      "OpenGVLab/InternVL2-2B-AWQ",
+                      "OpenGVLab/InternVL2-Llama3-76B-AWQ"]:
+        words = ["<|endoftext|>", "<|im_start|>", "<|im_end|>", "<|end|>"]
+        if as_ids:
+            return tokenizer.encode(words, add_special_tokens=False)
+        else:
+            return words
+    return []
+
+
 def tokens_per_image(base_model):
     if not is_vision_model(base_model):
         return 0

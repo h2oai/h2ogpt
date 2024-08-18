@@ -5,7 +5,9 @@ import os
 import traceback
 
 # also supports imports from this file from other files
-from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type, empty_prompt_type  # keep single line
+from enums import PromptType, gpt_token_mapping, anthropic_mapping, google_mapping, mistralai_mapping, groq_mapping, \
+    noop_prompt_type, unknown_prompt_type, user_prompt_for_fake_system_prompt0, template_prompt_type, empty_prompt_type, \
+    extra_stop_token_ids  # keep single line
 from prompter_utils import get_use_chat_template
 from utils import FakeTokenizer
 from stopping import update_terminate_responses
@@ -1647,7 +1649,8 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
 
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
-                 allowed_repeat_line_length=10, system_prompt=None, tokenizer=None, verbose=False):
+                 allowed_repeat_line_length=10, system_prompt=None, tokenizer=None,
+                 base_model=None, verbose=False):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
@@ -1671,6 +1674,9 @@ class Prompter(object):
         self.use_chat_template = get_use_chat_template(tokenizer, prompt_type=prompt_type)
         self.terminate_response = update_terminate_responses(self.terminate_response,
                                                              tokenizer=tokenizer)
+        self.base_model = base_model
+        self.terminate_response.extend(extra_stop_token_ids(self.base_model, as_ids=False))
+
         self.pre_response = self.PreResponse
         self.verbose = verbose
 

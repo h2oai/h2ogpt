@@ -4,7 +4,7 @@ import time
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList, GenerationConfig
 
-from enums import PromptType, t5_type
+from enums import PromptType, t5_type, extra_stop_token_ids
 
 
 def update_terminate_responses(terminate_response, tokenizer=None, trust_remote_code=True):
@@ -171,6 +171,7 @@ def get_stopping(prompt_type, prompt_dict, tokenizer, device, base_model,
         handle_newlines += [False] * len(stop)
 
     stop_words = update_terminate_responses(stop_words, tokenizer=tokenizer)
+    stop_words.extend(extra_stop_token_ids(base_model, as_ids=False))
 
     # get stop tokens
     stop_words_ids = [

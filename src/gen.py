@@ -3069,7 +3069,7 @@ def evaluate(
 
     # get prompter
     prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                        system_prompt=system_prompt, tokenizer=tokenizer)
+                        system_prompt=system_prompt, tokenizer=tokenizer, base_model=base_model)
 
     # THIRD PLACE where LangChain referenced, but imports only occur if enabled and have db to use
     assert langchain_mode in langchain_modes, "Invalid langchain_mode %s not in %s" % (langchain_mode, langchain_modes)
@@ -5339,7 +5339,7 @@ def get_limited_prompt(instruction,
         debug = False
         stream_output = False  # doesn't matter
         prompter = Prompter(prompt_type, prompt_dict, debug=debug, stream_output=stream_output,
-                            system_prompt=system_prompt, tokenizer=tokenizer)
+                            system_prompt=system_prompt, tokenizer=tokenizer, base_model=base_model)
         if prompt_type != generate_prompt_type:
             # override just this attribute, keep system_prompt etc. from original prompt_type
             prompter.prompt_type = generate_prompt_type

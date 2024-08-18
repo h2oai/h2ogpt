@@ -3788,7 +3788,7 @@ def get_llm(use_openai_model=False,
             prompt_type = prompter.prompt_type
         else:
             prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
-                                tokenizer=tokenizer)
+                                tokenizer=tokenizer, base_model=model_name)
             pass  # assume inputted prompt_type is correct
         from gpt4all_llm import get_llm_gpt4all
         llm = get_llm_gpt4all(model_name=model_name,
@@ -7096,7 +7096,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         # get prompter
         chat = True  # FIXME?
         prompter = Prompter(prompt_type, prompt_dict, debug=False, stream_output=stream_output,
-                            system_prompt=system_prompt, tokenizer=tokenizer)
+                            system_prompt=system_prompt, tokenizer=tokenizer, base_model=model_name)
 
     scores = []
     chain = None
