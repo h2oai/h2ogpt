@@ -672,6 +672,8 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                     images_limit_max_new_tokens, max_new_tokens)
             # don't include context list, just do image only
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
+            # intermediate vision results for batching nominally should be normal, let final model do json or others
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('response_format')] = 'text'
             # no docs from DB, just image.  Don't switch langchain_mode.
             fun1_args_list2[
                 len(input_args_list) + eval_func_param_names.index('document_subset')] = []
