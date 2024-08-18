@@ -2934,6 +2934,9 @@ def evaluate(
         guided_regex = None
     if guided_grammar == '':
         guided_grammar = None
+    if isinstance(guided_choice, str):
+        guided_choice = ast.literal_eval(guided_choice)
+        assert isinstance(guided_choice, list), "Wrong type: guided_choice: %s" % guided_choice
 
     # don't repeat prompting if doing gradio server since inner prompting will handle
     json_vllm = chosen_model_state['json_vllm']  # for guided_choice etc. needs to be outside below conditional block

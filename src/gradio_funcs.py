@@ -674,6 +674,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('text_context_list')] = []
             # intermediate vision results for batching nominally should be normal, let final model do json or others
             fun1_args_list2[len(input_args_list) + eval_func_param_names.index('response_format')] = 'text'
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('guided_json')] = None
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('guided_regex')] = None
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('guided_grammar')] = None
+            fun1_args_list2[len(input_args_list) + eval_func_param_names.index('guided_choice')] = None
             # no docs from DB, just image.  Don't switch langchain_mode.
             fun1_args_list2[
                 len(input_args_list) + eval_func_param_names.index('document_subset')] = []
