@@ -14,23 +14,13 @@ sed -i  's/with HiddenPrints():/if True:/g' $sp/langchain_community/utilities/se
 # WIP
 # find "$sp" -type f -name "*.py" -exec sed -i -E 's/(sys\.stdout\s*=\s*.*)/pass # \1/; s/(sys\.stderr\s*=\s*.*)/pass # \1/' {} +
 
-# fix pytube to avoid errors for restricted content
-sed -i "s/client='ANDROID_MUSIC'/client='ANDROID'/g" $sp/pytube/innertube.py
-# https://github.com/JuanBindez/pytubefix/commit/c0c07b046d8b59574552404931f6ce3c6590137d
-sed -i "s/17.31.35/19.08.35/g" $sp/pytube/innertube.py
-sed -i "s/17.33.2/19.08.35/g" $sp/pytube/innertube.py
-sed -i "s/17.31.35/19.08.35/g" $sp/pytube/innertube.py
-sed -i "s/17.33.2/19.08.35/g" $sp/pytube/innertube.py
-sed -i "s/5.16.51/6.40.52/g" $sp/pytube/innertube.py
-sed -i "s/5.21/6.41/g" $sp/pytube/innertube.py
-
 # use pytubefix instead, pytube too old and various issues
-sed -i 's/pytubefixfix/pytubefix/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/Pytube/PytubeFix/g'  $sp/fiftyone/utils/youtube.py
-sed -i 's/PytubeFixFix/PytubeFix/g'  $sp/fiftyone/utils/youtube.py
-sed -i 's/Pytube/Pytubefix/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/pytube>=15/pytube>=6/g' $sp/fiftyone/utils/youtube.py
 sed -i 's/pytube/pytubefix/g' $sp/fiftyone/utils/youtube.py
+
+# diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/pytubefix/extract.py ~/extract.py > docs/pytubefix.patch
+patch $sp/pytubefix/extract.py docs/pytubefix.patch
 
 # fix asyncio same way websockets was fixed, else keep hitting errors in async calls
 # https://github.com/python-websockets/websockets/commit/f9fd2cebcd42633ed917cd64e805bea17879c2d7

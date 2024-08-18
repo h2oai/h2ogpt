@@ -324,7 +324,7 @@ def run_eval(  # for local function:
                     if score_with_prompt:
                         data_point = dict(instruction=instruction, input=iinput, context=context)
                         prompter = Prompter(prompt_type, prompt_dict,
-                                            debug=debug, stream_output=stream_output)
+                                            debug=debug, stream_output=stream_output, base_model=base_model)
                         prompt = prompter.generate_prompt(data_point, context_from_history=False, image_file=image_file)
                     else:
                         # just raw input and output

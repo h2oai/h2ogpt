@@ -1,0 +1,10 @@
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/pytubefix/extract.py	2024-08-17 02:11:12.847159003 -0700
++++ /home/jon/extract.py	2024-08-17 02:10:57.622790026 -0700
+@@ -103,6 +103,7 @@
+     :returns:
+         Playability status and reason of the video.
+     """
++    return None, []
+     status_dict = player_response.get('playabilityStatus', {})
+     if 'liveStreamability' in status_dict:
+         return 'LIVE_STREAM', 'Video is a live stream.'
