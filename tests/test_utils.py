@@ -873,6 +873,19 @@ def test_handle_json_no_schema():
     assert handle_json(no_schema_json) == no_schema_json
 
 
+def test_json_repair_on_string():
+    from json_repair import repair_json
+    response0 = 'According to the information provided, the best safety assessment enum label is "Safe".'
+
+    json_schema_type = 'object'
+    response = get_json(response0, json_schema_type=json_schema_type)
+    response = json.loads(response)
+    assert isinstance(response, dict) and not response
+
+    response = repair_json(response0)
+    assert isinstance(response, str) and response in ['""', """''""", '', None]
+
+
 # Example usage converted to pytest test cases
 def test_check_input_type():
     # Valid URL
