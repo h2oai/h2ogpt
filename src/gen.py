@@ -2934,7 +2934,7 @@ def evaluate(
         guided_regex = None
     if guided_grammar == '':
         guided_grammar = None
-    if isinstance(guided_choice, str):
+    if isinstance(guided_choice, str) and guided_choice:
         guided_choice = ast.literal_eval(guided_choice)
         assert isinstance(guided_choice, list), "Wrong type: guided_choice: %s" % guided_choice
 
