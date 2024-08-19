@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import time
+import typing
 import uuid
 
 import pytest
@@ -14,7 +15,7 @@ from src.prompter_utils import base64_encode_jinja_template, base64_decode_jinja
 from src.vision.utils_vision import process_file_list
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove, get_gradio_depth
+    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove, get_gradio_depth, create_typed_dict
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
@@ -1219,3 +1220,90 @@ def test_depth():
 
     example_list = [[[[[1]]]], [[[[2]]]], [[[3]]], [[4]], [5], []]
     assert get_gradio_depth(example_list) == 4
+
+
+def test_schema_to_typed():
+    TEST_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "age": {"type": "integer"},
+            "skills": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 10},
+                "minItems": 3
+            },
+            "work history": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "company": {"type": "string"},
+                        "duration": {"type": "string"},
+                        "position": {"type": "string"}
+                    },
+                    "required": ["company", "position"]
+                }
+            }
+        },
+        "required": ["name", "age", "skills", "work history"]
+    }
+
+    Schema = create_typed_dict(TEST_SCHEMA)
+
+    # Example usage of the generated TypedDict
+    person: Schema = {
+        "name": "John Doe",
+        "age": 30,
+        "skills": ["Python", "TypeScript", "Docker"],
+        "work history": [
+            {"company": "TechCorp", "position": "Developer", "duration": "2 years"},
+            {"company": "DataInc", "position": "Data Scientist"}
+        ]
+    }
+
+    print(person)
+
+
+def test_genai_schema():
+
+    # Usage example
+    TEST_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "age": {"type": "integer"},
+            "skills": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 10},
+                "minItems": 3
+            },
+            "work history": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "company": {"type": "string"},
+                        "duration": {"type": "string"},
+                        "position": {"type": "string"}
+                    },
+                    "required": ["company", "position"]
+                }
+            },
+            "status": {
+                "type": "string",
+                "enum": ["active", "inactive", "on leave"]
+            }
+        },
+        "required": ["name", "age", "skills", "work history", "status"]
+    }
+
+    from src.utils_langchain import convert_to_genai_schema
+    genai_schema = convert_to_genai_schema(TEST_SCHEMA)
+
+    # Print the schema (this will show the structure, but not all details)
+    print(genai_schema)
+
+    # You can now use this schema with the Gemini API
+    # For example:
+    # response = model.generate_content(prompt, response_schema=genai_schema)

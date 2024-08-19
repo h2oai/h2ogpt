@@ -718,3 +718,69 @@ def make_sources_file(langchain_mode, source_files_added):
     with open(sources_file, "wt", encoding="utf-8") as f:
         f.write(source_files_added)
     return sources_file
+
+
+from typing import Dict, Any, List
+from google.ai.generativelanguage_v1beta.types import Schema, Type
+
+
+def convert_to_genai_schema(json_schema: Dict[str, Any], name: str = "Root") -> Schema:
+    properties = json_schema.get("properties", {})
+    required = json_schema.get("required", [])
+
+    schema_properties = {}
+
+    for prop, details in properties.items():
+        prop_type = details.get("type")
+
+        if prop_type == "string":
+            if "enum" in details:
+                schema_properties[prop] = Schema(
+                    type_=Type.STRING,
+                    enum=details["enum"],
+                    description=details.get("description", "")
+                )
+            else:
+                schema_properties[prop] = Schema(
+                    type_=Type.STRING,
+                    description=details.get("description", "")
+                )
+        elif prop_type == "integer":
+            format_type = details.get("format", "int32")
+            schema_properties[prop] = Schema(
+                type_=Type.INTEGER,
+                format_=format_type,
+                description=details.get("description", "")
+            )
+        elif prop_type == "number":
+            schema_properties[prop] = Schema(
+                type_=Type.NUMBER,
+                format_=details.get("format", "float"),
+                description=details.get("description", "")
+            )
+        elif prop_type == "boolean":
+            schema_properties[prop] = Schema(
+                type_=Type.BOOLEAN,
+                description=details.get("description", "")
+            )
+        elif prop_type == "array":
+            items = details.get("items", {})
+            schema_properties[prop] = Schema(
+                type_=Type.ARRAY,
+                items=convert_to_genai_schema({"type": "object", "properties": {"item": items}}),
+                description=details.get("description", "")
+            )
+        elif prop_type == "object":
+            schema_properties[prop] = convert_to_genai_schema(details, f"{name}{prop.capitalize()}")
+        else:
+            schema_properties[prop] = Schema(type_=Type.UNSPECIFIED)
+
+        if "nullable" in details:
+            schema_properties[prop].nullable = details["nullable"]
+
+    return Schema(
+        type_=Type.OBJECT,
+        properties=schema_properties,
+        required=required,
+        description=json_schema.get("description", "")
+    )

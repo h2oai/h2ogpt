@@ -2995,7 +2995,9 @@ def evaluate(
                            not is_empty(
                                base_model) and base_model in openai_supports_functiontools + openai_supports_parallel_functiontools or \
                            not is_empty(inference_server) and \
-                           inference_server.startswith('anthropic')
+                           inference_server.startswith('anthropic') or \
+                           not is_empty(inference_server) and \
+                           inference_server.startswith('google') and base_model == 'gemini-1.5-pro-latest'
 
         if supports_schema:
             # for vLLM or claude-3, support schema if given

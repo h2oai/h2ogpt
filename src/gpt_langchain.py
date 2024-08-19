@@ -94,7 +94,7 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
 from h2o_serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
-    split_merge_docs
+    split_merge_docs, convert_to_genai_schema
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -2484,6 +2484,14 @@ class GenerateStream:
             have_tool = True
         kwargs.pop('stream', None)
         kwargs.pop('streaming', None)
+        if hasattr(self, 'safety_settings'):
+            # google
+            kwargs['safety_settings'] = self.safety_settings
+        if hasattr(self, 'response_format') and self.response_format == 'json_object':
+            kwargs['generation_config'] = dict(response_mime_type='application/json')
+            if self.guided_json and isinstance(self.guided_json, dict) and self.model == 'models/gemini-1.5-pro-latest':
+                # flash doesn't support, has to be part of prompt
+                kwargs['generation_config'].update(dict(response_schema=convert_to_genai_schema(self.guided_json)))
         if should_stream:
             stream_iter = self._stream(
                 messages, stop=stop, run_manager=run_manager, **kwargs
@@ -2754,6 +2762,8 @@ class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoo
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     prompter: Any = None
+    response_format: str = 'text'
+    guided_json: dict | None = {}
 
 
 class H2OChatMistralAI(ChatAGenerateStreamFirst, GenerateStream2, ExtraChat, ChatMistralAI):
@@ -3365,6 +3375,8 @@ def get_llm(use_openai_model=False,
                   verbose=verbose,
                   tokenizer=tokenizer,
                   safety_settings=safety_settings,
+                  response_format=response_format if response_format == 'json_object' else 'text',
+                  guided_json=guided_json if response_format == 'json_object' else None,
                   prompter=prompter,
                   **kwargs_extra
                   )
