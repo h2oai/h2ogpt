@@ -720,60 +720,37 @@ def make_sources_file(langchain_mode, source_files_added):
     return sources_file
 
 
-from typing import Dict, Any, List
 from google.ai.generativelanguage_v1beta.types import Schema, Type
+from typing import Dict, Any, Union
 
 
-def convert_to_genai_schema(json_schema: Dict[str, Any], name: str = "Root") -> Schema:
+def convert_to_genai_schema(json_schema: Union[Dict[str, Any], str], name: str = "Root") -> Schema:
+    if isinstance(json_schema, str):
+        return Schema(type_=Type.STRING, description=name)
+
+    if not isinstance(json_schema, dict):
+        raise ValueError(f"Unsupported schema type: {type(json_schema)}")
+
+    schema_type = json_schema.get("type")
+
+    if schema_type == "object":
+        return convert_object_schema(json_schema, name)
+    elif schema_type == "array":
+        return convert_array_schema(json_schema, name)
+    elif schema_type in ["string", "number", "integer", "boolean"]:
+        return convert_primitive_schema(json_schema, name)
+    else:
+        return Schema(type_=Type.UNSPECIFIED, description=name)
+
+
+def convert_object_schema(json_schema: Dict[str, Any], name: str) -> Schema:
     properties = json_schema.get("properties", {})
     required = json_schema.get("required", [])
 
     schema_properties = {}
 
     for prop, details in properties.items():
-        prop_type = details.get("type")
-
-        if prop_type == "string":
-            if "enum" in details:
-                schema_properties[prop] = Schema(
-                    type_=Type.STRING,
-                    enum=details["enum"],
-                    description=details.get("description", "")
-                )
-            else:
-                schema_properties[prop] = Schema(
-                    type_=Type.STRING,
-                    description=details.get("description", "")
-                )
-        elif prop_type == "integer":
-            format_type = details.get("format", "int32")
-            schema_properties[prop] = Schema(
-                type_=Type.INTEGER,
-                format_=format_type,
-                description=details.get("description", "")
-            )
-        elif prop_type == "number":
-            schema_properties[prop] = Schema(
-                type_=Type.NUMBER,
-                format_=details.get("format", "float"),
-                description=details.get("description", "")
-            )
-        elif prop_type == "boolean":
-            schema_properties[prop] = Schema(
-                type_=Type.BOOLEAN,
-                description=details.get("description", "")
-            )
-        elif prop_type == "array":
-            items = details.get("items", {})
-            schema_properties[prop] = Schema(
-                type_=Type.ARRAY,
-                items=convert_to_genai_schema({"type": "object", "properties": {"item": items}}),
-                description=details.get("description", "")
-            )
-        elif prop_type == "object":
-            schema_properties[prop] = convert_to_genai_schema(details, f"{name}{prop.capitalize()}")
-        else:
-            schema_properties[prop] = Schema(type_=Type.UNSPECIFIED)
+        schema_properties[prop] = convert_to_genai_schema(details, prop)
 
         if "nullable" in details:
             schema_properties[prop].nullable = details["nullable"]
@@ -782,5 +759,39 @@ def convert_to_genai_schema(json_schema: Dict[str, Any], name: str = "Root") -> 
         type_=Type.OBJECT,
         properties=schema_properties,
         required=required,
-        description=json_schema.get("description", "")
+        description=json_schema.get("description", name)
     )
+
+
+def convert_array_schema(json_schema: Dict[str, Any], name: str) -> Schema:
+    items = json_schema.get("items", {})
+    return Schema(
+        type_=Type.ARRAY,
+        items=convert_to_genai_schema(items, f"{name}Item"),
+        description=json_schema.get("description", name)
+    )
+
+
+def convert_primitive_schema(json_schema: Dict[str, Any], name: str) -> Schema:
+    schema_type = json_schema["type"]
+    schema_args = {
+        "description": json_schema.get("description", name),
+        "nullable": json_schema.get("nullable", False)
+    }
+
+    if schema_type == "string":
+        schema_args["type_"] = Type.STRING
+        if "enum" in json_schema:
+            schema_args["enum"] = json_schema["enum"]
+        if "format" in json_schema:
+            schema_args["format_"] = json_schema["format"]
+    elif schema_type == "number":
+        schema_args["type_"] = Type.NUMBER
+        schema_args["format_"] = json_schema.get("format", "float")
+    elif schema_type == "integer":
+        schema_args["type_"] = Type.INTEGER
+        schema_args["format_"] = json_schema.get("format", "int32")
+    elif schema_type == "boolean":
+        schema_args["type_"] = Type.BOOLEAN
+
+    return Schema(**schema_args)

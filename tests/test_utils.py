@@ -1266,7 +1266,6 @@ def test_schema_to_typed():
 
 
 def test_genai_schema():
-
     # Usage example
     TEST_SCHEMA = {
         "type": "object",
@@ -1307,3 +1306,79 @@ def test_genai_schema():
     # You can now use this schema with the Gemini API
     # For example:
     # response = model.generate_content(prompt, response_schema=genai_schema)
+
+
+def test_genai_schema_more():
+    # Test cases
+    TEST_SCHEMAS = [
+        # Object schema
+        {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "The person's name"},
+                "age": {"type": "integer", "description": "The person's age"},
+                "height": {"type": "number", "format": "float", "description": "Height in meters"},
+                "is_student": {"type": "boolean", "description": "Whether the person is a student"},
+                "skills": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of skills"
+                },
+                "address": {
+                    "type": "object",
+                    "properties": {
+                        "street": {"type": "string"},
+                        "city": {"type": "string"},
+                        "country": {"type": "string"}
+                    },
+                    "required": ["street", "city"],
+                    "description": "Address details"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": ["active", "inactive", "on leave"],
+                    "description": "Current status"
+                }
+            },
+            "required": ["name", "age", "is_student"],
+            "description": "A person's profile"
+        },
+        # Array schema
+        {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "name": {"type": "string"}
+                },
+                "required": ["id"]
+            },
+            "description": "List of items"
+        },
+        # String schema
+        {
+            "type": "string",
+            "format": "email",
+            "description": "Email address"
+        },
+        # Number schema
+        {
+            "type": "number",
+            "format": "double",
+            "description": "A floating-point number"
+        },
+        # Boolean schema
+        {
+            "type": "boolean",
+            "description": "A true/false value"
+        }
+    ]
+
+    from src.utils_langchain import convert_to_genai_schema
+
+    # Test the conversion
+    for i, schema in enumerate(TEST_SCHEMAS, 1):
+        print(f"\nTest Schema {i}:")
+        genai_schema = convert_to_genai_schema(schema)
+        print(genai_schema)
