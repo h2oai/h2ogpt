@@ -375,8 +375,8 @@ openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-t
 
 # those inference types that support strict schema (also guided_vllm, separately accounted for)
 # Only with gpt-4o-2024-08-06 will be highly accurate, however, for openai
-strict_schema_inf_types = ['anthropic', 'mistralai', 'openai_chat', 'openai_azure_chat']
-strict_schema_model_bads = ['mistral-tiny']
+strict_schema_inf_types = ['anthropic', 'mistralai', 'openai_chat', 'openai_azure_chat', 'google']  # i.e. onl 'gemini-1.5-pro' for google
+strict_schema_model_bads = ['mistral-tiny', 'gemini-1.5-flash', 'gemini-1.0-pro', 'gemini-pro']
 
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
@@ -537,6 +537,8 @@ def is_json_model(base_model, inference_server, json_vllm=False):
     if inference_server.startswith('anthropic'):
         # but no streaming
         return base_model.startswith('claude-3')
+    if inference_server.startswith('google'):
+        return base_model in ["gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
     return False
 
 

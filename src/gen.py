@@ -2989,6 +2989,7 @@ def evaluate(
         supports_schema = not is_empty(guided_json) and \
                           response_format == 'json_object' and \
                           is_json_model(base_model, inference_server, json_vllm=json_vllm)
+        # related to strict_schema_inf_types
         supports_schema &= json_vllm or \
                            not is_empty(inference_server) and \
                            any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat']) and \
