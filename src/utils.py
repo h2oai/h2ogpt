@@ -2447,12 +2447,14 @@ def repair_json_by_type(response, json_schema_type=None):
     # WIP for later
     if json_schema_type in ['object', None]:
         from json_repair import repair_json
+        response_str = response
         response = repair_json(response)
+        if response in ['""', """''""", '', None]:
+            return {}
         try:
             # assumes already dict
-            response_text = response
             response = handle_json(json.loads(response))
-            if isinstance(response, list) and len(response) >= 1 and not response_text.startswith('['):
+            if isinstance(response, list) and len(response) >= 1 and not response_str.startswith('['):
                 response = response[-1]  # take last if list, if was not pure list response
             return json.dumps(response)
         except Exception as e:
