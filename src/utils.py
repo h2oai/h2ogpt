@@ -3014,3 +3014,44 @@ def is_empty(obj):
     if hasattr(obj, '__len__'):
         return len(obj) == 0
     return False
+
+
+from typing import Any, Dict, List, Union
+from typing_extensions import TypedDict
+
+def create_typed_dict(schema: Dict[str, Any], name: str = "Schema") -> type:
+    properties = schema.get("properties", {})
+    required = set(schema.get("required", []))
+
+    fields: Dict[str, Union[type, Any]] = {}
+    total = len(required) == len(properties)
+
+    for prop, details in properties.items():
+        prop_type = details.get("type")
+        if prop_type == "string":
+            field_type = str
+        elif prop_type == "integer":
+            field_type = int
+        elif prop_type == "number":
+            field_type = float
+        elif prop_type == "boolean":
+            field_type = bool
+        elif prop_type == "array":
+            items = details.get("items", {})
+            if items.get("type") == "string":
+                field_type = List[str]
+            elif items.get("type") == "object":
+                field_type = List[create_typed_dict(items, f"{name}Item")]
+            else:
+                field_type = List[Any]
+        elif prop_type == "object":
+            field_type = create_typed_dict(details, f"{name}{prop.capitalize()}")
+        else:
+            field_type = Any
+
+        if prop in required:
+            fields[prop] = field_type
+        else:
+            fields[prop] = Union[field_type, None]
+
+    return TypedDict(name, fields, total=total)
