@@ -6323,7 +6323,7 @@ vllm_base_models = ['mistralai/Mistral-7B-Instruct-v0.3',
 
 def get_test_server_client(base_model):
     inference_server = os.getenv('TEST_SERVER', 'https://gpt.h2o.ai')
-    inference_server = 'http://localhost:7860'
+    # inference_server = 'http://localhost:7860'
     # inference_server = 'http://localhost:7863'
 
     if inference_server == 'https://gpt.h2o.ai':
