@@ -74,6 +74,9 @@ eval_func_param_names = (
             "json_code_prompt_if_no_schema",
             "json_schema_instruction",
             "json_preserve_system_prompt",
+            "json_object_post_prompt_reminder",
+            "json_code_post_prompt_reminder",
+            "json_code2_post_prompt_reminder",
 
             "system_prompt",
         ]
