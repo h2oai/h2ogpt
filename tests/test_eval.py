@@ -148,6 +148,9 @@ def run_eval1(cpu=False, bits=None, base_model='h2oai/h2ogpt-oig-oasst1-512-6_9b
                  "json_code_prompt_if_no_schema": None,
                  "json_schema_instruction": None,
                  "json_preserve_system_prompt": None,
+                 "json_object_post_prompt_reminder": None,
+                 "json_code_post_prompt_reminder": None,
+                 "json_code2_post_prompt_reminder": None,
 
                  'system_prompt': 'auto',
                  'pdf_loaders': np.array(['PyMuPDF'], dtype=object),

@@ -373,11 +373,6 @@ openai_supports_json_mode = ["gpt-4-1106-preview", "gpt-35-turbo-1106", "gpt-4-t
                              "gpt-4o-mini", 'gpt-4o-mini-2024-07-18',
                              ]
 
-# those inference types that support strict schema (also guided_vllm, separately accounted for)
-# Only with gpt-4o-2024-08-06 will be highly accurate, however, for openai
-strict_schema_inf_types = ['anthropic', 'mistralai', 'openai_chat', 'openai_azure_chat', 'google']  # i.e. onl 'gemini-1.5-pro' for google
-strict_schema_model_bads = ['mistral-tiny', 'gemini-1.5-flash', 'gemini-1.0-pro', 'gemini-pro']
-
 # https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models#model-summary-table-and-region-availability
 model_token_mapping_outputs = model_token_mapping.copy()
 model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
@@ -795,6 +790,10 @@ json_object_prompt_simpler0 = 'Ensure your response is strictly valid JSON text.
 json_code_prompt0 = 'Ensure your entire response is outputted as strict valid JSON inside a code block with the json language identifier.'
 json_code_prompt_if_no_schema0 = 'Ensure all JSON keys are less than 64 characters, and ensure JSON key names are made of only alphanumerics, underscores, or hyphens.'
 json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to use the same key names as the schema:\n```json\n{properties_schema}\n```'
+json_object_post_prompt_reminder0 = 'Ensure your response is strictly valid JSON text.'
+json_code_post_prompt_reminder0 = 'Ensure your response satisfies the schema mentioned above and place the response inside JSON code block.  Do not just repeat the JSON schema, ensure your response uses that schema to respond by choosing particular values for each type.'
+json_code2_post_prompt_reminder0 = 'Ensure your response is inside a JSON code block.'
+
 
 image_batch_image_prompt0 = """<response_instructions>
 - Act as a keen observer with a sharp eye for detail.
