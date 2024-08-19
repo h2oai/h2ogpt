@@ -2450,8 +2450,8 @@ def repair_json_by_type(response, json_schema_type=None):
         try:
             # assumes already dict
             response = handle_json(json.loads(response))
-            if isinstance(response, list) and len(response) >= 1:
-                response = response[-1]  # take last if list
+            if isinstance(response, list) and len(response) >= 1 and not response.startswith('['):
+                response = response[-1]  # take last if list, if was not pure list response
             return json.dumps(response)
         except Exception as e:
             print("Did not extract_values: %s" % str(e))
