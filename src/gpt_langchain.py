@@ -949,6 +949,9 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     json_code_prompt_if_no_schema: Any = None
     json_schema_instruction: Any = None
     json_preserve_system_prompt: bool = False
+    json_object_post_prompt_reminder: Any = None
+    json_code_post_prompt_reminder: Any = None
+    json_code2_post_prompt_reminder: Any = None
 
     system_prompt: Any = None
     visible_models: Any = None
@@ -1091,6 +1094,9 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              json_code_prompt_if_no_schema=self.json_code_prompt_if_no_schema,
                              json_schema_instruction=self.json_schema_instruction,
                              json_preserve_system_prompt=self.json_preserve_system_prompt,
+                             json_object_post_prompt_reminder=self.json_object_post_prompt_reminder,
+                             json_code_post_prompt_reminder=self.json_code_post_prompt_reminder,
+                             json_code2_post_prompt_reminder=self.json_code2_post_prompt_reminder,
                              system_prompt=self.system_prompt,
                              image_audio_loaders=None,  # don't need to further do doc specific things
                              pdf_loaders=None,  # don't need to further do doc specific things
@@ -6805,6 +6811,9 @@ def _run_qa_db(query=None,
                json_code_prompt_if_no_schema=None,
                json_schema_instruction=None,
                json_preserve_system_prompt=None,
+               json_object_post_prompt_reminder=None,
+               json_code_post_prompt_reminder=None,
+               json_code2_post_prompt_reminder=None,
 
                visible_models=None,
                h2ogpt_key=None,

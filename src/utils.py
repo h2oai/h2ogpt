@@ -44,7 +44,8 @@ from fire import inspectutils
 from joblib import Parallel
 from tqdm.auto import tqdm
 
-from enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset
+from enums import split_google, invalid_json_str, docs_joiner_default, git_hash_unset, is_json_model, \
+    openai_supports_functiontools, openai_supports_parallel_functiontools, does_support_functiontools
 from utils_procs import reulimit
 
 reulimit()
@@ -3020,6 +3021,7 @@ def is_empty(obj):
 from typing import Any, Dict, List, Union
 from typing_extensions import TypedDict
 
+
 def create_typed_dict(schema: Dict[str, Any], name: str = "Schema") -> type:
     properties = schema.get("properties", {})
     required = set(schema.get("required", []))
@@ -3056,3 +3058,24 @@ def create_typed_dict(schema: Dict[str, Any], name: str = "Schema") -> type:
             fields[prop] = Union[field_type, None]
 
     return TypedDict(name, fields, total=total)
+
+
+def get_supports_schema(inference_server, base_model, response_format, guided_json, json_vllm):
+    supports_schema = not is_empty(guided_json) and \
+                      response_format == 'json_object' and \
+                      is_json_model(base_model, inference_server, json_vllm=json_vllm)
+
+    supports_schema &= json_vllm or \
+                       not is_empty(inference_server) and \
+                       any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat']) and \
+                       not is_empty(
+                           base_model) and base_model in openai_supports_functiontools + openai_supports_parallel_functiontools or \
+                       not is_empty(inference_server) and \
+                       inference_server.startswith('anthropic') or \
+                       not is_empty(inference_server) and \
+                       inference_server.startswith('google') and base_model == 'gemini-1.5-pro-latest' or \
+                       not is_empty(inference_server) and \
+                       inference_server.startswith('mistralai') and \
+                       does_support_functiontools(inference_server, base_model)
+
+    return supports_schema

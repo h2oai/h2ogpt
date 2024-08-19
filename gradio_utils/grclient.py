@@ -729,6 +729,9 @@ class GradioClient(Client):
         json_code_prompt_if_no_schema: str = None,
         json_schema_instruction: str = None,
         json_preserve_system_prompt: bool = False,
+        json_object_post_prompt_reminder: str = None,
+        json_code_post_prompt_reminder: str = None,
+        json_code2_post_prompt_reminder: str = None,
         model: str | int | None = None,
         model_lock: dict | None = None,
         stream_output: bool = False,
@@ -868,6 +871,9 @@ class GradioClient(Client):
             :param json_code_prompt_if_no_schema: prompt for getting LLM to do JSON in code block if no schema
             :param json_schema_instruction: prompt for LLM to use schema
             :param json_preserve_system_prompt: Whether to preserve system prompt for json mode
+            :param json_object_post_prompt_reminder: json object reminder about JSON
+            :param json_code_post_prompt_reminder: json code w/ schema reminder about JSON
+            :param json_code2_post_prompt_reminder: json code wo/ schema reminder about JSON
 
             :param h2ogpt_key: Access Key to h2oGPT server (if not already set in client at init time)
             :param model: base_model name or integer index of model_lock on h2oGPT server

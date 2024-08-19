@@ -68,7 +68,7 @@ from enums import DocumentSubset, no_model_str, no_lora_str, no_server_str, Lang
     DocumentChoice, langchain_modes_intrinsic, LangChainTypes, langchain_modes_non_db, gr_to_lg, invalid_key_msg, \
     LangChainAgent, docs_ordering_types, docs_token_handlings, docs_joiner_default, split_google, response_formats, \
     summary_prefix, extract_prefix, unknown_prompt_type, my_db_state0, requests_state0, noneset, \
-    is_vision_model, is_video_model, is_json_model, strict_schema_inf_types, strict_schema_model_bads
+    is_vision_model, is_video_model
 from gradio_themes import H2oTheme, SoftTheme, get_h2o_title, get_simple_title, \
     get_dark_js, get_heap_js, wrap_js_to_lambda, \
     spacing_xsm, radius_xsm, text_xsm
@@ -78,7 +78,8 @@ from utils import flatten_list, zip_data, s3up, clear_torch_cache, get_torch_all
     ping, makedirs, get_kwargs, system_info, ping_gpu, get_url, \
     save_generate_output, url_alive, remove, dict_to_html, text_to_html, lg_to_gr, str_to_dict, have_serpapi, \
     have_librosa, have_gradio_pdf, have_pyrubberband, is_gradio_version4, have_fiftyone, n_gpus_global, \
-    get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, deepcopy_by_pickle_object, get_gradio_depth
+    get_accordion_named, get_is_gradio_h2oai, is_uuid4, get_show_username, deepcopy_by_pickle_object, get_gradio_depth, \
+    get_supports_schema
 from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_list, \
     get_max_max_new_tokens, get_minmax_top_k_docs, history_to_context, langchain_actions, langchain_agents_list, \
     get_model_max_length_from_tokenizer, \
@@ -1500,13 +1501,13 @@ def go_gradio(**kwargs):
                                                          info="When doing HYDE, this is first prompt, and in template the user query comes right after this.",
                                                          value=kwargs['hyde_llm_prompt'] or '')
                             all_docs_start_prompt = gr.Textbox(label="DocQA Documents Starting Prompt",
-                                                                    info="Goes just before all documents.",
-                                                                    value=kwargs[
-                                                                              'all_docs_start_prompt'] or 'auto')
+                                                               info="Goes just before all documents.",
+                                                               value=kwargs[
+                                                                         'all_docs_start_prompt'] or 'auto')
                             all_docs_finish_prompt = gr.Textbox(label="DocQA Documents Finishing Prompt",
-                                                                     info="Goes just after all documents.",
-                                                                     value=kwargs[
-                                                                               'all_docs_finish_prompt'] or 'auto')
+                                                                info="Goes just after all documents.",
+                                                                value=kwargs[
+                                                                          'all_docs_finish_prompt'] or 'auto')
                             llava_prompt_type = gr.Dropdown(label="LLaVa LLM Prompt Type",
                                                             info="Pick pre-defined LLaVa prompt",
                                                             value=kwargs['llava_prompt'],
@@ -1535,11 +1536,20 @@ def go_gradio(**kwargs):
                                                                        value=kwargs[
                                                                                  'json_code_prompt_if_no_schema'] or '')
                             json_schema_instruction = gr.Textbox(label="JSON Schema Prompt",
-                                                                  info="prompt for LLM to use schema",
-                                                                  value=kwargs['json_schema_instruction'])
+                                                                 info="prompt for LLM to use schema",
+                                                                 value=kwargs['json_schema_instruction'])
                             json_preserve_system_prompt = gr.Checkbox(label="Preserve System Prompt for JSON Mode",
-                                                                  info="Whether to preserve system prompt when doing JSON mode.",
-                                                                  value=kwargs['json_preserve_system_prompt'])
+                                                                      info="Whether to preserve system prompt when doing JSON mode.",
+                                                                      value=kwargs['json_preserve_system_prompt'])
+                            json_object_post_prompt_reminder = gr.Textbox(label="JSON object reminder Prompt",
+                                                                 info="prompt to remind LLM to use json",
+                                                                 value=kwargs['json_object_post_prompt_reminder'])
+                            json_code_post_prompt_reminder = gr.Textbox(label="JSON code w/ schema reminder Prompt",
+                                                                 info="prompt to remind LLM to make json code and use schema",
+                                                                 value=kwargs['json_code_post_prompt_reminder'])
+                            json_code2_post_prompt_reminder = gr.Textbox(label="JSON code reminder Prompt",
+                                                                 info="prompt to remind LLM to use json code when no schema",
+                                                                 value=kwargs['json_code2_post_prompt_reminder'])
 
                             def show_llava(x):
                                 return x
@@ -5802,10 +5812,9 @@ def go_gradio(**kwargs):
                 model_state3['guided_vllm'] = model_state3.get('guided_vllm', False)
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
                 model_state3['inference_server_type'] = inference_server_type
-                model_state3['strict_json_schema'] = model_state3.get('guided_vllm', False) or \
-                                                     inference_server_type in strict_schema_inf_types
-                if base_model and base_model in strict_schema_model_bads:
-                    model_state3['strict_json_schema'] = False
+                json_vllm = model_state3.get('json_vllm', False)
+                model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model, response_format,
+                                                                         guided_json, json_vllm)
             key_list = ['display_name', 'base_model', 'inference_server_type',
                         'strict_json_schema',
                         'prompt_type', 'prompt_dict', 'chat_template'] + list(

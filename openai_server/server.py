@@ -90,6 +90,9 @@ class H2oGPTParams(BaseModel):
     json_code_prompt_if_no_schema: str | None = None
     json_schema_instruction: str | None = None
     json_preserve_system_prompt: bool | None = False
+    json_object_post_prompt_reminder: str | None = None
+    json_code_post_prompt_reminder: str | None = None
+    json_code2_post_prompt_reminder: str | None = None
 
     system_prompt: str | None = 'auto'
 

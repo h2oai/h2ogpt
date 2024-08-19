@@ -77,14 +77,15 @@ from enums import DocumentSubset, LangChainMode, no_lora_str, no_model_str, \
     json_schema_instruction0, json_code_prompt_if_no_schema0, my_db_state0, empty_prompt_type, is_gradio_vision_model, \
     is_json_model, is_vision_model, \
     model_state_none0, other_model_state_defaults0, image_batch_image_prompt0, image_batch_final_prompt0, \
-    tokens_per_image, openai_supports_functiontools, openai_supports_parallel_functiontools
+    tokens_per_image, openai_supports_functiontools, openai_supports_parallel_functiontools, does_support_functiontools, \
+    json_object_post_prompt_reminder0, json_code_post_prompt_reminder0, json_code2_post_prompt_reminder0
 
 from utils import set_seed, clear_torch_cache, NullContext, wrapped_partial, EThread, get_githash, \
     import_matplotlib, get_device, makedirs, get_kwargs, start_faulthandler, get_hf_server, \
     have_langchain, set_openai, cuda_vis_check, H2O_Fire, lg_to_gr, str_to_list, str_to_dict, get_token_count, \
     have_wavio, have_soundfile, have_deepspeed, have_doctr, have_librosa, have_TTS, have_flash_attention_2, \
     have_diffusers, sanitize_filename, get_gradio_tmp, get_is_gradio_h2oai, get_json, \
-    get_docs_tokens, deduplicate_names, have_autogen, get_model_name, is_empty
+    get_docs_tokens, deduplicate_names, have_autogen, get_model_name, is_empty, get_supports_schema
 
 start_faulthandler()
 import_matplotlib()
@@ -399,6 +400,9 @@ def main(
         json_code_prompt_if_no_schema: str = None,
         json_schema_instruction: str = None,
         json_preserve_system_prompt: bool = False,
+        json_object_post_prompt_reminder: str = None,
+        json_code_post_prompt_reminder: str = None,
+        json_code2_post_prompt_reminder: str = None,
 
         add_chat_history_to_context: bool = True,
         add_search_to_context: bool = False,
@@ -1141,6 +1145,9 @@ def main(
     :param json_code_prompt_if_no_schema: prompt part for LLM if not schema, but need good keys etc. for JSON (e.g. due to Claude-3 limitations)
     :param json_schema_instruction: prompt for LLM to use schema
     :param json_preserve_system_prompt: whether to preserve system_prompt for JSON mode
+    :param json_object_post_prompt_reminder: json object reminder about JSON
+    :param json_code_post_prompt_reminder: json code w/ schema reminder about JSON
+    :param json_code2_post_prompt_reminder: json code wo/ schema reminder about JSON
 
     :param doc_json_mode: Use system prompting approach with JSON input and output, e.g. for codellama or GPT-4
     :param metadata_in_context: Keys of metadata to include in LLM context for Query
@@ -1943,6 +1950,9 @@ def main(
                             json_code_prompt_if_no_schema,
                             json_schema_instruction,
                             json_preserve_system_prompt,
+                            json_object_post_prompt_reminder,
+                            json_code_post_prompt_reminder,
+                            json_code2_post_prompt_reminder,
 
                             temperature, top_p, top_k, penalty_alpha, num_beams,
                             max_new_tokens, min_new_tokens, early_stopping, max_time,
@@ -2481,6 +2491,9 @@ def evaluate(
         json_code_prompt_if_no_schema,
         json_schema_instruction,
         json_preserve_system_prompt,
+        json_object_post_prompt_reminder,
+        json_code_post_prompt_reminder,
+        json_code2_post_prompt_reminder,
 
         system_prompt,
 
@@ -2954,6 +2967,9 @@ def evaluate(
         json_code_prompt_if_no_schema = '\n' + json_code_prompt_if_no_schema + '\n\n'
         json_schema_instruction = json_schema_instruction or json_schema_instruction0
         json_schema_instruction = '\n' + json_schema_instruction + '\n\n'
+        json_object_post_prompt_reminder = json_object_post_prompt_reminder or json_object_post_prompt_reminder0
+        json_code_post_prompt_reminder = json_code_post_prompt_reminder or json_code_post_prompt_reminder0
+        json_code2_post_prompt_reminder = json_code2_post_prompt_reminder or json_code2_post_prompt_reminder0
 
         if isinstance(guided_json, str):
             try:
@@ -2986,19 +3002,8 @@ def evaluate(
         schema_instruction = json_schema_instruction.format(properties_schema=guided_json_properties_json)
 
         pre_instruction = ''
-        supports_schema = not is_empty(guided_json) and \
-                          response_format == 'json_object' and \
-                          is_json_model(base_model, inference_server, json_vllm=json_vllm)
-        # related to strict_schema_inf_types
-        supports_schema &= json_vllm or \
-                           not is_empty(inference_server) and \
-                           any(inference_server.startswith(x) for x in ['openai_chat', 'openai_azure_chat']) and \
-                           not is_empty(
-                               base_model) and base_model in openai_supports_functiontools + openai_supports_parallel_functiontools or \
-                           not is_empty(inference_server) and \
-                           inference_server.startswith('anthropic') or \
-                           not is_empty(inference_server) and \
-                           inference_server.startswith('google') and base_model == 'gemini-1.5-pro-latest'
+        post_instruction = ''
+        supports_schema = get_supports_schema(inference_server, base_model, response_format, guided_json, json_vllm)
 
         if supports_schema:
             # for vLLM or claude-3, support schema if given
@@ -3022,13 +3027,17 @@ def evaluate(
             else:
                 # OpenAI requires "json" to appear somewhere in messages
                 pre_instruction = json_object_prompt
+            # often models need reminder to do it in actual JSON
+            post_instruction = json_object_post_prompt_reminder
         else:
             # json_code way
             # have to tell to use json and give schema if present
             if guided_json_properties:
                 pre_instruction = json_code_prompt + schema_instruction
+                post_instruction = json_code_post_prompt_reminder
             else:
                 pre_instruction = json_code_prompt + json_code_prompt_if_no_schema
+                post_instruction = json_code2_post_prompt_reminder
         # ignore these, make no sense for JSON mode
         if not json_preserve_system_prompt:
             system_prompt = ''  # can mess up the model, e.g. 70b
@@ -3044,14 +3053,21 @@ def evaluate(
                                   '\n###\nEnd response format instructions\n\n'
         if instruction:
             # avoid duplication, assuming instruction will be in final prompt after prompt_query or prompt_summary
-            instruction = pre_instruction + '\n\n' + instruction
+            if pre_instruction:
+                instruction = pre_instruction + '\n\n' + instruction
+            if post_instruction:
+                instruction = instruction + '\n\n' + post_instruction
             pre_prompt_query = ''
             pre_prompt_summary = ''
         else:
             pre_prompt_query = ''
-            prompt_query = pre_instruction + prompt_query
             pre_prompt_summary = ''
-            prompt_summary = pre_instruction + prompt_summary
+            if pre_instruction:
+                prompt_query = pre_instruction + prompt_query
+                prompt_summary = pre_instruction + prompt_summary
+            if post_instruction:
+                prompt_query = prompt_query + '\n\n' + post_instruction
+                prompt_summary = prompt_summary + '\n\n' + post_instruction
 
     ###############
     # prompt_type and prompter setup
@@ -3282,6 +3298,9 @@ def evaluate(
                 json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                 json_schema_instruction=json_schema_instruction,
                 json_preserve_system_prompt=json_preserve_system_prompt,
+                json_object_post_prompt_reminder=json_object_post_prompt_reminder,
+                json_code_post_prompt_reminder=json_code_post_prompt_reminder,
+                json_code2_post_prompt_reminder=json_code2_post_prompt_reminder,
 
                 text_context_list=text_context_list,
                 chat_conversation=chat_conversation,
@@ -3802,6 +3821,9 @@ def evaluate(
                                          json_code_prompt_if_no_schema=json_code_prompt_if_no_schema,
                                          json_schema_instruction=json_schema_instruction,
                                          json_preserve_system_prompt=json_preserve_system_prompt,
+                                         json_object_post_prompt_reminder=json_object_post_prompt_reminder,
+                                         json_code_post_prompt_reminder=json_code_post_prompt_reminder,
+                                         json_code2_post_prompt_reminder=json_code2_post_prompt_reminder,
 
                                          system_prompt=system_prompt,
                                          image_audio_loaders=image_audio_loaders,
@@ -4381,6 +4403,9 @@ def get_generate_params(model_lower,
                         json_code_prompt_if_no_schema,
                         json_schema_instruction,
                         json_preserve_system_prompt,
+                        json_object_post_prompt_reminder,
+                        json_code_post_prompt_reminder,
+                        json_code2_post_prompt_reminder,
                         temperature, top_p, top_k, penalty_alpha, num_beams,
                         max_new_tokens, min_new_tokens, early_stopping, max_time,
                         repetition_penalty, num_return_sequences,
@@ -4623,6 +4648,9 @@ y = np.random.randint(0, 1, 100)
                     json_code_prompt_if_no_schema,
                     json_schema_instruction,
                     json_preserve_system_prompt,
+                    json_object_post_prompt_reminder,
+                    json_code_post_prompt_reminder,
+                    json_code2_post_prompt_reminder,
 
                     system_prompt,
                     image_audio_loaders,
