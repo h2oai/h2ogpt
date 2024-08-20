@@ -50,7 +50,11 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
   - Image Generation
   - Embedding
   - Function tool calling w/ auto tool selection
-- **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
+- **JSON Mode**
+  - Strict schema control for vLLM via its use of outlines
+  - Strict schema control for OpenAI, Anthropic, Google Gemini, MistralAI models
+  - JSON mode for some older OpenAI or Gemini models with schema control if model is smart enough (e.g. gemini 1.5 flash)
+  - Any model via code block extraction
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
 - **Evaluate** performance using reward models
