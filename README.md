@@ -46,7 +46,8 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 - **OpenAI-compliant**
   - Server Proxy [API](docs/README_CLIENT.md) (h2oGPT acts as drop-in-replacement to OpenAI server)
   - Chat and Text Completions (streaming and non-streaming)
-  - Audio Transcription (STT), Audio Generation (TTS),
+  - Audio Transcription (STT)
+  - Audio Generation (TTS)
   - Image Generation
   - Embedding
   - Function tool calling w/ auto tool selection
