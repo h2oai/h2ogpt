@@ -2347,6 +2347,9 @@ def main(
     json_code_prompt = json_code_prompt or json_code_prompt0
     json_code_prompt_if_no_schema = json_code_prompt_if_no_schema or json_code_prompt_if_no_schema0
     json_schema_instruction = json_schema_instruction or json_schema_instruction0
+    json_object_post_prompt_reminder = json_object_post_prompt_reminder or json_object_post_prompt_reminder0
+    json_code_post_prompt_reminder = json_code_post_prompt_reminder or json_code_post_prompt_reminder0
+    json_code2_post_prompt_reminder = json_code2_post_prompt_reminder or json_code2_post_prompt_reminder0
 
     image_batch_image_prompt = image_batch_image_prompt or image_batch_image_prompt0
     image_batch_final_prompt = image_batch_final_prompt or image_batch_final_prompt0
