@@ -40,17 +40,35 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
   - **Authentication** in the UI by user/password via Native or Google OAuth
   - **State Preservation** in the UI by user/password
 - **Open Web UI** with h2oGPT as backend via OpenAI Proxy
-  - Supports chat completion with streaming, vision models, document Q/A, STT, TTS, image generation, authentication, and state preservation.  See [Start-up Docs](docs/FAQ.md#open-web-ui).
+  - See [Start-up Docs](docs/FAQ.md#open-web-ui).
+  - Chat completion with streaming
+  - Document Q/A using h2oGPT ingestion with advanced OCR from DocTR
+  - Vision models
+  - Audio Transcription (STT)
+  - Audio Generation (TTS)
+  - Image generation
+  - Authentication
+  - State preservation
 - **Linux, Docker, macOS, and Windows** support
 - **Inference Servers** [support](docs/README_InferenceServers.md) for oLLaMa, HF TGI server, vLLM, Gradio, ExLLaMa, Replicate, Together.ai, OpenAI, Azure OpenAI, Anthropic, MistralAI, Google, and Groq
-- **OpenAI-compliant**
+- **OpenAI compliant**
   - Server Proxy [API](docs/README_CLIENT.md) (h2oGPT acts as drop-in-replacement to OpenAI server)
-  - Supports Chat and Text Completions (streaming and non-streaming), Audio Transcription (STT), Audio Generation (TTS), Image Generation, and Embedding
-- **JSON Mode** with any model via code block extraction.  Also supports MistralAI JSON mode, Claude-3 via function calling with strict Schema, OpenAI via JSON mode, and vLLM via guided_json with strict Schema  
+  - Chat and Text Completions (streaming and non-streaming)
+  - Audio Transcription (STT)
+  - Audio Generation (TTS)
+  - Image Generation
+  - Embedding
+  - Function tool calling w/auto tool selection
+  - AutoGen Code Execution Agent
+- **JSON Mode**
+  - Strict schema control for vLLM via its use of outlines
+  - Strict schema control for OpenAI, Anthropic, Google Gemini, MistralAI models
+  - JSON mode for some older OpenAI or Gemini models with schema control if model is smart enough (e.g. gemini 1.5 flash)
+  - Any model via code block extraction
 - **Web-Search** integration with Chat and Document Q/A
 - **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
 - **Evaluate** performance using reward models
-- **Quality** maintained with over 1000 unit and integration tests taking over 4 GPU-hours
+- **Quality** maintained with over 1000 unit and integration tests taking over 24 GPU-hours
 
 ## Get Started
 

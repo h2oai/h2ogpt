@@ -2331,11 +2331,11 @@ def main(
                               ))
     # if mixed setup, choose non-empty so best models best
     # FIXME: Make per model dict passed through to evaluate
-    pre_prompt_query = pre_prompt_query or pre_prompt_query1
-    prompt_query = prompt_query or prompt_query1
-    pre_prompt_summary = pre_prompt_summary or pre_prompt_summary1
-    prompt_summary = prompt_summary or prompt_summary1
-    hyde_llm_prompt = hyde_llm_prompt or hyde_llm_prompt1
+    pre_prompt_query = pre_prompt_query if pre_prompt_query is not None else pre_prompt_query1
+    prompt_query = prompt_query if prompt_query is not None else prompt_query1
+    pre_prompt_summary = pre_prompt_summary if pre_prompt_summary is not None else pre_prompt_summary1
+    prompt_summary = prompt_summary if prompt_summary is not None else prompt_summary1
+    hyde_llm_prompt = hyde_llm_prompt if hyde_llm_prompt is not None else hyde_llm_prompt1
 
     if all_docs_start_prompt == 'auto' or all_docs_finish_prompt == 'auto':
         all_docs_start_prompt = None
@@ -3069,8 +3069,9 @@ def evaluate(
                 prompt_query = pre_instruction + prompt_query
                 prompt_summary = pre_instruction + prompt_summary
             if post_instruction:
-                prompt_query = prompt_query + '\n\n' + post_instruction
-                prompt_summary = prompt_summary + '\n\n' + post_instruction
+                # '' allowed, but don't add extra \n\n if such
+                prompt_query = prompt_query + '\n\n' + post_instruction if prompt_query else post_instruction
+                prompt_summary = prompt_summary + '\n\n' + post_instruction if prompt_summary else post_instruction
 
     ###############
     # prompt_type and prompter setup
