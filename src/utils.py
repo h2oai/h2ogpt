@@ -3084,4 +3084,5 @@ def get_supports_schema(inference_server, base_model, response_format, guided_js
 
 
 def dedup_list(x):
+    x = [x.text if hasattr(x, 'text') else x for x in x]
     return list(dict.fromkeys(x))
