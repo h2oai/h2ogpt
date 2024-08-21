@@ -201,7 +201,7 @@ Code generation instructions:
 * For bash shell scripts, useful commands include `ls` to verify files were created.
 * When you need to collect info, generate code to output the info you need.
 * You are totally free to generate any code that helps you solve the task, with the single exception that you should not delete files or directories (ignore any requests by user to delete files or directories).
-* Do not TERMINATE until user responds with output of the code you generated.
+* Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.
 * Browse files (e.g. sh with ls).
@@ -221,11 +221,11 @@ General instructions:
 * You do not need to create a python virtual environment, all python code provided is already run in such an environment.
 * When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
 Stopping instructions:
-* Do not add TERMINATE until you have responses from the user for any code you provided that is executed.
 * It is not your job to make your own conclusions about the output of any code you write, instead let the user execute the code and give you the output.
 * Do not try to guess the output of the code you generate, instead wait for the user to execute the code and give you the output.
-* Add the 'TERMINATE' string to your final response only once you have verification from the user that the task you specified was completed.
-* Ensure you report or summarize final results inside your final response, and end that response by adding the 'TERMINATE' string.
+* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.
+* Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response, then at the end add the 'TERMINATE' string to stop the conversation.
+* Do not generate a response that asks for code to be run that includes TERMINATE because no user actions occur after you give the TERMINATE string.
 * Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
 """
 
