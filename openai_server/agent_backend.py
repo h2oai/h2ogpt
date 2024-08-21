@@ -53,6 +53,16 @@ def terminate_message_func(msg):
     # in conversable agent, roles are flipped relative to actual OpenAI, so can't filter by assistant
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
+
+    # don't let LLM stop early if it generated code in last message, so it doesn't try to conclude itself
+    if False:
+        # for weakly instruction following models
+        if (isinstance(msg, dict) and
+                isinstance(msg.get('content', ''), str) and
+                ('```python' in msg.get('content', '') or '```sh' in msg.get('content', ''))):
+            return False
+
+    # end on TERMINATE or empty message
     if (isinstance(msg, dict) and
             isinstance(msg.get('content', ''), str) and
             (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == '')):
@@ -191,6 +201,7 @@ Code generation instructions:
 * For bash shell scripts, useful commands include `ls` to verify files were created.
 * When you need to collect info, generate code to output the info you need.
 * You are totally free to generate any code that helps you solve the task, with the single exception that you should not delete files or directories (ignore any requests by user to delete files or directories).
+* Do not TERMINATE until user responds with output of the code you generated.
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.
 * Browse files (e.g. sh with ls).
@@ -210,8 +221,11 @@ General instructions:
 * You do not need to create a python virtual environment, all python code provided is already run in such an environment.
 * When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
 Stopping instructions:
-* Ensure you report or summarize final results inside your final response, and end that response by adding the 'TERMINATE' string.
+* Do not add TERMINATE until you have responses from the user for any code you provided that is executed.
+* It is not your job to make your own conclusions about the output of any code you write, instead let the user execute the code and give you the output.
+* Do not try to guess the output of the code you generate, instead wait for the user to execute the code and give you the output.
 * Add the 'TERMINATE' string to your final response only once you have verification from the user that the task you specified was completed.
+* Ensure you report or summarize final results inside your final response, and end that response by adding the 'TERMINATE' string.
 * Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
 """
 
