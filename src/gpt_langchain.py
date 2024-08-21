@@ -75,7 +75,8 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_accordion, have_jq, get_doc, get_source, get_token_count, reverse_ucurve_list, get_size, \
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
-    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube, get_model_name
+    merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube, get_model_name, \
+    dedup_list
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -2574,6 +2575,7 @@ class GenerateNormal:
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
+        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
@@ -2585,6 +2587,7 @@ class GenerateNormal:
             callbacks: Callbacks = None,
             **kwargs: Any,
     ) -> LLMResult:
+        self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
         return await self.agenerate(
@@ -7284,7 +7287,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         if isinstance(llm.pipeline.prompts, list) and len(llm.pipeline.prompts) == 1:
             prompt = str(llm.pipeline.prompts[0])
         else:
-            prompt = str(llm.pipeline.prompts)
+            prompt = str(dedup_list(llm.pipeline.prompts))
     elif hasattr(llm, 'prompts') and llm.prompts:
         if isinstance(llm.prompts, list) and len(llm.prompts) == 1:
             if hasattr(llm.prompts[0], 'text'):
@@ -7292,7 +7295,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             else:
                 prompt = str(llm.prompts[0])
         else:
-            prompt = str(llm.prompts)
+            prompt = str(dedup_list(llm.prompts))
     elif hasattr(llm, 'prompter') and llm.prompter.prompt:
         prompt = llm.prompter.prompt
     else:

@@ -3081,3 +3081,7 @@ def get_supports_schema(inference_server, base_model, response_format, guided_js
                        does_support_functiontools(inference_server, base_model)
 
     return supports_schema
+
+
+def dedup_list(x):
+    return list(dict.fromkeys(x))
