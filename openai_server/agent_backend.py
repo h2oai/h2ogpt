@@ -307,10 +307,9 @@ class CaptureIOStream(IOStream):
         self.output_queue = output_queue
 
     def print(self, *objects: typing.Any, sep: str = "", end: str = "", flush: bool = True) -> None:
-        filtered_objects = [x if x not in ["\033[32m", "\033[0m"] else '' for x in objects]
+        filtered_objects = [x if x not in ["\033[32m", "\033[0m\n"] else '' for x in objects]
         output = sep.join(map(str, filtered_objects)) + end
         self.output_queue.put(output)
-
 
 @contextmanager
 def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStream, None, None]:
