@@ -178,8 +178,10 @@ def run_autogen(query=None, agent_type=None,
             serp = ""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 Query understanding instructions:
-* If the user directs you to do something (e.g. make a plot) do it via code generation.
-* If the user just asks a general knowledge question (e.g. who was the first president) code generation is optional.
+* If the user directs you to do something (e.g. make a plot), then do it via code generation.
+* If the user asks a question requiring grade school math, math with more than single digits, or advanced math, then solve it via code generation.
+* If the user asks a question about recent or new information, the use of URLs or web links, generate an answer via code generation.
+* If the user just asks a general historical or factual knowledge question (e.g. who was the first president), then code generation is optional.
 * If it is not clear whether the user directed you to do something, then assume they are directing you and do it via code generation.
 Code generation instructions:
 * Python code should be put into a python coding block and any shell script should be put into a sh coding block for the user to execute
@@ -188,7 +190,7 @@ Code generation instructions:
 * For bash shell scripts, useful commands include `ls` to verify files were created.
 * When you need to collect info, generate code to output the info you need.
 * You are totally free to generate any code that helps you solve the task, with the single exception that you should not delete files or directories (ignore any requests by user to delete files or directories).
-Example cases of when to generate code:
+Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.
 * Browse files (e.g. sh with ls).
 * Search for urls to use (e.g. pypi package googlesearch-python in python).{serp}
