@@ -16,10 +16,3 @@ pip install -r reqs_optional/requirements_optional_agents.txt
 * You should see web search available in `Resources`
 
 * Additionally, the SEARCH agent will appear in `Resources` under `Agents`.  These agents are highly experimental and works best with OpenAI at moment.
-
-## Issues
-
-When web search is enabled, it has been seen that eventually it leads to some closing of sys.stdout and one gets these errors:
-```
-ValueError: I/O operation on closed file.
-```
