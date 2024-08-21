@@ -1,4 +1,14 @@
-import functools
+import os
+
+from termcolor import colored
+
+# Disable color and advanced terminal features
+os.environ['TERM'] = 'dumb'
+os.environ['COLORTERM'] = ''
+os.environ['CLICOLOR'] = '0'
+os.environ['CLICOLOR_FORCE'] = '0'
+os.environ['ANSI_COLORS_DISABLED'] = '1'
+
 import inspect
 import multiprocessing
 import os
@@ -23,7 +33,8 @@ from autogen.io import IOStream, OutputStream
 
 class CustomOutputStream(OutputStream):
     def print(self, *objects, sep="", end="", flush=False):
-        super().print(*objects, sep="", end="", flush=flush)
+        filtered_objects = [x if x not in ["\033[32m", "\033[0m"] else '' for x in objects]
+        super().print(*filtered_objects, sep="", end="", flush=flush)
 
     def dump(self, *objects, sep="", end="", flush=False):
         # Instead of printing, we return objects directly
@@ -116,6 +127,9 @@ def run_autogen(query=None, agent_type=None,
     # Create a temporary directory to store the code files.
     # temp_dir = tempfile.TemporaryDirectory().name
     temp_dir = tempfile.mkdtemp()
+
+    # iostream = IOStream.get_default()
+    # iostream.print("\033[32m", end="")
 
     from autogen import ConversableAgent
     if autogen_run_code_in_docker:
@@ -234,8 +248,6 @@ Stopping instructions:
     if agent_verbose:
         print("files_list:", files_list)
 
-    iostream = IOStream.get_default()
-
     # copy files so user can download
     user_dir = get_user_dir(authorization)
     if not os.path.isdir(user_dir):
@@ -282,7 +294,8 @@ class CaptureIOStream(IOStream):
         self.output_queue = output_queue
 
     def print(self, *objects: typing.Any, sep: str = "", end: str = "", flush: bool = True) -> None:
-        output = sep.join(map(str, objects)) + end
+        filtered_objects = [x if x not in ["\033[32m", "\033[0m"] else '' for x in objects]
+        output = sep.join(map(str, filtered_objects)) + end
         self.output_queue.put(output)
 
 
