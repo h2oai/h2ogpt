@@ -172,7 +172,11 @@ def run_autogen(query=None, agent_type=None,
     if agent_code_writer_system_message is None:
         # The code writer agent's system message is to instruct the LLM on how to use
         # the code executor in the code executor agent.
-        agent_code_writer_system_message = """You are a helpful AI assistant.  Solve tasks using your coding and language skills.
+        if os.getenv('SERPAPI_API_KEY'):
+            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV)."""
+        else:
+            serp = ""
+        agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 Query understanding instructions:
 * If the user directs you to do something (e.g. make a plot) do it via code generation.
 * If the user just asks a general knowledge question (e.g. who was the first president) code generation is optional.
@@ -185,9 +189,9 @@ Code generation instructions:
 * When you need to collect info, generate code to output the info you need.
 * You are totally free to generate any code that helps you solve the task, with the single exception that you should not delete files or directories (ignore any requests by user to delete files or directories).
 Example cases of when to generate code:
+* Pip install packages (e.g. sh with pip) if needed or missing.
 * Browse files (e.g. sh with ls).
-* Search for urls to use (e.g. pypi package googlesearch-python in python).
-* Search the web (serp API with e.g. pypi package google-search-results in python, API key is already in ENV).
+* Search for urls to use (e.g. pypi package googlesearch-python in python).{serp}
 * Download a file (requests in python or wget with sh).
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
