@@ -641,6 +641,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             prompt_summary_final = prompt_summary
 
         batch_output_tokens = 0
+        batch_time = 0
         batch_input_tokens = 0
         batch_tokenspersec = 0
         batch_results = []
@@ -722,7 +723,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                     history2[-1][1] = '<b>%s querying image(s)<b>' % visible_vision_models
                 audio3 = b''  # don't yield audio if not streaming batches
                 yield history2, '', [], '', '', [], {}, audio3
-
+            t0_batch = time.time()
             for response in _get_response(fun2, history1, chatbot_role1, speaker1, tts_language1, roles_state1,
                                           tts_speed1,
                                           langchain_action1,
@@ -742,6 +743,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             save_dict1_saved['extra_dict'] = _save_generate_tokens(text, save_dict1_saved['extra_dict'])
             ntokens1 = save_dict1_saved['extra_dict'].get('ntokens', 0)
             batch_output_tokens += ntokens1
+            batch_time += (time.time() - t0_batch)
             tokens_per_sec1 = save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
             batch_tokenspersec += tokens_per_sec1
             batch_results.append(dict(image_ids=list(range(batch, batch + images_num_max_batch)),
@@ -758,6 +760,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
         # last response with no images
         responses = [x['response_final'] for x in batch_results]
+        batch_tokens_persecond = batch_output_tokens / batch_time if batch_time > 0 else 0
         history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?
         fun1_args_list2 = fun1_args_list.copy()
         # sync all args with model
@@ -799,7 +802,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
                     save_dict1['extra_dict']['batch_num_prompt_tokens'] = batch_input_tokens
                     save_dict1['extra_dict']['batch_ntokens'] = batch_output_tokens
-                    save_dict1['extra_dict']['batch_tokens_persecond'] = batch_tokenspersec
+                    save_dict1['extra_dict']['batch_tokens_persecond'] = batch_tokens_persecond
                     if batch_display_name == display_name:
                         save_dict1['extra_dict']['num_prompt_tokens'] += batch_input_tokens
                         # get ntokens so can add to it
@@ -808,7 +811,6 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                             save_dict1['extra_dict'] = _save_generate_tokens(history1new[-1][1],
                                                                              save_dict1['extra_dict'])
                         save_dict1['extra_dict']['ntokens'] += batch_output_tokens
-                        # Note: batch_tokens_persecond could be weighted by tokens, but not done
                     save_dict1['extra_dict']['batch_results'] = batch_results
                     response_list[6] = save_dict1
             yield tuple(response_list)
