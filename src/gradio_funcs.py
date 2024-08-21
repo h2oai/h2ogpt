@@ -643,7 +643,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
         batch_output_tokens = 0
         batch_input_tokens = 0
         batch_tokenspersec = 0
-        responses = []
+        batch_results = []
 
         text_context_list = fun1_args_list[len(input_args_list) + eval_func_param_names.index('text_context_list')]
         text_context_list = str_to_list(text_context_list)
@@ -701,7 +701,13 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             fun2 = functools.partial(fun1.func, *tuple(fun1_args_list2), **fun1.keywords)
 
             text = ''
-            save_dict1_saved = None
+            prompt_raw_saved = ''
+            save_dict1_saved = {}
+            error_saved = ''
+            history_saved = []
+            sources_saved = []
+            sources_str_saved = ''
+            llm_answers_saved = {}
             image_batch_stream = fun1_args_list2[
                 len(input_args_list) + eval_func_param_names.index('image_batch_stream')]
             if image_batch_stream is None:
@@ -724,15 +730,34 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                 if image_batch_stream:
                     yield response
                 history1, error1, sources1, sources_str1, prompt_raw1, llm_answers1, save_dict1, audio2 = response
+                prompt_raw_saved = prompt_raw1
                 save_dict1_saved = save_dict1
+                error_saved = error1
+                history_saved = history1
+                sources_saved = sources1
+                sources_str_saved = sources_str1
+                llm_answers_saved = llm_answers1
                 text = history1[-1][1] or '' if history1 else ''
             batch_input_tokens += save_dict1_saved['extra_dict'].get('num_prompt_tokens', 0)
             save_dict1_saved['extra_dict'] = _save_generate_tokens(text, save_dict1_saved['extra_dict'])
-            batch_output_tokens += save_dict1_saved['extra_dict'].get('ntokens', 0)
-            batch_tokenspersec += save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
-            responses.append(f'<image>\n<name>\nImage {batch}\n</name>\n\n{text}\n\n</image>')
+            ntokens1 = save_dict1_saved['extra_dict'].get('ntokens', 0)
+            batch_output_tokens += ntokens1
+            tokens_per_sec1 = save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
+            batch_tokenspersec += tokens_per_sec1
+            batch_results.append(dict(image_ids=list(range(batch, batch + images_num_max_batch)),
+                                      response=text,
+                                      response_final=f'<image>\n<name>\nImage {batch}\n</name>\n\n{text}\n\n</image>',
+                                      prompt_raw=prompt_raw_saved,
+                                      save_dict=save_dict1_saved,
+                                      error=error_saved,
+                                      history=history_saved,
+                                      sources=sources_saved,
+                                      sources_str=sources_str_saved,
+                                      llm_answers=llm_answers_saved,
+                                      ))
 
         # last response with no images
+        responses = [x['response_final'] for x in batch_results]
         history1 = deepcopy_by_pickle_object(history)  # FIXME: is this ok?  What if byte images?
         fun1_args_list2 = fun1_args_list.copy()
         # sync all args with model
@@ -784,7 +809,7 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
                                                                              save_dict1['extra_dict'])
                         save_dict1['extra_dict']['ntokens'] += batch_output_tokens
                         # Note: batch_tokens_persecond could be weighted by tokens, but not done
-                    save_dict1['extra_dict']['batch_responses'] = responses
+                    save_dict1['extra_dict']['batch_results'] = batch_results
                     response_list[6] = save_dict1
             yield tuple(response_list)
         return
