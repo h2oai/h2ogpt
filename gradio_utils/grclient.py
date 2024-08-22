@@ -452,21 +452,27 @@ class GradioClient(Client):
         # ensure server hash also updated
         self.server_hash = self.get_server_hash()
 
-    def clone(self):
-        with lock:
-            if self.config is None:
-                self.setup()
-            client = GradioClient("")
-            for k, v in self.__dict__.items():
-                setattr(client, k, v)
-            client.reset_session()
+    def clone(self, do_lock=False):
+        if do_lock:
+            with lock:
+                return self._clone()
+        else:
+            return self._clone()
 
-            self.get_endpoints(client)
+    def _clone(self):
+        if self.config is None:
+            self.setup()
+        client = GradioClient("")
+        for k, v in self.__dict__.items():
+            setattr(client, k, v)
+        client.reset_session()
 
-            # transfer internals in case used
-            client.server_hash = self.server_hash
-            client.chat_conversation = self.chat_conversation
-            return client
+        self.get_endpoints(client)
+
+        # transfer internals in case used
+        client.server_hash = self.server_hash
+        client.chat_conversation = self.chat_conversation
+        return client
 
     def submit(
         self,
@@ -804,6 +810,7 @@ class GradioClient(Client):
         context: str = "",
         num_beams: int = 1,
         asserts: bool = False,
+        do_lock: bool = False,
     ) -> Generator[ReturnType, None, None]:
         """
         Query or Summarize or Extract using h2oGPT
@@ -1079,8 +1086,11 @@ class GradioClient(Client):
             client_kwargs = self.get_client_kwargs(**locals_for_client)
 
             # in case server changed, update in case clone()
-            with lock:
-                self.server_hash = client.server_hash
+            if do_lock:
+                with lock:
+                    self.server_hash = client.server_hash
+            else:
+                    self.server_hash = client.server_hash
 
             # ensure can fill conversation
             if self.persist:
@@ -1113,7 +1123,10 @@ class GradioClient(Client):
                             time_to_first_token = time.time() - t0
                         t_taken_s = time.time() - t0
                         # in case server changed, update in case clone()
-                        with lock:
+                        if do_lock:
+                            with lock:
+                                self.server_hash = client.server_hash
+                        else:
                             self.server_hash = client.server_hash
                         res_dict = ast.literal_eval(res)
                         self.check_error(res_dict)
@@ -1343,7 +1356,10 @@ class GradioClient(Client):
                         time.sleep(sleep_time)
                 finally:
                     # in case server changed, update in case clone()
-                    with lock:
+                    if do_lock:
+                        with lock:
+                            self.server_hash = client.server_hash
+                    else:
                         self.server_hash = client.server_hash
 
             t1 = time.time()
@@ -1366,7 +1382,10 @@ class GradioClient(Client):
             )
         finally:
             # in case server changed, update in case clone()
-            with lock:
+            if do_lock:
+                with lock:
+                    self.server_hash = client.server_hash
+            else:
                 self.server_hash = client.server_hash
 
     def check_model(self, model):
@@ -1394,7 +1413,7 @@ class GradioClient(Client):
         return round(time.time() / seconds)
 
     @lru_cache()
-    def _get_models_full(self, ttl_hash=None) -> List[Dict[str, Any]]:
+    def _get_models_full(self, ttl_hash=None, do_lock=False) -> List[Dict[str, Any]]:
         """
         Full model info in list if dict (cached)
         """
@@ -1405,7 +1424,10 @@ class GradioClient(Client):
         try:
             return ast.literal_eval(client.predict(api_name="/model_names"))
         finally:
-            with lock:
+            if do_lock:
+                with lock:
+                    self.server_hash = client.server_hash
+            else:
                 self.server_hash = client.server_hash
 
     def get_models_full(self) -> List[Dict[str, Any]]:

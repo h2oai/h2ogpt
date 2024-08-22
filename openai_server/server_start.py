@@ -114,6 +114,7 @@ def run_server(host: str = '0.0.0.0',
             'gunicorn',
             '-w', str(workers),
             '-k', 'uvicorn.workers.UvicornWorker',
+            '--timeout', '60',
             '-b', f"{host}:{port}",
         ]
         if ssl_certfile:

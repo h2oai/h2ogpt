@@ -12,10 +12,27 @@ import traceback
 import uuid
 from collections import deque
 
+import filelock
 import numpy as np
 
 from log import logger
 from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
+
+
+def start_faulthandler():
+    # If hit server or any subprocess with signal SIGUSR1, it'll print out all threads stack trace, but wont't quit or coredump
+    # If more than one fork tries to write at same time, then looks corrupted.
+    import faulthandler
+
+    # SIGUSR1 in h2oai/__init__.py as well
+    faulthandler.enable()
+    if hasattr(faulthandler, 'register'):
+        # windows/mac
+        import signal
+        faulthandler.register(signal.SIGUSR1)
+
+
+start_faulthandler()
 
 
 def decode(x, encoding_name="cl100k_base"):
@@ -45,19 +62,11 @@ def count_tokens(x, encoding_name="cl100k_base"):
         return 0
 
 
-def get_gradio_client(user=None):
+def get_gradio_auth(user=None):
     print("GRADIO_SERVER_PORT:", os.getenv('GRADIO_SERVER_PORT'), file=sys.stderr)
     print("GRADIO_GUEST_NAME:", os.getenv('GRADIO_GUEST_NAME'), file=sys.stderr)
     print("GRADIO_AUTH:", os.getenv('GRADIO_AUTH'), file=sys.stderr)
     print("GRADIO_AUTH_ACCESS:", os.getenv('GRADIO_AUTH_ACCESS'), file=sys.stderr)
-
-    try:
-        from gradio_utils.grclient import GradioClient as Client
-        concurrent_client = True
-    except ImportError:
-        print("Using slower gradio API, for speed ensure gradio_utils/grclient.py exists.")
-        from gradio_client import Client
-        concurrent_client = False
 
     gradio_prefix = os.getenv('GRADIO_PREFIX', 'http')
     if platform.system() in ['Darwin', 'Windows']:
@@ -70,11 +79,15 @@ def get_gradio_client(user=None):
     auth = os.environ.get('GRADIO_AUTH', 'None')
     auth_access = os.environ.get('GRADIO_AUTH_ACCESS', 'open')
     guest_name = os.environ.get('GRADIO_GUEST_NAME', '')
+    is_guest = False
     if auth != 'None':
         if user:
             user_split = user.split(':')
             assert len(user_split) >= 2, "username cannot contain : character and must be in form username:password"
-            auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
+            username = user_split[0]
+            if username == guest_name:
+                is_guest = True
+            auth_kwargs = dict(auth=(username, ':'.join(user_split[1:])))
         elif guest_name:
             if auth_access == 'closed':
                 if os.getenv('H2OGPT_OPENAI_USER'):
@@ -83,29 +96,47 @@ def get_gradio_client(user=None):
                     assert len(
                         user_split) >= 2, "username cannot contain : character and must be in form username:password"
                     auth_kwargs = dict(auth=(user_split[0], ':'.join(user_split[1:])))
+                    is_guest = True
                 else:
                     raise ValueError(
                         "If closed access, must set ENV H2OGPT_OPENAI_USER (e.g. as 'user:pass' combination) to login from OpenAI->Gradio with some specific user.")
             else:
                 auth_kwargs = dict(auth=(guest_name, guest_name))
+                is_guest = True
         elif auth_access == 'open':
             auth_kwargs = dict(auth=(str(uuid.uuid4()), str(uuid.uuid4())))
+            is_guest = True
         else:
             auth_kwargs = None
     else:
         auth_kwargs = dict()
+    return auth_kwargs, gradio_url, is_guest
+
+
+def get_gradio_client(user=None):
+    auth_kwargs, gradio_url, is_guest = get_gradio_auth(user=user)
     print("OpenAI user: %s" % auth_kwargs, flush=True)
+
+    try:
+        from gradio_utils.grclient import GradioClient as Client
+        concurrent_client = True
+    except ImportError:
+        print("Using slower gradio API, for speed ensure gradio_utils/grclient.py exists.")
+        from gradio_client import Client
+        concurrent_client = False
 
     if auth_kwargs:
         print("Getting gradio client at %s with auth" % gradio_url, flush=True)
         client = Client(gradio_url, **auth_kwargs)
         if concurrent_client:
-            client.setup()
+            with client_lock:
+                client.setup()
     else:
         print("BEGIN: Getting non-user gradio client at %s" % gradio_url, flush=True)
         client = Client(gradio_url)
         if concurrent_client:
-            client.setup()
+            with client_lock:
+                client.setup()
         print("END: getting non-user gradio client at %s" % gradio_url, flush=True)
     return client
 
@@ -114,69 +145,88 @@ def get_gradio_client(user=None):
 client_lock = threading.Lock()
 
 print("global gradio_client", file=sys.stderr)
-gradio_client_list = [None]
+gradio_client_list = {}
+
+
+def sanitize(name):
+    bad_chars = ['[', ']', ',', '/', '\\', '\\w', '\\s', '-', '+', '\"', '\'', '>', '<', ' ', '=', ')', '(', ':', '^']
+    for char in bad_chars:
+        name = name.replace(char, "_")
+    return name
 
 
 def get_client(user=None):
+    os.makedirs('locks', exist_ok=True)
+    user_lock_file = os.path.join('locks', 'user_%s.lock' % sanitize(str(user)))
+    user_lock = filelock.FileLock(user_lock_file)
     # concurrent gradio client
-    with client_lock:
-        gradio_client = gradio_client_list[-1]
-    if gradio_client is None or user is not None:
+    with user_lock:
+        print(list(gradio_client_list.keys()))
+        gradio_client = gradio_client_list.get(user)
+
+    if gradio_client is None:
         print("Getting fresh client: %s" % str(user), file=sys.stderr)
         # assert user is not None, "Need user set to username:password"
-        client = get_gradio_client(user=user)
-        if user is None:
-            with client_lock:
-                gradio_client_list[0] = client
-    elif hasattr(gradio_client, 'clone'):
-        print("gradio_client.auth=%s" % str(gradio_client.auth), file=sys.stderr)
-        client = gradio_client.clone()
-        print("client.auth=%s" % str(client.auth), file=sys.stderr)
+        gradio_client = get_gradio_client(user=user)
+        with user_lock:
+            gradio_client_list[user] = gradio_client
+        got_fresh_client = True
+    else:
+        print("re-used gradio_client for user: %s" % user, file=sys.stderr)
+        got_fresh_client = False
+
+    if hasattr(gradio_client, 'clone'):
+        print("cloning for gradio_client.auth=%s" % str(gradio_client.auth), file=sys.stderr)
+        gradio_client0 = gradio_client
+        gradio_client = gradio_client0.clone()
+        print("client.auth=%s" % str(gradio_client.auth), file=sys.stderr)
         try:
-            new_hash = client.get_server_hash()
-            if new_hash != gradio_client.server_hash:
-                os.makedirs('locks', exist_ok=True)
-                with client_lock:
-                    gradio_client.refresh_client()
+            new_hash = gradio_client.get_server_hash()
+            if new_hash != gradio_client0.server_hash:
+                with user_lock:
+                    gradio_client0.refresh_client()
         except Exception as e:
             ex = traceback.format_exc()
             print(ex, file=sys.stderr)
             # just get fresh client
             print("client", file=sys.stderr)
-            print(client, file=sys.stderr)
+            print(gradio_client, file=sys.stderr)
             print("client dict", file=sys.stderr)
-            print(client.__dict__, file=sys.stderr)
+            print(gradio_client.__dict__, file=sys.stderr)
             print("get fresh client", file=sys.stderr)
-            client = get_gradio_client(user=user)
+            gradio_client = get_gradio_client(user=user)
             print("done fresh client", file=sys.stderr)
             print("fresh client", file=sys.stderr)
-            print(client, file=sys.stderr)
+            print(gradio_client, file=sys.stderr)
             print("fresh client dict", file=sys.stderr)
-            print(client.__dict__, file=sys.stderr)
+            print(gradio_client.__dict__, file=sys.stderr)
             print("cloning back to global", file=sys.stderr)
-            with client_lock:
-                for k, v in client.__dict__.items():
-                    setattr(gradio_client, k, v)
-                gradio_client.reset_session()
+            with user_lock:
+                for k, v in gradio_client.__dict__.items():
+                    setattr(gradio_client0, k, v)
+                gradio_client0.reset_session()
 
-                client.get_endpoints(gradio_client)
+                gradio_client.get_endpoints(gradio_client0)
 
                 # transfer internals in case used
-                gradio_client.server_hash = client.server_hash
-                gradio_client.chat_conversation = client.chat_conversation
-                gradio_client_list[0] = gradio_client
-    else:
+                gradio_client0.server_hash = gradio_client.server_hash
+                gradio_client0.chat_conversation = gradio_client.chat_conversation
+                gradio_client_list[user] = gradio_client0
+    if not hasattr(gradio_client, 'clone') and not got_fresh_client:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.",
             file=sys.stderr)
-        client = get_gradio_client(user=user)
+        gradio_client = get_gradio_client(user=user)
+        gradio_client_list[user] = gradio_client
 
     # even if not auth, want to login
-    if user:
-        user_split = user.split(':')
-        username = user_split[0]
-        password = ':'.join(user_split[1:])
-        num_model_lock = int(client.predict(api_name='/num_model_lock'))
+    auth_kwargs, gradio_url, is_guest = get_gradio_auth(user=user)
+    if user and not is_guest and auth_kwargs and 'auth' in auth_kwargs:
+        username = auth_kwargs['auth'][0]
+        password = auth_kwargs['auth'][1]
+        print("start login num lock", flush=True)
+        num_model_lock = int(gradio_client.predict(api_name='/num_model_lock'))
+        print("finish login num lock", flush=True)
         chatbots = [None] * (2 + num_model_lock)
         h2ogpt_key = ''
         visible_models = []
@@ -194,18 +244,21 @@ def get_client(user=None):
         tos_tab_text = ''
         login_tab_text = ''
         hosts_tab_text = ''
-        client.predict(None,
-                       h2ogpt_key, visible_models,
+        print("start login", flush=True)
+        t0_login = time.time()
+        gradio_client.predict(None,
+                              h2ogpt_key, visible_models,
 
-                       side_bar_text, doc_count_text, submit_buttons_text, visible_models_text,
-                       chat_tab_text, doc_selection_tab_text, doc_view_tab_text, chat_history_tab_text,
-                       expert_tab_text, models_tab_text, system_tab_text, tos_tab_text,
-                       login_tab_text, hosts_tab_text,
+                              side_bar_text, doc_count_text, submit_buttons_text, visible_models_text,
+                              chat_tab_text, doc_selection_tab_text, doc_view_tab_text, chat_history_tab_text,
+                              expert_tab_text, models_tab_text, system_tab_text, tos_tab_text,
+                              login_tab_text, hosts_tab_text,
 
-                       username, password,
-                       *tuple(chatbots), api_name='/login')
+                              username, password,
+                              *tuple(chatbots), api_name='/login')
+        print("finish login: %s" % (time.time() - t0_login), flush=True)
 
-    return client
+    return gradio_client
 
 
 def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, stream_output=False):
