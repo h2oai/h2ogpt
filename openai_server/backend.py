@@ -62,11 +62,12 @@ def count_tokens(x, encoding_name="cl100k_base"):
         return 0
 
 
-def get_gradio_auth(user=None):
-    print("GRADIO_SERVER_PORT:", os.getenv('GRADIO_SERVER_PORT'), file=sys.stderr)
-    print("GRADIO_GUEST_NAME:", os.getenv('GRADIO_GUEST_NAME'), file=sys.stderr)
-    print("GRADIO_AUTH:", os.getenv('GRADIO_AUTH'), file=sys.stderr)
-    print("GRADIO_AUTH_ACCESS:", os.getenv('GRADIO_AUTH_ACCESS'), file=sys.stderr)
+def get_gradio_auth(user=None, verbose=False):
+    if verbose:
+        print("GRADIO_SERVER_PORT:", os.getenv('GRADIO_SERVER_PORT'), file=sys.stderr)
+        print("GRADIO_GUEST_NAME:", os.getenv('GRADIO_GUEST_NAME'), file=sys.stderr)
+        print("GRADIO_AUTH:", os.getenv('GRADIO_AUTH'), file=sys.stderr)
+        print("GRADIO_AUTH_ACCESS:", os.getenv('GRADIO_AUTH_ACCESS'), file=sys.stderr)
 
     gradio_prefix = os.getenv('GRADIO_PREFIX', 'http')
     if platform.system() in ['Darwin', 'Windows']:
@@ -113,8 +114,8 @@ def get_gradio_auth(user=None):
     return auth_kwargs, gradio_url, is_guest
 
 
-def get_gradio_client(user=None):
-    auth_kwargs, gradio_url, is_guest = get_gradio_auth(user=user)
+def get_gradio_client(user=None, verbose=False):
+    auth_kwargs, gradio_url, is_guest = get_gradio_auth(user=user, verbose=verbose)
     print("OpenAI user: %s" % auth_kwargs, flush=True)
 
     try:
@@ -167,7 +168,7 @@ def get_client(user=None):
     if gradio_client is None:
         print("Getting fresh client: %s" % str(user), file=sys.stderr)
         # assert user is not None, "Need user set to username:password"
-        gradio_client = get_gradio_client(user=user)
+        gradio_client = get_gradio_client(user=user, verbose=True)
         with user_lock:
             gradio_client_list[user] = gradio_client
         got_fresh_client = True
