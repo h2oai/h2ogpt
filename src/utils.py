@@ -3062,7 +3062,8 @@ def create_typed_dict(schema: Dict[str, Any], name: str = "Schema") -> type:
     return TypedDict(name, fields, total=total)
 
 
-def get_supports_schema(inference_server, base_model, response_format='json_object', guided_json={}, json_vllm=False, just_test=False):
+def get_supports_schema(inference_server, base_model, response_format='json_object', guided_json={}, json_vllm=False,
+                        just_test=False):
     if just_test:
         supports_schema = True
     else:
