@@ -1,7 +1,5 @@
 import os
 
-from termcolor import colored
-
 # Disable color and advanced terminal features
 os.environ['TERM'] = 'dumb'
 os.environ['COLORTERM'] = ''
@@ -183,7 +181,7 @@ def run_autogen(query=None, agent_type=None,
         # The code writer agent's system message is to instruct the LLM on how to use
         # the code executor in the code executor agent.
         if os.getenv('SERPAPI_API_KEY'):
-            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV)."""
+            serp = """Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV)."""
         else:
             serp = ""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
@@ -207,11 +205,15 @@ Code generation instructions:
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.
 * Browse files (e.g. sh with ls).
-* Search for urls to use (e.g. pypi package googlesearch-python in python).{serp}
+* Search for urls to use (e.g. pypi package googlesearch-python in python).
 * Download a file (requests in python or wget with sh).
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
 * Get the current date/time or get the operating system type.
+APIs and external services instructions:
+* {serp}
+* Only generate code with API code that uses publicly available APIs or uses API keys already given.
+* Do not generate code that requires any API keys or credentials that were not already given.
 Task solving instructions:
 * Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
 * After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
@@ -255,12 +257,12 @@ Stopping instructions:
         human_input_mode="NEVER",
         is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-
     )
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
                        message=query,
                        cache=None,
+                       silent=True,
                        )
     if autogen_cache_seed:
         from autogen import Cache
