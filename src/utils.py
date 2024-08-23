@@ -3062,10 +3062,15 @@ def create_typed_dict(schema: Dict[str, Any], name: str = "Schema") -> type:
     return TypedDict(name, fields, total=total)
 
 
-def get_supports_schema(inference_server, base_model, response_format, guided_json, json_vllm):
-    supports_schema = not is_empty(guided_json) and \
-                      response_format == 'json_object' and \
-                      is_json_model(base_model, inference_server, json_vllm=json_vllm)
+def get_supports_schema(inference_server, base_model, response_format='json_object', guided_json={}, json_vllm=False,
+                        just_test=False):
+    if just_test:
+        supports_schema = True
+    else:
+        supports_schema = not is_empty(guided_json) and \
+                          response_format == 'json_object'
+
+    supports_schema &= is_json_model(base_model, inference_server, json_vllm=json_vllm)
 
     supports_schema &= json_vllm or \
                        not is_empty(inference_server) and \
