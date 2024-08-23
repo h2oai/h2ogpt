@@ -5813,8 +5813,7 @@ def go_gradio(**kwargs):
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
                 model_state3['inference_server_type'] = inference_server_type
                 json_vllm = model_state3.get('json_vllm', False)
-                model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model, response_format,
-                                                                         guided_json, json_vllm)
+                model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model, json_vllm=json_vllm, just_test=True)
             key_list = ['display_name', 'base_model', 'inference_server_type',
                         'strict_json_schema',
                         'prompt_type', 'prompt_dict', 'chat_template'] + list(

@@ -3006,7 +3006,8 @@ def evaluate(
 
         pre_instruction = ''
         post_instruction = ''
-        supports_schema = get_supports_schema(inference_server, base_model, response_format, guided_json, json_vllm)
+        supports_schema = get_supports_schema(inference_server, base_model, response_format, guided_json=guided_json,
+                                              json_vllm=json_vllm)
 
         if supports_schema:
             # for vLLM or claude-3, support schema if given
