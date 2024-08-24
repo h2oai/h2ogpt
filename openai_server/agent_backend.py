@@ -228,7 +228,7 @@ General instructions:
 Stopping instructions:
 * It is not your job to make your own conclusions about the output of any code you write, instead let the user execute the code and give you the output.
 * Do not try to guess the output of the code you generate, instead wait for the user to execute the code and give you the output.
-* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.
+* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.  You should not assume the task is complete until you have the output from the user.
 * Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response, then at the end add the 'TERMINATE' string to stop the conversation.
 * Do not generate a response that asks for code to be run that includes TERMINATE because no user actions occur after you give the TERMINATE string.
 * Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
