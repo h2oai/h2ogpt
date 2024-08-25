@@ -76,7 +76,7 @@ from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename
     get_test_name_core, download_simple, have_fiftyone, have_librosa, return_good_url, n_gpus_global, \
     get_accordion_named, hyde_titles, have_cv2, FullSet, create_relative_symlink, split_list, get_gradio_tmp, \
     merge_dict, get_docs_tokens, markdown_to_html, is_markdown, AsyncNullContext, url_prefixes_youtube, get_model_name, \
-    dedup_list
+    dedup_list, have_pymupdf4llm
 from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefix, source_postfix, non_query_commands, \
     LangChainAction, LangChainMode, DocumentChoice, LangChainTypes, font_size, head_acc, super_source_prefix, \
     super_source_postfix, langchain_modes_intrinsic, get_langchain_prompts, LangChainAgent, docs_joiner_default, \
@@ -95,7 +95,7 @@ from prompter import non_hf_types, PromptType, Prompter, get_vllm_extra_dict, sy
 from h2o_serpapi import H2OSerpAPIWrapper
 from utils_langchain import StreamingGradioCallbackHandler, _chunk_sources, _add_meta, add_parser, fix_json_meta, \
     load_general_summarization_chain, H2OHuggingFaceHubEmbeddings, make_sources_file, select_docs_with_score, \
-    split_merge_docs, convert_to_genai_schema
+    split_merge_docs, convert_to_genai_schema, PyMuPDF4LLMLoader
 
 # to check imports
 # find ./src -name '*.py' |  xargs awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else print; }' |  grep 'from langchain\.' |  sed 's/^[ \t]*//' > go.py
@@ -5060,12 +5060,17 @@ def file_to_doc(file,
         did_pymupdf = False
         did_unstructured = False
         e = None
-        if have_pymupdf and (len(doc1) == 0 and use_pymupdf == 'auto' or use_pymupdf == 'on'):
+        if (have_pymupdf or have_pymupdf4llm) and (len(doc1) == 0 and use_pymupdf == 'auto' or use_pymupdf == 'on'):
             # GPL, only use if installed
             from langchain_community.document_loaders import PyMuPDFLoader
             # load() still chunks by pages, but every page has title at start to help
             try:
-                doc1a = PyMuPDFLoader(file).load()
+                if have_pymupdf4llm:
+                    doc1a = PyMuPDF4LLMLoader(file).load()
+                elif have_pymupdf:
+                    doc1a = PyMuPDFLoader(file).load()
+                else:
+                    raise ValueError("no valid version of pymupdf")
                 did_pymupdf = True
             except BaseException as e0:
                 doc1a = []
