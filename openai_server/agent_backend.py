@@ -1,4 +1,5 @@
 import os
+import sys
 
 # Disable color and advanced terminal features
 os.environ['TERM'] = 'dumb'
@@ -76,6 +77,7 @@ def run_agent(query, agent_type=None,
               autogen_cache_seed=None,
               autogen_venv_dir=None,
               agent_code_writer_system_message=None,
+              autogen_system_site_packages=None,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
@@ -105,6 +107,7 @@ def run_autogen(query=None, agent_type=None,
                 autogen_cache_seed=None,
                 autogen_venv_dir=None,
                 agent_code_writer_system_message=None,
+                autogen_system_site_packages=None,
                 agent_verbose=None) -> dict:
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
@@ -127,6 +130,8 @@ def run_autogen(query=None, agent_type=None,
         autogen_max_consecutive_auto_reply = 10
     if autogen_timeout is None:
         autogen_timeout = 120
+    if autogen_system_site_packages is None:
+        autogen_system_site_packages = True
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
@@ -155,7 +160,10 @@ def run_autogen(query=None, agent_type=None,
         if autogen_venv_dir is None:
             username = str(uuid.uuid4())
             autogen_venv_dir = ".venv_%s" % username
-        virtual_env_context = create_virtual_env(autogen_venv_dir)
+        env_args = dict(system_site_packages=autogen_system_site_packages,
+                        with_pip=True,
+                        symlinks=True)
+        virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
         # work_dir = ".workdir_%s" % username
         # PythonLoader(name='code', ))
 
@@ -180,10 +188,42 @@ def run_autogen(query=None, agent_type=None,
     if agent_code_writer_system_message is None:
         # The code writer agent's system message is to instruct the LLM on how to use
         # the code executor in the code executor agent.
+        if autogen_system_site_packages:
+            # heavy packages only expect should use if system inherited
+            extra_recommended_packages = """\n  * Image Processing: opencv-python
+  * DataBase: pysqlite3
+  * Web scraping: scrapy or lxml or httpx or selenium
+  * Machine Learning: torch (pytorch) or torchaudio or torchvision or lightgbm
+"""
+        else:
+            extra_recommended_packages = ""
         if os.getenv('SERPAPI_API_KEY'):
-            serp = """Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV)."""
+            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
         else:
             serp = ""
+        if os.getenv('S2_API_KEY'):
+            # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
+            # https://github.com/allenai/s2-folks
+            semantic_scholar = """\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers."""
+        else:
+            semantic_scholar = ""
+        if os.getenv('WOLFRAM_ALPHA_APPID'):
+            # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
+            wolframalpha = """\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
+E.g.
+```python
+from wolframalpha import Client
+import os
+client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
+res = client.query('QUERY GOES HERE')
+if res['@success']:
+    print(next(res.results).text)
+else:
+    print('No results from Wolfram Alpha')
+```
+"""
+        else:
+            wolframalpha = ""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 Query understanding instructions:
 * If the user directs you to do something (e.g. make a plot), then do it via code generation.
@@ -195,13 +235,25 @@ Code generation instructions:
 * Python code should be put into a python code block with 3 backticks using python as the language.
 * Shell commands or sh scripts should be put into a sh code block with 3 backticks using sh as the language.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
-* For python coding, useful packages include: sympy for symbolic mathematics, matplotlib for plotting, etc.
-* For bash shell scripts, useful commands include `ls` to verify files were created.
 * When you need to collect info, generate code to output the info you need.
-* You are totally free to generate any code that helps you solve the task, with the single exception that you should not delete files or directories (ignore any requests by user to delete files or directories).
+* You are totally free to generate any code that helps you solve the task, with the following exceptions
+  1) Do not delete files or directories.
+  2) Do not try to restart the system.
+  3) Do not run indefinite services.
+  4) Do not generate code that shows the environment variables (because they contain private API keys).
+  Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
+* Ensure you provide well-commented code, so the user can understand what the code does.
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 * Avoid code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.
 * Avoid boilerplate code and do not expect the user to fill-in boilerplate code.  If details are needed to fill-in code, generate code to get those details.
+Example python packages or useful sh commands:
+* For python coding, useful packages include (but are not limited to):
+  * Symbolic mathematics: sympy
+  * Plots: matplotlib or seaborn or plotly or pillow or imageio or bokeh or altair
+  * Regression or classification modeling: scikit-learn or lightgbm or statsmodels
+  * Text NLP processing: nltk or spacy or textblob{extra_recommended_packages}
+  * Web download and search: requests or bs4 or scrapy or lxml or httpx
+* For bash shell scripts, useful commands include `ls` to verify files were created.
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
 * Browse files (e.g. sh with ls).
@@ -210,8 +262,8 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
 * Get the current date/time or get the operating system type.
-APIs and external services instructions:
-* {serp}
+APIs and external services instructions:{serp}{semantic_scholar}{wolframalpha}
+* Example Public APIs (not limited to these): wttr.in (weather)
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
 * Do not generate code that requires any API keys or credentials that were not already given.
 Task solving instructions:
@@ -236,9 +288,9 @@ Stopping instructions:
 * Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
 """
 
-# FIXME:
-# Auto-pip install
-# Auto-return file list in each turn
+    # FIXME:
+    # Auto-pip install
+    # Auto-return file list in each turn
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
@@ -320,12 +372,29 @@ Stopping instructions:
         ret_dict.update(dict(chat_history=chat_result.chat_history))
     if chat_result and hasattr(chat_result, 'cost'):
         ret_dict.update(dict(cost=chat_result.cost))
-    if chat_result and hasattr(chat_result, 'summary'):
+    if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
         ret_dict.update(dict(summary=chat_result.summary))
+        print("Made summary: %s" % chat_result.summary, file=sys.stderr)
+    else:
+        if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
+            summary = chat_result.chat_history[-1]['content']
+            if not summary and len(chat_result.chat_history) >= 2:
+                summary = chat_result.chat_history[-2]['content']
+            if summary:
+                print("Made summary from chat history: %s" % summary, file=sys.stderr)
+                ret_dict.update(dict(summary=summary))
+            else:
+                print("Did NOT make and could not make summary", file=sys.stderr)
+                ret_dict.update(dict(summary=''))
+        else:
+            print("Did NOT make any summary", file=sys.stderr)
+            ret_dict.update(dict(summary=''))
     if autogen_venv_dir is not None:
         ret_dict.update(dict(autogen_venv_dir=autogen_venv_dir))
     if agent_code_writer_system_message is not None:
         ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
+    if autogen_system_site_packages is not None:
+        ret_dict.update(dict(autogen_system_site_packages=autogen_system_site_packages))
 
     return ret_dict
 
@@ -338,6 +407,7 @@ class CaptureIOStream(IOStream):
         filtered_objects = [x if x not in ["\033[32m", "\033[0m\n"] else '' for x in objects]
         output = sep.join(map(str, filtered_objects)) + end
         self.output_queue.put(output)
+
 
 @contextmanager
 def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStream, None, None]:

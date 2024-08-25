@@ -1533,6 +1533,13 @@ try:
 except (PackageNotFoundError, AssertionError):
     have_pymupdf = False
 
+have_pymupdf4llm = False
+try:
+    assert distribution('pymupdf4llm') is not None
+    have_pymupdf4llm = True
+except (PackageNotFoundError, AssertionError):
+    pass
+
 try:
     assert distribution('selenium') is not None
     have_selenium = True

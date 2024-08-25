@@ -1395,3 +1395,50 @@ def test_genai_schema_more():
         print(f"\nTest Schema {i}:")
         genai_schema = convert_to_genai_schema(schema)
         print(genai_schema)
+
+
+def test_pymupdf4llm():
+    from langchain_community.document_loaders import PyMuPDFLoader
+    from src.utils_langchain import PyMuPDF4LLMLoader
+
+    times_pymupdf = []
+    times_pymupdf4llm = []
+    files = [os.path.join('tests', x) for x in os.listdir('tests')]
+    files += [os.path.join('/home/jon/Downloads/', x) for x in os.listdir('/home/jon/Downloads/')]
+    for file in files:
+        if not file.endswith('.pdf'):
+            continue
+
+        t0 = time.time()
+        doc = PyMuPDFLoader(file).load()
+        assert doc is not None
+        print('pymupdf: %s %s %s' % (file, len(doc), time.time() - t0))
+        times_pymupdf.append((time.time() - t0)/len(doc))
+
+        t0 = time.time()
+        doc = PyMuPDF4LLMLoader(file).load()
+        assert doc is not None
+        print('pymupdf4llm: %s %s %s' % (file, len(doc), time.time() - t0))
+        times_pymupdf4llm.append((time.time() - t0)/len(doc))
+
+        if len(times_pymupdf) > 30:
+            break
+
+    print("pymupdf stats:")
+    compute_stats(times_pymupdf)
+
+    print("pymupdf4llm stats:")
+    compute_stats(times_pymupdf4llm)
+
+
+def compute_stats(times_in_seconds):
+
+    # Compute statistics
+    min_time = min(times_in_seconds)
+    max_time = max(times_in_seconds)
+    average_time = sum(times_in_seconds) / len(times_in_seconds)
+
+    # Print the results
+    print(f"Min time: {min_time} seconds")
+    print(f"Max time: {max_time} seconds")
+    print(f"Average time: {average_time} seconds")
