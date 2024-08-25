@@ -1,6 +1,8 @@
 import os
 import sys
 
+import requests
+
 # Disable color and advanced terminal features
 os.environ['TERM'] = 'dumb'
 os.environ['COLORTERM'] = ''
@@ -99,6 +101,133 @@ def run_agent(query, agent_type=None,
     return ret_dict
 
 
+def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_packages):
+    if agent_code_writer_system_message is None:
+        have_internet = get_have_internet()
+
+        # The code writer agent's system message is to instruct the LLM on how to use
+        # the code executor in the code executor agent.
+        if autogen_system_site_packages:
+            # heavy packages only expect should use if system inherited
+            extra_recommended_packages = """\n  * Image Processing: opencv-python
+  * DataBase: pysqlite3
+  * Machine Learning: torch (pytorch) or torchaudio or torchvision or lightgbm
+  * Report generation: reportlab or python-docx or pypdf or pymupdf (fitz)"""
+            if have_internet:
+                extra_recommended_packages += """\n  * Web scraping: scrapy or lxml or httpx or selenium"""
+        else:
+            extra_recommended_packages = ""
+        if have_internet and os.getenv('SERPAPI_API_KEY'):
+            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
+        else:
+            serp = ""
+        if have_internet and os.getenv('S2_API_KEY'):
+            # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
+            # https://github.com/allenai/s2-folks
+            semantic_scholar = """\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers."""
+        else:
+            semantic_scholar = ""
+        if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
+            # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
+            # https://products.wolframalpha.com/api/documentation
+            cwd = os.path.abspath(os.getcwd())
+            wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
+In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
+```sh
+# filename: my_wolfram_response.sh
+# text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
+python {cwd}/openai_server/agent_tools/wolfram.py "QUERY GOES HERE"
+```
+For fine-grain control, you can code yourself, E.g.:
+```python
+from wolframalpha import Client
+import os
+client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
+res = client.query('QUERY GOES HERE')
+# res['@success'] is bool not string.
+if res['@success']:
+    # print all fields
+    # Do not assume you know title or other things in pod.
+    for pod in res.pods:
+        for sub in pod.subpods:
+            print(sub.plaintext)
+else:
+    print('No results from Wolfram Alpha')
+```
+"""
+        else:
+            wolframalpha = ""
+        if have_internet:
+            apis = f"""\nAPIs and external services instructions:
+* You DO have access to the internet.{serp}{semantic_scholar}{wolframalpha}
+* Example Public APIs (not limited to these): wttr.in (weather)
+* Only generate code with API code that uses publicly available APIs or uses API keys already given.
+* Do not generate code that requires any API keys or credentials that were not already given."""
+        else:
+            apis = """\nAPIs and external services instructions:
+* You DO NOT have access to the internet.  You cannot use any APIs that require internet access."""
+        agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
+Query understanding instructions:
+* If the user directs you to do something (e.g. make a plot), then do it via code generation.
+* If the user asks a question requiring grade school math, math with more than single digits, or advanced math, then solve it via code generation.
+* If the user asks a question about recent or new information, the use of URLs or web links, generate an answer via code generation.
+* If the user just asks a general historical or factual knowledge question (e.g. who was the first president), then code generation is optional.
+* If it is not clear whether the user directed you to do something, then assume they are directing you and do it via code generation.
+Code generation instructions:
+* Python code should be put into a python code block with 3 backticks using python as the language.
+* Shell commands or sh scripts should be put into a sh code block with 3 backticks using sh as the language.
+* Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
+* When you need to collect info, generate code to output the info you need.
+* You are totally free to generate any code that helps you solve the task, with the following exceptions
+  1) Do not delete files or directories.
+  2) Do not try to restart the system.
+  3) Do not run indefinite services.
+  4) Do not generate code that shows the environment variables (because they contain private API keys).
+  Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
+* Ensure you provide well-commented code, so the user can understand what the code does.
+* Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
+* Avoid code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.
+* Avoid boilerplate code and do not expect the user to fill-in boilerplate code.  If details are needed to fill-in code, generate code to get those details.
+Example python packages or useful sh commands:
+* For python coding, useful packages include (but are not limited to):
+  * Symbolic mathematics: sympy
+  * Plots: matplotlib or seaborn or plotly or pillow or imageio or bokeh or altair
+  * Regression or classification modeling: scikit-learn or lightgbm or statsmodels
+  * Text NLP processing: nltk or spacy or textblob{extra_recommended_packages}
+  * Web download and search: requests or bs4 or scrapy or lxml or httpx
+* For bash shell scripts, useful commands include `ls` to verify files were created.
+Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
+* Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
+* Browse files (e.g. sh with ls).
+* Search for urls to use (e.g. pypi package googlesearch-python in python).
+* Download a file (requests in python or wget with sh).
+* Print contents of a file (open with python or cat with sh).
+* Print the content of a webpage (requests in python or curl with sh).
+* Get the current date/time or get the operating system type.{apis}
+Task solving instructions:
+* Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
+* After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
+* When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
+General instructions:
+* When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
+* If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
+* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
+* If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
+* You do not need to create a python virtual environment, all python code provided is already run in such an environment.
+* When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
+* For math tasks, you should trust code generation more than yourself, because you are better at coding than grade school math.
+Stopping instructions:
+* It is not your job to make your own conclusions about the output of any code you write, instead let the user execute the code and give you the output.
+* Do not try to guess the output of the code you generate, instead wait for the user to execute the code and give you the output.
+* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.  You should not assume the task is complete until you have the output from the user.
+* When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
+* Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response, then at the end add the 'TERMINATE' string to stop the conversation.
+* Do not generate a response that asks for code to be run that includes TERMINATE because no user actions occur after you give the TERMINATE string.
+* Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
+"""
+    return agent_code_writer_system_message
+
+
 def run_autogen(query=None, agent_type=None,
                 visible_models=None, stream_output=None, max_new_tokens=None, authorization=None,
                 autogen_stop_docker_executor=None,
@@ -185,122 +314,8 @@ def run_autogen(query=None, agent_type=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    if agent_code_writer_system_message is None:
-        # The code writer agent's system message is to instruct the LLM on how to use
-        # the code executor in the code executor agent.
-        if autogen_system_site_packages:
-            # heavy packages only expect should use if system inherited
-            extra_recommended_packages = """\n  * Image Processing: opencv-python
-  * DataBase: pysqlite3
-  * Web scraping: scrapy or lxml or httpx or selenium
-  * Machine Learning: torch (pytorch) or torchaudio or torchvision or lightgbm
-  * Report generation: reportlab or python-docx or pypdf or pymupdf (fitz)
-"""
-        else:
-            extra_recommended_packages = ""
-        if os.getenv('SERPAPI_API_KEY'):
-            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
-        else:
-            serp = ""
-        if os.getenv('S2_API_KEY'):
-            # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
-            # https://github.com/allenai/s2-folks
-            semantic_scholar = """\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers."""
-        else:
-            semantic_scholar = ""
-        if os.getenv('WOLFRAM_ALPHA_APPID'):
-            # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
-            # https://products.wolframalpha.com/api/documentation
-            cwd = os.path.abspath(os.getcwd())
-            wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
-In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
-```sh
-# filename: my_wolfram_response.sh
-# text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
-python {cwd}/openai_server/agent_tools/wolfram.py "QUERY GOES HERE"
-```
-For fine-grain control, you can code yourself, E.g.:
-```python
-from wolframalpha import Client
-import os
-client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
-res = client.query('QUERY GOES HERE')
-# res['@success'] is bool not string.
-if res['@success']:
-    # print all fields
-    # Do not assume you know title or other things in pod.
-    for pod in res.pods:
-        for sub in pod.subpods:
-            print(sub.plaintext)
-else:
-    print('No results from Wolfram Alpha')
-```
-"""
-        else:
-            wolframalpha = ""
-        agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
-Query understanding instructions:
-* If the user directs you to do something (e.g. make a plot), then do it via code generation.
-* If the user asks a question requiring grade school math, math with more than single digits, or advanced math, then solve it via code generation.
-* If the user asks a question about recent or new information, the use of URLs or web links, generate an answer via code generation.
-* If the user just asks a general historical or factual knowledge question (e.g. who was the first president), then code generation is optional.
-* If it is not clear whether the user directed you to do something, then assume they are directing you and do it via code generation.
-Code generation instructions:
-* Python code should be put into a python code block with 3 backticks using python as the language.
-* Shell commands or sh scripts should be put into a sh code block with 3 backticks using sh as the language.
-* Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
-* When you need to collect info, generate code to output the info you need.
-* You are totally free to generate any code that helps you solve the task, with the following exceptions
-  1) Do not delete files or directories.
-  2) Do not try to restart the system.
-  3) Do not run indefinite services.
-  4) Do not generate code that shows the environment variables (because they contain private API keys).
-  Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
-* Ensure you provide well-commented code, so the user can understand what the code does.
-* Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
-* Avoid code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.
-* Avoid boilerplate code and do not expect the user to fill-in boilerplate code.  If details are needed to fill-in code, generate code to get those details.
-Example python packages or useful sh commands:
-* For python coding, useful packages include (but are not limited to):
-  * Symbolic mathematics: sympy
-  * Plots: matplotlib or seaborn or plotly or pillow or imageio or bokeh or altair
-  * Regression or classification modeling: scikit-learn or lightgbm or statsmodels
-  * Text NLP processing: nltk or spacy or textblob{extra_recommended_packages}
-  * Web download and search: requests or bs4 or scrapy or lxml or httpx
-* For bash shell scripts, useful commands include `ls` to verify files were created.
-Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
-* Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
-* Browse files (e.g. sh with ls).
-* Search for urls to use (e.g. pypi package googlesearch-python in python).
-* Download a file (requests in python or wget with sh).
-* Print contents of a file (open with python or cat with sh).
-* Print the content of a webpage (requests in python or curl with sh).
-* Get the current date/time or get the operating system type.
-APIs and external services instructions:{serp}{semantic_scholar}{wolframalpha}
-* Example Public APIs (not limited to these): wttr.in (weather)
-* Only generate code with API code that uses publicly available APIs or uses API keys already given.
-* Do not generate code that requires any API keys or credentials that were not already given.
-Task solving instructions:
-* Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
-* After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
-* When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
-General instructions:
-* When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
-* If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
-* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
-* If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
-* You do not need to create a python virtual environment, all python code provided is already run in such an environment.
-* When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
-* For math tasks, you should trust code generation more than yourself, because you are better at coding than grade school math.
-Stopping instructions:
-* It is not your job to make your own conclusions about the output of any code you write, instead let the user execute the code and give you the output.
-* Do not try to guess the output of the code you generate, instead wait for the user to execute the code and give you the output.
-* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.  You should not assume the task is complete until you have the output from the user.
-* When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
-* Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response, then at the end add the 'TERMINATE' string to stop the conversation.
-* Do not generate a response that asks for code to be run that includes TERMINATE because no user actions occur after you give the TERMINATE string.
-* Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
-"""
+    agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
+                                                           autogen_system_site_packages)
 
     # FIXME:
     # Auto-pip install
@@ -524,3 +539,15 @@ def get_agent_response(query, gen_kwargs, chunk_response=True, stream_output=Fal
     except StopIteration as e:
         ret_dict = e.value
     return ret_dict
+
+
+def get_have_internet():
+    try:
+        response = requests.get("http://www.google.com", timeout=5)
+        # If the request was successful, status code will be 200
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+    except requests.ConnectionError:
+        return False
