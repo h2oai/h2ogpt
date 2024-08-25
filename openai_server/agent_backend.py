@@ -194,6 +194,7 @@ def run_autogen(query=None, agent_type=None,
   * DataBase: pysqlite3
   * Web scraping: scrapy or lxml or httpx or selenium
   * Machine Learning: torch (pytorch) or torchaudio or torchvision or lightgbm
+  * Report generation: reportlab or python-docx or pypdf or pymupdf (fitz)
 """
         else:
             extra_recommended_packages = ""
