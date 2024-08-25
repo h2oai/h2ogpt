@@ -1298,7 +1298,9 @@ def go_gradio(**kwargs):
                                                                     label='Remove Collection from UI',
                                                                     placeholder=remove_placeholder,
                                                                     interactive=True)
-                            purge_langchain_mode_text = gr.Textbox(value="", visible=visible_add_remove_collection,
+                            purge_langchain_mode_text = gr.Textbox(value="",
+                                                                   visible=visible_add_remove_collection and kwargs[
+                                                                       'visible_langchain_purge'],
                                                                    label='Purge Collection (UI, DB, & source files)',
                                                                    placeholder=remove_placeholder,
                                                                    interactive=True)
@@ -1542,14 +1544,16 @@ def go_gradio(**kwargs):
                                                                       info="Whether to preserve system prompt when doing JSON mode.",
                                                                       value=kwargs['json_preserve_system_prompt'])
                             json_object_post_prompt_reminder = gr.Textbox(label="JSON object reminder Prompt",
-                                                                 info="prompt to remind LLM to use json",
-                                                                 value=kwargs['json_object_post_prompt_reminder'])
+                                                                          info="prompt to remind LLM to use json",
+                                                                          value=kwargs[
+                                                                              'json_object_post_prompt_reminder'])
                             json_code_post_prompt_reminder = gr.Textbox(label="JSON code w/ schema reminder Prompt",
-                                                                 info="prompt to remind LLM to make json code and use schema",
-                                                                 value=kwargs['json_code_post_prompt_reminder'])
+                                                                        info="prompt to remind LLM to make json code and use schema",
+                                                                        value=kwargs['json_code_post_prompt_reminder'])
                             json_code2_post_prompt_reminder = gr.Textbox(label="JSON code reminder Prompt",
-                                                                 info="prompt to remind LLM to use json code when no schema",
-                                                                 value=kwargs['json_code2_post_prompt_reminder'])
+                                                                         info="prompt to remind LLM to use json code when no schema",
+                                                                         value=kwargs[
+                                                                             'json_code2_post_prompt_reminder'])
 
                             def show_llava(x):
                                 return x
@@ -5813,7 +5817,8 @@ def go_gradio(**kwargs):
                 model_state3['auto_visible_vision_models'] = model_state3.get('auto_visible_vision_models', False)
                 model_state3['inference_server_type'] = inference_server_type
                 json_vllm = model_state3.get('json_vllm', False)
-                model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model, json_vllm=json_vllm, just_test=True)
+                model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model,
+                                                                         json_vllm=json_vllm, just_test=True)
             key_list = ['display_name', 'base_model', 'inference_server_type',
                         'strict_json_schema',
                         'prompt_type', 'prompt_dict', 'chat_template'] + list(
