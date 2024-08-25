@@ -181,9 +181,31 @@ def run_autogen(query=None, agent_type=None,
         # The code writer agent's system message is to instruct the LLM on how to use
         # the code executor in the code executor agent.
         if os.getenv('SERPAPI_API_KEY'):
-            serp = """Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV)."""
+            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
         else:
             serp = ""
+        if os.getenv('S2_API_KEY'):
+            # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
+            semantic_scholar = """\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers."""
+        else:
+            semantic_scholar = ""
+        if os.getenv('WOLFRAM_ALPHA_APPID'):
+            # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
+            wolframalpha = """\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced math, physics, chemistry, engineering, astronomy, and more.
+E.g.
+```python
+from wolframalpha import Client
+import os
+client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
+res = client.query('QUERY GOES HERE')
+if res['@success']:
+    print(next(res.results).text)
+else:
+    print('No results from Wolfram Alpha')
+```
+"""
+        else:
+            wolframalpha = ""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 Query understanding instructions:
 * If the user directs you to do something (e.g. make a plot), then do it via code generation.
@@ -210,8 +232,7 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
 * Get the current date/time or get the operating system type.
-APIs and external services instructions:
-* {serp}
+APIs and external services instructions:{serp}{semantic_scholar}{wolframalpha}
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
 * Do not generate code that requires any API keys or credentials that were not already given.
 Task solving instructions:
