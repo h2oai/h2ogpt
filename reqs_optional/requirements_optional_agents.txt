@@ -18,3 +18,31 @@ pyautogen[lmm]
 #pyautogen[mathchat]<0.2
 pyautogen[graph]
 pyautogen[long-context]
+
+# helpers for AutoGen (most are already installed)
+sympy
+seaborn
+scikit-learn
+statsmodels
+plotly
+numpy
+lightgbm
+nltk
+spacy
+opencv-python
+opencv-python-headless
+textblob
+imageio
+bokeh
+altair
+pysqlite3
+bs4
+requests
+lxml
+httpx
+# bit heavy and not normally installed:
+scrapy
+# selenium
+wolframalpha
+semanticscholar
+google-search-results
