@@ -209,16 +209,28 @@ def run_autogen(query=None, agent_type=None,
             semantic_scholar = ""
         if os.getenv('WOLFRAM_ALPHA_APPID'):
             # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
-            wolframalpha = """\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
-E.g.
+            # https://products.wolframalpha.com/api/documentation
+            cwd = os.path.abspath(os.getcwd())
+            wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
+In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
+```sh
+# filename: my_wolfram_response.sh
+# text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
+python {cwd}/openai_server/agent_tools/wolfram.py "QUERY GOES HERE"
+```
+For fine-grain control, you can code yourself, E.g.:
 ```python
 from wolframalpha import Client
 import os
 client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
 res = client.query('QUERY GOES HERE')
+# res['@success'] is bool not string.
 if res['@success']:
-    # print all fields (we shouldn't assume we know title or other things in pod)
-    print(next(res.results).text)
+    # print all fields
+    # Do not assume you know title or other things in pod.
+    for pod in res.pods:
+        for sub in pod.subpods:
+            print(sub.plaintext)
 else:
     print('No results from Wolfram Alpha')
 ```
@@ -336,8 +348,14 @@ Stopping instructions:
         print("chat_result:", chat_result)
         print("list_dir:", os.listdir(temp_dir))
 
-    files_list = [os.path.join(temp_dir, f) for f in os.listdir(temp_dir)]
-    # FIXME: Could do paths later, this excludes envs LLM may have created
+    # Get all files in the temp_dir and one level deep subdirectories
+    files_list = []
+    for root, dirs, files in os.walk(temp_dir):
+        # Exclude deeper directories by checking the depth
+        if root == temp_dir or os.path.dirname(root) == temp_dir:
+            files_list.extend([os.path.join(root, f) for f in files])
+
+    # Filter the list to include only files
     files_list = [f for f in files_list if os.path.isfile(f)]
     if agent_verbose:
         print("files_list:", files_list)
