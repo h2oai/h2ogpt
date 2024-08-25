@@ -46,7 +46,7 @@ export CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=all"
 # for Metal MAC M1/M2 comment out above two lines and uncomment out the below line
 # export CMAKE_ARGS="-DLLAMA_METAL=on"
 export FORCE_CMAKE=1
-
+export GPLOK=1
 bash docs/linux_install.sh
 
 chmod -R a+rwx /h2ogpt_conda
