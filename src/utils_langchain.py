@@ -23,7 +23,6 @@ from langchain_community.document_loaders.pdf import BasePDFLoader
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
 from langchain_core.document_loaders import BaseBlobParser
 from langchain_community.document_loaders.blob_loaders import Blob
-import fitz
 from langchain_text_splitters import TextSplitter
 
 from enums import docs_joiner_default
@@ -872,6 +871,7 @@ class PyMuPDF4LLMParser(BaseBlobParser):
 
         with blob.as_bytes_io() as file_path:  # type: ignore[attr-defined]
             docllm = pymupdf4llm.to_markdown(file_path, page_chunks=True)
+            import fitz
             if blob.data is None:  # type: ignore[attr-defined]
                 doc = fitz.open(file_path)
             else:
@@ -898,12 +898,13 @@ class PyMuPDF4LLMParser(BaseBlobParser):
             ]
 
     def _extract_images_from_page(
-            self, doc: fitz.Document, page: fitz.Page
+            self, doc, page
     ) -> str:
         """Extract images from page and get the text with RapidOCR."""
         if not self.extract_images:
             return ""
 
+        import fitz
         img_list = page.get_images()
         imgs = []
         for img in img_list:
