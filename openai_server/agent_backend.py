@@ -217,6 +217,7 @@ import os
 client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
 res = client.query('QUERY GOES HERE')
 if res['@success']:
+    # print all fields (we shouldn't assume we know title or other things in pod)
     print(next(res.results).text)
 else:
     print('No results from Wolfram Alpha')
