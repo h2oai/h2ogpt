@@ -4,12 +4,13 @@ import json
 import os
 import types
 import uuid
-from typing import Any, Dict, List, Union, Optional, Tuple, Mapping
+from typing import Any, Dict, List, Union, Optional, Tuple, Mapping, Iterator
 import time
 import queue
 import pathlib
 from datetime import datetime
 
+import numpy as np
 from langchain.schema import BasePromptTemplate
 from langchain.chains import LLMChain
 from langchain.chains import MapReduceDocumentsChain, StuffDocumentsChain, ReduceDocumentsChain
@@ -17,7 +18,12 @@ from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.summarize import map_reduce_prompt, LoadingCallable
 from langchain.chains.summarize.chain import _load_stuff_chain, _load_refine_chain
 from langchain.schema.language_model import BaseLanguageModel
+from langchain_community.document_loaders.parsers.pdf import extract_from_images_with_rapidocr
+from langchain_community.document_loaders.pdf import BasePDFLoader
 from langchain_community.embeddings import HuggingFaceHubEmbeddings
+from langchain_core.document_loaders import BaseBlobParser
+from langchain_community.document_loaders.blob_loaders import Blob
+import fitz
 from langchain_text_splitters import TextSplitter
 
 from enums import docs_joiner_default
@@ -795,3 +801,117 @@ def convert_primitive_schema(json_schema: Dict[str, Any], name: str) -> Schema:
         schema_args["type_"] = Type.BOOLEAN
 
     return Schema(**schema_args)
+
+
+class PyMuPDF4LLMLoader(BasePDFLoader):
+    """Load `PDF` files using `PyMuPDF4LLM`."""
+
+    def __init__(
+            self,
+            file_path: str,
+            *,
+            headers: Optional[Dict] = None,
+            extract_images: bool = False,
+            **kwargs: Any,
+    ) -> None:
+        """Initialize with a file path."""
+        try:
+            import fitz  # noqa:F401
+        except ImportError:
+            raise ImportError(
+                "`PyMuPDF` package not found, please install it with "
+                "`pip install pymupdf`"
+            )
+        super().__init__(file_path, headers=headers)
+        self.extract_images = extract_images
+        self.text_kwargs = kwargs
+
+    def _lazy_load(self, **kwargs: Any) -> Iterator[Document]:
+        if kwargs:
+            logger.warning(
+                f"Received runtime arguments {kwargs}. Passing runtime args to `load`"
+                f" is deprecated. Please pass arguments during initialization instead."
+            )
+
+        text_kwargs = {**self.text_kwargs, **kwargs}
+        parser = PyMuPDF4LLMParser(
+            text_kwargs=text_kwargs, extract_images=self.extract_images
+        )
+        if self.web_path:
+            blob = Blob.from_data(open(self.file_path, "rb").read(), path=self.web_path)  # type: ignore[attr-defined]
+        else:
+            blob = Blob.from_path(self.file_path)  # type: ignore[attr-defined]
+        yield from parser.lazy_parse(blob)
+
+    def load(self, **kwargs: Any) -> List[Document]:
+        return list(self._lazy_load(**kwargs))
+
+    def lazy_load(self) -> Iterator[Document]:
+        yield from self._lazy_load()
+
+
+class PyMuPDF4LLMParser(BaseBlobParser):
+    """Parse `PDF` using `PyMuPDF4LLM`."""
+
+    def __init__(
+            self,
+            text_kwargs: Optional[Mapping[str, Any]] = None,
+            extract_images: bool = False,
+    ) -> None:
+        """Initialize the parser.
+
+        Args:
+            text_kwargs: Keyword arguments to pass to ``fitz.Page.get_text()``.
+        """
+        self.text_kwargs = text_kwargs or {}
+        self.extract_images = extract_images
+
+    def lazy_parse(self, blob: Blob) -> Iterator[Document]:  # type: ignore[valid-type]
+        """Lazily parse the blob."""
+        import pymupdf4llm
+
+        with blob.as_bytes_io() as file_path:  # type: ignore[attr-defined]
+            docllm = pymupdf4llm.to_markdown(file_path, page_chunks=True)
+            if blob.data is None:  # type: ignore[attr-defined]
+                doc = fitz.open(file_path)
+            else:
+                doc = fitz.open(stream=file_path, filetype="pdf")
+            yield from [
+                Document(
+                    page_content=pagellm.get('text', '')
+                                 + self._extract_images_from_page(doc, page),
+                    metadata=dict(
+                        {
+                            "source": blob.source,  # type: ignore[attr-defined]
+                            "file_path": blob.source,  # type: ignore[attr-defined]
+                            "page": page.number,
+                            "total_pages": len(doc),
+                        },
+                        **{
+                            k: doc.metadata[k]
+                            for k in doc.metadata
+                            if type(doc.metadata[k]) in [str, int]
+                        },
+                    ),
+                )
+                for pagellm, page in zip(docllm, doc)
+            ]
+
+    def _extract_images_from_page(
+            self, doc: fitz.Document, page: fitz.Page
+    ) -> str:
+        """Extract images from page and get the text with RapidOCR."""
+        if not self.extract_images:
+            return ""
+
+        img_list = page.get_images()
+        imgs = []
+        for img in img_list:
+            xref = img[0]
+            pix = fitz.Pixmap(doc, xref)
+            imgs.append(
+                np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                    pix.height, pix.width, -1
+                )
+            )
+        return extract_from_images_with_rapidocr(imgs)
