@@ -47,3 +47,4 @@ scrapy
 wolframalpha
 semanticscholar
 google-search-results
+reportlab
