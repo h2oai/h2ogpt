@@ -199,7 +199,7 @@ if [[ "${PIP_EXTRA_INDEX_URL}" == *"cu118"* ]]; then
   pip install auto-gptq==0.7.1 --extra-index-url https://huggingface.github.io/autogptq-index/whl/cu118/
   echo "cuda118 for awq, see: https://github.com/casper-hansen/AutoAWQ_kernels/releases/"
 
-else
+elif [[ -v CUDA_HOME ]]; then
   #* GPU Optional: For exllama support on x86_64 linux
   #pip uninstall -y exllama ; pip install https://github.com/jllllll/exllama/releases/download/0.0.18/exllama-0.0.18+cu121-cp310-cp310-linux_x86_64.whl --no-cache-dir -c reqs_optional/reqs_constraints.txt
   #    See [exllama](README_GPU.md#exllama) about running exllama models.
