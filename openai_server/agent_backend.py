@@ -163,10 +163,23 @@ else:
 """
         else:
             wolframalpha = ""
+        if have_internet and os.getenv('NEWS_API_KEY'):
+            news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search through articles and blogs published in the last 5 years.
+            For a news query, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_news_response.sh
+# Text results get printed with title, author, description, and URL.
+# You can pull the URL content for more information on a topic.
+# usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES] [-q QUERY] [-f FROM_DATE] [-t TO_DATE] [-s {{relevancy, popularity, publishedAt}}] [-l LANGUAGE] [-c COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+python {cwd}/openai_server/agent_tools/news_query.py -q "QUERY GOES HERE"
+```
+"""
+        else:
+            news_api = ''
         if have_internet:
             apis = f"""\nAPIs and external services instructions:
-* You DO have access to the internet.{serp}{semantic_scholar}{wolframalpha}
-* Example Public APIs (not limited to these): wttr.in (weather)
+* You DO have access to the internet.{serp}{semantic_scholar}{wolframalpha}{news_api}
+* Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
 * Do not generate code that requires any API keys or credentials that were not already given."""
         else:
