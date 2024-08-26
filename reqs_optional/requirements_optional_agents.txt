@@ -48,3 +48,6 @@ wolframalpha
 semanticscholar
 google-search-results
 reportlab
+yfinance
+# too different deps like pandas
+# yahooquery
