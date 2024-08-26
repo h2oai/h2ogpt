@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timedelta
 
 
-def fetch_everything(api_key, query, sources, from_date, to_date, sort_by, language):
+def fetch_everything(api_key, query, sources, from_date, to_date, sort_by, language, page_size):
     base_url = 'https://newsapi.org/v2/everything'
 
     params = {
@@ -13,6 +13,7 @@ def fetch_everything(api_key, query, sources, from_date, to_date, sort_by, langu
         'to': to_date,
         'sortBy': sort_by,
         'language': language,
+        'pageSize': page_size,
         'apiKey': api_key
     }
     if sources:
@@ -23,10 +24,11 @@ def fetch_everything(api_key, query, sources, from_date, to_date, sort_by, langu
     return response.json()
 
 
-def fetch_top_headlines(api_key, sources, country, category):
+def fetch_top_headlines(api_key, sources, country, category, page_size):
     base_url = 'https://newsapi.org/v2/top-headlines'
 
     params = {
+        'pageSize': page_size,
         'apiKey': api_key
     }
     if sources:
@@ -60,6 +62,8 @@ def main():
     # Common arguments
     parser.add_argument("--sources",
                         help="Comma-separated list of news sources or blogs (e.g., bbc-news,techcrunch,engadget)")
+    parser.add_argument("-n", "--num_articles", type=int, default=10,
+                        help="Number of articles to retrieve (max 100). Default is 10.")
 
     # Arguments for 'everything' mode
     parser.add_argument("-q", "--query",
@@ -80,6 +84,9 @@ def main():
 
     args = parser.parse_args()
 
+    # Ensure num_articles is within the allowed range
+    args.num_articles = max(1, min(args.num_articles, 100))
+
     # Get API key from environment variable
     api_key = os.environ.get("NEWS_API_KEY")
     if not api_key:
@@ -96,7 +103,7 @@ def main():
             to_date = args.to_date or today.isoformat()
 
             result = fetch_everything(api_key, args.query, args.sources, from_date, to_date, args.sort_by,
-                                      args.language)
+                                      args.language, args.num_articles)
 
             print(f"\nMode: Everything")
             if args.query:
@@ -109,7 +116,7 @@ def main():
         else:  # top-headlines mode
             if not args.sources and not args.country:
                 args.country = 'us'  # Default to 'us' if neither sources nor country specified
-            result = fetch_top_headlines(api_key, args.sources, args.country, args.category)
+            result = fetch_top_headlines(api_key, args.sources, args.country, args.category, args.num_articles)
 
             print(f"\nMode: Top Headlines")
             if args.sources:
@@ -119,7 +126,9 @@ def main():
                 if args.category:
                     print(f"Category: {args.category}")
 
-        print(f"\nTotal results: {result['totalResults']}")
+        print(f"\nRequested articles: {args.num_articles}")
+        print(f"Total results available: {result['totalResults']}")
+        print(f"Articles retrieved: {len(result['articles'])}")
 
         if result['articles']:
             display_articles(result['articles'])
