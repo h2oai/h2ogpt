@@ -308,6 +308,7 @@ def main(
         visible_login_tab: bool = True,
         visible_hosts_tab: bool = False,
         visible_langchain_action_radio: bool = True,
+        visible_langchain_purge: bool = True,
 
         chat_tabless: bool = False,
         visible_h2ogpt_links: bool = True,
@@ -976,6 +977,9 @@ def main(
     :param visible_tos_tab: "" for ToS tab
     :param visible_login_tab: "" for Login tab (needed for persistence or to enter key for UI access to models and ingestion)
     :param visible_hosts_tab: "" for hosts tab
+    :param visible_langchain_action_radio: "" for action radio
+    :param visible_langchain_purge: for purge option
+
     :param chat_tabless: Just show Chat as block without tab (useful if want only chat view)
     :param visible_h2ogpt_links: Whether github stars, URL are visible
     :param visible_h2ogpt_qrcode: Whether QR code is visible

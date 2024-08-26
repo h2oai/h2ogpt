@@ -55,18 +55,24 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
 
-    # don't let LLM stop early if it generated code in last message, so it doesn't try to conclude itself
-    if False:
-        # for weakly instruction following models
-        if (isinstance(msg, dict) and
-                isinstance(msg.get('content', ''), str) and
-                ('```python' in msg.get('content', '') or '```sh' in msg.get('content', ''))):
-            return False
-
-    # end on TERMINATE or empty message
-    if (isinstance(msg, dict) and
+    has_term = (isinstance(msg, dict) and
             isinstance(msg.get('content', ''), str) and
-            (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == '')):
+            (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''))
+
+    no_stop_if_code = False
+    if no_stop_if_code:
+        # don't let LLM stop early if it generated code in last message, so it doesn't try to conclude itself
+        from autogen.coding import MarkdownCodeExtractor
+        code_blocks = MarkdownCodeExtractor().extract_code_blocks(msg.get("content", ''))
+        has_code = len(code_blocks) > 0
+
+        # end on TERMINATE or empty message
+        if has_code and has_term:
+            print("Model tried to terminate with code present: %s" % len(code_blocks), file=sys.stderr)
+            # fix
+            msg['content'].replace('TERMINATE', '')
+            return False
+    if has_term:
         return True
     return False
 
@@ -208,6 +214,7 @@ Task solving instructions:
 * Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
 * After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
 * When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
+* Only do about two code blocks (e.g. one sh and one python) at a time.
 General instructions:
 * When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
 * If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
@@ -217,13 +224,13 @@ General instructions:
 * When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
 * For math tasks, you should trust code generation more than yourself, because you are better at coding than grade school math.
 Stopping instructions:
-* It is not your job to make your own conclusions about the output of any code you write, instead let the user execute the code and give you the output.
-* Do not try to guess the output of the code you generate, instead wait for the user to execute the code and give you the output.
-* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.  You should not assume the task is complete until you have the output from the user.
+* Do not assume the code you generate will work as-is.  You must ask the user to run the code and wait for output.
+* Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.
+* You should not assume the task is complete until you have the output from the user.
 * When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
-* Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response, then at the end add the 'TERMINATE' string to stop the conversation.
-* Do not generate a response that asks for code to be run that includes TERMINATE because no user actions occur after you give the TERMINATE string.
-* Do not expect user to manually check if files exist, you should infer whether they exist from the user responses or write code to confirm their existence and infer from the response if they exist.
+* Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response.
+* Only once you have verification that the user completed teh task do you summarize and add the 'TERMINATE' string to stop the conversation.
+* Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
 """
     return agent_code_writer_system_message
 
@@ -365,23 +372,28 @@ def run_autogen(query=None, agent_type=None,
         print("list_dir:", os.listdir(temp_dir))
 
     # Get all files in the temp_dir and one level deep subdirectories
-    files_list = []
+    file_list = []
     for root, dirs, files in os.walk(temp_dir):
         # Exclude deeper directories by checking the depth
         if root == temp_dir or os.path.dirname(root) == temp_dir:
-            files_list.extend([os.path.join(root, f) for f in files])
+            file_list.extend([os.path.join(root, f) for f in files])
 
     # Filter the list to include only files
-    files_list = [f for f in files_list if os.path.isfile(f)]
+    file_list = [f for f in file_list if os.path.isfile(f)]
     if agent_verbose:
-        print("files_list:", files_list)
+        print("file_list:", file_list)
+
+    image_files, non_image_files = identify_image_files(file_list)
+    # keep no more than 10 image files:
+    image_files = image_files[:10]
+    file_list = image_files + non_image_files
 
     # copy files so user can download
     user_dir = get_user_dir(authorization)
     if not os.path.isdir(user_dir):
         os.makedirs(user_dir, exist_ok=True)
     file_ids = []
-    for file in files_list:
+    for file in file_list:
         new_path = os.path.join(user_dir, os.path.basename(file))
         shutil.copy(file, new_path)
         with open(new_path, "rb") as f:
@@ -399,8 +411,8 @@ def run_autogen(query=None, agent_type=None,
             print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
     ret_dict = {}
-    if files_list:
-        ret_dict.update(dict(files=files_list))
+    if file_list:
+        ret_dict.update(dict(files=file_list))
     if file_ids:
         ret_dict.update(dict(file_ids=file_ids))
     if chat_result and hasattr(chat_result, 'chat_history'):
@@ -551,3 +563,31 @@ def get_have_internet():
             return False
     except requests.ConnectionError:
         return False
+
+
+from PIL import Image
+
+
+def is_image_file(filename):
+    try:
+        with Image.open(filename) as img:
+            img.verify()  # Verify that it's an image
+        return True
+    except (IOError, SyntaxError):
+        return False
+
+
+def identify_image_files(file_list):
+    image_files = []
+    non_image_files = []
+
+    for filename in file_list:
+        if os.path.isfile(filename):  # Ensure the file exists
+            if is_image_file(filename):
+                image_files.append(filename)
+            else:
+                non_image_files.append(filename)
+        else:
+            print(f"Warning: '{filename}' is not a valid file path.")
+
+    return image_files, non_image_files

@@ -1405,6 +1405,7 @@ def test_pymupdf4llm():
     times_pymupdf4llm = []
     files = [os.path.join('tests', x) for x in os.listdir('tests')]
     files += [os.path.join('/home/jon/Downloads/', x) for x in os.listdir('/home/jon/Downloads/')]
+    files = ['/home/jon/Downloads/Tabasco_Ingredients_Products_Guide.pdf']
     for file in files:
         if not file.endswith('.pdf'):
             continue
@@ -1414,12 +1415,16 @@ def test_pymupdf4llm():
         assert doc is not None
         print('pymupdf: %s %s %s' % (file, len(doc), time.time() - t0))
         times_pymupdf.append((time.time() - t0)/len(doc))
+        for page in doc:
+            print(page)
 
         t0 = time.time()
         doc = PyMuPDF4LLMLoader(file).load()
         assert doc is not None
         print('pymupdf4llm: %s %s %s' % (file, len(doc), time.time() - t0))
         times_pymupdf4llm.append((time.time() - t0)/len(doc))
+        for page in doc:
+            print(page)
 
         if len(times_pymupdf) > 30:
             break
