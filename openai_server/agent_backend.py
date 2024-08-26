@@ -168,9 +168,9 @@ else:
             For a news query, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_news_response.sh
-# Text results get printed with title, author, description, and URL.
+# Text results get printed with title, author, description, and URL for (by default) 10 articles.
 # You can pull the URL content for more information on a topic.
-# usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES] [-q QUERY] [-f FROM_DATE] [-t TO_DATE] [-s {{relevancy, popularity, publishedAt}}] [-l LANGUAGE] [-c COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+# usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [-n NUM_ARTICLES] [-q QUERY] [-f FROM_DATE] [-t TO_DATE] [-s {{relevancy, popularity, publishedAt}}] [-l LANGUAGE] [-c COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
 python {cwd}/openai_server/agent_tools/news_query.py -q "QUERY GOES HERE"
 ```
 """
