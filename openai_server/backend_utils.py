@@ -321,55 +321,69 @@ def extract_xml_tags(xml_string):
     # Remove leading/trailing whitespace and newlines
     xml_string = xml_string.strip()
 
-    # If the string is empty or doesn't contain any XML tags, return the original string
-    if not xml_string or '<' not in xml_string or '>' not in xml_string:
-        return xml_string
+    # If the string is empty, return a special empty marker
+    if not xml_string:
+        return "[[EMPTY]]"
+
+    # If the string doesn't contain any XML tags, return an unparseable marker
+    if '<' not in xml_string or '>' not in xml_string:
+        return "[[UNPARSEABLE]]" + xml_string
 
     try:
         # Try to parse the XML string
-        root = ET.fromstring(f"<root>{xml_string}</root>")
+        if xml_string.startswith('<doc>') and xml_string.endswith('</doc>'):
+            root = ET.fromstring(xml_string)
+        else:
+            # If there's no <doc> tag, wrap the content in a temporary root
+            root = ET.fromstring(f"<root>{xml_string}</root>")
+
+        # Create a list to store the extracted tags
+        extracted_tags = []
+
+        # Extract all child elements except 'text'
+        for child in root:
+            if child.tag not in ['text', 'doc']:
+                # Convert the element to a string and remove any internal newlines
+                tag_string = ET.tostring(child, encoding='unicode').strip()
+                tag_string = re.sub(r'\s*\n\s*', ' ', tag_string)
+                extracted_tags.append(tag_string)
+
+        # Join the extracted tags with a single newline
+        result = '\n'.join(extracted_tags)
+
+        # Ensure there's a newline at the end, but only one
+        result = result.rstrip() + '\n'
+
+        return result
+
     except ET.ParseError:
-        # If parsing fails, return the original string
-        return xml_string
-
-    # Find all child elements of the root
-    children = list(root)
-
-    # Create a list to store the extracted tags
-    extracted_tags = []
-
-    # Extract all child elements except 'text'
-    for child in children:
-        if child.tag != 'text':
-            # Convert the element to a string and remove any internal newlines
-            tag_string = ET.tostring(child, encoding='unicode').strip()
-            tag_string = re.sub(r'\s*\n\s*', ' ', tag_string)
-            extracted_tags.append(tag_string)
-
-    # Join the extracted tags with a single newline
-    result = '\n'.join(extracted_tags)
-
-    # Ensure there's a newline at the end, but only one
-    result = result.rstrip() + '\n'
-
-    return result
+        # If parsing fails, return the unparseable marker with the original string
+        return "[[UNPARSEABLE]]" + xml_string
 
 
 def generate_unique_filename(xml_output):
-    # If xml_output is empty, generate a filename with UUID
-    if not xml_output.strip():
-        return f"unknown_{uuid.uuid4()}_page_0.txt"
+    # Check for the special empty marker
+    if xml_output == "[[EMPTY]]":
+        unique_id = str(uuid.uuid4())
+        return f"unknown_{unique_id}_page_0.txt", f"unknown_{unique_id}", "0"
 
-    # If xml_output doesn't look like XML, treat it as unparseable
-    if '<' not in xml_output or '>' not in xml_output:
-        return f"unparseable_{uuid.uuid4()}_page_0.txt"
+    # Check for the special unparseable marker
+    if xml_output.startswith("[[UNPARSEABLE]]"):
+        unique_id = str(uuid.uuid4())
+        return f"unparseable_{unique_id}_page_0.txt", f"unparseable_{unique_id}", "0"
+
+    # If xml_output is empty (shouldn't happen, but just in case), generate a filename with UUID
+    if not xml_output.strip():
+        unique_id = str(uuid.uuid4())
+        return f"unknown_{unique_id}_page_0.txt", f"unknown_{unique_id}", "0"
 
     try:
         # Try to parse the XML string
         root = ET.fromstring(f"<root>{xml_output}</root>")
     except ET.ParseError:
         # If parsing fails, generate a filename with UUID
-        return f"unparseable_{uuid.uuid4()}_page_0.txt"
+        unique_id = str(uuid.uuid4())
+        return f"unparseable_{unique_id}_page_0.txt", f"unparseable_{unique_id}", "0"
 
     # Extract name and page
     name_elem = root.find('name')
@@ -388,7 +402,7 @@ def generate_unique_filename(xml_output):
     # Create the unique filename
     unique_filename = f"{clean_name}_page_{page}.txt"
 
-    return unique_filename
+    return unique_filename, clean_name, page
 
 
 def deduplicate_filenames(filenames):

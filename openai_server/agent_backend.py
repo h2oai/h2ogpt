@@ -329,7 +329,11 @@ def run_autogen(query=None,
         env_args = dict(system_site_packages=autogen_system_site_packages,
                         with_pip=True,
                         symlinks=True)
-        virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
+        if not in_pycharm():
+            virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
+        else:
+            print("in PyCharm, can't use virtualenv, so we use the system python", file=sys.stderr)
+            virtual_env_context = None
         # work_dir = ".workdir_%s" % username
         # PythonLoader(name='code', ))
 
@@ -379,7 +383,8 @@ def run_autogen(query=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    chat_query = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir)
+    chat_query, internal_file_names = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir,
+                                                     model=model)
 
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
@@ -413,6 +418,9 @@ def run_autogen(query=None,
 
     # Filter the list to include only files
     file_list = [f for f in file_list if os.path.isfile(f)]
+    internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
+    # filter out internal files for RAG case
+    file_list = [f for f in file_list if os.path.normpath(f) not in internal_file_names_norm_paths]
     if agent_verbose:
         print("file_list:", file_list)
 
@@ -628,7 +636,7 @@ def identify_image_files(file_list):
     return image_files, non_image_files
 
 
-def get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir):
+def get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir, model=None):
     """
     Construct the chat query to be sent to the agent.
     :param query:
@@ -640,6 +648,7 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
     """
     document_context = ""
     chat_history_context = ""
+    internal_file_names = []
 
     image_files_to_delete = []
     b2imgs = []
@@ -668,28 +677,50 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
 
     if text_context_list:
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
-        file_names = [generate_unique_filename(x) for x in meta_datas]
+        meta_results = [generate_unique_filename(x) for x in meta_datas]
+        file_names, cleaned_names, pages = zip(*meta_results)
         file_names = deduplicate_filenames(file_names)
         document_context_file_name = "document_context.txt"
+        internal_file_names.append(document_context_file_name)
+        internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
         document_context += f"""Documents for questions about documents (converted from PDFs or images):
+Text file use Notes:
+* Check text file size before using, full text longer than 200k bytes may not fit in, in which case you must search the text for relevant information or split the text into parts.
+* Document Part texts should each be small and fit, but in aggregate they may not fit.
 * Full text: {document_context_file_name}
 """
         for i, file_name in enumerate(file_names):
             text = text_context_list[i]
+            meta_data = meta_datas[i]
             with open(os.path.join(temp_dir, file_name), "w") as f:
                 f.write(text)
-            document_context += f"* {file_name}\n"
+            if model and 'claude' in model:
+                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}<local_file_name>{file_name}</local_file_name>\n</doc>"""
+            else:
+                document_context += f"""* Document Part: {i}
+* Original File Name: {cleaned_names[i]}
+* Page Number: {pages[i]}
+* Local File Name: {file_name}
+"""
     if b2imgs:
         document_context += "Images of pages for the document:"
-        for b2img in b2imgs:
-            document_context += f"* {b2img}\n"
+        for i, b2img in enumerate(b2imgs):
+            document_context += f"* Document Image {i}: {b2img}\n"
         document_context += '\n\n'
+        internal_file_names.extend(b2imgs)
     if chat_conversation:
         from openai_server.chat_history_render import chat_to_pretty_markdown
         messages_for_query = structure_to_messages(query, None, chat_conversation, [])
         chat_history_context = chat_to_pretty_markdown(messages_for_query, cute=False) + '\n\n'
     chat_query = f"""{document_context}{chat_history_context}{query}"""
 
-    return chat_query
+    # convert to full name
+    internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
+
+    return chat_query, internal_file_names
+
+
+def in_pycharm():
+    return os.getenv("PYCHARM_HOSTED") is not None

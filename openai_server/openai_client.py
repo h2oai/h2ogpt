@@ -170,7 +170,9 @@ def run_openai_client(
             max_tokens=4096,
         )
     else:
-        extra_body = {}
+        extra_body = dict(
+            text_context_list=text_context_list,
+        )
         hyper_kwargs = dict(
             temperature=query_kwargs["temperature"],
             max_tokens=query_kwargs["max_new_tokens"],
