@@ -332,7 +332,7 @@ def run_autogen(query=None,
         if not in_pycharm():
             virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
         else:
-            # in PyCharm, we can't use virtualenv, so we use the system python
+            print("in PyCharm, can't use virtualenv, so we use the system python", file=sys.stderr)
             virtual_env_context = None
         # work_dir = ".workdir_%s" % username
         # PythonLoader(name='code', ))
@@ -383,7 +383,8 @@ def run_autogen(query=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    chat_query, internal_file_names = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir, model=model)
+    chat_query, internal_file_names = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir,
+                                                     model=model)
 
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
