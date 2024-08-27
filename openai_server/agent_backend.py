@@ -27,7 +27,8 @@ import matplotlib as mpl
 
 mpl.use('Agg')
 
-from openai_server.backend_utils import convert_gen_kwargs, get_user_dir, run_upload_api
+from openai_server.backend_utils import convert_gen_kwargs, get_user_dir, run_upload_api, structure_to_messages, \
+    extract_xml_tags, generate_unique_filename, deduplicate_filenames
 
 from autogen.io import IOStream, OutputStream
 
@@ -56,8 +57,8 @@ def terminate_message_func(msg):
     #        msg.get('role') == 'assistant' and
 
     has_term = (isinstance(msg, dict) and
-            isinstance(msg.get('content', ''), str) and
-            (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''))
+                isinstance(msg.get('content', ''), str) and
+                (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''))
 
     no_stop_if_code = False
     if no_stop_if_code:
@@ -77,8 +78,16 @@ def terminate_message_func(msg):
     return False
 
 
-def run_agent(query, agent_type=None,
-              visible_models=None, stream_output=None, max_new_tokens=None, authorization=None,
+def run_agent(query,
+              visible_models=None,
+              stream_output=None,
+              max_new_tokens=None,
+              authorization=None,
+              chat_conversation=None,
+              text_context_list=None,
+              image_file=None,
+              # autogen/agent specific parameters
+              agent_type=None,
               autogen_stop_docker_executor=None,
               autogen_run_code_in_docker=None, autogen_max_consecutive_auto_reply=None, autogen_max_turns=None,
               autogen_timeout=None,
@@ -248,8 +257,16 @@ Stopping instructions:
     return agent_code_writer_system_message
 
 
-def run_autogen(query=None, agent_type=None,
-                visible_models=None, stream_output=None, max_new_tokens=None, authorization=None,
+def run_autogen(query=None,
+                visible_models=None,
+                stream_output=None,
+                max_new_tokens=None,
+                authorization=None,
+                chat_conversation=None,
+                text_context_list=None,
+                image_file=None,
+                # autogen/agent specific parameters
+                agent_type=None,
                 autogen_stop_docker_executor=None,
                 autogen_run_code_in_docker=None, autogen_max_consecutive_auto_reply=None, autogen_max_turns=None,
                 autogen_timeout=None,
@@ -312,7 +329,11 @@ def run_autogen(query=None, agent_type=None,
         env_args = dict(system_site_packages=autogen_system_site_packages,
                         with_pip=True,
                         symlinks=True)
-        virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
+        if not in_pycharm():
+            virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
+        else:
+            print("in PyCharm, can't use virtualenv, so we use the system python", file=sys.stderr)
+            virtual_env_context = None
         # work_dir = ".workdir_%s" % username
         # PythonLoader(name='code', ))
 
@@ -361,9 +382,13 @@ def run_autogen(query=None, agent_type=None,
         is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
+
+    chat_query, internal_file_names = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir,
+                                                     model=model)
+
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
-                       message=query,
+                       message=chat_query,
                        cache=None,
                        silent=True,
                        )
@@ -393,6 +418,9 @@ def run_autogen(query=None, agent_type=None,
 
     # Filter the list to include only files
     file_list = [f for f in file_list if os.path.isfile(f)]
+    internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
+    # filter out internal files for RAG case
+    file_list = [f for f in file_list if os.path.normpath(f) not in internal_file_names_norm_paths]
     if agent_verbose:
         print("file_list:", file_list)
 
@@ -455,6 +483,8 @@ def run_autogen(query=None, agent_type=None,
         ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
     if autogen_system_site_packages is not None:
         ret_dict.update(dict(autogen_system_site_packages=autogen_system_site_packages))
+    if chat_query:
+        ret_dict.update(dict(chat_query=chat_query))
 
     return ret_dict
 
@@ -604,3 +634,93 @@ def identify_image_files(file_list):
             print(f"Warning: '{filename}' is not a valid file path.")
 
     return image_files, non_image_files
+
+
+def get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir, model=None):
+    """
+    Construct the chat query to be sent to the agent.
+    :param query:
+    :param text_context_list:
+    :param image_file:
+    :param chat_conversation:
+    :param temp_dir:
+    :return:
+    """
+    document_context = ""
+    chat_history_context = ""
+    internal_file_names = []
+
+    image_files_to_delete = []
+    b2imgs = []
+    for img_file_one in image_file:
+        from src.utils import check_input_type
+        str_type = check_input_type(img_file_one)
+        if str_type == 'unknown':
+            continue
+
+        img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
+        if str_type == 'url':
+            from src.utils import download_image
+            img_file_one = download_image(img_file_one, img_file_path)
+            # only delete if was made by us
+            image_files_to_delete.append(img_file_one)
+        elif str_type == 'base64':
+            from src.vision.utils_vision import base64_to_img
+            img_file_one = base64_to_img(img_file_one, img_file_path)
+            # only delete if was made by us
+            image_files_to_delete.append(img_file_one)
+        else:
+            # str_type='file' or 'youtube' or video (can be cached)
+            pass
+        if img_file_one is not None:
+            b2imgs.append(img_file_one)
+
+    if text_context_list:
+        meta_datas = [extract_xml_tags(x) for x in text_context_list]
+        meta_results = [generate_unique_filename(x) for x in meta_datas]
+        file_names, cleaned_names, pages = zip(*meta_results)
+        file_names = deduplicate_filenames(file_names)
+        document_context_file_name = "document_context.txt"
+        internal_file_names.append(document_context_file_name)
+        internal_file_names.extend(file_names)
+        with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
+            f.write("\n".join(text_context_list))
+        document_context += f"""Documents for questions about documents (converted from PDFs or images):
+Text file use Notes:
+* Check text file size before using, full text longer than 200k bytes may not fit in, in which case you must search the text for relevant information or split the text into parts.
+* Document Part texts should each be small and fit, but in aggregate they may not fit.
+* Full text: {document_context_file_name}
+"""
+        for i, file_name in enumerate(file_names):
+            text = text_context_list[i]
+            meta_data = meta_datas[i]
+            with open(os.path.join(temp_dir, file_name), "w") as f:
+                f.write(text)
+            if model and 'claude' in model:
+                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}<local_file_name>{file_name}</local_file_name>\n</doc>"""
+            else:
+                document_context += f"""* Document Part: {i}
+* Original File Name: {cleaned_names[i]}
+* Page Number: {pages[i]}
+* Local File Name: {file_name}
+"""
+    if b2imgs:
+        document_context += "Images of pages for the document:"
+        for i, b2img in enumerate(b2imgs):
+            document_context += f"* Document Image {i}: {b2img}\n"
+        document_context += '\n\n'
+        internal_file_names.extend(b2imgs)
+    if chat_conversation:
+        from openai_server.chat_history_render import chat_to_pretty_markdown
+        messages_for_query = structure_to_messages(query, None, chat_conversation, [])
+        chat_history_context = chat_to_pretty_markdown(messages_for_query, cute=False) + '\n\n'
+    chat_query = f"""{document_context}{chat_history_context}{query}"""
+
+    # convert to full name
+    internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
+
+    return chat_query, internal_file_names
+
+
+def in_pycharm():
+    return os.getenv("PYCHARM_HOSTED") is not None

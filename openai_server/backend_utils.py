@@ -2,6 +2,7 @@ import json
 import os
 import typing
 import uuid
+from collections import defaultdict
 
 
 def concatenate_messages(messages, role='assistant', sep='\n'):
@@ -72,6 +73,7 @@ def concat_tool_messages(messages):
 
     return final_messages
 
+
 def convert_messages_to_structure(messages):
     """
     Convert a list of messages with roles and content into a structured format.
@@ -85,7 +87,7 @@ def convert_messages_to_structure(messages):
 
     # messages = concatenate_messages(messages, tole='assistant')
     messages = concat_tool_messages(messages)
-    #messages = concatenate_messages(messages, role='tool')
+    # messages = concatenate_messages(messages, role='tool')
 
     structure = {
         "instruction": None,
@@ -309,3 +311,123 @@ def get_last_and_return_value(gen):
     except StopIteration as e:
         return_value = e.value
     return last_value, return_value
+
+
+import xml.etree.ElementTree as ET
+import re
+
+
+def extract_xml_tags(xml_string):
+    # Remove leading/trailing whitespace and newlines
+    xml_string = xml_string.strip()
+
+    # If the string is empty, return a special empty marker
+    if not xml_string:
+        return "[[EMPTY]]"
+
+    # If the string doesn't contain any XML tags, return an unparseable marker
+    if '<' not in xml_string or '>' not in xml_string:
+        return "[[UNPARSEABLE]]" + xml_string
+
+    try:
+        # Try to parse the XML string
+        if xml_string.startswith('<doc>') and xml_string.endswith('</doc>'):
+            root = ET.fromstring(xml_string)
+        else:
+            # If there's no <doc> tag, wrap the content in a temporary root
+            root = ET.fromstring(f"<root>{xml_string}</root>")
+
+        # Create a list to store the extracted tags
+        extracted_tags = []
+
+        # Extract all child elements except 'text'
+        for child in root:
+            if child.tag not in ['text', 'doc']:
+                # Convert the element to a string and remove any internal newlines
+                tag_string = ET.tostring(child, encoding='unicode').strip()
+                tag_string = re.sub(r'\s*\n\s*', ' ', tag_string)
+                extracted_tags.append(tag_string)
+
+        # Join the extracted tags with a single newline
+        result = '\n'.join(extracted_tags)
+
+        # Ensure there's a newline at the end, but only one
+        result = result.rstrip() + '\n'
+
+        return result
+
+    except ET.ParseError:
+        # If parsing fails, return the unparseable marker with the original string
+        return "[[UNPARSEABLE]]" + xml_string
+
+
+def generate_unique_filename(xml_output):
+    # Check for the special empty marker
+    if xml_output == "[[EMPTY]]":
+        unique_id = str(uuid.uuid4())
+        return f"unknown_{unique_id}_page_0.txt", f"unknown_{unique_id}", "0"
+
+    # Check for the special unparseable marker
+    if xml_output.startswith("[[UNPARSEABLE]]"):
+        unique_id = str(uuid.uuid4())
+        return f"unparseable_{unique_id}_page_0.txt", f"unparseable_{unique_id}", "0"
+
+    # If xml_output is empty (shouldn't happen, but just in case), generate a filename with UUID
+    if not xml_output.strip():
+        unique_id = str(uuid.uuid4())
+        return f"unknown_{unique_id}_page_0.txt", f"unknown_{unique_id}", "0"
+
+    try:
+        # Try to parse the XML string
+        root = ET.fromstring(f"<root>{xml_output}</root>")
+    except ET.ParseError:
+        # If parsing fails, generate a filename with UUID
+        unique_id = str(uuid.uuid4())
+        return f"unparseable_{unique_id}_page_0.txt", f"unparseable_{unique_id}", "0"
+
+    # Extract name and page
+    name_elem = root.find('name')
+    page_elem = root.find('page')
+
+    # Use UUID if name is missing, '0' if page is missing
+    name = name_elem.text.strip() if name_elem is not None else str(uuid.uuid4())
+    page = page_elem.text.strip() if page_elem is not None else '0'
+
+    # Remove file extension if present
+    name = os.path.splitext(name)[0]
+
+    # Clean the name: remove any characters that aren't alphanumeric, underscore, or hyphen
+    clean_name = re.sub(r'[^\w\-]', '_', name)
+
+    # Create the unique filename
+    unique_filename = f"{clean_name}_page_{page}.txt"
+
+    return unique_filename, clean_name, page
+
+
+def deduplicate_filenames(filenames):
+    seen = defaultdict(int)
+    result = []
+    needs_renumbering = set()
+
+    # First pass: identify duplicates and mark for renumbering
+    for filename in filenames:
+        if seen[filename] > 0:
+            needs_renumbering.add(filename)
+        seen[filename] += 1
+
+    # Reset the seen counter for the second pass
+    seen = defaultdict(int)
+
+    # Second pass: rename files
+    for filename in filenames:
+        base, ext = filename.rsplit('.', 1)
+        if filename in needs_renumbering:
+            new_filename = f"{base}_chunk_{seen[filename]}.{ext}"
+        else:
+            new_filename = filename
+
+        seen[filename] += 1
+        result.append(new_filename)
+
+    return result
