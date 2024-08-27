@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -652,6 +653,7 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
 
     image_files_to_delete = []
     b2imgs = []
+    meta_data_images = []
     for img_file_one in image_file:
         from src.utils import check_input_type
         str_type = check_input_type(img_file_one)
@@ -674,6 +676,15 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
             pass
         if img_file_one is not None:
             b2imgs.append(img_file_one)
+
+            import pprint
+            import pyexiv2
+
+            with pyexiv2.Image(img_file_one) as img:
+                metadata = img.read_exif()
+            if metadata is None:
+                metadata = {}
+            meta_data_images.append(metadata)
 
     if text_context_list:
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
@@ -705,9 +716,12 @@ Text file use Notes:
 * Local File Name: {file_name}
 """
     if b2imgs:
+        import pprint
         document_context += "Images of pages for the document:"
         for i, b2img in enumerate(b2imgs):
-            document_context += f"* Document Image {i}: {b2img}\n"
+            document_context += f"""* Document Image {i}: {b2img}
+Metadata: {pprint.pformat(meta_data_images[i])}
+"""
         document_context += '\n\n'
         internal_file_names.extend(b2imgs)
     if chat_conversation:
