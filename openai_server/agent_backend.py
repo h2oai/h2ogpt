@@ -685,7 +685,9 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
         document_context += f"""Documents for questions about documents (converted from PDFs or images):
-Note: Full text may be too long for use with LLM, while rest of Document Parts are each able to usually fit in LLM context.  So if you use the full text, you may need to split the text into parts first else LLM will get truncated content.
+Text file use Notes:
+* Check text file size before using, full text longer than 200k bytes may not fit in, in which case you must search the text for relevant information or split the text into parts.
+* Document Part texts should each be small and fit, but in aggregate they may not fit.
 * Full text: {document_context_file_name}
 """
         for i, file_name in enumerate(file_names):
@@ -694,7 +696,7 @@ Note: Full text may be too long for use with LLM, while rest of Document Parts a
             with open(os.path.join(temp_dir, file_name), "w") as f:
                 f.write(text)
             if model and 'claude' in model:
-                document_context += f"""<doc><document_part>{i}</document_part>\n{meta_data}<local_file_name>{file_name}</local_file_name></doc>"""
+                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}<local_file_name>{file_name}</local_file_name>\n</doc>"""
             else:
                 document_context += f"""* Document Part: {i}
 * Original File Name: {cleaned_names[i]}
