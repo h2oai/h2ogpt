@@ -758,13 +758,15 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
 
             meta_data = ''
             for meta_data_image in meta_data_images[batch:batch + images_num_max_batch]:
+                if not meta_data_image:
+                    continue
                 meta_data += '\n'.join(
                     [f"""<{key}><{value}</{key}>\n""" for key, value in meta_data_image.items()]).strip() + '\n'
             response_final = f'<images>\n<batch_name>\nImage {batch}\n</bach_name>\n{meta_data}\n\n{text}\n\n</images>'
 
             batch_results.append(dict(image_ids=list(range(batch, batch + images_num_max_batch)),
                                       response=text,
-                                      resopnse_final=response_final,
+                                      response_final=response_final,
                                       prompt_raw=prompt_raw_saved,
                                       save_dict=save_dict1_saved,
                                       error=error_saved,

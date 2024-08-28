@@ -542,22 +542,21 @@ async def handle_models(request: Request):
     from openai_server.backend import get_client
     client = get_client()
     model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
-    base_models = [x['base_model'] for x in model_dict]
+    for model_i, model in enumerate(model_dict):
+        model_dict[model_i].update(dict(id=model.get('base_model'), object='model', created='NA', owned_by='H2O.ai'))
 
     if not model_name:
         response = {
             "object": "list",
-            "data": [dict(id=x, object='model', created='NA', owned_by='H2O.ai') for x in base_models],
+            "data": model_dict,
         }
         return JSONResponse(response)
     else:
-        model_index = base_models.index(model_name)
-        if model_index >= 0:
-            model_info = model_dict[model_index]
-        else:
+        model_info = model_dict.get(model_name) if model_name else None
+        response = model_info.copy() if model_info else {}
+        if model_info is None:
             raise ValueError("No such model %s" % model_name)
 
-        response = dict(id=model_info['base_model'], object='model', created='NA', owned_by='H2O.ai')
         return JSONResponse(response)
 
 
