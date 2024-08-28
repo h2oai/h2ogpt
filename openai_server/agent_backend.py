@@ -90,7 +90,9 @@ def run_agent(query,
               # autogen/agent specific parameters
               agent_type=None,
               autogen_stop_docker_executor=None,
-              autogen_run_code_in_docker=None, autogen_max_consecutive_auto_reply=None, autogen_max_turns=None,
+              autogen_run_code_in_docker=None,
+              autogen_max_consecutive_auto_reply=None,
+              autogen_max_turns=None,
               autogen_timeout=None,
               autogen_cache_seed=None,
               autogen_venv_dir=None,
@@ -253,7 +255,9 @@ def run_autogen(query=None,
                 # autogen/agent specific parameters
                 agent_type=None,
                 autogen_stop_docker_executor=None,
-                autogen_run_code_in_docker=None, autogen_max_consecutive_auto_reply=None, autogen_max_turns=None,
+                autogen_run_code_in_docker=None,
+                autogen_max_consecutive_auto_reply=None,
+                autogen_max_turns=None,
                 autogen_timeout=None,
                 autogen_cache_seed=None,
                 autogen_venv_dir=None,
@@ -279,6 +283,8 @@ def run_autogen(query=None,
         autogen_run_code_in_docker = False
     if autogen_max_consecutive_auto_reply is None:
         autogen_max_consecutive_auto_reply = 10
+    if autogen_max_turns is None:
+        autogen_max_turns = 20
     if autogen_timeout is None:
         autogen_timeout = 120
     if autogen_system_site_packages is None:
@@ -472,7 +478,9 @@ def run_autogen(query=None,
     if autogen_system_site_packages is not None:
         ret_dict.update(dict(autogen_system_site_packages=autogen_system_site_packages))
     if chat_doc_query:
-        ret_dict.update(dict(chat_query=chat_doc_query))
+        ret_dict.update(dict(chat_doc_query=chat_doc_query))
+    if image_query_helper:
+        ret_dict.update(dict(image_query_helper=image_query_helper))
 
     return ret_dict
 
@@ -757,7 +765,6 @@ def get_image_query_helper(base_url, api_key, model):
         vision_model = None
 
     if vision_model:
-
         os.environ['H2OGPT_OPENAI_VISION_MODEL'] = vision_model
 
         cwd = os.path.abspath(os.getcwd())
