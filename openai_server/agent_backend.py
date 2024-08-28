@@ -757,7 +757,6 @@ def get_image_query_helper(base_url, api_key, model):
         vision_model = None
 
     if vision_model:
-
         os.environ['H2OGPT_OPENAI_VISION_MODEL'] = vision_model
 
         cwd = os.path.abspath(os.getcwd())
