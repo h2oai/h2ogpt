@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -147,41 +148,25 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
             # https://products.wolframalpha.com/api/documentation
             cwd = os.path.abspath(os.getcwd())
             wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
-In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
-```sh
-# filename: my_wolfram_response.sh
-# text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
-python {cwd}/openai_server/agent_tools/wolfram.py "QUERY GOES HERE"
-```
-For fine-grain control, you can code yourself, E.g.:
-```python
-from wolframalpha import Client
-import os
-client = Client(os.getenv('WOLFRAM_ALPHA_APPID'))
-res = client.query('QUERY GOES HERE')
-# res['@success'] is bool not string.
-if res['@success']:
-    # print all fields
-    # Do not assume you know title or other things in pod.
-    for pod in res.pods:
-        for sub in pod.subpods:
-            print(sub.plaintext)
-else:
-    print('No results from Wolfram Alpha')
-```
+    * In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
+    ```sh
+    # filename: my_wolfram_response.sh
+    python {cwd}/openai_server/agent_tools/wolfram_query.py "QUERY GOES HERE"
+    ```
+    * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
 """
         else:
             wolframalpha = ""
         if have_internet and os.getenv('NEWS_API_KEY'):
             news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search through articles and blogs published in the last 5 years.
-            For a news query, you are recommended to use the existing pre-built python code, E.g.:
-```sh
-# filename: my_news_response.sh
-# Text results get printed with title, author, description, and URL for (by default) 10 articles.
-# You can pull the URL content for more information on a topic.
-# usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [-n NUM_ARTICLES] [-q QUERY] [-f FROM_DATE] [-t TO_DATE] [-s {{relevancy, popularity, publishedAt}}] [-l LANGUAGE] [-c COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
-python {cwd}/openai_server/agent_tools/news_query.py -q "QUERY GOES HERE"
-```
+    * For a news query, you are recommended to use the existing pre-built python code, E.g.:
+    ```sh
+    # filename: my_news_response.sh
+    python {cwd}/openai_server/agent_tools/news_query.py -query "QUERY GOES HERE"
+    ```
+    * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--from_date FROM_DATE] [--to_date TO_DATE] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+    * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
+    * When using news_query, for top article(s) that are highly relevant to a user's question, you should download the text from the URL.
 """
         else:
             news_api = ''
@@ -368,9 +353,15 @@ def run_autogen(query=None,
         print("base_url: %s" % base_url)
         print("max_tokens: %s" % max_new_tokens)
 
+    image_query_helper = get_image_query_helper(base_url, api_key, model)
+
+    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file, chat_conversation,
+                                                               temp_dir,
+                                                               model=model)
+
     code_writer_agent = ConversableAgent(
         "code_writer_agent",
-        system_message=agent_code_writer_system_message,
+        system_message=agent_code_writer_system_message + image_query_helper + chat_doc_query,
         llm_config={"config_list": [{"model": model,
                                      "api_key": api_key,
                                      "base_url": base_url,
@@ -383,12 +374,9 @@ def run_autogen(query=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    chat_query, internal_file_names = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir,
-                                                     model=model)
-
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
-                       message=chat_query,
+                       message=query,
                        cache=None,
                        silent=True,
                        )
@@ -483,8 +471,8 @@ def run_autogen(query=None,
         ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
     if autogen_system_site_packages is not None:
         ret_dict.update(dict(autogen_system_site_packages=autogen_system_site_packages))
-    if chat_query:
-        ret_dict.update(dict(chat_query=chat_query))
+    if chat_doc_query:
+        ret_dict.update(dict(chat_query=chat_doc_query))
 
     return ret_dict
 
@@ -636,10 +624,9 @@ def identify_image_files(file_list):
     return image_files, non_image_files
 
 
-def get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir, model=None):
+def get_chat_doc_context(text_context_list, image_file, chat_conversation, temp_dir, model=None):
     """
     Construct the chat query to be sent to the agent.
-    :param query:
     :param text_context_list:
     :param image_file:
     :param chat_conversation:
@@ -652,6 +639,7 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
 
     image_files_to_delete = []
     b2imgs = []
+    meta_data_images = []
     for img_file_one in image_file:
         from src.utils import check_input_type
         str_type = check_input_type(img_file_one)
@@ -675,6 +663,13 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
         if img_file_one is not None:
             b2imgs.append(img_file_one)
 
+            import pyexiv2
+            with pyexiv2.Image(img_file_one) as img:
+                metadata = img.read_exif()
+            if metadata is None:
+                metadata = {}
+            meta_data_images.append(metadata)
+
     if text_context_list:
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
         meta_results = [generate_unique_filename(x) for x in meta_datas]
@@ -685,42 +680,96 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
         internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
-        document_context += f"""Documents for questions about documents (converted from PDFs or images):
-Text file use Notes:
-* Check text file size before using, full text longer than 200k bytes may not fit in, in which case you must search the text for relevant information or split the text into parts.
-* Document Part texts should each be small and fit, but in aggregate they may not fit.
-* Full text: {document_context_file_name}
+        document_context += f"""\n# Full user text:
+* This file contains text from documents the user uploaded.
+* Check text file size before using, because text longer than 200k bytes may not fit into LLM context (so split it up or use document chunks).
+* Use the local file name to access the text.
+"""
+        if model and 'claude' in model:
+            document_context += f"""<local_file_name>\n{document_context_file_name}\n</local_file_name>\n"""
+        else:
+            document_context += f"""* Local File Name: {document_context_file_name}\n"""
+
+        document_context += """\n# Document Chunks of user text:
+* Chunked text are chunked out of full text, and these each should be small, but in aggregate they may not fit into LLM context.
+* Use the local file name to access the text.
 """
         for i, file_name in enumerate(file_names):
             text = text_context_list[i]
-            meta_data = meta_datas[i]
+            meta_data = str(meta_datas[i]).strip()
             with open(os.path.join(temp_dir, file_name), "w") as f:
                 f.write(text)
             if model and 'claude' in model:
-                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}<local_file_name>{file_name}</local_file_name>\n</doc>"""
+                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}\n<local_file_name>\n{file_name}\n</local_file_name>\n</doc>\n"""
             else:
-                document_context += f"""* Document Part: {i}
+                document_context += f"""\n* Document Part: {i}
 * Original File Name: {cleaned_names[i]}
 * Page Number: {pages[i]}
 * Local File Name: {file_name}
 """
     if b2imgs:
-        document_context += "Images of pages for the document:"
+        document_context += """\n# Images from user:
+* Images are from image versions of document pages or other images.
+* Use the local file name to access image files.
+"""
         for i, b2img in enumerate(b2imgs):
-            document_context += f"* Document Image {i}: {b2img}\n"
+            if model and 'claude' in model:
+                meta_data = '\n'.join(
+                    [f"""<{key}><{value}</{key}>\n""" for key, value in meta_data_images[i].items()]).strip()
+                document_context += f"""<image>\n<document_image>{i}</document_image>\n{meta_data}\n<local_file_name>\n{b2img}\n</local_file_name>\n</image>\n"""
+            else:
+                document_context += f"""\n* Document Image {i}
+* Local File Name: {b2img}
+"""
+                for key, value in meta_data_images[i].items():
+                    document_context += f"""* {key}: {value}\n"""
         document_context += '\n\n'
         internal_file_names.extend(b2imgs)
     if chat_conversation:
         from openai_server.chat_history_render import chat_to_pretty_markdown
-        messages_for_query = structure_to_messages(query, None, chat_conversation, [])
+        messages_for_query = structure_to_messages(None, None, chat_conversation, [])
         chat_history_context = chat_to_pretty_markdown(messages_for_query, cute=False) + '\n\n'
-    chat_query = f"""{document_context}{chat_history_context}{query}"""
+
+    chat_doc_query = f"""{chat_history_context}{document_context}"""
 
     # convert to full name
     internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
 
-    return chat_query, internal_file_names
+    return chat_doc_query, internal_file_names
 
 
 def in_pycharm():
     return os.getenv("PYCHARM_HOSTED") is not None
+
+
+def get_image_query_helper(base_url, api_key, model):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=60)
+    model_list = client.models.list()
+    image_models = [x.id for x in model_list if x.model_extra['actually_image']]
+    we_are_vision_model = len([x for x in model_list if x.id == model]) > 0
+    image_query_helper = ''
+    if we_are_vision_model:
+        vision_model = model
+    elif not we_are_vision_model and len(image_models) > 0:
+        vision_model = image_models[0]
+    else:
+        vision_model = None
+
+    if vision_model:
+
+        os.environ['H2OGPT_OPENAI_VISION_MODEL'] = vision_model
+
+        cwd = os.path.abspath(os.getcwd())
+        image_query_helper = f"""\n# Image Query Helper:
+* If you need to ask a question about an image, use the following sh code:
+```sh
+# filename: my_image_response.sh
+python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "LOCAL FILE NAME"
+```
+* usage: {cwd}/openai_server/agent_tools/image_query.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
+* image_query gives a text response for either a URL or local file
+* image_query can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
+* Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
+"""
+    return image_query_helper

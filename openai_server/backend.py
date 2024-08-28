@@ -617,7 +617,7 @@ def get_model_info():
     # concurrent gradio client
     client = get_client()
     model_dict = ast.literal_eval(client.predict(api_name='/model_names'))
-    return dict(model_names=model_dict[0])
+    return dict(model_names=model_dict)
 
 
 def get_model_list():
