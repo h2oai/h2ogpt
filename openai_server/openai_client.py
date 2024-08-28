@@ -75,6 +75,7 @@ def run_openai_client(
     convert_to_pdf=None,
     use_agent=False,
     base64_encode_agent_files=True,
+    cute=False,
     **query_kwargs,
 ):
     """
@@ -98,7 +99,7 @@ def run_openai_client(
     text_context_list = query_kwargs["text_context_list"]
     chat_conversation = query_kwargs["chat_conversation"]
     image_files = query_kwargs["image_file"]
-    system_message = query_kwargs["system_message"]
+    system_message = query_kwargs["system_prompt"]
 
     from h2ogpte_core.backend_utils import structure_to_messages
 
@@ -246,7 +247,7 @@ def run_openai_client(
 
     # Get internal chat history
     chat_history = usage.chat_history if hasattr(usage, "chat_history") else None
-    chat_history_md = chat_to_pretty_markdown(chat_history)
+    chat_history_md = chat_to_pretty_markdown(chat_history, cute=cute)
 
     # estimate tokens per second
     tokens_per_second = output_tokens / (tf - t0 + 1e-6)
