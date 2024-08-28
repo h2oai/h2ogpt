@@ -96,59 +96,15 @@ def run_openai_client(
     model = query_kwargs["visible_models"]
     stream_output = query_kwargs["stream_output"]
     text_context_list = query_kwargs["text_context_list"]
-    image_files = query_kwargs["image_files"]
+    chat_conversation = query_kwargs["chat_conversation"]
+    image_files = query_kwargs["image_file"]
+    system_message = query_kwargs["system_message"]
 
-    messages = []
+    from h2ogpte_core.backend_utils import structure_to_messages
 
-    if query_kwargs.get("chat_history"):
-        for chat in query_kwargs["chat_history"]:
-            if chat[0] and chat[1]:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": chat[0],
-                    }
-                )
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": chat[1],
-                    }
-                )
-    # NOTE: Could pass image_files through extra_body instead.
-    if query_kwargs.get("image_files"):
-        messages_images = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt,
-                    }
-                ],
-            }
-        ]
-        for image_file in image_files:
-            messages_images[0]["content"].append(
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        # URL accessible from web or markdown + base64 type url
-                        "url": image_file,
-                        "detail": "high",
-                    },
-                }
-            )
-        messages.extend(messages_images)
-    else:
-        messages.extend(
-            [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ]
-        )
+    messages = structure_to_messages(
+        prompt, system_message, chat_conversation, image_files
+    )
 
     if use_agent:
         extra_body = dict(
