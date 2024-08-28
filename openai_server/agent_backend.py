@@ -369,9 +369,13 @@ def run_autogen(query=None,
         print("base_url: %s" % base_url)
         print("max_tokens: %s" % max_new_tokens)
 
+    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file, chat_conversation,
+                                                               temp_dir,
+                                                               model=model)
+
     code_writer_agent = ConversableAgent(
         "code_writer_agent",
-        system_message=agent_code_writer_system_message,
+        system_message=agent_code_writer_system_message + chat_doc_query,
         llm_config={"config_list": [{"model": model,
                                      "api_key": api_key,
                                      "base_url": base_url,
@@ -384,12 +388,9 @@ def run_autogen(query=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
-    chat_query, internal_file_names = get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir,
-                                                     model=model)
-
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
-                       message=chat_query,
+                       message=query,
                        cache=None,
                        silent=True,
                        )
@@ -637,10 +638,9 @@ def identify_image_files(file_list):
     return image_files, non_image_files
 
 
-def get_chat_query(query, text_context_list, image_file, chat_conversation, temp_dir, model=None):
+def get_chat_doc_context(text_context_list, image_file, chat_conversation, temp_dir, model=None):
     """
     Construct the chat query to be sent to the agent.
-    :param query:
     :param text_context_list:
     :param image_file:
     :param chat_conversation:
@@ -677,9 +677,7 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
         if img_file_one is not None:
             b2imgs.append(img_file_one)
 
-            import pprint
             import pyexiv2
-
             with pyexiv2.Image(img_file_one) as img:
                 metadata = img.read_exif()
             if metadata is None:
@@ -696,44 +694,62 @@ def get_chat_query(query, text_context_list, image_file, chat_conversation, temp
         internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
-        document_context += f"""Documents for questions about documents (converted from PDFs or images):
-Text file use Notes:
-* Check text file size before using, full text longer than 200k bytes may not fit in, in which case you must search the text for relevant information or split the text into parts.
-* Document Part texts should each be small and fit, but in aggregate they may not fit.
-* Full text: {document_context_file_name}
+        document_context += f"""\n# Full text:
+* Check text file size before using
+* Full text longer than 200k bytes may not fit into LLM context, in which case you must search the text for relevant information.
+* Use the local file name to access the text.
+"""
+        if model and 'claude' in model:
+            document_context += f"""<local_file_name>\n{document_context_file_name}\n</local_file_name>\n"""
+        else:
+            document_context += f"""* Local File Name: {document_context_file_name}\n"""
+
+        document_context += """\n# Document Chunks of text:
+* Chunked text are chunked out of full text, and these each should be small, but in aggregate they may not fit into LLM context.
+* Use the local file name to access the text.
 """
         for i, file_name in enumerate(file_names):
             text = text_context_list[i]
-            meta_data = meta_datas[i]
+            meta_data = str(meta_datas[i]).strip()
             with open(os.path.join(temp_dir, file_name), "w") as f:
                 f.write(text)
             if model and 'claude' in model:
-                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}<local_file_name>{file_name}</local_file_name>\n</doc>"""
+                document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}\n<local_file_name>\n{file_name}\n</local_file_name>\n</doc>\n"""
             else:
-                document_context += f"""* Document Part: {i}
+                document_context += f"""\n* Document Part: {i}
 * Original File Name: {cleaned_names[i]}
 * Page Number: {pages[i]}
 * Local File Name: {file_name}
 """
     if b2imgs:
-        import pprint
-        document_context += "Images of pages for the document:"
-        for i, b2img in enumerate(b2imgs):
-            document_context += f"""* Document Image {i}: {b2img}
-Metadata: {pprint.pformat(meta_data_images[i])}
+        document_context += """\n# Images:
+* Images are from image versions of pages or other images.
+* Use the local file name to access image files.
 """
+        for i, b2img in enumerate(b2imgs):
+            if model and 'claude' in model:
+                meta_data = '\n'.join(
+                    [f"""<{key}><{value}</{key}>\n""" for key, value in meta_data_images[i].items()]).strip()
+                document_context += f"""<image>\n<document_image>{i}</document_image>\n{meta_data}\n<local_file_name>\n{b2img}\n</local_file_name>\n</image>\n"""
+            else:
+                document_context += f"""\n* Document Image {i}
+* Local File Name: {b2img}
+"""
+                for key, value in meta_data_images[i].items():
+                    document_context += f"""* {key}: {value}\n"""
         document_context += '\n\n'
         internal_file_names.extend(b2imgs)
     if chat_conversation:
         from openai_server.chat_history_render import chat_to_pretty_markdown
-        messages_for_query = structure_to_messages(query, None, chat_conversation, [])
+        messages_for_query = structure_to_messages(None, None, chat_conversation, [])
         chat_history_context = chat_to_pretty_markdown(messages_for_query, cute=False) + '\n\n'
-    chat_query = f"""{document_context}{chat_history_context}{query}"""
+
+    chat_doc_query = f"""{chat_history_context}{document_context}"""
 
     # convert to full name
     internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
 
-    return chat_query, internal_file_names
+    return chat_doc_query, internal_file_names
 
 
 def in_pycharm():

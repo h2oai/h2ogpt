@@ -554,6 +554,15 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     else:
         image_files = image_files.copy()
 
+    import pyexiv2
+    meta_data_images = []
+    for image_files1 in image_files:
+        with pyexiv2.Image(image_files1) as img:
+            metadata = img.read_exif()
+        if metadata is None:
+            metadata = {}
+        meta_data_images.append(metadata)
+
     fun1_args_list = list(fun1.args)
     chosen_model_state = fun1.args[input_args_list.index('model_state')]
     base_model = chosen_model_state.get('base_model')
@@ -746,9 +755,16 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             batch_time += (time.time() - t0_batch)
             tokens_per_sec1 = save_dict1_saved['extra_dict'].get('tokens_persecond', 0)
             batch_tokenspersec += tokens_per_sec1
+
+            meta_data = ''
+            for meta_data_image in meta_data_images[batch:batch + images_num_max_batch]:
+                meta_data += '\n'.join(
+                    [f"""<{key}><{value}</{key}>\n""" for key, value in meta_data_image.items()]).strip() + '\n'
+            response_final = f'<images>\n<batch_name>\nImage {batch}\n</bach_name>\n{meta_data}\n\n{text}\n\n</images>'
+
             batch_results.append(dict(image_ids=list(range(batch, batch + images_num_max_batch)),
                                       response=text,
-                                      response_final=f'<image>\n<name>\nImage {batch}\n</name>\n\n{text}\n\n</image>',
+                                      resopnse_final=response_final,
                                       prompt_raw=prompt_raw_saved,
                                       save_dict=save_dict1_saved,
                                       error=error_saved,
