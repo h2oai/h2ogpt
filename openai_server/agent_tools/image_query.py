@@ -9,7 +9,8 @@ def main():
                         default="""You are a highly capable AI assistant with advanced vision capabilities.
 * Analyze the provided image thoroughly and provide detailed, accurate descriptions or answers based on what you see.
 * Consider various aspects such as objects, people, actions, text, colors, composition, and any other relevant details.
-* If asked a specific question about the image, focus your response on addressing that question directly.""",
+* If asked a specific question about the image, focus your response on addressing that question directly.
+* Ensure you add a critique of the image, if anything seems wrong, or if anything requires improvement.""",
                         help="System prompt")
     parser.add_argument("-p", "--prompt", type=str, required=True, help="User prompt")
     parser.add_argument("-u", "--url", type=str, help="URL of the image")
