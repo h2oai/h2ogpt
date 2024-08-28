@@ -90,6 +90,9 @@ tiktoken>=0.5.2
 # optional: for OpenAI endpoint
 openai>=1.40.1
 
+# for image metadata
+pyexiv2
+
 requests>=2.31.0
 httpx>=0.24.1
 urllib3>=1.26.16

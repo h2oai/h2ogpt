@@ -104,5 +104,3 @@ gradio_tools>=0.0.9
 # Qdrant - https://qdrant.tech vector database
 qdrant-client>=1.8.0
 
-# for image metadata
-pyexiv2
