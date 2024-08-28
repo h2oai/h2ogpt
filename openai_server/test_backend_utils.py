@@ -1,3 +1,6 @@
+import sys
+
+
 def test_extract_xml_tags():
     xml_input = """
 <doc>
@@ -100,3 +103,12 @@ def test_generate_unique_filename_multiple_returns():
     assert pages[2] == "5"
     assert file_names[3].startswith("unparseable_")
     assert file_names[4].startswith("unknown_")
+
+
+def test_exif():
+    import pyexiv2
+    img_file_one = 'tests/image_exif.jpg'
+    with pyexiv2.Image(img_file_one) as img:
+        metadata = img.read_exif()
+    assert metadata is not None and metadata != {}
+    print(metadata, file=sys.stderr)

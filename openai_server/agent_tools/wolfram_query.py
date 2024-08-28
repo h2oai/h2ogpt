@@ -2,8 +2,6 @@ import wolframalpha
 import requests
 import os
 import argparse
-from urllib.parse import urlparse
-from pathlib import Path
 
 
 def sanitize_filename(name):
