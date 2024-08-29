@@ -361,8 +361,10 @@ def run_autogen(query=None,
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
 
-    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file, chat_conversation,
+    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
+                                                               # avoid text version of chat conversation, confuses LLM
+                                                               chat_conversation=None,
                                                                model=model)
 
     code_writer_agent = ConversableAgent(
@@ -380,11 +382,21 @@ def run_autogen(query=None,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
+    # apply chat history
+    if chat_conversation:
+        chat_messages = structure_to_messages(None, None, chat_conversation, None)
+        for message in chat_messages:
+            if message['role'] == 'assistant':
+                code_writer_agent.send(message['content'], code_executor_agent, request_reply=False)
+            if message['role'] == 'user':
+                code_executor_agent.send(message['content'], code_writer_agent, request_reply=False)
+
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,
                        message=query,
                        cache=None,
                        silent=True,
+                       clear_history=False,
                        )
     if autogen_cache_seed:
         from autogen import Cache
@@ -632,7 +644,7 @@ def identify_image_files(file_list):
     return image_files, non_image_files
 
 
-def get_chat_doc_context(text_context_list, image_file, chat_conversation, temp_dir, model=None):
+def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversation=None, model=None):
     """
     Construct the chat query to be sent to the agent.
     :param text_context_list:
@@ -736,7 +748,7 @@ def get_chat_doc_context(text_context_list, image_file, chat_conversation, temp_
     if chat_conversation:
         from openai_server.chat_history_render import chat_to_pretty_markdown
         messages_for_query = structure_to_messages(None, None, chat_conversation, [])
-        chat_history_context = chat_to_pretty_markdown(messages_for_query, cute=False) + '\n\n'
+        chat_history_context = chat_to_pretty_markdown(messages_for_query, assistant_name='Assistant', user_name='User', cute=False) + '\n\n'
 
     chat_doc_query = f"""{chat_history_context}{document_context}"""
 
