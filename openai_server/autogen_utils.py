@@ -133,9 +133,6 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 if match.group(f"pat{i}"):
                     raise ValueError(f"Potentially dangerous operation detected: {patterns[pattern]}")
 
-        # for sanity, but also too aggressive and too weak
-        # return LocalCommandLineCodeExecutor.sanitize_command(lang, code)
-
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         ret = super()._execute_code_dont_check_setup(code_blocks)
 
@@ -194,3 +191,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 raise ValueError(error_message)
 
         return ret
+
+
+# override the original method with the new one
+# required because original class does not use super() but references its own method
+LocalCommandLineCodeExecutor.sanitize_command = H2OLocalCommandLineCodeExecutor.sanitize_command
