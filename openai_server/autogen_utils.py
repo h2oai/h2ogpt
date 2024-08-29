@@ -1,15 +1,21 @@
 import os
 import re
+import sys
 import typing
 from typing import List, Tuple
 
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
 
+verbose = False
+
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
     @staticmethod
     def remove_comments_strings(code: str, lang: str) -> str:
+        if verbose:
+            print(f"Original code:\n{code}", file=sys.stderr)
+
         if lang in ["bash", "shell", "sh"]:
             # Remove single-line comments
             code = re.sub(r'#.*$', '', code, flags=re.MULTILINE)
@@ -25,25 +31,28 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             # Remove string literals (this is a simplification and might not catch all cases)
             code = re.sub(r'"[^"]*"', '', code)
             code = re.sub(r"'[^']*'", '', code)
-        return code
 
-    @staticmethod
+        cleaned_code = code.strip()  # Added strip() to remove leading/trailing whitespace
+        if verbose:
+            print(f"Cleaned code:\n{cleaned_code}", file=sys.stderr)
+        return cleaned_code
+
     @staticmethod
     def sanitize_command(lang: str, code: str) -> None:
         shell_patterns: typing.Dict[str, str] = {
             r"\brm\b": "Deleting files or directories is not allowed.",
             r"\brm\s+-rf\b": "Use of 'rm -rf' command is not allowed.",
-            r"\bmv\b.*?\s+/dev/null": "Moving files to /dev/null is not allowed.",
+            r"\bmv\b.*?/dev/null": "Moving files to /dev/null is not allowed.",
             r"\bdd\b": "Use of 'dd' command is not allowed.",
             r">\s*/dev/sd[a-z][1-9]?": "Overwriting disk blocks directly is not allowed.",
-            r":\(\)\{\s*:\|\:&\s*\};:": "Fork bombs are not allowed.",
+            r":\(\)\{.*?\}:": "Fork bombs are not allowed.",
             r"\bsudo\b": "Use of 'sudo' command is not allowed.",
             r"\bsu\b": "Use of 'su' command is not allowed.",
-            r"\bchmod\s+([0-7]{3,4}|[+-][rwx])": "Changing file permissions is not allowed.",
+            r"\bchmod\b": "Changing file permissions is not allowed.",
             r"\bchown\b": "Changing file ownership is not allowed.",
-            r"\bnc\b.*?\b-e\b": "Use of netcat in command execution mode is not allowed.",
-            r"\bcurl\b.*?\b\|\s*bash": "Piping curl output to bash is not allowed.",
-            r"\bwget\b.*?\b\|\s*bash": "Piping wget output to bash is not allowed.",
+            r"\bnc\b.*?-e": "Use of netcat in command execution mode is not allowed.",
+            r"\bcurl\b.*?\|\s*bash": "Piping curl output to bash is not allowed.",
+            r"\bwget\b.*?\|\s*bash": "Piping wget output to bash is not allowed.",
             r"\b(systemctl|service)\s+(start|stop|restart)": "Starting, stopping, or restarting services is not allowed.",
             r"\bnohup\b": "Use of 'nohup' command is not allowed.",
             r"&\s*$": "Running commands in the background is not allowed.",
@@ -53,45 +62,60 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             r"\biptables\b": "Modifying firewall rules is not allowed.",
             r"\bufw\b": "Modifying firewall rules is not allowed.",
             r"\bexport\b": "Exporting environment variables is not allowed.",
-            r"\becho\s+.*\s*>\s*/etc/": "Writing to system configuration files is not allowed.",
-            r"\bsed\s+.*\s+-i": "In-place file editing with sed is not allowed.",
-            r"\bawk\s+.*\s+-i": "In-place file editing with awk is not allowed.",
+            r"\benv\b": "Accessing or modifying environment variables is not allowed.",
+            r"\becho\b.*?>\s*/etc/": "Writing to system configuration files is not allowed.",
+            r"\bsed\b.*?-i": "In-place file editing with sed is not allowed.",
+            r"\bawk\b.*?-i": "In-place file editing with awk is not allowed.",
             r"\bcrontab\b": "Modifying cron jobs is not allowed.",
             r"\bat\b": "Scheduling tasks with 'at' is not allowed.",
             r"\b(shutdown|reboot|init\s+6|telinit\s+6)\b": "System shutdown or reboot commands are not allowed.",
             r"\b(apt-get|yum|dnf|pacman)\b": "Use of package managers is not allowed.",
-            r"\bhttp\.server\b": "Running HTTP servers is not allowed.",
+            r"\$\(.*?\)": "Command substitution is not allowed.",
+            r"`.*?`": "Command substitution is not allowed.",
         }
 
         python_patterns: typing.Dict[str, str] = {
+            # Deleting files or directories
             r"\bos\.(remove|unlink|rmdir)\s*\(": "Deleting files or directories is not allowed.",
             r"\bshutil\.rmtree\s*\(": "Deleting directory trees is not allowed.",
-            r"\bos\.system\(": "Use of os.system() is not allowed.",
-            # r"\bsubprocess\.": "Use of subprocess module is not allowed.",
-            r"\bexec\(": "Use of exec() is not allowed.",
-            r"\beval\(": "Use of eval() is not allowed.",
-            r"\b__import__\(": "Use of __import__() is not allowed.",
-            r"\bos\.remove\(": "Removing files is not allowed.",
-            r"\bos\.unlink\(": "Removing files is not allowed.",
-            r"\bos\.rmdir\(": "Removing directories is not allowed.",
-            # r"\bsocket\.": "Use of socket module is not allowed.",
-            # r"\burllib\.request\.": "Use of urllib.request is not allowed.",
-            # r"\brequests\.": "Use of requests library is not allowed.",
-            # r"\bsmtplib\.": "Use of smtplib (for sending emails) is not allowed.",
-            r"\bctypes\.": "Use of ctypes module is not allowed.",
-            r"\bpty\.": "Use of pty module is not allowed.",
-            r"\bplatform\.": "Use of platform module is not allowed.",
-            r"\bsys\.exit\(": "Use of sys.exit() is not allowed.",
-            r"\bos\.chmod\(": "Changing file permissions is not allowed.",
-            r"\bos\.chown\(": "Changing file ownership is not allowed.",
-            r"\bos\.setuid\(": "Changing process UID is not allowed.",
-            r"\bos\.setgid\(": "Changing process GID is not allowed.",
-            r"\bos\.fork\(": "Forking processes is not allowed.",
-            r"\bsched\.": "Use of sched module (for scheduling) is not allowed.",
-            r"\bcommands\.": "Use of commands module is not allowed.",
-            r"\bpdb\.": "Use of pdb (debugger) is not allowed.",
-            r"\bpickle\.loads\(": "Use of pickle.loads() is not allowed.",
-            r"\bmarshall\.loads\(": "Use of marshall.loads() is not allowed.",
+
+            # System and subprocess usage
+            r"\bos\.system\s*\(": "Use of os.system() is not allowed.",
+            r"\bsubprocess\.(run|Popen|call|check_output)\s*\(": "Use of subprocess module is not allowed.",
+
+            # Dangerous functions
+            r"\bexec\s*\(": "Use of exec() is not allowed.",
+            r"\beval\s*\(": "Use of eval() is not allowed.",
+            r"\b__import__\s*\(": "Use of __import__() is not allowed.",
+
+            # Import and usage of specific modules
+            r"\bimport\s+smtplib\b": "Importing smtplib (for sending emails) is not allowed.",
+            r"\bsmtplib\.\w+": "Use of smtplib (for sending emails) is not allowed.",
+
+            r"\bimport\s+ctypes\b": "Importing ctypes module is not allowed.",
+            r"\bctypes\.\w+": "Use of ctypes module is not allowed.",
+
+            r"\bimport\s+pty\b": "Importing pty module is not allowed.",
+            r"\bpty\.\w+": "Use of pty module is not allowed.",
+
+            r"\bplatform\.\w+": "Use of platform module is not allowed.",
+
+            # Exiting and process management
+            r"\bsys\.exit\s*\(": "Use of sys.exit() is not allowed.",
+            r"\bos\.chmod\s*\(": "Changing file permissions is not allowed.",
+            r"\bos\.chown\s*\(": "Changing file ownership is not allowed.",
+            r"\bos\.setuid\s*\(": "Changing process UID is not allowed.",
+            r"\bos\.setgid\s*\(": "Changing process GID is not allowed.",
+            r"\bos\.fork\s*\(": "Forking processes is not allowed.",
+
+            # Scheduler, debugger, pickle, and marshall usage
+            r"\bsched\.\w+": "Use of sched module (for scheduling) is not allowed.",
+            r"\bcommands\.\w+": "Use of commands module is not allowed.",
+            r"\bpdb\.\w+": "Use of pdb (debugger) is not allowed.",
+            r"\bpickle\.loads\s*\(": "Use of pickle.loads() is not allowed.",
+            r"\bmarshall\.loads\s*\(": "Use of marshall.loads() is not allowed.",
+
+            # HTTP server usage
             r"\bhttp\.server\b": "Running HTTP servers is not allowed.",
         }
 
@@ -100,10 +124,18 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         # Remove comments and strings before checking patterns
         cleaned_code = H2OLocalCommandLineCodeExecutor.remove_comments_strings(code, lang)
 
-       # Check each pattern individually
+        # Check each pattern individually
         for pattern, message in patterns.items():
-            if re.search(pattern, cleaned_code, re.MULTILINE):
+            if verbose:
+                print(f"Checking pattern: {pattern}", file=sys.stderr)
+            match = re.search(pattern, cleaned_code, re.MULTILINE | re.IGNORECASE)
+            if match:
+                if verbose:
+                    print(f"Match found: {match.group()}", file=sys.stderr)
                 raise ValueError(f"Potentially dangerous operation detected: {message}")
+            else:
+                if verbose:
+                    print(f"No match for pattern: {pattern}", file=sys.stderr)
 
         # for sanity, but also too aggressive and too weak
         # return LocalCommandLineCodeExecutor.sanitize_command(lang, code)
