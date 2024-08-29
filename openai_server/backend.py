@@ -291,8 +291,15 @@ def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, st
                 if verbose:
                     logger.info('Stream %d: %s\n\n %s\n\n' % (num, res['response'], res))
                     logger.info('Stream %d' % (job_outputs_num + num))
-                response = res['response']
-                chunk = response[len(last_response):]
+                if 'error' in res and res['error']:
+                    raise RuntimeError(res['error'])
+                elif 'error_ex' in res and res['error_ex']:
+                    raise RuntimeError(res['error_ex'])
+                elif 'response' not in res:
+                    raise RuntimeError("No response in res: %s" % res)
+                else:
+                    response = res['response']
+                    chunk = response[len(last_response):]
                 if chunk_response:
                     if chunk:
                         yield chunk

@@ -122,7 +122,7 @@ def run_openai_client(
         # agent needs room, else keep hitting continue
         hyper_kwargs = dict(
             temperature=query_kwargs["temperature"],
-            max_tokens=4096,
+            max_tokens=8192 if 'claude-3-5-sonnet' in model else 4096,
         )
     else:
         extra_body = dict(

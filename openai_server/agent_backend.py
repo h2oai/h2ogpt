@@ -142,9 +142,18 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
         if have_internet and os.getenv('S2_API_KEY'):
             # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
             # https://github.com/allenai/s2-folks
-            semantic_scholar = """\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers."""
+            cwd = os.path.abspath(os.getcwd())
+            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Can be used for finding or downloading scientific papers.
+    * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
+    ```sh
+    python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
+    ```
+    usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
+    * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDFs.
+    * Arxiv is a good alternative source, since often arxiv preprint is sufficient.
+"""
         else:
-            semantic_scholar = ""
+            papers_search = ""
         if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
             # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
             # https://products.wolframalpha.com/api/documentation
@@ -155,6 +164,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
     # filename: my_wolfram_response.sh
     python {cwd}/openai_server/agent_tools/wolfram_query.py "QUERY GOES HERE"
     ```
+    * usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
     * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
 """
         else:
@@ -164,7 +174,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
     * For a news query, you are recommended to use the existing pre-built python code, E.g.:
     ```sh
     # filename: my_news_response.sh
-    python {cwd}/openai_server/agent_tools/news_query.py -query "QUERY GOES HERE"
+    python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY GOES HERE"
     ```
     * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--from_date FROM_DATE] [--to_date TO_DATE] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
     * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
@@ -174,7 +184,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
             news_api = ''
         if have_internet:
             apis = f"""\nAPIs and external services instructions:
-* You DO have access to the internet.{serp}{semantic_scholar}{wolframalpha}{news_api}
+* You DO have access to the internet.{serp}{papers_search}{wolframalpha}{news_api}
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
 * Do not generate code that requires any API keys or credentials that were not already given."""
@@ -190,19 +200,32 @@ Query understanding instructions:
 * If it is not clear whether the user directed you to do something, then assume they are directing you and do it via code generation.
 Code generation instructions:
 * Python code should be put into a python code block with 3 backticks using python as the language.
+* You do not need to create a python virtual environment, all python code provided is already run in such an environment.
 * Shell commands or sh scripts should be put into a sh code block with 3 backticks using sh as the language.
+* When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
+* Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
+* If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename.  Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
+* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
 * When you need to collect info, generate code to output the info you need.
-* You are totally free to generate any code that helps you solve the task, with the following exceptions
-  1) Do not delete files or directories.
-  2) Do not try to restart the system.
-  3) Do not run indefinite services.
-  4) Do not generate code that shows the environment variables (because they contain private API keys).
-  Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
 * Ensure you provide well-commented code, so the user can understand what the code does.
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
+* Each code block should be complete and executable on its own.
+Code generation to avoid:
+* Do not delete files or directories.
+* Do not try to restart the system.
+* Do not generate code that shows the environment variables (because they contain private API keys).
+* Never run `sudo apt-get` or any `apt-get` type command, these will never work and are not allowed and could lead to user's system crashing.
+* Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
 * Avoid code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.
-* Avoid boilerplate code and do not expect the user to fill-in boilerplate code.  If details are needed to fill-in code, generate code to get those details.
+* Avoid template code. Do not expect the user to fill-in template code.  If details are needed to fill-in code, generate code to get those details.
+Code generation limits and response length limits:
+* Limit your response to a maximum of four (4) code blocks per turn.
+* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* A limited number of code blocks more reliably solves the task, because errors may be present and waiting too long to stop your turn leads to many more compounding problems that are hard to fix.
+* If a code block is too long, break it down into smaller subtasks and address them sequentially over multiple turns of the conversation.
+Code error handling
+* If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes, following all the normal code generation rules mentioned above. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
 Example python packages or useful sh commands:
 * For python coding, useful packages include (but are not limited to):
   * Symbolic mathematics: sympy
@@ -223,23 +246,19 @@ Task solving instructions:
 * Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
 * After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
 * When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
-* Only do about two code blocks (e.g. one sh and one python) at a time.
-General instructions:
-* When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
-* If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
-* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
-* If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
-* You do not need to create a python virtual environment, all python code provided is already run in such an environment.
 * When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
+Specialized task instructions:
 * For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you must trust code generation more than yourself, because you are much better at coding than grade school math, counting, logical reasoning, spatial reasoning, or puzzle tasks.  Keep trying code generation until it verifies the request.
+* If asked to make a multi-section or detailed PDF, break-down the PDF generation into sections, and generate a PDF for each section separately step-by-step using separate python/shell calls for each section, rather than trying to do it all at once. Generate the final PDF by joining them in the end using something like `pypdf`.
 Stopping instructions:
 * Do not assume the code you generate will work as-is.  You must ask the user to run the code and wait for output.
 * Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.
 * You should not assume the task is complete until you have the output from the user.
 * When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
 * Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response.
-* Only once you have verification that the user completed teh task do you summarize and add the 'TERMINATE' string to stop the conversation.
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
+* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
 """
     return agent_code_writer_system_message
 
@@ -282,9 +301,9 @@ def run_autogen(query=None,
     if autogen_run_code_in_docker is None:
         autogen_run_code_in_docker = False
     if autogen_max_consecutive_auto_reply is None:
-        autogen_max_consecutive_auto_reply = 10
+        autogen_max_consecutive_auto_reply = 30
     if autogen_max_turns is None:
-        autogen_max_turns = 20
+        autogen_max_turns = 30
     if autogen_timeout is None:
         autogen_timeout = 120
     if autogen_system_site_packages is None:
@@ -748,7 +767,8 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     if chat_conversation:
         from openai_server.chat_history_render import chat_to_pretty_markdown
         messages_for_query = structure_to_messages(None, None, chat_conversation, [])
-        chat_history_context = chat_to_pretty_markdown(messages_for_query, assistant_name='Assistant', user_name='User', cute=False) + '\n\n'
+        chat_history_context = chat_to_pretty_markdown(messages_for_query, assistant_name='Assistant', user_name='User',
+                                                       cute=False) + '\n\n'
 
     chat_doc_query = f"""{chat_history_context}{document_context}"""
 
