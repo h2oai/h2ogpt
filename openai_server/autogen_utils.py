@@ -8,6 +8,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
     @staticmethod
     def sanitize_command(lang: str, code: str) -> None:
         shell_patterns: List[Tuple[str, str]] = [
+            (r"\brm\b", "Deleting files or directories is not allowed."),
             (r"\brm\s+-rf\b", "Use of 'rm -rf' command is not allowed."),
             (r"\bmv\b.*?\s+/dev/null", "Moving files to /dev/null is not allowed."),
             (r"\bdd\b", "Use of 'dd' command is not allowed."),
@@ -29,18 +30,21 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             (r"\b(python|python3|php|node|ruby)\s+-m\s+http\.server", "Starting an HTTP server is not allowed."),
             (r"\biptables\b", "Modifying firewall rules is not allowed."),
             (r"\bufw\b", "Modifying firewall rules is not allowed."),
-            (r"\bexport\s+\w+\s*=", "Exporting environment variables is not allowed."),
-            (r"\benv\b", "Modifying environment variables is not allowed."),
+            (r"\bexport\b", "Exporting environment variables is not allowed."),
+            (r"\benv\b", "Accessing or modifying environment variables is not allowed."),
             (r"\becho\s+.*\s*>\s*/etc/", "Writing to system configuration files is not allowed."),
             (r"\bsed\s+.*\s+-i", "In-place file editing with sed is not allowed."),
             (r"\bawk\s+.*\s+-i", "In-place file editing with awk is not allowed."),
             (r"\bcrontab\b", "Modifying cron jobs is not allowed."),
             (r"\bat\b", "Scheduling tasks with 'at' is not allowed."),
-            (r"\bshutdown\b", "System shutdown command is not allowed."),
-            (r"\breboot\b", "System reboot command is not allowed."),
+            (r"\b(shutdown|reboot|init\s+6|telinit\s+6)\b", "System shutdown or reboot commands are not allowed."),
+            (r"\b(apt-get|yum|dnf|pacman)\b", "Use of package managers is not allowed."),
+            (r"\bhttp\.server\b", "Running HTTP servers is not allowed."),
         ]
 
         python_patterns: List[Tuple[str, str]] = [
+            (r"\bos\.(remove|unlink|rmdir)\b", "Deleting files or directories is not allowed."),
+            (r"\bshutil\.rmtree\b", "Deleting directory trees is not allowed."),
             (r"\bos\.system\(", "Use of os.system() is not allowed."),
             (r"\bsubprocess\.", "Use of subprocess module is not allowed."),
             (r"\bexec\(", "Use of exec() is not allowed."),
@@ -64,14 +68,15 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             (r"\bos\.setuid\(", "Changing process UID is not allowed."),
             (r"\bos\.setgid\(", "Changing process GID is not allowed."),
             (r"\bos\.fork\(", "Forking processes is not allowed."),
-            (r"\bmultiprocessing\.", "Use of multiprocessing module is not allowed."),
+            #(r"\bmultiprocessing\.", "Use of multiprocessing module is not allowed."),
             (r"\bsched\.", "Use of sched module (for scheduling) is not allowed."),
             (r"\bcommands\.", "Use of commands module is not allowed."),
             (r"\bpdb\.", "Use of pdb (debugger) is not allowed."),
-            (r"\bpty\.", "Use of pty module is not allowed."),
-            (r"\bsqlite3\.", "Use of sqlite3 module is not allowed."),
+            #(r"\bsqlite3\.", "Use of sqlite3 module is not allowed."),
             (r"\bpickle\.loads\(", "Use of pickle.loads() is not allowed."),
             (r"\bmarshall\.loads\(", "Use of marshall.loads() is not allowed."),
+            #(r"\bos\.environ\b", "Accessing environment variables is not allowed."),
+            (r"\bhttp\.server\b", "Running HTTP servers is not allowed."),
         ]
 
         if lang in ["bash", "shell", "sh"]:
