@@ -1,7 +1,9 @@
+import os
 import re
 from typing import List, Tuple
 
-from autogen.coding import LocalCommandLineCodeExecutor
+from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
+from autogen.coding.base import CommandLineCodeResult
 
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
@@ -10,6 +12,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         shell_patterns: List[Tuple[str, str]] = [
             (r"\brm\b", "Deleting files or directories is not allowed."),
             (r"\brm\s+-rf\b", "Use of 'rm -rf' command is not allowed."),
+            (r"\brm\b", "Deleting files or directories is not allowed."),
             (r"\bmv\b.*?\s+/dev/null", "Moving files to /dev/null is not allowed."),
             (r"\bdd\b", "Use of 'dd' command is not allowed."),
             (r">\s*/dev/sd[a-z][1-9]?", "Overwriting disk blocks directly is not allowed."),
@@ -43,8 +46,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         ]
 
         python_patterns: List[Tuple[str, str]] = [
-            (r"\bos\.(remove|unlink|rmdir)\b", "Deleting files or directories is not allowed."),
-            (r"\bshutil\.rmtree\b", "Deleting directory trees is not allowed."),
+            (r"\bos\.(remove|unlink|rmdir)\s*\(", "Deleting files or directories is not allowed."),
+            (r"\bshutil\.rmtree\s*\(", "Deleting directory trees is not allowed."),
             (r"\bos\.system\(", "Use of os.system() is not allowed."),
             (r"\bsubprocess\.", "Use of subprocess module is not allowed."),
             (r"\bexec\(", "Use of exec() is not allowed."),
@@ -53,7 +56,6 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             (r"\bopen\(.*?,\s*['\"](w|a|r\+|w\+|a\+)", "Writing to files is not allowed."),
             (r"\bos\.remove\(", "Removing files is not allowed."),
             (r"\bos\.unlink\(", "Removing files is not allowed."),
-            (r"\bshutil\.rmtree\(", "Removing directory trees is not allowed."),
             (r"\bos\.rmdir\(", "Removing directories is not allowed."),
             (r"\bsocket\.", "Use of socket module is not allowed."),
             (r"\burllib\.request\.", "Use of urllib.request is not allowed."),
@@ -68,16 +70,37 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             (r"\bos\.setuid\(", "Changing process UID is not allowed."),
             (r"\bos\.setgid\(", "Changing process GID is not allowed."),
             (r"\bos\.fork\(", "Forking processes is not allowed."),
-            #(r"\bmultiprocessing\.", "Use of multiprocessing module is not allowed."),
+            # (r"\bmultiprocessing\.", "Use of multiprocessing module is not allowed."),
             (r"\bsched\.", "Use of sched module (for scheduling) is not allowed."),
             (r"\bcommands\.", "Use of commands module is not allowed."),
             (r"\bpdb\.", "Use of pdb (debugger) is not allowed."),
-            #(r"\bsqlite3\.", "Use of sqlite3 module is not allowed."),
+            # (r"\bsqlite3\.", "Use of sqlite3 module is not allowed."),
             (r"\bpickle\.loads\(", "Use of pickle.loads() is not allowed."),
             (r"\bmarshall\.loads\(", "Use of marshall.loads() is not allowed."),
-            #(r"\bos\.environ\b", "Accessing environment variables is not allowed."),
+            # (r"\bos\.environ\b", "Accessing environment variables is not allowed."),
             (r"\bhttp\.server\b", "Running HTTP servers is not allowed."),
         ]
+
+        def remove_comments_strings(code: str, lang: str) -> str:
+            if lang in ["bash", "shell", "sh"]:
+                # Remove single-line comments
+                code = re.sub(r'#.*$', '', code, flags=re.MULTILINE)
+                # Remove string literals (this is a simplification and might not catch all cases)
+                code = re.sub(r'"[^"]*"', '', code)
+                code = re.sub(r"'[^']*'", '', code)
+            elif lang == "python":
+                # Remove single-line comments
+                code = re.sub(r'#.*$', '', code, flags=re.MULTILINE)
+                # Remove multi-line strings and docstrings
+                code = re.sub(r'"{3}[\s\S]*?"{3}', '', code)
+                code = re.sub(r"'{3}[\s\S]*?'{3}", '', code)
+                # Remove string literals (this is a simplification and might not catch all cases)
+                code = re.sub(r'"[^"]*"', '', code)
+                code = re.sub(r"'[^']*'", '', code)
+            return code
+
+        # Remove comments and strings before checking patterns
+        cleaned_code = remove_comments_strings(code, lang)
 
         if lang in ["bash", "shell", "sh"]:
             patterns = shell_patterns
@@ -87,7 +110,38 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             return super().sanitize_command(lang, code)
 
         for pattern, message in patterns:
-            if re.search(pattern, code):
+            if re.search(pattern, cleaned_code):
                 raise ValueError(f"Potentially dangerous operation detected: {message}")
 
         return super().sanitize_command(lang, code)
+
+    def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
+        ret = super()._execute_code_dont_check_setup(code_blocks)
+
+        # List of API key environment variable names to check
+        api_key_names = ['OPENAI_AZURE_KEY', 'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
+                         'H2OGPT_H2OGPT_KEY', 'TWITTER_API_KEY', 'FACEBOOK_ACCESS_TOKEN', 'API_KEY', 'LINKEDIN_API_KEY',
+                         'STRIPE_API_KEY', 'ADMIN_PASS', 'S2_API_KEY', 'ANTHROPIC_API_KEY', 'AUTH_TOKEN',
+                         'AWS_SERVER_PUBLIC_KEY', 'OPENAI_API_KEY', 'HUGGING_FACE_HUB_TOKEN', 'AWS_ACCESS_KEY_ID',
+                         'SERPAPI_API_KEY', 'WOLFRAM_ALPHA_APPID', 'AWS_SECRET_ACCESS_KEY', 'ACCESS_TOKEN',
+                         'SLACK_API_TOKEN', 'MISTRAL_API_KEY', 'TOGETHERAI_API_TOKEN', 'GITHUB_TOKEN', 'SECRET_KEY',
+                         'GOOGLE_API_KEY', 'REPLICATE_API_TOKEN', 'GOOGLE_CLIENT_SECRET', 'GROQ_API_KEY',
+                         'AWS_SERVER_SECRET_KEY', 'H2OGPT_OPENAI_BASE_URL', 'H2OGPT_OPENAI_API_KEY',
+                         'H2OGPT_OPENAI_PORT', 'H2OGPT_OPENAI_HOST', 'H2OGPT_OPENAI_CERT_PATH',
+                         'H2OGPT_OPENAI_KEY_PATH',
+                         'H2OGPT_MAIN_KWARGS']
+        # Get the values of these environment variables
+        set_api_key_names = set(api_key_names)
+        set_api_key_values = set([os.getenv(key, '') for key in set_api_key_names])
+
+        # Filter out empty, 'EMPTY', or 'DUMMY' values
+        set_allowed = {'', 'EMPTY', 'DUMMY', None}
+        api_key_values = [value for value in set_api_key_values if value and value not in set_allowed]
+
+        if ret.output:
+            # Check if any API key value is in the output
+            for api_key in api_key_values:
+                if api_key in ret.output:
+                    raise ValueError("Output contains sensitive information (API key or token)")
+
+        return ret
