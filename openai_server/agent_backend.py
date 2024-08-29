@@ -143,17 +143,17 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
             # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
             # https://github.com/allenai/s2-folks
             cwd = os.path.abspath(os.getcwd())
-            semantic_scholar = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers.
+            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Can be used for finding or downloading scientific papers.
     * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
     ```sh
-    python {cwd}/openai_server/agent_tools/semantic_scholar_query.py --limit 10 --query "QUERY GOES HERE"
+    python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
     ```
-    usage: python {cwd}/openai_server/agent_tools/semantic_scholar_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json]
-    * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDF.
-    * Arxiv is a good alternative source if cannot find the paper on Semantic Scholar of if the paper is not publicly accessible (then arxiv preprint is sufficient).
+    usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
+    * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDFs.
+    * Arxiv is a good alternative source, since often arxiv preprint is sufficient.
 """
         else:
-            semantic_scholar = ""
+            papers_search = ""
         if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
             # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
             # https://products.wolframalpha.com/api/documentation
@@ -184,7 +184,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
             news_api = ''
         if have_internet:
             apis = f"""\nAPIs and external services instructions:
-* You DO have access to the internet.{serp}{semantic_scholar}{wolframalpha}{news_api}
+* You DO have access to the internet.{serp}{papers_search}{wolframalpha}{news_api}
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
 * Do not generate code that requires any API keys or credentials that were not already given."""
@@ -758,7 +758,8 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     if chat_conversation:
         from openai_server.chat_history_render import chat_to_pretty_markdown
         messages_for_query = structure_to_messages(None, None, chat_conversation, [])
-        chat_history_context = chat_to_pretty_markdown(messages_for_query, assistant_name='Assistant', user_name='User', cute=False) + '\n\n'
+        chat_history_context = chat_to_pretty_markdown(messages_for_query, assistant_name='Assistant', user_name='User',
+                                                       cute=False) + '\n\n'
 
     chat_doc_query = f"""{chat_history_context}{document_context}"""
 
