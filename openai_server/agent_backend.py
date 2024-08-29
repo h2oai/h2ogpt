@@ -221,7 +221,7 @@ Code generation to avoid:
 * Avoid template code. Do not expect the user to fill-in template code.  If details are needed to fill-in code, generate code to get those details.
 Code generation limits and response length limits:
 * Limit your response to a maximum of four (4) code blocks per turn.
-* As soon as you mention running the code blocks you generated, you must end your turn of the conversation to give the user a chance to run them.
+* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * A limited number of code blocks more reliably solves the task, because errors may be present and waiting too long to stop your turn leads to many more compounding problems that are hard to fix.
 * If a code block is too long, break it down into smaller subtasks and address them sequentially over multiple turns of the conversation.
 Code error handling
@@ -257,6 +257,7 @@ Stopping instructions:
 * When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
 * Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response.
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
+* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
 """
     return agent_code_writer_system_message
