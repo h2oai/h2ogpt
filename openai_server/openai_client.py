@@ -75,6 +75,7 @@ def run_openai_client(
     convert_to_pdf=None,
     use_agent=False,
     base64_encode_agent_files=True,
+    cute=False,
     **query_kwargs,
 ):
     """
@@ -96,61 +97,15 @@ def run_openai_client(
     model = query_kwargs["visible_models"]
     stream_output = query_kwargs["stream_output"]
     text_context_list = query_kwargs["text_context_list"]
-    image_files = query_kwargs["image_files"]
+    chat_conversation = query_kwargs["chat_conversation"]
+    image_files = query_kwargs["image_file"]
+    system_message = query_kwargs["system_prompt"]
 
-    messages = []
-
-    if query_kwargs.get("chat_history"):
-        for chat in query_kwargs["chat_history"]:
-            if chat[0] and chat[1]:
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": chat[0],
-                    }
-                )
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": chat[1],
-                    }
-                )
-    # NOTE: Could pass image_files through extra_body instead.
-    if query_kwargs.get("image_files"):
-        messages_images = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt,
-                    }
-                ],
-            }
-        ]
-        for image_file in image_files:
-            messages_images[0]["content"].append(
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        # URL accessible from web or markdown + base64 type url
-                        "url": image_file,
-                        "detail": "high",
-                    },
-                }
-            )
-        messages.extend(messages_images)
-    else:
-        messages.extend(
-            [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ]
-        )
+    from h2ogpte_core.backend_utils import structure_to_messages
 
     if use_agent:
+        chat_conversation = None  # FIXME: Needs to include agent history
+
         extra_body = dict(
             use_agent=use_agent,
             agent_type="auto",
@@ -167,7 +122,7 @@ def run_openai_client(
         # agent needs room, else keep hitting continue
         hyper_kwargs = dict(
             temperature=query_kwargs["temperature"],
-            max_tokens=4096,
+            max_tokens=8192 if 'claude-3-5-sonnet' in model else 4096,
         )
     else:
         extra_body = dict(
@@ -180,6 +135,10 @@ def run_openai_client(
 
     time_to_first_token = None
     t0 = time.time()
+
+    messages = structure_to_messages(
+        prompt, system_message, chat_conversation, image_files
+    )
 
     responses = client.chat.completions.create(
         model=model,
@@ -290,7 +249,7 @@ def run_openai_client(
 
     # Get internal chat history
     chat_history = usage.chat_history if hasattr(usage, "chat_history") else None
-    chat_history_md = chat_to_pretty_markdown(chat_history)
+    chat_history_md = chat_to_pretty_markdown(chat_history, cute=cute)
 
     # estimate tokens per second
     tokens_per_second = output_tokens / (tf - t0 + 1e-6)
