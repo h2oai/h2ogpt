@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 
 import requests
@@ -331,8 +332,6 @@ def run_autogen(query=None,
         )
     else:
         from autogen.code_utils import create_virtual_env
-        from autogen.coding import LocalCommandLineCodeExecutor
-
         if autogen_venv_dir is None:
             username = str(uuid.uuid4())
             autogen_venv_dir = ".venv_%s" % username
@@ -348,8 +347,8 @@ def run_autogen(query=None,
         # PythonLoader(name='code', ))
 
         # Create a local command line code executor.
-        from autogen.coding import LocalCommandLineCodeExecutor
-        executor = LocalCommandLineCodeExecutor(
+        from autogen_utils import H2OLocalCommandLineCodeExecutor
+        executor = H2OLocalCommandLineCodeExecutor(
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             virtual_env_context=virtual_env_context,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
