@@ -54,12 +54,16 @@ def test_shell_network_operations():
 
 
 def test_shell_command_substitution():
-    with pytest.raises(ValueError, match=re.escape("Use of 'sudo' command is not allowed.")):
+    with pytest.raises(ValueError, match=re.compile(
+            re.escape("Use of 'sudo' command is not allowed.") + "|" + re.escape(
+                "Command substitution is not allowed."))):
         H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "$(sudo ls -l)")
+    with pytest.raises(ValueError, match=re.compile(re.escape("Command substitution is not allowed."))):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "`rm -rf /`")
     with pytest.raises(ValueError, match=re.compile(
             re.escape("Deleting files or directories is not allowed.") + "|" + re.escape(
                 "Use of 'rm -rf' command is not allowed."))):
-        H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "`rm -rf /`")
+        H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "rm -rf /")
 
 
 # Python Tests

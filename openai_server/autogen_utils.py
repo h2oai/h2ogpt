@@ -121,22 +121,17 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         }
 
         patterns = shell_patterns if lang in ["bash", "shell", "sh"] else python_patterns
+        combined_pattern = "|".join(f"(?P<pat{i}>{pat})" for i, pat in enumerate(patterns.keys()))
+        combined_pattern = re.compile(combined_pattern, re.MULTILINE | re.IGNORECASE)
 
         # Remove comments and strings before checking patterns
         cleaned_code = H2OLocalCommandLineCodeExecutor.remove_comments_strings(code, lang)
 
-        # Check each pattern individually
-        for pattern, message in patterns.items():
-            if verbose:
-                print(f"Checking pattern: {pattern}", file=sys.stderr)
-            match = re.search(pattern, cleaned_code, re.MULTILINE | re.IGNORECASE)
-            if match:
-                if verbose:
-                    print(f"Match found: {match.group()}", file=sys.stderr)
-                raise ValueError(f"Potentially dangerous operation detected: {message}")
-            else:
-                if verbose:
-                    print(f"No match for pattern: {pattern}", file=sys.stderr)
+        match = re.search(combined_pattern, cleaned_code)
+        if match:
+            for i, pattern in enumerate(patterns.keys()):
+                if match.group(f"pat{i}"):
+                    raise ValueError(f"Potentially dangerous operation detected: {patterns[pattern]}")
 
         # for sanity, but also too aggressive and too weak
         # return LocalCommandLineCodeExecutor.sanitize_command(lang, code)
