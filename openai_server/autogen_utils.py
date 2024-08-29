@@ -128,8 +128,9 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                          'GOOGLE_API_KEY', 'REPLICATE_API_TOKEN', 'GOOGLE_CLIENT_SECRET', 'GROQ_API_KEY',
                          'AWS_SERVER_SECRET_KEY', 'H2OGPT_OPENAI_BASE_URL', 'H2OGPT_OPENAI_API_KEY',
                          'H2OGPT_OPENAI_PORT', 'H2OGPT_OPENAI_HOST', 'H2OGPT_OPENAI_CERT_PATH',
-                         'H2OGPT_OPENAI_KEY_PATH',
-                         'H2OGPT_MAIN_KWARGS']
+                         'H2OGPT_OPENAI_KEY_PATH', 'H2OGPT_MAIN_KWARGS',
+                         'GRADIO_H2OGPT_H2OGPT_KEY']
+
         # Get the values of these environment variables
         set_api_key_names = set(api_key_names)
         set_api_key_values = set([os.getenv(key, '') for key in set_api_key_names])
@@ -139,9 +140,17 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         api_key_values = [value for value in set_api_key_values if value and value not in set_allowed]
 
         if ret.output:
-            # Check if any API key value is in the output
+            # Check if any API key value is in the output and collect all violations
+            violated_keys = []
             for api_key in api_key_values:
                 if api_key in ret.output:
-                    raise ValueError("Output contains sensitive information (API key or token)")
+                    # Find the corresponding key name(s) for the violated value
+                    violated_key_names = [name for name in api_key_names if os.getenv(name) == api_key]
+                    violated_keys.extend(violated_key_names)
+
+            # If any violations were found, raise an error with all violated keys
+            if violated_keys:
+                error_message = f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}"
+                raise ValueError(error_message)
 
         return ret
