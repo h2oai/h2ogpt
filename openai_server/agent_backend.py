@@ -296,9 +296,9 @@ def run_autogen(query=None,
     if autogen_run_code_in_docker is None:
         autogen_run_code_in_docker = False
     if autogen_max_consecutive_auto_reply is None:
-        autogen_max_consecutive_auto_reply = 10
+        autogen_max_consecutive_auto_reply = 30
     if autogen_max_turns is None:
-        autogen_max_turns = 50
+        autogen_max_turns = 30
     if autogen_timeout is None:
         autogen_timeout = 120
     if autogen_system_site_packages is None:
