@@ -258,7 +258,8 @@ Stopping instructions:
 * When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
 * Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response.
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
-* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
 * Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
 """
     return agent_code_writer_system_message
