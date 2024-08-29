@@ -226,11 +226,12 @@ def structure_to_messages(instruction, system_message, history, image_files):
         messages.append({"role": "system", "content": system_message})
 
     # Loop through the history to add user and assistant messages.
-    for user_message, assistant_message in history:
-        if user_message:
-            messages.append({"role": "user", "content": user_message})
-        if assistant_message:
-            messages.append({"role": "assistant", "content": assistant_message})
+    if history:
+        for user_message, assistant_message in history:
+            if user_message:
+                messages.append({"role": "user", "content": user_message})
+            if assistant_message:
+                messages.append({"role": "assistant", "content": assistant_message})
 
     # Add the final instruction as a user message, if present.
     if instruction:
