@@ -17,7 +17,7 @@ def test_shell_dangerous_commands():
         H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "rm file.txt")
     with pytest.raises(ValueError, match=re.compile(
             re.escape("Deleting files or directories is not allowed.") + "|" + re.escape(
-                    "Use of 'rm -rf' command is not allowed."))):
+                "Use of 'rm -rf' command is not allowed."))):
         H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "rm -rf /")
     with pytest.raises(ValueError, match=re.escape("Moving files to /dev/null is not allowed.")):
         H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "mv file.txt /dev/null")
@@ -58,7 +58,7 @@ def test_shell_command_substitution():
         H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "$(sudo ls -l)")
     with pytest.raises(ValueError, match=re.compile(
             re.escape("Deleting files or directories is not allowed.") + "|" + re.escape(
-                    "Use of 'rm -rf' command is not allowed."))):
+                "Use of 'rm -rf' command is not allowed."))):
         H2OLocalCommandLineCodeExecutor.sanitize_command("sh", "`rm -rf /`")
 
 
@@ -98,11 +98,14 @@ def test_python_network_operations():
     with pytest.raises(ValueError, match=re.escape("Importing smtplib (for sending emails) is not allowed.")):
         H2OLocalCommandLineCodeExecutor.sanitize_command("python", "import smtplib")
 
-    with pytest.raises(ValueError, match=re.compile(re.escape("Use of ctypes module is not allowed.") + "|" + re.escape("Importing ctypes module is not allowed."))):
+    with pytest.raises(ValueError, match=re.compile(re.escape("Use of ctypes module is not allowed.") + "|" + re.escape(
+            "Importing ctypes module is not allowed."))):
         H2OLocalCommandLineCodeExecutor.sanitize_command("python", "import ctypes")
 
-    with pytest.raises(ValueError, match=re.compile(re.escape("Use of pty module is not allowed.") + "|" + re.escape("Importing pty module is not allowed."))):
+    with pytest.raises(ValueError, match=re.compile(
+            re.escape("Use of pty module is not allowed.") + "|" + re.escape("Importing pty module is not allowed."))):
         H2OLocalCommandLineCodeExecutor.sanitize_command("python", "import pty")
+
 
 def test_python_system_operations():
     with pytest.raises(ValueError, match=re.escape("Use of sys.exit() is not allowed.")):
@@ -149,3 +152,43 @@ def test_shell_path_traversal():
 def test_python_eval_variations():
     with pytest.raises(ValueError, match=re.escape("Use of eval() is not allowed.")):
         H2OLocalCommandLineCodeExecutor.sanitize_command("python", "eval('__import__(\"os\").system(\"ls\")')")
+
+
+def test_complex_imports():
+    # Match either "Importing smtplib" or "Importing from smtplib"
+    with pytest.raises(ValueError, match=re.compile(
+            re.escape("Importing smtplib (for sending emails) is not allowed.") + "|" + re.escape(
+                "Importing from smtplib (for sending emails) is not allowed."))):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python", "import smtplib")
+
+    with pytest.raises(ValueError, match=re.compile(
+            re.escape("Importing ctypes module is not allowed.") + "|" + re.escape(
+                "Importing from ctypes module is not allowed."))):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python", "from ctypes import CDLL")
+
+
+def test_nested_function_calls():
+    with pytest.raises(ValueError, match=re.escape("Use of eval() is not allowed.")):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python", "eval(eval('print(1)'))")
+
+    with pytest.raises(ValueError, match=re.escape("Deleting files or directories is not allowed.")):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python", "import os\nnested_func_call(os.remove('file.txt'))")
+
+
+def test_multi_line_commands():
+    with pytest.raises(ValueError, match=re.escape("Use of subprocess module is not allowed.")):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python",
+                                                         '''import subprocesssubprocess.run(['ls']) subprocess.Popen(['echo', 'hello'])''')
+
+
+def test_ctypes_import():
+    # Ensure it raises the correct error for importing ctypes
+    with pytest.raises(ValueError, match=re.compile(
+            re.escape("Importing ctypes module is not allowed.") + "|" + re.escape(
+                "Use of ctypes module is not allowed."))):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python", "import ctypes")
+
+    with pytest.raises(ValueError, match=re.compile(
+            re.escape("Importing ctypes module is not allowed.") + "|" + re.escape(
+                "Use of ctypes module is not allowed."))):
+        H2OLocalCommandLineCodeExecutor.sanitize_command("python", "from ctypes import CDLL")

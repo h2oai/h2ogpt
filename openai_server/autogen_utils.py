@@ -7,7 +7,7 @@ from typing import List, Tuple
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
 
-verbose = False
+verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
@@ -90,9 +90,10 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
             # Import and usage of specific modules
             r"\bimport\s+smtplib\b": "Importing smtplib (for sending emails) is not allowed.",
-            r"\bsmtplib\.\w+": "Use of smtplib (for sending emails) is not allowed.",
+            r"\bfrom\s+smtplib\s+import\b": "Importing from smtplib (for sending emails) is not allowed.",
 
             r"\bimport\s+ctypes\b": "Importing ctypes module is not allowed.",
+            r"\bfrom\s+ctypes\b": "Importing ctypes module is not allowed.",
             r"\bctypes\.\w+": "Use of ctypes module is not allowed.",
 
             r"\bimport\s+pty\b": "Importing pty module is not allowed.",
