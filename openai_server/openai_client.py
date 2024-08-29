@@ -103,11 +103,9 @@ def run_openai_client(
 
     from h2ogpte_core.backend_utils import structure_to_messages
 
-    messages = structure_to_messages(
-        prompt, system_message, chat_conversation, image_files
-    )
-
     if use_agent:
+        chat_conversation = None  # FIXME: Needs to include agent history
+
         extra_body = dict(
             use_agent=use_agent,
             agent_type="auto",
@@ -137,6 +135,10 @@ def run_openai_client(
 
     time_to_first_token = None
     t0 = time.time()
+
+    messages = structure_to_messages(
+        prompt, system_message, chat_conversation, image_files
+    )
 
     responses = client.chat.completions.create(
         model=model,
