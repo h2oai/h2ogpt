@@ -142,7 +142,16 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
         if have_internet and os.getenv('S2_API_KEY'):
             # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
             # https://github.com/allenai/s2-folks
-            semantic_scholar = """\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers."""
+            cwd = os.path.abspath(os.getcwd())
+            semantic_scholar = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV).  Can be used for finding scientific papers.
+    * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
+    ```sh
+    python {cwd}/openai_server/agent_tools/semantic_scholar_query.py --limit 10 --query "QUERY GOES HERE"
+    ```
+    usage: python {cwd}/openai_server/agent_tools/semantic_scholar_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json]
+    * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDF.
+    * Arxiv is a good alternative source if cannot find the paper on Semantic Scholar of if the paper is not publicly accessible (then arxiv preprint is sufficient).
+"""
         else:
             semantic_scholar = ""
         if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
@@ -155,6 +164,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
     # filename: my_wolfram_response.sh
     python {cwd}/openai_server/agent_tools/wolfram_query.py "QUERY GOES HERE"
     ```
+    * usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
     * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
 """
         else:
@@ -164,7 +174,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
     * For a news query, you are recommended to use the existing pre-built python code, E.g.:
     ```sh
     # filename: my_news_response.sh
-    python {cwd}/openai_server/agent_tools/news_query.py -query "QUERY GOES HERE"
+    python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY GOES HERE"
     ```
     * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--from_date FROM_DATE] [--to_date TO_DATE] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
     * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
@@ -223,7 +233,7 @@ Task solving instructions:
 * Solve the task step by step if you need to. If a plan is not provided, explain your plan first. Be clear which step uses code, and which step uses your language skill.
 * After sufficient info is printed and the task is ready to be solved based on your language skill, you can solve the task by yourself.
 * When you need to perform some task with code, use the code to perform the task and output the result. Finish the task smartly.
-* Only do about two code blocks (e.g. one sh and one python) at a time.
+* Only do up to three code blocks (e.g. two sh and one python) at a time.
 General instructions:
 * When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
 * If you want the user to save the code in a file before executing it, put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename. Don't include multiple code blocks in one response. Do not ask users to copy and paste the result. Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
