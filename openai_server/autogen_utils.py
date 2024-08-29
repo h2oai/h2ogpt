@@ -135,8 +135,27 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         set_api_key_names = set(api_key_names)
         set_api_key_values = set([os.getenv(key, '') for key in set_api_key_names])
 
-        # Filter out empty, 'EMPTY', or 'DUMMY' values
-        set_allowed = {'', 'EMPTY', 'DUMMY', None}
+        # Expanded set of allowed (dummy) values
+        set_allowed = {
+            '', 'EMPTY', 'DUMMY', None, 'null', 'NULL', 'Null',
+            'YOUR_API_KEY', 'YOUR-API-KEY', 'your-api-key', 'your_api_key',
+            'ENTER_YOUR_API_KEY_HERE', 'INSERT_API_KEY_HERE',
+            'API_KEY_GOES_HERE', 'REPLACE_WITH_YOUR_API_KEY',
+            'PLACEHOLDER', 'EXAMPLE_KEY', 'TEST_KEY', 'SAMPLE_KEY',
+            'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+            '0000000000000000000000000000000000000000',
+            '1111111111111111111111111111111111111111',
+            'abcdefghijklmnopqrstuvwxyz123456',
+            '123456789abcdefghijklmnopqrstuvwxyz',
+            'sk_test_', 'pk_test_',  # Common prefixes for test keys
+            'MY_SECRET_KEY', 'MY_API_KEY', 'MY_AUTH_TOKEN',
+            'CHANGE_ME', 'REPLACE_ME', 'YOUR_TOKEN_HERE',
+            'N/A', 'NA', 'None', 'not_set', 'NOT_SET', 'NOT-SET',
+            'undefined', 'UNDEFINED',
+            # Add any other common dummy values you've encountered
+        }
+
+        # Filter out allowed (dummy) values
         api_key_values = [value for value in set_api_key_values if value and value not in set_allowed]
 
         if ret.output:
