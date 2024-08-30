@@ -218,8 +218,14 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
     @staticmethod
     def truncate_output(ret: CommandLineCodeResult) -> CommandLineCodeResult:
-        max_output_length = 10000  # about 2500 tokens
-        head_length = 1000  # Length of text to keep at the beginning
+        if ret.exit_code == 1:
+            # then failure, truncated more
+            max_output_length = 2048  # about 512 tokens
+        else:
+            max_output_length = 10000  # about 2500 tokens
+
+        # can't be sure if need head or tail more in general, so split in half
+        head_length = max_output_length // 2
 
         if len(ret.output) > max_output_length:
             trunc_message = f"\n\n...\n\n"
