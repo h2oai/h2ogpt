@@ -183,6 +183,7 @@ class AgentParams(BaseModel):
     agent_code_writer_system_message: str | None = None
     autogen_system_site_packages: bool = True
     autogen_code_restrictions_level: int = 2
+    autogen_silent_exchange: bool = True
     agent_type: str | None = 'auto'
 
 

@@ -100,6 +100,7 @@ def run_agent(query,
               agent_code_writer_system_message=None,
               autogen_system_site_packages=None,
               autogen_code_restrictions_level=None,
+              autogen_silent_exchange=None,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
@@ -287,6 +288,7 @@ def run_autogen(query=None,
                 agent_code_writer_system_message=None,
                 autogen_system_site_packages=None,
                 autogen_code_restrictions_level=None,
+                autogen_silent_exchange=None,
                 agent_verbose=None) -> dict:
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
@@ -315,6 +317,8 @@ def run_autogen(query=None,
         autogen_system_site_packages = True
     if autogen_code_restrictions_level is None:
         autogen_code_restrictions_level = 2
+    if autogen_silent_exchange is None:
+        autogen_silent_exchange = True
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
@@ -423,7 +427,7 @@ def run_autogen(query=None,
                        max_turns=autogen_max_turns,
                        message=query,
                        cache=None,
-                       silent=True,
+                       silent=autogen_silent_exchange,
                        clear_history=False,
                        )
     if autogen_cache_seed:
@@ -522,6 +526,7 @@ def run_autogen(query=None,
     if image_query_helper:
         ret_dict.update(dict(image_query_helper=image_query_helper))
     ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))
+    ret_dict.update(dict(autogen_silent_exchange=autogen_silent_exchange))
 
     return ret_dict
 
