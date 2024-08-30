@@ -146,7 +146,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
             # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
             # https://github.com/allenai/s2-folks
             cwd = os.path.abspath(os.getcwd())
-            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Can be used for finding or downloading scientific papers.
+            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find relevant scientific papers.
     * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
     ```sh
     python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
@@ -179,7 +179,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
     # filename: my_news_response.sh
     python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY GOES HERE"
     ```
-    * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--from_date FROM_DATE] [--to_date TO_DATE] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+    * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
     * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
     * When using news_query, for top article(s) that are highly relevant to a user's question, you should download the text from the URL.
 """

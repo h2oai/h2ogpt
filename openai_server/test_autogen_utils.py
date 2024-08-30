@@ -196,3 +196,79 @@ def test_ctypes_import():
             re.escape("Importing ctypes module is not allowed.") + "|" + re.escape(
                 "Use of ctypes module is not allowed."))):
         H2OLocalCommandLineCodeExecutor.sanitize_command("python", "from ctypes import CDLL")
+
+
+import os
+from openai_server.autogen_utils import H2OLocalCommandLineCodeExecutor, CommandLineCodeResult
+
+
+@pytest.fixture
+def setup_env_vars():
+    # Set up test environment variables
+    os.environ['NEWS_API_KEY'] = 'test_news_api_key'
+    os.environ['OPENAI_API_KEY'] = 'sk_test_1234567890abcdef'
+    os.environ['DUMMY_KEY'] = 'PLACEHOLDER'
+    yield
+    # Clean up after tests
+    del os.environ['NEWS_API_KEY']
+    del os.environ['OPENAI_API_KEY']
+    del os.environ['DUMMY_KEY']
+
+
+def test_output_guardrail_safe_output(setup_env_vars):
+    result = CommandLineCodeResult(output="This is a safe output", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+def test_output_guardrail_key_name_in_output(setup_env_vars):
+    result = CommandLineCodeResult(output="The NEWS_API_KEY is important", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+def test_output_guardrail_dummy_value_in_output(setup_env_vars):
+    result = CommandLineCodeResult(output="The API key is PLACEHOLDER", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+def test_output_guardrail_real_key_in_output(setup_env_vars):
+    result = CommandLineCodeResult(output="The API key is test_news_api_key", exit_code=0)
+    with pytest.raises(ValueError, match="Output contains sensitive information. Violated keys: NEWS_API_KEY"):
+        H2OLocalCommandLineCodeExecutor.output_guardrail(result)
+
+
+def test_output_guardrail_multiple_keys_in_output(setup_env_vars):
+    result = CommandLineCodeResult(output="Keys: test_news_api_key and sk_test_1234567890abcdef", exit_code=0)
+    with pytest.raises(ValueError,
+                       match="Output contains sensitive information. Violated keys: OPENAI_API_KEY, NEWS_API_KEY"):
+        H2OLocalCommandLineCodeExecutor.output_guardrail(result)
+
+
+def test_output_guardrail_partial_key_in_output(setup_env_vars):
+    result = CommandLineCodeResult(output="Partial key: test_news_api", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+def test_output_guardrail_empty_output():
+    result = CommandLineCodeResult(output="", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+def test_output_guardrail_non_string_output():
+    result = CommandLineCodeResult(output="123", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+@pytest.mark.parametrize("allowed_value", [
+    '', 'EMPTY', 'DUMMY', 'null', 'NULL', 'Null', 'YOUR_API_KEY', 'YOUR-API-KEY',
+    'your-api-key', 'your_api_key', 'ENTER_YOUR_API_KEY_HERE', 'INSERT_API_KEY_HERE',
+    'API_KEY_GOES_HERE', 'REPLACE_WITH_YOUR_API_KEY', 'PLACEHOLDER', 'EXAMPLE_KEY',
+    'TEST_KEY', 'SAMPLE_KEY', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    '0000000000000000000000000000000000000000', '1111111111111111111111111111111111111111',
+    'abcdefghijklmnopqrstuvwxyz123456', '123456789abcdefghijklmnopqrstuvwxyz',
+    'sk_test_', 'pk_test_', 'MY_SECRET_KEY', 'MY_API_KEY', 'MY_AUTH_TOKEN',
+    'CHANGE_ME', 'REPLACE_ME', 'YOUR_TOKEN_HERE', 'N/A', 'NA', 'None',
+    'not_set', 'NOT_SET', 'NOT-SET', 'undefined', 'UNDEFINED'
+])
+def test_output_guardrail_allowed_values(allowed_value):
+    result = CommandLineCodeResult(output=f"The API key is {allowed_value}", exit_code=0)
+    assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
