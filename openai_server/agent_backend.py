@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 
 import requests
@@ -98,6 +99,7 @@ def run_agent(query,
               autogen_venv_dir=None,
               agent_code_writer_system_message=None,
               autogen_system_site_packages=None,
+              autogen_code_restrictions_level=None,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
@@ -212,7 +214,7 @@ Code generation instructions:
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 * Each code block should be complete and executable on its own.
 Code generation to avoid:
-* Do not delete files or directories.
+* Do not delete files or directories (e.g. avoid os.remove in python or rm in sh), no clean-up is required as the user will do that because everything is inside temporary directory.
 * Do not try to restart the system.
 * Do not generate code that shows the environment variables (because they contain private API keys).
 * Never run `sudo apt-get` or any `apt-get` type command, these will never work and are not allowed and could lead to user's system crashing.
@@ -257,7 +259,8 @@ Stopping instructions:
 * When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
 * Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response.
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
-* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
 * Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
 """
     return agent_code_writer_system_message
@@ -282,6 +285,7 @@ def run_autogen(query=None,
                 autogen_venv_dir=None,
                 agent_code_writer_system_message=None,
                 autogen_system_site_packages=None,
+                autogen_code_restrictions_level=None,
                 agent_verbose=None) -> dict:
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
@@ -308,6 +312,8 @@ def run_autogen(query=None,
         autogen_timeout = 120
     if autogen_system_site_packages is None:
         autogen_system_site_packages = True
+    if autogen_code_restrictions_level is None:
+        autogen_code_restrictions_level = 2
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
@@ -320,7 +326,6 @@ def run_autogen(query=None,
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")
 
-    from autogen import ConversableAgent
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
@@ -331,8 +336,6 @@ def run_autogen(query=None,
         )
     else:
         from autogen.code_utils import create_virtual_env
-        from autogen.coding import LocalCommandLineCodeExecutor
-
         if autogen_venv_dir is None:
             username = str(uuid.uuid4())
             autogen_venv_dir = ".venv_%s" % username
@@ -348,15 +351,20 @@ def run_autogen(query=None,
         # PythonLoader(name='code', ))
 
         # Create a local command line code executor.
-        from autogen.coding import LocalCommandLineCodeExecutor
-        executor = LocalCommandLineCodeExecutor(
+        if autogen_code_restrictions_level >= 2:
+            from autogen_utils import H2OLocalCommandLineCodeExecutor
+        else:
+            from autogen.coding.local_commandline_code_executor import \
+                LocalCommandLineCodeExecutor as H2OLocalCommandLineCodeExecutor
+        executor = H2OLocalCommandLineCodeExecutor(
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             virtual_env_context=virtual_env_context,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
         )
 
     # Create an agent with code executor configuration.
-    code_executor_agent = ConversableAgent(
+    from openai_server.autogen_utils import H2OConversableAgent
+    code_executor_agent = H2OConversableAgent(
         "code_executor_agent",
         llm_config=False,  # Turn off LLM for this agent.
         code_execution_config={"executor": executor},  # Use the local command line code executor.
@@ -386,7 +394,7 @@ def run_autogen(query=None,
                                                                chat_conversation=None,
                                                                model=model)
 
-    code_writer_agent = ConversableAgent(
+    code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
         system_message=agent_code_writer_system_message + image_query_helper + chat_doc_query,
         llm_config={"config_list": [{"model": model,
@@ -512,6 +520,7 @@ def run_autogen(query=None,
         ret_dict.update(dict(chat_doc_query=chat_doc_query))
     if image_query_helper:
         ret_dict.update(dict(image_query_helper=image_query_helper))
+    ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))
 
     return ret_dict
 
