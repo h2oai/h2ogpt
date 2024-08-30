@@ -226,7 +226,7 @@ Code generation limits and response length limits:
 * As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * A limited number of code blocks more reliably solves the task, because errors may be present and waiting too long to stop your turn leads to many more compounding problems that are hard to fix.
 * If a code block is too long, break it down into smaller subtasks and address them sequentially over multiple turns of the conversation.
-* If code will generate large outputs, use files instead of printing the output in order to efficiently handle the information and avoid overwhelming yourself with large user outputs.
+* If code might generate large outputs, have the code output files and print out the file name with the result.  This way large outputs can be efficiently handled.
 Code error handling
 * If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes, following all the normal code generation rules mentioned above. If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
 Example python packages or useful sh commands:
