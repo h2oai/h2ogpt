@@ -151,7 +151,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             ret = self.output_guardrail(ret)
         except Exception as e:
             if bad_output_mark in str(e):
-                print(f"Code Output Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
+                print(f"Code Output Danger Error: {e}\n\n{code_blocks}\n\n{ret}", file=sys.stderr)
                 # dont' fail, just return the error so LLM can adjust
                 return CommandLineCodeResult(exit_code=1, output=str(e))
             else:
