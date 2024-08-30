@@ -99,7 +99,7 @@ def run_agent(query,
               autogen_venv_dir=None,
               agent_code_writer_system_message=None,
               autogen_system_site_packages=None,
-              autogen_code_restrictions_level=2,
+              autogen_code_restrictions_level=None,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
