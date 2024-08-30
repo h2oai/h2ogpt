@@ -182,6 +182,7 @@ class AgentParams(BaseModel):
     autogen_venv_dir: str | None = None
     agent_code_writer_system_message: str | None = None
     autogen_system_site_packages: bool = True
+    autogen_code_restrictions_level: int = 2
     agent_type: str | None = 'auto'
 
 
@@ -516,13 +517,16 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
         from openai_server.backend import stream_chat_completions
 
         async def generator():
-            response = stream_chat_completions(request_data_dict)
-            for resp in response:
-                disconnected = await request.is_disconnected()
-                if disconnected:
-                    break
+            try:
+                response1 = stream_chat_completions(request_data_dict)
+                for resp in response1:
+                    disconnected = await request.is_disconnected()
+                    if disconnected:
+                        break
 
-                yield {"data": json.dumps(resp)}
+                    yield {"data": json.dumps(resp)}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
 
         return EventSourceResponse(generator())
     else:

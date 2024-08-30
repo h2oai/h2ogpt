@@ -2458,7 +2458,13 @@ class GenerateStream:
         if 'streaming' not in kwargs:
             kwargs['streaming'] = self.streaming
         # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        try:
+            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        except Exception as e:
+            if 'Internal server error' in str(e):
+                print("Internal server error, retrying", flush=True)
+                time.sleep(5)
+                return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
 
     async def agenerate_prompt(
             self,
