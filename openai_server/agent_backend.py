@@ -213,7 +213,7 @@ Code generation instructions:
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 * Each code block should be complete and executable on its own.
 Code generation to avoid:
-* Do not delete files or directories.
+* Do not delete files or directories (e.g. avoid os.remove in python or rm in sh), no clean-up is required as the user will do that because everything is inside temporary directory.
 * Do not try to restart the system.
 * Do not generate code that shows the environment variables (because they contain private API keys).
 * Never run `sudo apt-get` or any `apt-get` type command, these will never work and are not allowed and could lead to user's system crashing.
@@ -322,7 +322,6 @@ def run_autogen(query=None,
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")
 
-    from autogen import ConversableAgent
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
@@ -356,7 +355,8 @@ def run_autogen(query=None,
         )
 
     # Create an agent with code executor configuration.
-    code_executor_agent = ConversableAgent(
+    from openai_server.autogen_utils import H2OConversableAgent
+    code_executor_agent = H2OConversableAgent(
         "code_executor_agent",
         llm_config=False,  # Turn off LLM for this agent.
         code_execution_config={"executor": executor},  # Use the local command line code executor.
@@ -386,7 +386,7 @@ def run_autogen(query=None,
                                                                chat_conversation=None,
                                                                model=model)
 
-    code_writer_agent = ConversableAgent(
+    code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
         system_message=agent_code_writer_system_message + image_query_helper + chat_doc_query,
         llm_config={"config_list": [{"model": model,

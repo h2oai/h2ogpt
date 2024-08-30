@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import sys
@@ -8,6 +9,8 @@ from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
+
+danger_mark = 'Potentially dangerous operation detected'
 
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
@@ -131,10 +134,18 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         if match:
             for i, pattern in enumerate(patterns.keys()):
                 if match.group(f"pat{i}"):
-                    raise ValueError(f"Potentially dangerous operation detected: {patterns[pattern]}")
+                    raise ValueError(f"{danger_mark}: {patterns[pattern]}\n\n{cleaned_code}")
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
-        ret = super()._execute_code_dont_check_setup(code_blocks)
+        try:
+            ret = super()._execute_code_dont_check_setup(code_blocks)
+        except Exception as e:
+            if danger_mark in str(e):
+                print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
+                # dont' fail, just return the error so LLM can adjust
+                return CommandLineCodeResult(exit_code=1, output=str(e))
+            else:
+                raise
 
         # List of API key environment variable names to check
         api_key_names = ['OPENAI_AZURE_KEY', 'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
@@ -196,3 +207,41 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 # override the original method with the new one
 # required because original class does not use super() but references its own method
 LocalCommandLineCodeExecutor.sanitize_command = H2OLocalCommandLineCodeExecutor.sanitize_command
+
+
+from autogen import ConversableAgent
+import backoff
+
+error_patterns = [
+            r"Rate limit reached",
+            r"Connection timeout",
+            r"Server unavailable",
+            r"Internal server error",
+            r"incomplete chunked read",
+        ]
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("backoff")
+
+
+def backoff_handler(details):
+    logger.info(f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries. Exception: {details['exception']}")
+
+
+class H2OConversableAgent(ConversableAgent):
+    @backoff.on_exception(backoff.expo,
+                          Exception,
+                          max_tries=5,
+                          giveup=lambda e: not any(re.search(pattern, str(e)) for pattern in error_patterns),
+                          on_backoff=backoff_handler)
+    def _generate_oai_reply_from_client(self, llm_client, messages, cache) -> typing.Union[str, typing.Dict, None]:
+        try:
+            return super()._generate_oai_reply_from_client(llm_client, messages, cache)
+        except Exception as e:
+            if any(re.search(pattern, str(e)) for pattern in error_patterns):
+                logger.info(f"Encountered retryable error: {str(e)}")
+                raise  # Re-raise the exception to trigger backoff
+            else:
+                logger.error(f"Encountered non-retryable error: {str(e)}")
+                raise  # If it doesn't match our patterns, raise the original exception
