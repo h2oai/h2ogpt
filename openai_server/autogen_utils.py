@@ -11,6 +11,7 @@ from autogen.coding.base import CommandLineCodeResult
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
 danger_mark = 'Potentially dangerous operation detected'
+bad_output_mark = 'Output contains sensitive information'
 
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
@@ -149,8 +150,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         try:
             ret = self.output_guardrail(ret)
         except Exception as e:
-            if danger_mark in str(e):
-                print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
+            if bad_output_mark in str(e):
+                print(f"Code Output Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
                 # dont' fail, just return the error so LLM can adjust
                 return CommandLineCodeResult(exit_code=1, output=str(e))
             else:
