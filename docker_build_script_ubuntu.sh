@@ -23,7 +23,8 @@ apt-get update && apt-get install -y \
     libreoffice \
     autoconf \
     libtool \
-    docker.io
+    docker.io \
+    pdfinfo
 
 # Run upgrades
 apt-get upgrade -y

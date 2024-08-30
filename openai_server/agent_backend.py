@@ -257,11 +257,19 @@ Reasoning task instructions:
 * For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you must trust code generation more than yourself, because you are much better at coding than grade school math, counting, logical reasoning, spatial reasoning, or puzzle tasks.
 * Keep trying code generation until it verifies the request.
 PDF Generation:
-* If asked to make a multi-section detailed PDF, break-down the PDF generation process into sections.
-* Generate a PDF for each section separately step-by-step using separate python/shell calls for each section, rather than trying to do it all at once.
-* Make one code file per PDF section, so if you have to re-run (after some errors) you do not have to re-generate all the content over again.
-* Generate the final PDF by joining them in the end using something like `pypdf` instead of trying to generate the entire PDF in single code.
-* Never abbreviate your outputs for the PDF text, always use full sentences.  The user cannot fill-in abbreviated text.  This is why you should write code files per section to avoid re-running the entire process every time a failure occurs.
+* Strategy: If asked to make a multi-section detailed PDF, break-down the PDF generation process into paragraphs, sections, subsections, figures, and images, and generate each part separately before making the final PDF.
+* Source of Content: If get URLs, download context from the most relevant URLs and use that content to generate paragraphs and references.
+* Paragraphs: Each paragraph with detailed text should be put into its own text file on disk for re-use, and any python code for PDF generation should read those text files.
+* Subsections: Use python and shell code to generate a PDF for each subsection so the subsections and sections have good styling in the PDF.  Ensure each paragraph is read in from disk.
+* Sections: Use python and shell code to generate a PDF for each section.  Do not try to generate the entire PDF in a single python code.
+* Figures: If you need to generate figures, save them as images on disk and use python code to include them in the PDF.
+* Images: If you need to generate images, save them as images on disk and use python code to include them in the PDF.
+* Errors: If you have errors, re-use any existing files containing text of paragraphs or sections.  Do not regenerate text unless the text needs improvement, and just update the pyhton code to point to the new text file if text needs updating.
+* Verify Files: Before generating the final PDF report, use a shell command ls to verify the file names of all sections, subsections, figures, and images to be used in any python code.
+* Final PDF: Generate the final PDF by joining each section PDF using pypdf or fpdf2 rather than trying to generate the entire PDF in single code.  Do not use PyPDF2, it is outdated.
+* Never abbreviate your outputs, always use full sentences.
+* Try hard to include some data, figures, charts, and references to support and ground the document text.  You can avoid such media and content only if the user explicitly excluded them in their request.
+* Ensure to verify the report satisfies the conditions of the user's request.
 Stopping instructions:
 * Do not assume the code you generate will work as-is.  You must ask the user to run the code and wait for output.
 * Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.
@@ -316,9 +324,9 @@ def run_autogen(query=None,
     if autogen_run_code_in_docker is None:
         autogen_run_code_in_docker = False
     if autogen_max_consecutive_auto_reply is None:
-        autogen_max_consecutive_auto_reply = 30
+        autogen_max_consecutive_auto_reply = 40
     if autogen_max_turns is None:
-        autogen_max_turns = 30
+        autogen_max_turns = 40
     if autogen_timeout is None:
         autogen_timeout = 120
     if autogen_system_site_packages is None:
