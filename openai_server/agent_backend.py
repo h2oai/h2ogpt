@@ -99,6 +99,7 @@ def run_agent(query,
               autogen_venv_dir=None,
               agent_code_writer_system_message=None,
               autogen_system_site_packages=None,
+              autogen_code_restrictions_level=2,
               agent_verbose=None) -> dict:
     try:
         if agent_type in ['auto', 'autogen']:
@@ -284,6 +285,7 @@ def run_autogen(query=None,
                 autogen_venv_dir=None,
                 agent_code_writer_system_message=None,
                 autogen_system_site_packages=None,
+                autogen_code_restrictions_level=None,
                 agent_verbose=None) -> dict:
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
@@ -310,6 +312,8 @@ def run_autogen(query=None,
         autogen_timeout = 120
     if autogen_system_site_packages is None:
         autogen_system_site_packages = True
+    if autogen_code_restrictions_level is None:
+        autogen_code_restrictions_level = 2
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
@@ -347,7 +351,11 @@ def run_autogen(query=None,
         # PythonLoader(name='code', ))
 
         # Create a local command line code executor.
-        from autogen_utils import H2OLocalCommandLineCodeExecutor
+        if autogen_code_restrictions_level >= 2:
+            from autogen_utils import H2OLocalCommandLineCodeExecutor
+        else:
+            from autogen.coding.local_commandline_code_executor import \
+                LocalCommandLineCodeExecutor as H2OLocalCommandLineCodeExecutor
         executor = H2OLocalCommandLineCodeExecutor(
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             virtual_env_context=virtual_env_context,
@@ -512,6 +520,7 @@ def run_autogen(query=None,
         ret_dict.update(dict(chat_doc_query=chat_doc_query))
     if image_query_helper:
         ret_dict.update(dict(image_query_helper=image_query_helper))
+    ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))
 
     return ret_dict
 

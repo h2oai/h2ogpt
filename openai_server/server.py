@@ -182,6 +182,7 @@ class AgentParams(BaseModel):
     autogen_venv_dir: str | None = None
     agent_code_writer_system_message: str | None = None
     autogen_system_site_packages: bool = True
+    autogen_code_restrictions_level: int = 2
     agent_type: str | None = 'auto'
 
 

@@ -208,17 +208,16 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 # required because original class does not use super() but references its own method
 LocalCommandLineCodeExecutor.sanitize_command = H2OLocalCommandLineCodeExecutor.sanitize_command
 
-
 from autogen import ConversableAgent
 import backoff
 
 error_patterns = [
-            r"Rate limit reached",
-            r"Connection timeout",
-            r"Server unavailable",
-            r"Internal server error",
-            r"incomplete chunked read",
-        ]
+    r"Rate limit reached",
+    r"Connection timeout",
+    r"Server unavailable",
+    r"Internal server error",
+    r"incomplete chunked read",
+]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -226,7 +225,8 @@ logger = logging.getLogger("backoff")
 
 
 def backoff_handler(details):
-    logger.info(f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries. Exception: {details['exception']}")
+    logger.info(
+        f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries. Exception: {details['exception']}")
 
 
 class H2OConversableAgent(ConversableAgent):
