@@ -146,7 +146,20 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 return CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise
+        try:
+            ret = self.output_guardrail(ret)
+        except Exception as e:
+            if danger_mark in str(e):
+                print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
+                # dont' fail, just return the error so LLM can adjust
+                return CommandLineCodeResult(exit_code=1, output=str(e))
+            else:
+                raise
+        ret = self.truncate_output(ret)
+        return ret
 
+    @staticmethod
+    def output_guardrail(ret: CommandLineCodeResult) -> CommandLineCodeResult:
         # List of API key environment variable names to check
         api_key_names = ['OPENAI_AZURE_KEY', 'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
                          'H2OGPT_H2OGPT_KEY', 'TWITTER_API_KEY', 'FACEBOOK_ACCESS_TOKEN', 'API_KEY', 'LINKEDIN_API_KEY',
@@ -200,6 +213,26 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             if violated_keys:
                 error_message = f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}"
                 raise ValueError(error_message)
+
+        return ret
+
+    @staticmethod
+    def truncate_output(ret: CommandLineCodeResult) -> CommandLineCodeResult:
+        max_output_length = 10000  # about 2500 tokens
+        head_length = 1000  # Length of text to keep at the beginning
+
+        if len(ret.output) > max_output_length:
+            trunc_message = f"\n\n...\n\n"
+            tail_length = max_output_length - head_length - len(trunc_message)
+            head_part = ret.output[:head_length]
+            headless_part = ret.output[head_length:]
+            tail_part = headless_part[-tail_length:]
+            truncated_output = (
+                    head_part +
+                    trunc_message +
+                    tail_part
+            )
+            ret.output = truncated_output
 
         return ret
 
