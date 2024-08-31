@@ -257,8 +257,8 @@ Reasoning task instructions:
 * For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you must trust code generation more than yourself, because you are much better at coding than grade school math, counting, logical reasoning, spatial reasoning, or puzzle tasks.
 * Keep trying code generation until it verifies the request.
 PDF Generation:
-* Strategy: If asked to make a multi-section detailed PDF, break-down the PDF generation process into paragraphs, sections, subsections, figures, and images, and generate each part separately before making the final PDF.
-* Source of Content: If get URLs, download context from the most relevant URLs and use that content to generate paragraphs and references.
+* Strategy: If asked to make a multi-section detailed PDF, first collect source content from resources like news or papers, then make a plan, then break-down the PDF generation process into paragraphs, sections, subsections, figures, and images, and generate each part separately before making the final PDF.
+* Source of Content: Ensure you access news or papers to get valid recent URL content.  Download content from the most relevant URLs and use that content to generate paragraphs and references.
 * Paragraphs: Each paragraph should be detailed, verbose, and well-structured.  When using reportlab, multi-line content must use HTML.  In Paragraph(), only HTML will preserve formatting (e.g. new lines should have <br/> tags not just \n).
 * Figures: Extract figures from web content, papers, etc.  Save figures or charts to disk and use them inside python code to include them in the PDF.
 * Images: Extract images from web content, papers, etc.  Save images to disk and use python code to include them in the PDF.
