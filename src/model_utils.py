@@ -1066,14 +1066,17 @@ def get_model(
                 if max_seq_len is None:
                     max_seq_len = groq_mapping[base_model]
             else:
-                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+                if os.getenv('HARD_ASSERTS'):
+                    raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+                elif max_seq_len is None:
+                    max_seq_len = 8192  # estimate
             if base_model in groq_mapping_outputs:
                 if max_output_len is None:
                     max_output_len = groq_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
-                else:
+                elif max_output_seq_len is None:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 

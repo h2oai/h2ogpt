@@ -392,12 +392,16 @@ groq_mapping = {
     "mixtral-8x7b-32768": 32768,
     "gemma-7b-it": 8192,
     "llama2-70b-4096": 4096,
+    "llama-3.1-70b-versatile": 4096,
+    "llama-3.1-8b-instant": 4096,
 }
 
 groq_mapping_outputs = {
     "mixtral-8x7b-32768": 32768,
     "gemma-7b-it": 4096,
     "llama2-70b-4096": 4096,
+    "llama-3.1-70b-versatile": 131072,
+    "llama-3.1-8b-instant": 131072,
 }
 
 
