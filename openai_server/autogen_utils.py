@@ -176,11 +176,12 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
         # Get the values of these environment variables
         set_api_key_names = set(api_key_names)
-        set_api_key_values = set([os.getenv(key, '') for key in set_api_key_names])
+        api_key_dict = {key: os.getenv(key, '') for key in set_api_key_names if os.getenv(key, '')}
+        set_api_key_values = set(list(api_key_dict.values()))
 
         # Expanded set of allowed (dummy) values
         set_allowed = {
-            '', 'EMPTY', 'DUMMY', None, 'null', 'NULL', 'Null',
+            '', 'EMPTY', 'DUMMY', 'null', 'NULL', 'Null',
             'YOUR_API_KEY', 'YOUR-API-KEY', 'your-api-key', 'your_api_key',
             'ENTER_YOUR_API_KEY_HERE', 'INSERT_API_KEY_HERE',
             'API_KEY_GOES_HERE', 'REPLACE_WITH_YOUR_API_KEY',
@@ -194,25 +195,28 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             'MY_SECRET_KEY', 'MY_API_KEY', 'MY_AUTH_TOKEN',
             'CHANGE_ME', 'REPLACE_ME', 'YOUR_TOKEN_HERE',
             'N/A', 'NA', 'None', 'not_set', 'NOT_SET', 'NOT-SET',
-            'undefined', 'UNDEFINED',
+            'undefined', 'UNDEFINED', 'foo', 'bar',
             # Add any other common dummy values you've encountered
         }
+        set_allowed = {x.lower() for x in set_allowed}
 
         # Filter out allowed (dummy) values
-        api_key_values = [value for value in set_api_key_values if value and value not in set_allowed]
+        api_key_values = [value.lower() for value in set_api_key_values if value and value.lower() not in set_allowed]
 
         if ret.output:
             # Check if any API key value is in the output and collect all violations
             violated_keys = []
-            for api_key in api_key_values:
-                if api_key in ret.output:
+            for api_key_value in api_key_values:
+                if api_key_value in ret.output.lower():
                     # Find the corresponding key name(s) for the violated value
-                    violated_key_names = [name for name in api_key_names if os.getenv(name) == api_key]
+                    violated_key_names = [name for name in api_key_names if api_key_dict.get(name, '').lower() == api_key_value.lower() and api_key_value]
                     violated_keys.extend(violated_key_names)
 
             # If any violations were found, raise an error with all violated keys
             if violated_keys:
                 error_message = f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}"
+                print(error_message)
+                print("\nBad Output:\n", ret.output)
                 raise ValueError(error_message)
 
         return ret

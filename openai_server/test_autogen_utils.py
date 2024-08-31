@@ -1,7 +1,7 @@
 import re
 import pytest
 
-from openai_server.autogen_utils import H2OLocalCommandLineCodeExecutor
+from openai_server.autogen_utils import H2OLocalCommandLineCodeExecutor, bad_output_mark, danger_mark
 
 
 # Shell Tests
@@ -272,3 +272,111 @@ def test_output_guardrail_non_string_output():
 def test_output_guardrail_allowed_values(allowed_value):
     result = CommandLineCodeResult(output=f"The API key is {allowed_value}", exit_code=0)
     assert H2OLocalCommandLineCodeExecutor.output_guardrail(result) == result
+
+
+def test_output_guardrail1():
+    output = """Great! Now that we have installed the necessary packages, let's modify our search script to use the `serpapi` library instead of `googlesearch`, as it's more reliable and uses the SERPAPI_API_KEY that's already available in the environment.
+
+```python
+# filename: search_h2o_cba.py
+import os
+import requests
+from bs4 import BeautifulSoup
+from serpapi import GoogleSearch
+
+def get_search_results(query, num_results=10):
+    params = {
+        "engine": "google",
+        "q": query,
+        "api_key": os.getenv("SERPAPI_API_KEY"),
+        "num": num_results
+    }
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    return [result['link'] for result in results.get('organic_results', [])]
+
+def fetch_content(url):
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        text = soup.get_text(separator=' ', strip=True)
+        return text[:1000]  # Return first 1000 characters
+    except:
+        return "Failed to fetch content"
+
+query = "h2o.ai Commonwealth Bank of Australia CBA collaboration"
+urls = get_search_results(query)
+
+print("Search Results:")
+for i, url in enumerate(urls, 1):
+    print(f"{i}. {url}")
+    print(fetch_content(url))
+    print("\n---\n")
+```
+
+Now, let's run this updated script to gather information about h2o.ai and its collaboration with CBA.
+
+ENDOFTURN
+response: Great! Now that we have installed the necessary packages, let's modify our search script to use the `serpapi` library instead of `googlesearch`, as it's more reliable and uses the SERPAPI_API_KEY that's already available in the environment.
+
+```python
+# filename: search_h2o_cba.py
+import os
+import requests
+from bs4 import BeautifulSoup
+from serpapi import GoogleSearch
+
+def get_search_results(query, num_results=10):
+    params = {
+        "engine": "google",
+        "q": query,
+        "api_key": os.getenv("SERPAPI_API_KEY"),
+        "num": num_results
+    }
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    return [result['link'] for result in results.get('organic_results', [])]
+
+def fetch_content(url):
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        text = soup.get_text(separator=' ', strip=True)
+        return text[:1000]  # Return first 1000 characters
+    except:
+        return "Failed to fetch content"
+
+query = "h2o.ai Commonwealth Bank of Australia CBA collaboration"
+urls = get_search_results(query)
+
+print("Search Results:")
+for i, url in enumerate(urls, 1):
+    print(f"{i}. {url}")
+    print(fetch_content(url))
+    print("\n---\n")
+```
+
+Now, let's run this updated script to gather information about h2o.ai and its collaboration with CBA.
+
+foo
+
+ENDOFTURN
+"""
+
+    ret = CommandLineCodeResult(output=output, exit_code=0)
+    ret_new = H2OLocalCommandLineCodeExecutor.output_guardrail(ret)
+    print(ret_new.output)
+    assert bad_output_mark not in ret_new.output
+    assert danger_mark not in ret_new.output
+
+    badtext = os.environ['OPENAI_API_KEY']
+    output += badtext
+
+    ret = CommandLineCodeResult(output=output, exit_code=0)
+    try:
+        ret_new = H2OLocalCommandLineCodeExecutor.output_guardrail(ret)
+        print(ret_new)
+    except ValueError:
+        pass
+    else:
+        raise ValueError("Should not reach here")

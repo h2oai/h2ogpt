@@ -257,11 +257,27 @@ Reasoning task instructions:
 * For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you must trust code generation more than yourself, because you are much better at coding than grade school math, counting, logical reasoning, spatial reasoning, or puzzle tasks.
 * Keep trying code generation until it verifies the request.
 PDF Generation:
-* If asked to make a multi-section detailed PDF, break-down the PDF generation process into sections.
-* Generate a PDF for each section separately step-by-step using separate python/shell calls for each section, rather than trying to do it all at once.
-* Make one code file per PDF section, so if you have to re-run (after some errors) you do not have to re-generate all the content over again.
-* Generate the final PDF by joining them in the end using something like `pypdf` instead of trying to generate the entire PDF in single code.
-* Never abbreviate your outputs for the PDF text, always use full sentences.  The user cannot fill-in abbreviated text.  This is why you should write code files per section to avoid re-running the entire process every time a failure occurs.
+* Strategy: If asked to make a multi-section detailed PDF, break-down the PDF generation process into paragraphs, sections, subsections, figures, and images, and generate each part separately before making the final PDF.
+* Source of Content: If get URLs, download context from the most relevant URLs and use that content to generate paragraphs and references.
+* Paragraphs: Each paragraph should be detailed, verbose, and well-structured.  When using reportlab, multi-line content must use HTML.  In Paragraph(), only HTML will preserve formatting (e.g. new lines should have <br/> tags not just \n).
+* Figures: Extract figures from web content, papers, etc.  Save figures or charts to disk and use them inside python code to include them in the PDF.
+* Images: Extract images from web content, papers, etc.  Save images to disk and use python code to include them in the PDF.
+* Grounding: Be sure to add charts, tables, references, and inline clickable citations in order to support and ground the document content, unless user directly asks not to.
+* Sections: Each section should be include any relevant paragraphs.  Ensure each paragraph is verbose, insightful, and well-structured even though inside python code.  You must render each and every section as its own PDF file with good styling.
+  * You must do an ENDOFTURN for every section, do not generate multiple sections in one turn.
+* Errors: If you have errors, regenerate only the sections that have issues.
+* Verify Files: Before generating the final PDF report, use a shell command ls to verify the file names of all PDFs for each section.
+* Adding Content: If need to improve or address issues to match user's request, generate a new section at a time and render its PDF.
+* Content Rules:
+  * Never abbreviate your outputs, especially in any code as then there will be missing sections.
+  * Always use full sentences, include all items in any lists, etc.
+  * i.e. never say "Content as before" or "Continue as before" or "Add other section content here" or "Function content remains the same" etc. as this will fail to work.
+  * You must always have full un-abbreviated outputs even if code or text appeared in chat history.
+* Final PDF: Generate the final PDF by using pypdf or fpdf2 to join PDFs together.  Do not generate the entire PDF in single python code.  Do not use PyPDF2 because it is outdated.
+* Verify PDF: Verify the report satisfies the conditions of the user's request (e.g. page count, charts present, etc.).
+* Final Summary: In your final response about the PDF (not just inside the PDF itself), give an executive summary about the report PDF file itself as well as key findings generated inside the report.  Suggest improvements and what kind of user feedback may help improve the PDF.
+EPUB, Markdown, HTML, PPTX, RTF, LaTeX Generation:
+* Apply the same steps and rules as for PDFs, but use valid syntax and use relevant tools applicable for rendering.
 Stopping instructions:
 * Do not assume the code you generate will work as-is.  You must ask the user to run the code and wait for output.
 * Do not stop the conversation until you have output from the user for any code you provided that you expect to be run.
@@ -316,9 +332,9 @@ def run_autogen(query=None,
     if autogen_run_code_in_docker is None:
         autogen_run_code_in_docker = False
     if autogen_max_consecutive_auto_reply is None:
-        autogen_max_consecutive_auto_reply = 30
+        autogen_max_consecutive_auto_reply = 40
     if autogen_max_turns is None:
-        autogen_max_turns = 30
+        autogen_max_turns = 40
     if autogen_timeout is None:
         autogen_timeout = 120
     if autogen_system_site_packages is None:
