@@ -46,6 +46,7 @@ scrapy
 # selenium
 wolframalpha
 semanticscholar
+googlesearch-python
 google-search-results
 reportlab
 yfinance
