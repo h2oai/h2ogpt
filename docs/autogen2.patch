@@ -1,0 +1,83 @@
+--- /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/autogen/agentchat/conversable_agent.py	2024-08-30 22:59:32.130641859 -0700
++++ /home/jon/conversable_agent.py	2024-08-30 22:59:52.451296579 -0700
+@@ -1453,7 +1453,7 @@
+             if num_code_blocks == 1:
+                 iostream.print(
+                     colored(
+-                        f"\n>>>>>>>> EXECUTING CODE BLOCK (inferred language is {code_blocks[0].language})...",
++                        f"\n\n**EXECUTING CODE BLOCK (inferred language is {code_blocks[0].language})**\n\n",
+                         "red",
+                     ),
+                     flush=True,
+@@ -1461,7 +1461,7 @@
+             else:
+                 iostream.print(
+                     colored(
+-                        f"\n>>>>>>>> EXECUTING {num_code_blocks} CODE BLOCKS (inferred languages are [{', '.join([x.language for x in code_blocks])}])...",
++                        f"\n\n**EXECUTING {num_code_blocks} CODE BLOCKS (inferred languages are [{', '.join([x.language for x in code_blocks])}])**\n\n",
+                         "red",
+                     ),
+                     flush=True,
+@@ -1757,7 +1757,7 @@
+ 
+         # print the no_human_input_msg
+         if no_human_input_msg:
+-            iostream.print(colored(f"\n>>>>>>>> {no_human_input_msg}", "red"), flush=True)
++            iostream.print(colored(f"\n\n**{no_human_input_msg}", "red"), flush=True)
+ 
+         # stop the conversation
+         if reply == "exit":
+@@ -1797,7 +1797,7 @@
+         # increment the consecutive_auto_reply_counter
+         self._consecutive_auto_reply_counter[sender] += 1
+         if self.human_input_mode != "NEVER":
+-            iostream.print(colored("\n>>>>>>>> USING AUTO REPLY...", "red"), flush=True)
++            iostream.print(colored("\n\n**USING AUTO REPLY**\n\n", "red"), flush=True)
+ 
+         return False, None
+ 
+@@ -1870,7 +1870,7 @@
+ 
+         # print the no_human_input_msg
+         if no_human_input_msg:
+-            iostream.print(colored(f"\n>>>>>>>> {no_human_input_msg}", "red"), flush=True)
++            iostream.print(colored(f"\n\n**{no_human_input_msg}", "red"), flush=True)
+ 
+         # stop the conversation
+         if reply == "exit":
+@@ -1910,7 +1910,7 @@
+         # increment the consecutive_auto_reply_counter
+         self._consecutive_auto_reply_counter[sender] += 1
+         if self.human_input_mode != "NEVER":
+-            iostream.print(colored("\n>>>>>>>> USING AUTO REPLY...", "red"), flush=True)
++            iostream.print(colored("\n\n**USING AUTO REPLY**\n\n", "red"), flush=True)
+ 
+         return False, None
+ 
+@@ -2142,7 +2142,7 @@
+                 lang = infer_lang(code)
+             iostream.print(
+                 colored(
+-                    f"\n>>>>>>>> EXECUTING CODE BLOCK {i} (inferred language is {lang})...",
++                    f"\n\n**EXECUTING CODE BLOCK {i} (inferred language is {lang})**\n\n",
+                     "red",
+                 ),
+                 flush=True,
+@@ -2239,7 +2239,7 @@
+             # Try to execute the function
+             if arguments is not None:
+                 iostream.print(
+-                    colored(f"\n>>>>>>>> EXECUTING FUNCTION {func_name}...", "magenta"),
++                    colored(f"\n\n**EXECUTING FUNCTION {func_name}**\n\n", "magenta"),
+                     flush=True,
+                 )
+                 try:
+@@ -2296,7 +2296,7 @@
+             # Try to execute the function
+             if arguments is not None:
+                 iostream.print(
+-                    colored(f"\n>>>>>>>> EXECUTING ASYNC FUNCTION {func_name}...", "magenta"),
++                    colored(f"\n\n**EXECUTING ASYNC FUNCTION {func_name}**\n\n", "magenta"),
+                     flush=True,
+                 )
+                 try:
