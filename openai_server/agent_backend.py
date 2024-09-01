@@ -314,6 +314,10 @@ def run_autogen(query=None,
                 autogen_code_restrictions_level=None,
                 autogen_silent_exchange=None,
                 agent_verbose=None) -> dict:
+
+    from openai_server.autogen_utils import set_python_path
+    set_python_path()
+
     assert agent_type in ['autogen', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
