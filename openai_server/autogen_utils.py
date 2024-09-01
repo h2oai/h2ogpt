@@ -289,3 +289,20 @@ class H2OConversableAgent(ConversableAgent):
             else:
                 logger.error(f"Encountered non-retryable error: {str(e)}")
                 raise  # If it doesn't match our patterns, raise the original exception
+
+
+def set_python_path():
+    # Get the current working directory
+    current_dir = os.getcwd()
+    current_dir = os.path.abspath(current_dir)
+
+    # Retrieve the existing PYTHONPATH, if it exists, and append the current directory
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    new_pythonpath = current_dir if not pythonpath else pythonpath + os.pathsep + current_dir
+
+    # Update the PYTHONPATH environment variable
+    os.environ['PYTHONPATH'] = new_pythonpath
+
+    # Also, ensure sys.path is updated
+    if current_dir not in sys.path:
+        sys.path.append(current_dir)
