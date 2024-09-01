@@ -879,7 +879,7 @@ def get_standard_answer(prompt, text_context_list, image_file=None, chat_convers
     text = ''
     tgen0 = time.time()
     verbose = True
-    iostream.print("#### Pre-Agent Answer:\n\n")
+    iostream.print("#### Pre-Agentic Answer:\n\n")
     for chunk in responses:
         delta = chunk.choices[0].delta.content if chunk.choices else None
         if delta:
