@@ -87,6 +87,7 @@ def run_agent(query,
               authorization=None,
               chat_conversation=None,
               text_context_list=None,
+              system_prompt=None,
               image_file=None,
               # autogen/agent specific parameters
               agent_type=None,
@@ -299,6 +300,7 @@ def run_autogen(query=None,
                 authorization=None,
                 chat_conversation=None,
                 text_context_list=None,
+                system_prompt=None,
                 image_file=None,
                 # autogen/agent specific parameters
                 agent_type=None,
@@ -314,7 +316,6 @@ def run_autogen(query=None,
                 autogen_code_restrictions_level=None,
                 autogen_silent_exchange=None,
                 agent_verbose=None) -> dict:
-
     from openai_server.autogen_utils import set_python_path
     set_python_path()
 
@@ -425,6 +426,8 @@ def run_autogen(query=None,
                                                                temp_dir,
                                                                # avoid text version of chat conversation, confuses LLM
                                                                chat_conversation=None,
+                                                               system_prompt=system_prompt,
+                                                               prompt=query,
                                                                model=model)
 
     code_writer_agent = H2OConversableAgent(
@@ -706,7 +709,8 @@ def identify_image_files(file_list):
     return image_files, non_image_files
 
 
-def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversation=None, model=None):
+def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversation=None, system_prompt=None,
+                         prompt=None, model=None):
     """
     Construct the chat query to be sent to the agent.
     :param text_context_list:
@@ -715,6 +719,18 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     :param temp_dir:
     :return:
     """
+    if text_context_list is None:
+        text_context_list = []
+    if image_file is None:
+        image_file = []
+    if chat_conversation is None:
+        chat_conversation = []
+    if prompt is None:
+        prompt = ''
+    if system_prompt is None:
+        system_prompt = 'You are a helpful AI assistant.'
+    assert model is not None, "Model must be specified"
+
     document_context = ""
     chat_history_context = ""
     internal_file_names = []
@@ -753,6 +769,12 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
             meta_data_images.append(metadata)
 
     if text_context_list:
+
+        standard_answer = get_standard_answer(prompt, text_context_list, image_file=image_file,
+                                              chat_conversation=chat_conversation, model=model,
+                                              system_prompt=system_prompt, max_time=120)
+        document_context += "\nAnswer using documents and image in single LLM call:\n<standard_answer>\n" + standard_answer + "\n</standard_answer>\n\n"
+
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
         meta_results = [generate_unique_filename(x) for x in meta_datas]
         file_names, cleaned_names, pages = zip(*meta_results)
@@ -764,9 +786,12 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
             f.write("\n".join(text_context_list))
         document_context += f"""# User has provided you documents in the following files.
 * Please use these files help answer their question.
-* For example, you can print out the content of {document_context_file_name} and answer their question.
-* Try to verify their question using this information or other resources like web search or news query if available.
-* Ensure your responses not only answer the question, but also give relevant key insights or details.  For example, if the document is financial in nature, providing relevant key financial metrics or insights would be helpful.
+* Try to verify, refine, clarify, and enhance the standard answer using this information or other resources like web search or news query.
+* Drill into the details of the document to verify the standard answer.
+* Your job is to first critique the standard answer and step-by-step determine a better response.
+* Ensure your final response not only answer the question, but also give relevant key insights or details.
+* Ensure to include not just words but also key numerical metrics.
+* Give citations and quotations that ground and validate your responses.
 """
         document_context += f"""\n# Full user text:
 * This file contains text from documents the user uploaded.
@@ -825,6 +850,48 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
 
     return chat_doc_query, internal_file_names
+
+
+def get_standard_answer(prompt, text_context_list, image_file=None, chat_conversation=None, model=None,
+                        system_prompt=None, max_time=120):
+    base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
+    assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
+    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=server_api_key, timeout=max_time)
+
+    messages = structure_to_messages(prompt, system_prompt, chat_conversation, image_file)
+
+    temperature = 0
+    max_tokens = 1024
+    stream_output = True
+
+    responses = client.chat.completions.create(
+        messages=messages,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stream=stream_output,
+        extra_body=dict(text_context_list=text_context_list),
+    )
+    iostream = IOStream.get_default()
+    text = ''
+    tgen0 = time.time()
+    verbose = True
+    iostream.print("#### Pre-Agent Answer:\n\n")
+    for chunk in responses:
+        delta = chunk.choices[0].delta.content if chunk.choices else None
+        if delta:
+            text += delta
+            iostream.print(delta)
+        if time.time() - tgen0 > max_time:
+            if verbose:
+                print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
+                      flush=True)
+            break
+    iostream.print("\nENDOFTURN\n")
+    return text
 
 
 def in_pycharm():

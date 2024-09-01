@@ -368,11 +368,14 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     gen_kwargs = body
     instruction, system_message, history, image_files = convert_messages_to_structure(messages)
+    # get from messages, unless none, then try to get from gen_kwargs from extra_body
+    image_file = image_files if image_files else gen_kwargs.get('image_file', [])
+    history = history if history else gen_kwargs.get('chat_conversation', [])
     gen_kwargs.update({
         'system_prompt': system_message,
         'chat_conversation': history,
         'stream_output': stream_output,
-        'image_file': image_files,
+        'image_file': image_file,
     })
 
     use_agent = gen_kwargs.get('use_agent', False)
