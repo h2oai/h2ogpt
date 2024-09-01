@@ -766,7 +766,7 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
 * Please use these files help answer their question.
 * For example, you can print out the content of {document_context_file_name} and answer their question.
 * Try to verify their question using this information or other resources like web search or news query if available.
-* Ensure your responses not only answer the question, but also give relevant key insights or details.  For example, if the document is financial in nature, providing key financial metrics or insights would be helpful.
+* Ensure your responses not only answer the question, but also give relevant key insights or details.  For example, if the document is financial in nature, providing relevant key financial metrics or insights would be helpful.
 """
         document_context += f"""\n# Full user text:
 * This file contains text from documents the user uploaded.
