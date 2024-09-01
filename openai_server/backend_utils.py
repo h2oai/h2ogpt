@@ -165,7 +165,7 @@ def convert_messages_to_structure(messages):
         structure["instruction"] = last_user_message
     else:
         if (
-            last_user_message
+                last_user_message
         ):  # If there was a dangling last user message, add it to history
             structure["history"].append((last_user_message, None))
 
@@ -298,17 +298,17 @@ def convert_gen_kwargs(gen_kwargs):
         gen_kwargs["seed"] = 0
 
     if (
-        gen_kwargs.get("repetition_penalty", 1) == 1
-        and gen_kwargs.get("presence_penalty", 0.0) != 0.0
+            gen_kwargs.get("repetition_penalty", 1) == 1
+            and gen_kwargs.get("presence_penalty", 0.0) != 0.0
     ):
         # then user using presence_penalty, convert to repetition_penalty for h2oGPT
         # presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
         gen_kwargs["repetition_penalty"] = (
-            0.5 * (gen_kwargs["presence_penalty"] - 0.0) + 1.0
+                0.5 * (gen_kwargs["presence_penalty"] - 0.0) + 1.0
         )
 
     if gen_kwargs.get("response_format") and hasattr(
-        gen_kwargs.get("response_format"), "type"
+            gen_kwargs.get("response_format"), "type"
     ):
         # pydantic ensures type and key
         # transcribe to h2oGPT way of just value
@@ -365,85 +365,22 @@ def get_last_and_return_value(gen):
     return last_value, return_value
 
 
-import xml.etree.ElementTree as ET
 import re
 
 
-def extract_xml_tags(xml_string):
-    # Remove leading/trailing whitespace and newlines
-    xml_string = xml_string.strip()
-
-    # If the string is empty, return a special empty marker
-    if not xml_string:
-        return "[[EMPTY]]"
-
-    # If the string doesn't contain any XML tags, return an unparseable marker
-    if "<" not in xml_string or ">" not in xml_string:
-        return "[[UNPARSEABLE]]" + xml_string
-
-    try:
-        # Try to parse the XML string
-        if xml_string.startswith("<doc>") and xml_string.endswith("</doc>"):
-            root = ET.fromstring(xml_string)
-        else:
-            # If there's no <doc> tag, wrap the content in a temporary root
-            root = ET.fromstring(f"<root>{xml_string}</root>")
-
-        # Create a list to store the extracted tags
-        extracted_tags = []
-
-        # Extract all child elements except 'text'
-        for child in root:
-            if child.tag not in ["text", "doc"]:
-                # Convert the element to a string and remove any internal newlines
-                tag_string = ET.tostring(child, encoding="unicode").strip()
-                tag_string = re.sub(r"\s*\n\s*", " ", tag_string)
-                extracted_tags.append(tag_string)
-
-        # Join the extracted tags with a single newline
-        result = "\n".join(extracted_tags)
-
-        # Ensure there's a newline at the end, but only one
-        result = result.rstrip() + "\n"
-
-        return result
-
-    except ET.ParseError:
-        # If parsing fails, return the unparseable marker with the original string
-        return "[[UNPARSEABLE]]" + xml_string
+def extract_xml_tags(full_text, tags=['name', 'page']):
+    results_dict = {k: None for k in tags}
+    for tag in tags:
+        pattern = fr'<{tag}>(.*?)</{tag}>'
+        values = re.findall(pattern, full_text, re.DOTALL)
+        if values:
+            results_dict[tag] = values[0]
+    return results_dict
 
 
-def generate_unique_filename(xml_output):
-    # Check for the special empty marker
-    if xml_output == "[[EMPTY]]":
-        unique_id = str(uuid.uuid4())
-        return f"unknown_{unique_id}_page_0.txt", f"unknown_{unique_id}", "0"
-
-    # Check for the special unparseable marker
-    if xml_output.startswith("[[UNPARSEABLE]]"):
-        unique_id = str(uuid.uuid4())
-        return f"unparseable_{unique_id}_page_0.txt", f"unparseable_{unique_id}", "0"
-
-    # If xml_output is empty (shouldn't happen, but just in case), generate a filename with UUID
-    if not xml_output.strip():
-        unique_id = str(uuid.uuid4())
-        return f"unknown_{unique_id}_page_0.txt", f"unknown_{unique_id}", "0"
-
-    try:
-        # Try to parse the XML string
-        root = ET.fromstring(f"<root>{xml_output}</root>")
-    except ET.ParseError:
-        # If parsing fails, generate a filename with UUID
-        unique_id = str(uuid.uuid4())
-        return f"unparseable_{unique_id}_page_0.txt", f"unparseable_{unique_id}", "0"
-
-    # Extract name and page
-    name_elem = root.find("name")
-    page_elem = root.find("page")
-
-    # Use UUID if name is missing, '0' if page is missing
-    name = name_elem.text.strip() if name_elem is not None else str(uuid.uuid4())
-    page = page_elem.text.strip() if page_elem is not None else "0"
+def generate_unique_filename(name_page_dict):
+    name = name_page_dict.get('name', 'unknown') or 'unknown'
+    page = name_page_dict.get('page', '0') or '0'
 
     # Remove file extension if present
     name = os.path.splitext(name)[0]

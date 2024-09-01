@@ -13,13 +13,11 @@ Zulu is hot.
 """
 
     from openai_server.backend_utils import extract_xml_tags
-    output = extract_xml_tags(xml_input)
-    assert output == """<name>Zulu is hot..pdf</name>
-<page>1</page>
-"""
+    name_page_dict = extract_xml_tags(xml_input)
+    assert name_page_dict == {'name': 'Zulu is hot..pdf', 'page': '1'}
 
     from openai_server.backend_utils import generate_unique_filename
-    filename, clean_name, page = generate_unique_filename(output)
+    filename, clean_name, page = generate_unique_filename(name_page_dict)
     assert (filename, clean_name, page) == ('Zulu_is_hot__page_1.txt', 'Zulu_is_hot_', '1')
 
 
@@ -46,27 +44,6 @@ def test_deduplicate_filenames():
 
 
 import re
-
-
-def test_robust_xml_functions():
-    from openai_server.backend_utils import extract_xml_tags
-    from openai_server.backend_utils import generate_unique_filename
-
-    test_cases = [
-        ("<name>Zulu is hot..pdf</name>\n<page>1</page>", "Zulu_is_hot__page_1.txt"),
-        ("<doc><name>Zulu is hot..pdf</name>\n<page>1</page></doc>", "Zulu_is_hot__page_1.txt"),
-        ("<name>Missing page.pdf</name>", "Missing_page_page_0.txt"),
-        ("<page>5</page>", r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_page_5\.txt"),
-        ("No XML tags here", r"unparseable_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_page_0\.txt"),
-        ("", r"unknown_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_page_0\.txt"),
-    ]
-
-    for i, (input_xml, expected_pattern) in enumerate(test_cases):
-        extracted = extract_xml_tags(input_xml)
-        filename, clean_name, page = generate_unique_filename(extracted)
-
-        assert re.fullmatch(expected_pattern,
-                            filename), f"Test case {i + 1} failed. Expected pattern: {expected_pattern}, Got: {filename}"
 
 
 def test_generate_unique_filename_multiple_returns():
@@ -101,8 +78,8 @@ def test_generate_unique_filename_multiple_returns():
     assert pages[1] == "0"
 
     assert pages[2] == "5"
-    assert file_names[3].startswith("unparseable_")
-    assert file_names[4].startswith("unknown_")
+    assert file_names[3] == 'unknown_page_0.txt'
+    assert file_names[4] == 'unknown_page_0.txt'
 
 
 def test_exif():
