@@ -773,7 +773,10 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         standard_answer = get_standard_answer(prompt, text_context_list, image_file=image_file,
                                               chat_conversation=chat_conversation, model=model,
                                               system_prompt=system_prompt, max_time=120)
-        document_context += "\nAnswer using documents and image in single LLM call:\n<standard_answer>\n" + standard_answer + "\n</standard_answer>\n\n"
+        if standard_answer:
+            document_context += "\nThe below is an unverified answer, you should not assume it is correct but need to research documents, news, etc. to verify it step-by-step.  Come up with the best answer to the user's question:\n<unverified_answer>\n" + standard_answer + "\n</unverified_answer>\n\n"
+        else:
+            document_context += "\nNo unverified answer was generated.  You should research documents, news, etc. to verify the user's question and come up with the best answer.\n\n"
 
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
         meta_results = [generate_unique_filename(x) for x in meta_datas]
@@ -784,14 +787,17 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
-        document_context += f"""# User has provided you documents in the following files.
+        document_context += f"""<task>
+* User has provided you documents in the following files.
 * Please use these files help answer their question.
-* Try to verify, refine, clarify, and enhance the standard answer using this information or other resources like web search or news query.
-* Drill into the details of the document to verify the standard answer.
-* Your job is to first critique the standard answer and step-by-step determine a better response.
+* You must verify, refine, clarify, and enhance the unverified answer using this information or other resources like web search or news query.
+* Drill into the details of the documents in the files or images to verify the unverified answer.
+* Your job is to critique the unverified answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
 * Ensure your final response not only answer the question, but also give relevant key insights or details.
 * Ensure to include not just words but also key numerical metrics.
 * Give citations and quotations that ground and validate your responses.
+* REMEMBER: Do not just repeat the unverified answer.  You must verify, refine, clarify, and enhance it.
+</task>
 """
         document_context += f"""\n# Full user text:
 * This file contains text from documents the user uploaded.
