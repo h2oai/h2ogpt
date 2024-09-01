@@ -787,13 +787,19 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
+        have_internet = get_have_internet()
+        if have_internet:
+            web_query = "* You must try to find corroborating information from web searches.\n"
+            web_query += "* You must try to find corroborating information from news queries.\n"
+        else:
+            web_query = ""
         document_context += f"""<task>
 * User has provided you documents in the following files.
 * Please use these files help answer their question.
-* You must verify, refine, clarify, and enhance the unverified answer using this information or other resources like web search or news query.
-* Drill into the details of the documents in the files or images to verify the unverified answer.
+* You must verify, refine, clarify, and enhance the unverified answer using the user text files or images.{web_query}
+* You absolutely must read step-by step every single user file and image in order to verify the unverified answer.  Do not skip any text files or images.  Do not read all files or images at once, but read no more than 5 text files each turn.
 * Your job is to critique the unverified answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
-* Ensure your final response not only answer the question, but also give relevant key insights or details.
+* Ensure your final response not only answers the question, but also give relevant key insights or details.
 * Ensure to include not just words but also key numerical metrics.
 * Give citations and quotations that ground and validate your responses.
 * REMEMBER: Do not just repeat the unverified answer.  You must verify, refine, clarify, and enhance it.
