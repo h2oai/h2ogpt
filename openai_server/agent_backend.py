@@ -762,7 +762,7 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
-        document_context += """User has provided you documents in the following files.  Please use these files help answer their question.\n"""
+        document_context += f"""User has provided you documents in the following files.  Please use these files help answer their question.  For example, you can print out the content of {document_context_file_name} and answer their question.  Try to verify their question using this information or other resources like web search or news query if available.\n"""
         document_context += f"""\n# Full user text:
 * This file contains text from documents the user uploaded.
 * Check text file size before using, because text longer than 200k bytes may not fit into LLM context (so split it up or use document chunks).
