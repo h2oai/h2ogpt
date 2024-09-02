@@ -248,6 +248,10 @@ pip install jinja2==3.1.4 -c reqs_optional/reqs_constraints.txt
 bash ./docs/run_patches.sh
 
 
+# NPM based
+npm install -g @mermaid-js/mermaid-cli
+
+
 if [[ -z "${WOLFI_OS}" ]]; then
   #
   #* Compile Install Issues

@@ -23,7 +23,9 @@ apt-get update && apt-get install -y \
     libreoffice \
     autoconf \
     libtool \
-    docker.io
+    docker.io \
+    nodejs \
+    npm
 
 # Run upgrades
 apt-get upgrade -y
