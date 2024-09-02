@@ -421,6 +421,7 @@ def run_autogen(query=None,
         print("max_tokens: %s" % max_new_tokens)
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
+    mermaid_renderer_helper = get_mermaid_renderer_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -430,9 +431,11 @@ def run_autogen(query=None,
                                                                prompt=query,
                                                                model=model)
 
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + chat_doc_query
+
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
-        system_message=agent_code_writer_system_message + image_query_helper + chat_doc_query,
+        system_message=system_message,
         llm_config={"config_list": [{"model": model,
                                      "api_key": api_key,
                                      "base_url": base_url,
@@ -787,13 +790,19 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         internal_file_names.extend(file_names)
         with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
+        have_internet = get_have_internet()
+        if have_internet:
+            web_query = "* You must try to find corroborating information from web searches.\n"
+            web_query += "* You must try to find corroborating information from news queries.\n"
+        else:
+            web_query = ""
         document_context += f"""<task>
 * User has provided you documents in the following files.
 * Please use these files help answer their question.
-* You must verify, refine, clarify, and enhance the unverified answer using this information or other resources like web search or news query.
-* Drill into the details of the documents in the files or images to verify the unverified answer.
+* You must verify, refine, clarify, and enhance the unverified answer using the user text files or images.{web_query}
+* You absolutely must read step-by step every single user file and image in order to verify the unverified answer.  Do not skip any text files or images.  Do not read all files or images at once, but read no more than 5 text files each turn.
 * Your job is to critique the unverified answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
-* Ensure your final response not only answer the question, but also give relevant key insights or details.
+* Ensure your final response not only answers the question, but also give relevant key insights or details.
 * Ensure to include not just words but also key numerical metrics.
 * Give citations and quotations that ground and validate your responses.
 * REMEMBER: Do not just repeat the unverified answer.  You must verify, refine, clarify, and enhance it.
@@ -934,3 +943,19 @@ python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "
 * Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
 """
     return image_query_helper
+
+
+def get_mermaid_renderer_helper():
+    cwd = os.path.abspath(os.getcwd())
+
+    mmdc = f"""\n* Mermaid renderer using mmdc. Use for making flowcharts etc. in svg, pdf, or png format.
+* For a mermaid rendering, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_mermaid_render.sh
+python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid file"
+```
+* usage: python {cwd}/openai_server/agent_tools/mermaid_renderer.py [-h] (--file FILE | --ccode CODE [CODE ...]) [--output OUTPUT] [--format {{svg,png,pdf}}]
+* If you have a file with mermaid code, use --file FILE option.
+* If you want to input mermaid code directly on command line, you should use ; instead of new lines for the mermaid code.
+"""
+    return mmdc
