@@ -78,6 +78,15 @@ COPY --from=intermediate-stage    /workspace/build_info.txt       /build_info.tx
 COPY --from=intermediate-stage    /workspace                      /workspace
 RUN chmod a+rwx /workspace  # only for top dir, as docker COPY skips it.
 
+# Install Node.js, npm, and other necessary dependencies
+RUN apk add --no-cache nodejs npm font-dejavu
+
+# Install Mermaid CLI globally
+RUN npm install -g @mermaid-js/mermaid-cli
+
+# Verify Mermaid CLI installation
+RUN mmdc --version
+
 EXPOSE 8888
 EXPOSE 7860
 EXPOSE 5000
