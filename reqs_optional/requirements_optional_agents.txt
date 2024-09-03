@@ -52,3 +52,6 @@ reportlab
 yfinance
 # too different deps like pandas
 # yahooquery
+svglib
+# requires poppler from conda or apt-get
+pdf2image
