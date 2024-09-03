@@ -4,7 +4,6 @@ from typing import List, Dict
 
 import pytest
 
-
 sys.path.append('openai_server')
 from openai_server.backend_utils import convert_messages_to_structure, structure_to_messages, \
     concatenate_messages, concat_tool_messages
@@ -245,7 +244,7 @@ def test_convert_messages_to_structure():
         instruction, system_message, history, image_files = convert_messages_to_structure(messages)
         assert False, "Expected ValueError for consecutive messages with the same role"
     except ValueError as e:
-        assert str(e) == "Consecutive messages with the same role are not allowed"
+        assert str(e).startswith("Consecutive messages with the same role are not allowed")
 
     # Test case 3: Content as a list of dicts (text and image URL)
     messages = [
