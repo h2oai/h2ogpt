@@ -557,8 +557,14 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
     import pyexiv2
     meta_data_images = []
     for image_files1 in image_files:
-        with pyexiv2.Image(image_files1) as img:
-            metadata = img.read_exif()
+        try:
+            with pyexiv2.Image(image_files1) as img:
+                metadata = img.read_exif()
+        except RuntimeError as e:
+            if 'unknown image type' in str(e):
+                metadata = {}
+            else:
+                raise
         if metadata is None:
             metadata = {}
         meta_data_images.append(metadata)

@@ -177,6 +177,13 @@ Stopping instructions:
     return agent_code_writer_system_message
 
 
+### WIP:
+# Post-processing Steps:
+# * When all done, just before terminating, make a mermaid flow chart of all steps you took and all files produced.
+# But if do this directly, then talks too much about this at end.
+# So maybe do as actual final step outside of agent, just passing in history, then separately storing any LLM response.
+
+
 def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversation=None, system_prompt=None,
                          prompt=None, model=None):
     """
