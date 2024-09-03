@@ -43,9 +43,6 @@ def test_deduplicate_filenames():
     assert result == expected, f"Expected: {expected}, but got: {result}"
 
 
-import re
-
-
 def test_generate_unique_filename_multiple_returns():
     meta_datas = [
         "<name>Zulu is hot..pdf</name>\n<page>1</page>",
