@@ -239,7 +239,9 @@ def test_output_guardrail_real_key_in_output(setup_env_vars):
 def test_output_guardrail_multiple_keys_in_output(setup_env_vars):
     result = CommandLineCodeResult(output="Keys: test_news_api_key and sk_test_1234567890abcdef", exit_code=0)
     with pytest.raises(ValueError,
-                       match="Output contains sensitive information. Violated keys: OPENAI_API_KEY, NEWS_API_KEY"):
+                       match="Output contains sensitive information. Violated keys: OPENAI_API_KEY, NEWS_API_KEY" +
+                             "|" +
+                             "Output contains sensitive information. Violated keys: NEWS_API_KEY, OPENAI_API_KEY"):
         H2OLocalCommandLineCodeExecutor.output_guardrail(result)
 
 
