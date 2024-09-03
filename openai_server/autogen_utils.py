@@ -3,10 +3,12 @@ import os
 import re
 import sys
 import typing
-from typing import List, Tuple
+from typing import List
 
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
+from autogen import ConversableAgent
+import backoff
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
@@ -170,9 +172,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                          'SLACK_API_TOKEN', 'MISTRAL_API_KEY', 'TOGETHERAI_API_TOKEN', 'GITHUB_TOKEN', 'SECRET_KEY',
                          'GOOGLE_API_KEY', 'REPLICATE_API_TOKEN', 'GOOGLE_CLIENT_SECRET', 'GROQ_API_KEY',
                          'AWS_SERVER_SECRET_KEY', 'H2OGPT_OPENAI_BASE_URL', 'H2OGPT_OPENAI_API_KEY',
-                         'H2OGPT_OPENAI_PORT', 'H2OGPT_OPENAI_HOST', 'H2OGPT_OPENAI_CERT_PATH',
-                         'H2OGPT_OPENAI_KEY_PATH', 'H2OGPT_MAIN_KWARGS',
-                         'GRADIO_H2OGPT_H2OGPT_KEY']
+                         'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY']
 
         # Get the values of these environment variables
         set_api_key_names = set(api_key_names)
@@ -209,7 +209,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             for api_key_value in api_key_values:
                 if api_key_value in ret.output.lower():
                     # Find the corresponding key name(s) for the violated value
-                    violated_key_names = [name for name in api_key_names if api_key_dict.get(name, '').lower() == api_key_value.lower() and api_key_value]
+                    violated_key_names = [name for name in api_key_names if
+                                          api_key_dict.get(name, '').lower() == api_key_value.lower() and api_key_value]
                     violated_keys.extend(violated_key_names)
 
             # If any violations were found, raise an error with all violated keys
@@ -252,9 +253,6 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 # required because original class does not use super() but references its own method
 LocalCommandLineCodeExecutor.sanitize_command = H2OLocalCommandLineCodeExecutor.sanitize_command
 
-from autogen import ConversableAgent
-import backoff
-
 error_patterns = [
     r"Rate limit reached",
     r"Connection timeout",
@@ -289,20 +287,3 @@ class H2OConversableAgent(ConversableAgent):
             else:
                 logger.error(f"Encountered non-retryable error: {str(e)}")
                 raise  # If it doesn't match our patterns, raise the original exception
-
-
-def set_python_path():
-    # Get the current working directory
-    current_dir = os.getcwd()
-    current_dir = os.path.abspath(current_dir)
-
-    # Retrieve the existing PYTHONPATH, if it exists, and append the current directory
-    pythonpath = os.environ.get('PYTHONPATH', '')
-    new_pythonpath = current_dir if not pythonpath else pythonpath + os.pathsep + current_dir
-
-    # Update the PYTHONPATH environment variable
-    os.environ['PYTHONPATH'] = new_pythonpath
-
-    # Also, ensure sys.path is updated
-    if current_dir not in sys.path:
-        sys.path.append(current_dir)
