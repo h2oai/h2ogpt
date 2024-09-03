@@ -172,8 +172,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                          'SLACK_API_TOKEN', 'MISTRAL_API_KEY', 'TOGETHERAI_API_TOKEN', 'GITHUB_TOKEN', 'SECRET_KEY',
                          'GOOGLE_API_KEY', 'REPLICATE_API_TOKEN', 'GOOGLE_CLIENT_SECRET', 'GROQ_API_KEY',
                          'AWS_SERVER_SECRET_KEY', 'H2OGPT_OPENAI_BASE_URL', 'H2OGPT_OPENAI_API_KEY',
-                         'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY',
-                         'H2OGPT_OPENAI_PORT']
+                         'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY']
 
         # Get the values of these environment variables
         set_api_key_names = set(api_key_names)
