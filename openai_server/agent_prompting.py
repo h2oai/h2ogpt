@@ -33,7 +33,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
         if have_internet and os.getenv('S2_API_KEY'):
             # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
             # https://github.com/allenai/s2-folks
-            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find relevant scientific papers.
+            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find scientific papers (not news or financial information).
     * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
     ```sh
     python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
@@ -147,6 +147,7 @@ Task solving instructions:
 * When you find an answer, verify the answer carefully. Include verifiable evidence in your response if possible.
 Reasoning task instructions:
 * For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you must trust code generation more than yourself, because you are much better at coding than grade school math, counting, logical reasoning, spatial reasoning, or puzzle tasks.
+* For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you should try multiple approaches (e.g. specialized and generalized code) and compare the results in order to affirm the correctness of the answer (especially for complex puzzles or math).
 * Keep trying code generation until it verifies the request.
 PDF Generation:
 * Strategy: If asked to make a multi-section detailed PDF, first collect source content from resources like news or papers, then make a plan, then break-down the PDF generation process into paragraphs, sections, subsections, figures, and images, and generate each part separately before making the final PDF.
