@@ -141,8 +141,12 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         try:
+            # skip code blocks with # execution: false
+            code_blocks = [x for x in code_blocks if '# execution: false' not in x.code]
             ret = super()._execute_code_dont_check_setup(code_blocks)
         except Exception as e:
+            if 'exitcode' in str(e) and 'local variable' in str(e):
+                return CommandLineCodeResult(exit_code=0, output='No code executed.')
             if danger_mark in str(e):
                 print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
                 # dont' fail, just return the error so LLM can adjust
