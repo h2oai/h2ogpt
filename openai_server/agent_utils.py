@@ -84,4 +84,4 @@ def current_datetime():
     formatted_date_time = now.strftime("%A, %B %d, %Y - %I:%M %p %Z")
 
     # Print the formatted date, time, and time zone
-    return "Current Date, Time, and Local Time Zone: %s" % formatted_date_time
+    return "For current user query: Current Date, Time, and Local Time Zone: %s" % formatted_date_time

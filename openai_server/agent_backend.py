@@ -237,7 +237,12 @@ def run_autogen(query=None,
                                                                prompt=query,
                                                                model=model)
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + chat_doc_query
+    cwd = os.path.abspath(os.getcwd())
+    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+
+    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
+
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
 
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
