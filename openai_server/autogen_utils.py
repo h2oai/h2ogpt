@@ -7,7 +7,7 @@ from typing import List
 
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
-from autogen import ConversableAgent
+from autogen.agentchat.conversable_agent import ConversableAgent
 import backoff
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
