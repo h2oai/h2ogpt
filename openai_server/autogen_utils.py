@@ -204,20 +204,34 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         api_key_values = [value.lower() for value in set_api_key_values if value and value.lower() not in set_allowed]
 
         if ret.output:
+            # try to remove offending lines first, if only 1-2 lines, then maybe logging and not code itself
+            lines = []
+            for line in ret.output.split('\n'):
+                if any(api_key_value in line.lower() for api_key_value in api_key_values):
+                    print(f"Sensitive information found in output, so removed it: {line}")
+                    # e.g. H2OGPT_OPENAI_BASE_URL can appear from logging events from httpx
+                    continue
+                else:
+                    lines.append(line)
+            ret.output = '\n'.join(lines)
+
             # Check if any API key value is in the output and collect all violations
             violated_keys = []
+            violated_values = []
+            api_key_dict_reversed = {v: k for k, v in api_key_dict.items()}
             for api_key_value in api_key_values:
                 if api_key_value in ret.output.lower():
                     # Find the corresponding key name(s) for the violated value
-                    violated_key_names = [name for name in api_key_names if
-                                          api_key_dict.get(name, '').lower() == api_key_value.lower() and api_key_value]
-                    violated_keys.extend(violated_key_names)
+                    violated_key = api_key_dict_reversed[api_key_value]
+                    violated_keys.append(violated_key)
+                    violated_values.append(api_key_value)
 
             # If any violations were found, raise an error with all violated keys
             if violated_keys:
                 error_message = f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}"
                 print(error_message)
                 print("\nBad Output:\n", ret.output)
+                print(f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}\n Violated values: {', '.join(violated_values)}")
                 raise ValueError(error_message)
 
         return ret

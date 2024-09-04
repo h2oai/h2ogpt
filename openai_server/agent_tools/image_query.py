@@ -1,15 +1,22 @@
 import os
 import argparse
 import tempfile
+import logging
+import cairosvg
+
+# Set up logging
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
+
+# avoid logging that reveals urls
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
-def convert_svg_to_pdf(svg_path):
-    from svglib.svglib import svg2rlg
-    from reportlab.graphics import renderPDF
-    drawing = svg2rlg(svg_path)
-    pdf_path = tempfile.mktemp(suffix='.pdf')
-    renderPDF.drawToFile(drawing, pdf_path)
-    return pdf_path
+def convert_svg_to_png(svg_path):
+    png_path = tempfile.mktemp(suffix='.png')
+    cairosvg.svg2png(url=svg_path, write_to=png_path)
+    return png_path
 
 
 def convert_pdf_to_images(pdf_path):
@@ -27,8 +34,8 @@ def process_file(file_path):
     _, file_extension = os.path.splitext(file_path)
 
     if file_extension.lower() == '.svg':
-        pdf_path = convert_svg_to_pdf(file_path)
-        return convert_pdf_to_images(pdf_path)
+        png_path = convert_svg_to_png(file_path)
+        return [png_path] if png_path else []
     elif file_extension.lower() == '.pdf':
         return convert_pdf_to_images(file_path)
     else:
@@ -74,6 +81,8 @@ def main():
     if args.file:
         from openai_server.openai_client import file_to_base64
         image_paths = process_file(args.file)
+        if not image_paths:
+            raise ValueError(f"Unsupported file type: {args.file}")
         image_contents = [
             {
                 'type': 'image_url',
@@ -84,6 +93,7 @@ def main():
             } for image_path in image_paths
         ]
     else:
+        image_paths = []
         image_contents = [{
             'type': 'image_url',
             'image_url': {
@@ -107,15 +117,21 @@ def main():
         model=args.model,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
-        # could resize here instead if don't want to trust h2oGPT with doing also rotation and alignment
-        extra_body=dict(rotate_align_resize_image=True),
     )
 
     text = response.choices[0].message.content if response.choices else ''
     if text:
         print("Vision Model Response: ", text)
     else:
-        print("Vision Model Failed")
+        print("Vision Model returned an empty response")
+
+    # Cleanup temporary files
+    for image_path in image_paths:
+        if image_path != args.file:  # Don't delete the original file
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete temporary file {image_path}: {str(e)}")
 
 
 if __name__ == "__main__":
