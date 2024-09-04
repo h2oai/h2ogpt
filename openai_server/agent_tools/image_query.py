@@ -1,5 +1,46 @@
 import os
 import argparse
+import tempfile
+import logging
+import cairosvg
+
+# Set up logging
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
+
+# avoid logging that reveals urls
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+
+def convert_svg_to_png(svg_path):
+    png_path = tempfile.mktemp(suffix='.png')
+    cairosvg.svg2png(url=svg_path, write_to=png_path)
+    return png_path
+
+
+def convert_pdf_to_images(pdf_path):
+    from pdf2image import convert_from_path
+    images = convert_from_path(pdf_path)
+    image_paths = []
+    for i, image in enumerate(images):
+        image_path = tempfile.mktemp(suffix=f'_page_{i + 1}.png')
+        image.save(image_path, 'PNG')
+        image_paths.append(image_path)
+    return image_paths
+
+
+def process_file(file_path):
+    _, file_extension = os.path.splitext(file_path)
+
+    if file_extension.lower() == '.svg':
+        png_path = convert_svg_to_png(file_path)
+        return [png_path] if png_path else []
+    elif file_extension.lower() == '.pdf':
+        return convert_pdf_to_images(file_path)
+    else:
+        # For standard image files, just return the original file path
+        return [file_path]
 
 
 def main():
@@ -14,7 +55,8 @@ def main():
                         help="System prompt")
     parser.add_argument("-p", "--prompt", type=str, required=True, help="User prompt")
     parser.add_argument("-u", "--url", type=str, help="URL of the image")
-    parser.add_argument("-f", "--file", type=str, help="Path to the image file")
+    parser.add_argument("-f", "--file", type=str,
+                        help="Path to the image file. Accepts standard image formats (e.g., PNG, JPEG, JPG), SVG, and PDF files.")
     parser.add_argument("-m", "--model", type=str, help="OpenAI or Open Source model to use")
     parser.add_argument("-T", "--temperature", type=float, default=0.0, help="Temperature for the model")
     parser.add_argument("--max_tokens", type=int, default=1024, help="Maximum tokens for the model")
@@ -38,29 +80,35 @@ def main():
 
     if args.file:
         from openai_server.openai_client import file_to_base64
-        url = file_to_base64(args.file, file_path_to_use=None)[args.file]
+        image_paths = process_file(args.file)
+        if not image_paths:
+            raise ValueError(f"Unsupported file type: {args.file}")
+        image_contents = [
+            {
+                'type': 'image_url',
+                'image_url': {
+                    'url': file_to_base64(image_path)[image_path],
+                    'detail': 'high',
+                },
+            } for image_path in image_paths
+        ]
     else:
-        url = args.url
-
-    image_content = {
-        'type': 'image_url',
-        'image_url': {
-            'url': url,
-            'detail': 'high',
-        },
-    }
+        image_paths = []
+        image_contents = [{
+            'type': 'image_url',
+            'image_url': {
+                'url': args.url,
+                'detail': 'high',
+            },
+        }]
 
     messages = [
         {"role": "system", "content": args.system_prompt},
         {
             'role': 'user',
             'content': [
-                {
-                    'type': 'text',
-                    'text': args.prompt,
-                },
-                image_content,
-            ],
+                           {'type': 'text', 'text': args.prompt},
+                       ] + image_contents,
         }
     ]
 
@@ -69,13 +117,22 @@ def main():
         model=args.model,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
+        extra_body=dict(rotate_align_resize_image=True),
     )
 
     text = response.choices[0].message.content if response.choices else ''
     if text:
         print("Vision Model Response: ", text)
     else:
-        print("Vision Model Failed")
+        print("Vision Model returned an empty response")
+
+    # Cleanup temporary files
+    for image_path in image_paths:
+        if image_path != args.file:  # Don't delete the original file
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete temporary file {image_path}: {str(e)}")
 
 
 if __name__ == "__main__":

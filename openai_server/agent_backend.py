@@ -367,6 +367,9 @@ def run_autogen(query=None,
         ret_dict.update(dict(image_query_helper=image_query_helper))
     ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))
     ret_dict.update(dict(autogen_silent_exchange=autogen_silent_exchange))
+    # can re-use for chat continuation to avoid sending files over
+    # FIXME: Maybe just delete files and force send back to agent
+    ret_dict.update(dict(temp_dir=temp_dir))
 
     return ret_dict
 
