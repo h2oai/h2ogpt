@@ -53,6 +53,8 @@ def main():
     # If no output file is specified, create a unique name
     if args.output is None:
         args.output = generate_unique_filename(args.format)
+    elif not args.output.endswith(args.format):
+        args.output = f"{args.output}.{args.format}"
 
     try:
         # Determine the Mermaid code source

@@ -3,7 +3,7 @@ import tempfile
 import time
 import uuid
 
-from openai_server.agent_utils import get_have_internet
+from openai_server.agent_utils import get_have_internet, current_datetime
 from openai_server.backend_utils import extract_xml_tags, generate_unique_filename, deduplicate_filenames, \
     structure_to_messages
 
@@ -12,6 +12,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
     if agent_code_writer_system_message is None:
         cwd = os.path.abspath(os.getcwd())
         have_internet = get_have_internet()
+        date_str = current_datetime()
 
         # The code writer agent's system message is to instruct the LLM on how to use
         # the code executor in the code executor agent.
@@ -80,6 +81,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
             apis = """\nAPIs and external services instructions:
 * You DO NOT have access to the internet.  You cannot use any APIs that require internet access."""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
+* {date_str}
 Query understanding instructions:
 * If the user directs you to do something (e.g. make a plot), then do it via code generation.
 * If the user asks a question requiring grade school math, math with more than single digits, or advanced math, then solve it via code generation.
@@ -93,7 +95,10 @@ Code generation instructions:
 * When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify. Don't use a code block if it's not intended to be executed by the user.
 * Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
-* If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.  Give a good file extension to the filename.  Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant. Check the execution result returned by the user.
+* If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.
+  * Give a correct file extension to the filename.
+  * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
+  * Check the execution result returned by the user.
 * You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
 * When you need to collect info, generate code to output the info you need.
 * Ensure you provide well-commented code, so the user can understand what the code does.
@@ -125,6 +130,7 @@ Example python packages or useful sh commands:
   * Text NLP processing: nltk or spacy or textblob{extra_recommended_packages}
   * Web download and search: requests or bs4 or scrapy or lxml or httpx
 * For bash shell scripts, useful commands include `ls` to verify files were created.
+  * Be careful not to make mistakes, like piping output of a file into itself.
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
 * Browse files (e.g. sh with ls).
@@ -426,6 +432,7 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid file"
 ```
 * usage: python {cwd}/openai_server/agent_tools/mermaid_renderer.py [-h] (--file FILE | --ccode CODE [CODE ...]) [--output OUTPUT] [--format {{svg,png,pdf}}]
 * If you have a file with mermaid code, use --file FILE option.
+* Good input file names would have an .mmd extension.
 * If you want to input mermaid code directly on command line, you should use ; instead of new lines for the mermaid code.
 """
     return mmdc

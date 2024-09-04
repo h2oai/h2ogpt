@@ -14,7 +14,13 @@ def convert_svg_to_pdf(svg_path):
 
 def convert_pdf_to_images(pdf_path):
     from pdf2image import convert_from_path
-    return convert_from_path(pdf_path)
+    images = convert_from_path(pdf_path)
+    image_paths = []
+    for i, image in enumerate(images):
+        image_path = tempfile.mktemp(suffix=f'_page_{i + 1}.png')
+        image.save(image_path, 'PNG')
+        image_paths.append(image_path)
+    return image_paths
 
 
 def process_file(file_path):
@@ -22,15 +28,12 @@ def process_file(file_path):
 
     if file_extension.lower() == '.svg':
         pdf_path = convert_svg_to_pdf(file_path)
-        images = convert_pdf_to_images(pdf_path)
+        return convert_pdf_to_images(pdf_path)
     elif file_extension.lower() == '.pdf':
-        images = convert_pdf_to_images(file_path)
+        return convert_pdf_to_images(file_path)
     else:
-        # Assume it's a regular image file
-        from PIL import Image
-        images = [Image.open(file_path)]
-
-    return images
+        # For standard image files, just return the original file path
+        return [file_path]
 
 
 def main():
@@ -70,15 +73,15 @@ def main():
 
     if args.file:
         from openai_server.openai_client import file_to_base64
-        images = process_file(args.file)
+        image_paths = process_file(args.file)
         image_contents = [
             {
                 'type': 'image_url',
                 'image_url': {
-                    'url': file_to_base64(image, file_path_to_use=None)[image],
+                    'url': file_to_base64(image_path)[image_path],
                     'detail': 'high',
                 },
-            } for image in images
+            } for image_path in image_paths
         ]
     else:
         image_contents = [{
@@ -104,6 +107,8 @@ def main():
         model=args.model,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
+        # could resize here instead if don't want to trust h2oGPT with doing also rotation and alignment
+        extra_body=dict(rotate_align_resize_image=True),
     )
 
     text = response.choices[0].message.content if response.choices else ''

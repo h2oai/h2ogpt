@@ -52,6 +52,15 @@ reportlab
 yfinance
 # too different deps like pandas
 # yahooquery
+
+# svg support
 svglib
+cairosvg
+
 # requires poppler from conda or apt-get
 pdf2image
+# for graphviz support
+pydot
+
+# just to be sure stays around
+tzlocal

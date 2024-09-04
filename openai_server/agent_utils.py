@@ -68,3 +68,20 @@ def set_python_path():
     # Also, ensure sys.path is updated
     if current_dir not in sys.path:
         sys.path.append(current_dir)
+
+
+def current_datetime():
+    from datetime import datetime
+    import tzlocal
+
+    # Get the local time zone
+    local_timezone = tzlocal.get_localzone()
+
+    # Get the current time in the local time zone
+    now = datetime.now(local_timezone)
+
+    # Format the date, time, and time zone
+    formatted_date_time = now.strftime("%A, %B %d, %Y - %I:%M %p %Z")
+
+    # Print the formatted date, time, and time zone
+    return "Current Date, Time, and Local Time Zone: %s" % formatted_date_time
