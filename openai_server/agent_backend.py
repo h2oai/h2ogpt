@@ -35,9 +35,14 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
 
-    has_term = (isinstance(msg, dict) and
-                isinstance(msg.get('content', ''), str) and
-                (msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''))
+    has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
+    has_term = has_message and msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''
+    has_execute = has_message and '# execution: true' in msg.get('content', '')
+
+    if has_execute:
+        # sometimes model stops without verifying results if it dumped all steps in one turn
+        # force it to continue
+        return False
 
     no_stop_if_code = False
     if no_stop_if_code:
