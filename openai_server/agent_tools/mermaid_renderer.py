@@ -52,7 +52,7 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
                 print("mmdc warnings/errors:", result.stderr)
 
             print(
-                "Created output file in PNG format: %s that is a conversion of %s. "
+                "Created mermaid output file in PNG format: %s that is a conversion of %s. "
                 " Use this for image_query to analyze what SVG looks like, "
                 " because other tools do not retain fonts when making PNG." % (
                     output_file_png, output_file))
