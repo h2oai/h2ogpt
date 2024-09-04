@@ -143,6 +143,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         try:
             # skip code blocks with # execution: false
             code_blocks = [x for x in code_blocks if '# execution: false' not in x.code]
+            # give chance for LLM to give generic code blocks without any execution false
+            code_blocks = [x for x in code_blocks if '# execution:' in x.code]
             ret = super()._execute_code_dont_check_setup(code_blocks)
         except Exception as e:
             if 'exitcode' in str(e) and 'local variable' in str(e):
