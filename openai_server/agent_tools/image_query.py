@@ -1,5 +1,36 @@
 import os
 import argparse
+import tempfile
+
+
+def convert_svg_to_pdf(svg_path):
+    from svglib.svglib import svg2rlg
+    from reportlab.graphics import renderPDF
+    drawing = svg2rlg(svg_path)
+    pdf_path = tempfile.mktemp(suffix='.pdf')
+    renderPDF.drawToFile(drawing, pdf_path)
+    return pdf_path
+
+
+def convert_pdf_to_images(pdf_path):
+    from pdf2image import convert_from_path
+    return convert_from_path(pdf_path)
+
+
+def process_file(file_path):
+    _, file_extension = os.path.splitext(file_path)
+
+    if file_extension.lower() == '.svg':
+        pdf_path = convert_svg_to_pdf(file_path)
+        images = convert_pdf_to_images(pdf_path)
+    elif file_extension.lower() == '.pdf':
+        images = convert_pdf_to_images(file_path)
+    else:
+        # Assume it's a regular image file
+        from PIL import Image
+        images = [Image.open(file_path)]
+
+    return images
 
 
 def main():
@@ -14,7 +45,8 @@ def main():
                         help="System prompt")
     parser.add_argument("-p", "--prompt", type=str, required=True, help="User prompt")
     parser.add_argument("-u", "--url", type=str, help="URL of the image")
-    parser.add_argument("-f", "--file", type=str, help="Path to the image file")
+    parser.add_argument("-f", "--file", type=str,
+                        help="Path to the image file. Accepts standard image formats (e.g., PNG, JPEG, JPG), SVG, and PDF files.")
     parser.add_argument("-m", "--model", type=str, help="OpenAI or Open Source model to use")
     parser.add_argument("-T", "--temperature", type=float, default=0.0, help="Temperature for the model")
     parser.add_argument("--max_tokens", type=int, default=1024, help="Maximum tokens for the model")
@@ -38,29 +70,32 @@ def main():
 
     if args.file:
         from openai_server.openai_client import file_to_base64
-        url = file_to_base64(args.file, file_path_to_use=None)[args.file]
+        images = process_file(args.file)
+        image_contents = [
+            {
+                'type': 'image_url',
+                'image_url': {
+                    'url': file_to_base64(image, file_path_to_use=None)[image],
+                    'detail': 'high',
+                },
+            } for image in images
+        ]
     else:
-        url = args.url
-
-    image_content = {
-        'type': 'image_url',
-        'image_url': {
-            'url': url,
-            'detail': 'high',
-        },
-    }
+        image_contents = [{
+            'type': 'image_url',
+            'image_url': {
+                'url': args.url,
+                'detail': 'high',
+            },
+        }]
 
     messages = [
         {"role": "system", "content": args.system_prompt},
         {
             'role': 'user',
             'content': [
-                {
-                    'type': 'text',
-                    'text': args.prompt,
-                },
-                image_content,
-            ],
+                           {'type': 'text', 'text': args.prompt},
+                       ] + image_contents,
         }
     ]
 

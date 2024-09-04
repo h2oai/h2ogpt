@@ -409,6 +409,7 @@ python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "
 * usage: {cwd}/openai_server/agent_tools/image_query.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
 * image_query gives a text response for either a URL or local file
 * image_query can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
+* image_query accepts most image files allowed by PIL as well as svg files. 
 * Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
 """
     return image_query_helper
