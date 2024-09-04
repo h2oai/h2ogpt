@@ -32,6 +32,31 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
         if result.stderr:
             print("mmdc warnings/errors:", result.stderr)
 
+        print("created output file in %s format: %s" % (format, output_file))
+
+        # always make PNG version too, hard for other tools to svg -> png
+        if format != 'png':
+            # Construct the mmdc command
+            base_name = '.'.join(output_file.split('.')[:-1])
+            output_file_png = base_name + '.png'
+            # FIXME: Would be best to optimize for aspect ratio in choosing -w or -H
+            cmd = ['mmdc', '-i', temp_path, '-o', output_file_png, '-f', 'png', '-w', '2048']
+
+            # Run the mmdc command
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+            # Check if there was any output (warnings, etc.)
+            if result.stdout:
+                print("mmdc output:", result.stdout)
+            if result.stderr:
+                print("mmdc warnings/errors:", result.stderr)
+
+            print(
+                "Created output file in PNG format: %s that is a conversion of %s. "
+                " Use this for image_query to analyze what SVG looks like, "
+                " because other tools do not retain fonts when making PNG." % (
+                    output_file_png, output_file))
+
         # Return the full path of the output file
         return os.path.abspath(output_file)
     finally:
@@ -45,16 +70,16 @@ def main():
     input_group.add_argument('-f', '--file', help='Input file containing Mermaid code')
     input_group.add_argument('-c', '--code', help='Direct Mermaid code input', nargs='+')
     parser.add_argument('-o', '--output', help='Output file name (default: auto-generated unique name)')
-    parser.add_argument('--format', choices=['svg', 'png', 'pdf'], default='svg',
-                        help='Output format (default: svg)')
 
     args = parser.parse_args()
 
     # If no output file is specified, create a unique name
     if args.output is None:
-        args.output = generate_unique_filename(args.format)
-    elif not args.output.endswith(args.format):
-        args.output = f"{args.output}.{args.format}"
+        format = 'svg'
+        args.output = generate_unique_filename(format)
+    else:
+        format = args.output.split('.')[-1]
+        assert format in ['svg', 'png', 'pdf'], f"Invalid output filename {args.output} with format: {format}"
 
     try:
         # Determine the Mermaid code source
@@ -65,7 +90,7 @@ def main():
             mermaid_code = ' '.join(args.code)
 
         # Render the diagram and get the full path of the output file
-        output_path = render_mermaid(mermaid_code, args.output, args.format)
+        output_path = render_mermaid(mermaid_code, args.output, format=format)
         print(f"Mermaid diagram rendered successfully.")
         print(f"Output file: {output_path}")
     except subprocess.CalledProcessError as e:

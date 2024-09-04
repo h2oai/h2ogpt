@@ -96,9 +96,10 @@ Code generation instructions:
 * Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
 * If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.
-  * Give a correct file extension to the filename.
+  * Give a correct file extension to the filename.  The only valid extensions for <filename> are .py or .sh
   * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
   * Check the execution result returned by the user.
+  * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
 * You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
 * When you need to collect info, generate code to output the info you need.
 * Ensure you provide well-commented code, so the user can understand what the code does.
@@ -415,7 +416,7 @@ python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "
 * usage: {cwd}/openai_server/agent_tools/image_query.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
 * image_query gives a text response for either a URL or local file
 * image_query can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
-* image_query accepts most image files allowed by PIL as well as svg files. 
+* image_query accepts most image files allowed by PIL (Pillow) except svg.
 * Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
 """
     return image_query_helper
@@ -428,11 +429,13 @@ def get_mermaid_renderer_helper():
 * For a mermaid rendering, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_mermaid_render.sh
-python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid file"
+python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" --output "mermaid.svg"
 ```
-* usage: python {cwd}/openai_server/agent_tools/mermaid_renderer.py [-h] (--file FILE | --ccode CODE [CODE ...]) [--output OUTPUT] [--format {{svg,png,pdf}}]
-* If you have a file with mermaid code, use --file FILE option.
+* usage: python {cwd}/openai_server/agent_tools/mermaid_renderer.py [-h] (--file FILE | [--output OUTPUT]
+* If you make mermaid code to file, ensure you use python or shell code properly to generate the mermaid file.
 * Good input file names would have an .mmd extension.
-* If you want to input mermaid code directly on command line, you should use ; instead of new lines for the mermaid code.
+* Output file can be svg, pdf, or png extension.
+* Ensure you use reasonable color schemes good for presentations (e.g. avoid white text in light green boxes).
+* A png version of any svg is also created for use with image_query in order to analyze the svg (via the png).
 """
     return mmdc

@@ -117,6 +117,7 @@ def main():
         model=args.model,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
+        extra_body=dict(rotate_align_resize_image=True),
     )
 
     text = response.choices[0].message.content if response.choices else ''
