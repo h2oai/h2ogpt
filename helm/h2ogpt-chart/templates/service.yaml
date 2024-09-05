@@ -13,9 +13,18 @@ spec:
   selector:
     app: {{ include "h2ogpt.fullname" . }}
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: {{ .Values.h2ogpt.service.webPort }}
       targetPort: 7860
+    - name: agent
+      protocol: TCP
+      port: {{ .Values.h2ogpt.service.agentsPort }}
+      targetPort: 5004
+    - name: openai
+      protocol: TCP
+      port: {{ .Values.h2ogpt.service.openaiPort }}
+      targetPort: 5000
   type: {{ .Values.h2ogpt.service.type }}
 {{- end }}
 ---
