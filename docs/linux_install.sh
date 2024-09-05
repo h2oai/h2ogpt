@@ -44,10 +44,9 @@ else
 fi
 # Optional: PyMuPDF/ArXiv:
 #   Note!! that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
-if [ "${GPLOK}" -eq "1" ]
-then
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
-fi
+h2oGPTe has license:
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
+
 # Optional: FAISS
 pip install -r reqs_optional/requirements_optional_gpu_only.txt -c reqs_optional/reqs_constraints.txt
 # Optional: Selenium/PlayWright:
