@@ -104,3 +104,5 @@ gradio_tools>=0.0.9
 # Qdrant - https://qdrant.tech vector database
 qdrant-client>=1.8.0
 
+MIT:
+arxiv>=2.1.3
