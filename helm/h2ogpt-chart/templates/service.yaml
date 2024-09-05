@@ -19,11 +19,11 @@ spec:
       targetPort: 7860
     - name: agent
       protocol: TCP
-      port: 5004
+      port: {{ .Values.h2ogpt.service.agentsPort }}
       targetPort: 5004
     - name: openai
       protocol: TCP
-      port: 5000
+      port: {{ .Values.h2ogpt.service.openaiPort }}
       targetPort: 5000
   type: {{ .Values.h2ogpt.service.type }}
 {{- end }}
