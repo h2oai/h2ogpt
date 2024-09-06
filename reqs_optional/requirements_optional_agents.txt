@@ -62,5 +62,8 @@ pdf2image
 # for graphviz support
 pydot
 
+# old but light requirements
+PyPDF2
+
 # just to be sure stays around
 tzlocal
