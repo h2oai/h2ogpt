@@ -10,7 +10,7 @@ DEFAULT_MARKERS              ?= "not need_tokens and not need_gpu"
 
 # h2ogpt base, vllm, and lmdeploy images built elsewhere and referenced here:
 DOCKER_BASE_OS_IMAGE     := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:9
-DOCKER_VLLM_IMAGE        := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.5-8714686a
+DOCKER_VLLM_IMAGE        := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.4-69cf4031
 DOCKER_LMDEPLOY_IMAGE    := gcr.io/vorvan/h2oai/h2ogpte-lmdeploy:0.5.1-f88699a
 
 
