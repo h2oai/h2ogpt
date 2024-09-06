@@ -44,7 +44,7 @@ else
 fi
 # Optional: PyMuPDF/ArXiv:
 #   Note!! that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
-h2oGPTe has license:
+# h2oGPTe has license:
 pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
 
 # Optional: FAISS
