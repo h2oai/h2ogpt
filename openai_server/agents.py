@@ -127,6 +127,11 @@ def get_code_group_chat_manager(
         max_round:int,
         executor,
 ) -> H2OGroupChatManager:
+    """
+    Returns a group chat manager for code writing and execution.
+    The group chat manager contains two agents: code_writer_agent and code_executor_agent.
+    Each time group chat manager is called, it will call code_writer_agent first and then code_executor_agent in order.
+    """
     code_writer_agent = get_code_writer_agent(
         code_writer_system_prompt=code_writer_system_prompt,
         llm_config=llm_config,
@@ -164,6 +169,11 @@ def get_main_group_chat_manager(
         agents:list,
         max_round:int,
 ) -> H2OGroupChatManager:
+    """
+    Returns Main Group Chat Manager to distribute the roles among the agents.
+    The main group chat manager can contain multiple agents.
+    Uses LLMs to select the next agent to play the role.
+    """
     select_speaker_message_template = (
                "You are in a role play game. The following roles are available:"
                 "{roles}."
