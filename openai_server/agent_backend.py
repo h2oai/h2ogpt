@@ -300,7 +300,15 @@ def run_autogen(query=None,
         base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
         api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
         temp_dir = tempfile.mkdtemp()
-        from openai_server.agents import get_code_executor
+        from openai_server.agents import (
+            get_code_executor,
+            get_human_proxy_agent,
+            get_main_group_chat_manager,
+            get_general_knowledge_agent,
+            get_code_group_chat_manager
+            )
+
+        # Create a code executor.
         executor = get_code_executor(
             temp_dir=temp_dir,
             autogen_run_code_in_docker=autogen_run_code_in_docker,
@@ -310,7 +318,7 @@ def run_autogen(query=None,
             autogen_venv_dir=autogen_venv_dir,
         )
 
-
+        # Prepare the system message for the code writer agent.
         agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
                                                             autogen_system_site_packages)
         image_query_helper = get_image_query_helper(base_url, api_key, model)
@@ -330,26 +338,37 @@ def run_autogen(query=None,
         agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
 
         code_writer_system_prompt = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
+
+        # Prepare the LLM config for the agents
         llm_config={"config_list": [{"model": model,
                                         "api_key": api_key,
                                         "base_url": base_url,
                                         "stream": stream_output,
                                         "cache_seed": autogen_cache_seed,
                                         'max_tokens': max_new_tokens}]}
-        from openai_server.agents import get_human_proxy_agent, get_main_group_chat_manager
         # TODO: chat_history send for each agent as Jon did for code_writer and code_executor
         human_proxy_agent = get_human_proxy_agent(
             llm_config=llm_config,
             autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
 
         )
+        general_knowledge_agent = get_general_knowledge_agent(
+            llm_config=llm_config,
+            prompt=query,
+            autogen_max_consecutive_auto_reply=1, # Always 1 turn for general knowledge agent
+        )
+        code_group_chat_manager = get_code_group_chat_manager(
+            llm_config=llm_config,
+            code_writer_system_prompt=code_writer_system_prompt,
+            autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+            max_round=40, # TODO: Define variable above
+            executor=executor,
+        )
         main_group_chat_manager = get_main_group_chat_manager(
             llm_config=llm_config,
             prompt=query,
-            autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-            group_chat_manager_max_round=40,
-            code_writer_system_prompt=code_writer_system_prompt,
-            executor=executor,
+            agents=[general_knowledge_agent, code_group_chat_manager],
+            max_round=40,
         )
         chat_result = human_proxy_agent.initiate_chat(
                     main_group_chat_manager,
@@ -358,7 +377,7 @@ def run_autogen(query=None,
                     summary_args=dict(summary_role="user"), # System by default, but in chat histort it comes last and drops user message in h2ogpt/convert_messages_to_structure method
                     max_turns=1,
                 )
-        code_group_chat_manager = main_group_chat_manager.groupchat.agents[1] #TODO: make this based on name
+        # It seems chat_result.chat_history doesnt contain code group messages, so I'm manually merging them here. #TODO: research why so?
         merged_group_chat_messages = merge_group_chat_messages(
             code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages
         )

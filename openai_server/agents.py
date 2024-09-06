@@ -5,6 +5,8 @@ import uuid
 from openai_server.agent_utils import in_pycharm
 from openai_server.autogen_utils import H2OConversableAgent, H2OGroupChatManager
 
+# TODO: Put default values for attributes if possible
+
 def get_code_executor(
     temp_dir,
     autogen_run_code_in_docker: bool,
@@ -122,7 +124,7 @@ def get_code_group_chat_manager(
         llm_config:dict,
         code_writer_system_prompt:str,
         autogen_max_consecutive_auto_reply:int,
-        group_chat_manager_max_round:int,
+        max_round:int,
         executor,
 ) -> H2OGroupChatManager:
     code_writer_agent = get_code_writer_agent(
@@ -142,7 +144,7 @@ def get_code_group_chat_manager(
     code_group_chat = GroupChat(
     agents=[code_writer_agent, code_executor_agent],
     messages=[],
-    max_round=group_chat_manager_max_round,
+    max_round=max_round,
     speaker_selection_method="round_robin" # call in order as defined in agents
     )
     code_group_chat_manager = H2OGroupChatManager(
@@ -152,32 +154,16 @@ def get_code_group_chat_manager(
         name="code_group_chat_manager",
         system_message="You are able to generate and execute codes. You can talk to web. You can solve complex tasks using coding (Python and shell scripting) and language skills. "
     )
-    # TODO: improve the description
+    # TODO: improve the description and include all the capabilities/reasons to pick this agent
     code_group_chat_manager.description = "Completes simple or complex tasks via python or sh coding. Complex tasks can involve many coding operations and web search. It can both generate and execute the code. This agent has to be picked for any coding related task. "
     return code_group_chat_manager
 
 def get_main_group_chat_manager(
         llm_config:dict,
         prompt:str,
-        autogen_max_consecutive_auto_reply:int,
-        group_chat_manager_max_round:int,
-        code_writer_system_prompt:str,
-        executor,
+        agents:list,
+        max_round:int,
 ) -> H2OGroupChatManager:
-    general_knowledge_agent = get_general_knowledge_agent(
-        llm_config=llm_config,
-        prompt=prompt,
-        autogen_max_consecutive_auto_reply=1, # Always 1 turn for general knowledge agent
-    )
-    code_group_chat_manager = get_code_group_chat_manager(
-        llm_config=llm_config,
-        code_writer_system_prompt=code_writer_system_prompt,
-        autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-        group_chat_manager_max_round=group_chat_manager_max_round,
-        executor=executor,
-    )
-    # todo: it seems main_group_chat always picks the first agent in the list?
-    main_group_agents = [general_knowledge_agent, code_group_chat_manager]
     select_speaker_message_template = (
                "You are in a role play game. The following roles are available:"
                 "{roles}."
@@ -186,11 +172,10 @@ def get_main_group_chat_manager(
                 f"Important: This is the user prompt: {prompt}"
                 "If you think that the user request is answered, return empty string as the role name."
     )
-    
     main_group_chat = GroupChat(
-        agents=main_group_agents,
+        agents=agents,
         messages=[],
-        max_round=group_chat_manager_max_round,
+        max_round=max_round,
         allow_repeat_speaker=True, # Allow the same agent to speak in consecutive rounds.
         send_introductions=True, # Make agents aware of each other.
         speaker_selection_method="auto", # LLM decides which agent to call next.
@@ -202,7 +187,6 @@ def get_main_group_chat_manager(
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
         return 'TERMINATE' in msg['content'] or msg['content']==""
 
-    print("in get_main_group_chat_manager, llm_config:", llm_config)
     main_group_chat_manager = H2OGroupChatManager(
         groupchat=main_group_chat,
         llm_config=llm_config,
@@ -211,4 +195,3 @@ def get_main_group_chat_manager(
         # system_message="You are responsible for completing or answering user request or task. You select which agent to call next based on the user request. "
     )
     return main_group_chat_manager
-
