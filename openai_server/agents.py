@@ -5,15 +5,13 @@ import uuid
 from openai_server.agent_utils import in_pycharm
 from openai_server.autogen_utils import H2OConversableAgent, H2OGroupChatManager
 
-# TODO: Put default values for attributes if possible
-
 def get_code_executor(
     temp_dir,
-    autogen_run_code_in_docker: bool,
-    autogen_timeout: int,
-    autogen_system_site_packages: bool,
-    autogen_code_restrictions_level: int,
-    autogen_venv_dir,
+    autogen_run_code_in_docker: bool = False,
+    autogen_timeout: int = 60,
+    autogen_system_site_packages: bool = True,
+    autogen_code_restrictions_level: int = 2,
+    autogen_venv_dir: str | None = None,
 ) -> CodeExecutor:
     if autogen_run_code_in_docker:
         # Create a Docker command line code executor.
@@ -52,8 +50,8 @@ def get_code_executor(
     return executor
 
 def get_code_executor_agent(
-        executor,
-        autogen_max_consecutive_auto_reply: int,
+        executor: CodeExecutor,
+        autogen_max_consecutive_auto_reply: int = 1,
         ) -> H2OConversableAgent:
     code_executor_agent = H2OConversableAgent(
         name="code_executor_agent",
@@ -67,9 +65,9 @@ def get_code_executor_agent(
     return code_executor_agent
 
 def get_code_writer_agent(
-        code_writer_system_prompt:str,
         llm_config:dict,
-        autogen_max_consecutive_auto_reply:int,
+        code_writer_system_prompt:str | None = None,
+        autogen_max_consecutive_auto_reply:int = 1,
         ) -> H2OConversableAgent:
     from openai_server.autogen_utils import H2OConversableAgent
     code_writer_agent = H2OConversableAgent(
@@ -86,8 +84,7 @@ def get_code_writer_agent(
 
 def get_general_knowledge_agent(
     llm_config:dict,
-    prompt:str,
-    autogen_max_consecutive_auto_reply:int,
+    autogen_max_consecutive_auto_reply:int = 1,
 ) -> H2OConversableAgent:
     gk_system_message = "You answer the question or request provided with natural language only. You can not generate or execute codes. You can not talk to web. You are good at chatting. "
     # TODO: Think about the Terminate procedure
@@ -108,7 +105,7 @@ def get_general_knowledge_agent(
 
 def get_human_proxy_agent(
     llm_config:dict,
-    autogen_max_consecutive_auto_reply:int,
+    autogen_max_consecutive_auto_reply:int = 1,
 ) -> H2OConversableAgent:
     # Human Proxy 
     human_proxy_agent = H2OConversableAgent(
@@ -122,10 +119,10 @@ def get_human_proxy_agent(
 
 def get_code_group_chat_manager(
         llm_config:dict,
-        code_writer_system_prompt:str,
-        autogen_max_consecutive_auto_reply:int,
-        max_round:int,
-        executor,
+        executor:CodeExecutor,
+        code_writer_system_prompt:str | None = None,
+        autogen_max_consecutive_auto_reply:int = 1,
+        max_round:int = 10,
 ) -> H2OGroupChatManager:
     """
     Returns a group chat manager for code writing and execution.
@@ -166,14 +163,16 @@ def get_code_group_chat_manager(
 def get_main_group_chat_manager(
         llm_config:dict,
         prompt:str,
-        agents:list,
-        max_round:int,
+        agents:list[H2OConversableAgent] | None = None,
+        max_round:int = 10,
 ) -> H2OGroupChatManager:
     """
     Returns Main Group Chat Manager to distribute the roles among the agents.
     The main group chat manager can contain multiple agents.
     Uses LLMs to select the next agent to play the role.
     """
+    if agents is None:
+        agents = []
     select_speaker_message_template = (
                "You are in a role play game. The following roles are available:"
                 "{roles}."

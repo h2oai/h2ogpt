@@ -354,7 +354,6 @@ def run_autogen(query=None,
         )
         general_knowledge_agent = get_general_knowledge_agent(
             llm_config=llm_config,
-            prompt=query,
             autogen_max_consecutive_auto_reply=1, # Always 1 turn for general knowledge agent
         )
         code_group_chat_manager = get_code_group_chat_manager(
