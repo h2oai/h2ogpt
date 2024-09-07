@@ -206,8 +206,8 @@ Data science or machine learning modeling and predicting best practices:
 * Generate plots of the target distribution for regression model as well as insightful plots of the predictions and analyze the plots.
 </data_science>
 <inline_images>
-Inline images in response:
-* You must add an inline markdown link of a single image if any images were made. Choose the key image, then use inside (e.g.) ![image](filename.png) without any code block.  Only use the basename of the file, not the full path.
+Inline image files in response:
+* In your final summary, you must add an inline markdown of any key image, chart, or graphic (e.g.) ![image](filename.png) without any code block.  Only use the basename of the file, not the full path.
 </inline_images>
 Stopping instructions:
 <stopping>
