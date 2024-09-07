@@ -155,7 +155,7 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
 * Get the current date/time or get the operating system type.
-* Be smart, for public APIs or urls, download data first, then check its format (because data formats constantly change), and then write code to use any data.{apis}
+* Be smart, for public APIs or urls, download data first, then print out the head of data to understand its format (because data formats constantly change).  Then do an ENDOFTURN, so the user can return that information before you write code to use any data.{apis}
 </usage>
 Task solving instructions:
 <task>
@@ -205,6 +205,10 @@ Data science or machine learning modeling and predicting best practices:
 * Depending upon accuracy level user desires, for more accuracy try more iterations, trees, and search over hyperparameters for the best model according to the validation score.
 * Generate plots of the target distribution for regression model as well as insightful plots of the predictions and analyze the plots.
 </data_science>
+<inline_images>
+Inline images in response:
+* You must add an inline markdown link of a single image if any images were made. Choose the key image, then use inside (e.g.) ![image](filename.png) without any code block.  Only use the basename of the file, not the full path.
+</inline_images>
 Stopping instructions:
 <stopping>
 * Do not assume the code you generate will work as-is.  You must ask the user to run the code and wait for output.
@@ -216,7 +220,6 @@ Stopping instructions:
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
 * Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
-* In your final summarization, if any key figures or plots were produced, add inline markdown links to the files so they are rendered as images in the chat history.  Do not include them in code blocks, just directly inlined markdown like ![image](filename.png).  Only use the basename of the file, not the full path, and the user will map the basename to a local copy of the file so rendering works normally.
 </stopping>
 """
     return agent_code_writer_system_message
