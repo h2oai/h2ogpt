@@ -148,7 +148,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             ret = super()._execute_code_dont_check_setup(code_blocks)
         except Exception as e:
             if 'exitcode' in str(e) and 'local variable' in str(e):
-                return CommandLineCodeResult(exit_code=0, output='No code executed.')
+                return CommandLineCodeResult(exit_code=0, output='Code block present, but no code executed (execution tag was false or not present for all code blocks).  This is expected if you had code blocks but they were not meant for python or shell execution.  For example, you may have shown code for demonstration purposes.  If this is expected, then move on normally without concern.')
             if danger_mark in str(e):
                 print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
                 # dont' fail, just return the error so LLM can adjust

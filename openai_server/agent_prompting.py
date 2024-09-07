@@ -215,6 +215,7 @@ Stopping instructions:
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
 * Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
+* In your final summarization, if any key figures or plots were produced, add inline markdown links to the files so they are rendered as images in the chat history.  Do not include them in code blocks, just directly inlined markdown like ![image](filename.png).  Only use the basename of the file, not the full path, and the user will map the basename to a local copy of the file so rendering works normally.
 </stopping>
 """
     return agent_code_writer_system_message
@@ -454,7 +455,9 @@ python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "
 * image_query can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
 * image_query accepts most image files allowed by PIL (Pillow) except svg.
 * Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
+* If the user asks for a perfect image, use the image_query tool only up to 6 times.  If the user asks for a very rough image, then do not use the image_query tool at all.  If the user does not specify the quality of the image, then use the image_query tool only up to 3 times.  If user asks for more uses of image_query, then do as they ask.
 """
+    # FIXME: What if chat history, counting will be off
     return image_query_helper
 
 
