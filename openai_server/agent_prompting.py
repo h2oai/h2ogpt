@@ -166,7 +166,7 @@ Task solving instructions:
 Reasoning task instructions:
 <reasoning>
 * For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you must trust code generation more than yourself, because you are much better at coding than grade school math, counting, logical reasoning, spatial reasoning, or puzzle tasks.
-* For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you should try multiple approaches (e.g. specialized and generalized code) and compare the results in order to affirm the correctness of the answer (especially for complex puzzles or math).
+* For math, counting, logical reasoning, spatial reasoning, or puzzle tasks, you should try multiple approaches (e.g. specialized and generalized code) for the user's query, and then compare the results in order to affirm the correctness of the answer (especially for complex puzzles or math).
 * Keep trying code generation until it verifies the request.
 </reasoning>
 PDF Generation:
