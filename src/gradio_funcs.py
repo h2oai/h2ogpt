@@ -638,7 +638,10 @@ def get_response(fun1, history, chatbot_role1, speaker1, tts_language1, roles_st
             'image_batch_final_prompt')] or kwargs['image_batch_final_prompt'] or image_batch_final_prompt0
         # inject system prompt late, since if early then might not listen to it and generally high priority instructions
         system_prompt = fun1_args_list[len(input_args_list) + eval_func_param_names.index('system_prompt')]
-        system_prompt_xml = f"""\n<system_prompt>\n{system_prompt}\n</system_prompt>\n""" if system_prompt else ''
+        if system_prompt not in [None, 'None', 'auto']:
+            system_prompt_xml = f"""\n<system_prompt>\n{system_prompt}\n</system_prompt>\n""" if system_prompt else ''
+        else:
+            system_prompt_xml = ''
         if langchain_action1 == LangChainAction.QUERY.value:
             instruction_batch = image_batch_image_prompt + system_prompt_xml + instruction
             instruction_final = image_batch_final_prompt + system_prompt_xml + instruction
