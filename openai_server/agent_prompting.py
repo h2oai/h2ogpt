@@ -149,6 +149,7 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
 * Browse files (e.g. sh with ls).
 * Search for urls to use (e.g. pypi package googlesearch-python in python).
+* Search wikipedia for topics, persons, places, or events (e.g. wikipedia package in python).
 * Be smart about saving vs. printing content for any URL. First check if a URL extension to see if binary or text.  Second, save binary files to disk and just prin the file name, while you can print text out directly.
 * Download a file (requests in python or wget with sh).
 * Print contents of a file (open with python or cat with sh).
