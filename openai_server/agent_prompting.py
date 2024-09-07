@@ -154,7 +154,8 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Download a file (requests in python or wget with sh).
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
-* Get the current date/time or get the operating system type.{apis}
+* Get the current date/time or get the operating system type.
+* Be smart, for public APIs or urls, download data first, then check its format (because data formats constantly change), and then write code to use any data.{apis}
 </usage>
 Task solving instructions:
 <task>

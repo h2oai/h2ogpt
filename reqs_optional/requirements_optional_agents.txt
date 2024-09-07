@@ -67,3 +67,6 @@ PyPDF2
 
 # just to be sure stays around
 tzlocal
+
+# for plots
+seaborn
