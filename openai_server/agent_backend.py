@@ -390,6 +390,23 @@ def run_autogen(query=None,
             code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages
         )
         chat_result.chat_history = merged_group_chat_messages
+        ### Update summary after including group chats:
+        summarize_prompt = (
+            "Try to answer first user prompt based on the agents' conversations and outputs so far. "
+            "Do not add any introductory phrases. "
+            "If you see some code executions done, try to summarize the process. "
+            "* In your final summarization, if any key figures or plots were produced, "
+            "add inline markdown links to the files so they are rendered as images in the chat history. "
+            "Do not include them in code blocks, just directly inlined markdown like ![image](filename.png). "
+            "Only use the basename of the file, not the full path, and the user will map the basename to a local copy of the file so rendering works normally. "
+            "Do not try to answer the prompt yourself, just answer based on what is provided in the context to you. "
+        )
+        chat_result.summary = human_proxy_agent._reflection_with_llm(
+            prompt=summarize_prompt,
+            messages=chat_result.chat_history,
+            cache=None,
+            role="user"
+        )
     # DEBUG
     if agent_verbose:
         print("chat_result:", chat_result)
