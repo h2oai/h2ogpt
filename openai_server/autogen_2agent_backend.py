@@ -8,29 +8,29 @@ from openai_server.agent_prompting import get_full_system_prompt
 from openai_server.autogen_utils import terminate_message_func, H2OConversableAgent
 
 
-def run_autogen(query=None,
-                visible_models=None,
-                stream_output=None,
-                max_new_tokens=None,
-                authorization=None,
-                chat_conversation=None,
-                text_context_list=None,
-                system_prompt=None,
-                image_file=None,
-                # autogen/agent specific parameters
-                agent_type=None,
-                autogen_stop_docker_executor=None,
-                autogen_run_code_in_docker=None,
-                autogen_max_consecutive_auto_reply=None,
-                autogen_max_turns=None,
-                autogen_timeout=None,
-                autogen_cache_seed=None,
-                agent_venv_dir=None,
-                agent_code_writer_system_message=None,
-                agent_system_site_packages=None,
-                autogen_code_restrictions_level=None,
-                autogen_silent_exchange=None,
-                agent_verbose=None) -> dict:
+def run_autogen_2agent(query=None,
+                       visible_models=None,
+                       stream_output=None,
+                       max_new_tokens=None,
+                       authorization=None,
+                       chat_conversation=None,
+                       text_context_list=None,
+                       system_prompt=None,
+                       image_file=None,
+                       # autogen/agent specific parameters
+                       agent_type=None,
+                       autogen_stop_docker_executor=None,
+                       autogen_run_code_in_docker=None,
+                       autogen_max_consecutive_auto_reply=None,
+                       autogen_max_turns=None,
+                       autogen_timeout=None,
+                       autogen_cache_seed=None,
+                       agent_venv_dir=None,
+                       agent_code_writer_system_message=None,
+                       agent_system_site_packages=None,
+                       autogen_code_restrictions_level=None,
+                       autogen_silent_exchange=None,
+                       agent_verbose=None) -> dict:
     assert agent_type in ['autogen_2agent', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")

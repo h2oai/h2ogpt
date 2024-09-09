@@ -1,3 +1,4 @@
+import functools
 import inspect
 import os
 import shutil
@@ -51,9 +52,20 @@ def in_pycharm():
     return os.getenv("PYCHARM_HOSTED") is not None
 
 
+def get_inner_function_signature(func):
+    # Check if the function is a functools.partial object
+    if isinstance(func, functools.partial):
+        # Get the original function
+        assert func.keywords is not None and func.keywords, "The function must have keyword arguments."
+        func = func.keywords['run_agent_func']
+        return inspect.signature(func)
+    else:
+        return inspect.signature(func)
+
+
 def filter_kwargs(func, kwargs):
     # Get the parameter list of the function
-    sig = inspect.signature(func)
+    sig = get_inner_function_signature(func)
     valid_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
     return valid_kwargs
 
@@ -92,12 +104,13 @@ def current_datetime():
     return "For current user query: Current Date, Time, and Local Time Zone: %s. Note some APIs may have data from different time zones, so may reflect a different date." % formatted_date_time
 
 
-def run_agent(run_agent_func,
-              query,
+def run_agent(run_agent_func=None,
+              query=None,
               **kwargs,
               ) -> dict:
     ret_dict = {}
     try:
+        assert run_agent_func is not None, "run_agent_func must be provided."
         ret_dict = run_agent_func(query, **kwargs)
     finally:
         if kwargs.get('agent_venv_dir') is None and 'agent_venv_dir' in ret_dict and ret_dict['agent_venv_dir']:

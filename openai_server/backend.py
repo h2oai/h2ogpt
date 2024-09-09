@@ -363,15 +363,14 @@ def split_concatenated_dicts(concatenated_dicts: str):
 def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False):
     if use_agent:
         agent_type = gen_kwargs.get('agent_type', 'auto')
-        if agent_type in ['auto', 'autogen_2agent']:
+        if agent_type == 'auto':
+            agent_type = 'autogen_2agent'
+        if agent_type in ['autogen_2agent']:
+            from openai_server.agent_utils import set_dummy_term, run_agent
+            set_dummy_term()  # before autogen imported
+            from openai_server.autogen_2agent_backend import run_autogen_2agent
+            run_agent_func = functools.partial(run_agent, run_agent_func=run_autogen_2agent)
             from openai_server.autogen_utils import get_autogen_response
-            if agent_type in ['auto', 'autogen_2agent']:
-                from openai_server.agent_utils import set_dummy_term, run_agent
-                set_dummy_term()  # before autogen imported
-                from openai_server.autogen_2agent_backend import run_autogen
-                run_agent_func = functools.partial(run_agent, run_autogen_func=run_autogen)
-            else:
-                raise ValueError("No such agent_type %s" % agent_type)
             generator = get_autogen_response(run_agent_func,
                                              instruction, gen_kwargs, chunk_response=stream_output,
                                              stream_output=stream_output)
