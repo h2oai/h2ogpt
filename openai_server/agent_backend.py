@@ -346,7 +346,6 @@ def run_autogen(query=None,
                                         "stream": stream_output,
                                         "cache_seed": autogen_cache_seed,
                                         'max_tokens': max_new_tokens}]}
-        # TODO: chat_history send for each agent as Jon did for code_writer and code_executor
         human_proxy_agent = get_human_proxy_agent(
             llm_config=llm_config,
             autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
@@ -369,6 +368,15 @@ def run_autogen(query=None,
             agents=[general_knowledge_agent, code_group_chat_manager],
             max_round=40,
         )
+        # apply chat history to human_proxy_agent and main_group_chat_manager
+        if chat_conversation:
+            chat_messages = structure_to_messages(None, None, chat_conversation, None)
+            for message in chat_messages:
+                if message['role'] == 'assistant':
+                    main_group_chat_manager.send(message['content'], human_proxy_agent, request_reply=False)
+                if message['role'] == 'user':
+                    human_proxy_agent.send(message['content'], main_group_chat_manager, request_reply=False)
+
         chat_result = human_proxy_agent.initiate_chat(
                     main_group_chat_manager,
                     message=query,
