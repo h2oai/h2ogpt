@@ -60,8 +60,6 @@ def get_code_executor_agent(
         human_input_mode="NEVER", 
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
-    # TODO: improve the description
-    code_executor_agent.description = "This agent is able to execute the python or shell codes."
     return code_executor_agent
 
 def get_code_writer_agent(
@@ -78,8 +76,6 @@ def get_code_writer_agent(
         human_input_mode="NEVER",
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
-    # TODO: improve the description
-    code_writer_agent.description = "This agent is an AI assistant designed to solve complex tasks using coding (Python and shell scripting) and language skills. Don't pick this agent for easy non-code tasks"
     return code_writer_agent
 
 def get_general_knowledge_agent(
@@ -100,7 +96,13 @@ def get_general_knowledge_agent(
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
     # TODO: improve the description
-    general_knowledge_agent.description = "This agent is able to answer general knowledge questions based on its own memory or past conversation context. Only answers with natural language. It can not execute codes. It can not generate code examples. It's only good at chatting."
+    general_knowledge_agent.description = (
+        "This agent is able to answer general knowledge questions based on its own memory or past conversation context. "
+        "Only answers with natural language. "
+        "It can not execute codes. "
+        "It can not generate code examples. "
+        "It's only good at chatting and answering simple questions. "
+        )
     return general_knowledge_agent
 
 def get_human_proxy_agent(
@@ -154,10 +156,20 @@ def get_code_group_chat_manager(
         llm_config=llm_config,
         is_termination_msg=group_terminate_flow,
         name="code_group_chat_manager",
-        system_message="You are able to generate and execute codes. You can talk to web. You can solve complex tasks using coding (Python and shell scripting) and language skills. "
+        system_message=(
+            "You are able to generate and execute codes. "
+            "You can talk to web. "
+            "You can solve complex tasks using coding (Python and shell scripting) and language skills. "
+            ),
     )
     # TODO: improve the description and include all the capabilities/reasons to pick this agent
-    code_group_chat_manager.description = "Completes simple or complex tasks via python or sh coding. Complex tasks can involve many coding operations and web search. It can both generate and execute the code. This agent has to be picked for any coding related task. "
+    code_group_chat_manager.description = (
+        "Completes simple or complex tasks via python or sh coding. "
+        "Complex tasks can involve many coding operations and web search. "
+        "It can both generate and execute the code. "
+        "This agent has to be picked for any coding related task or tasks that are "
+        "more complex than just chatting or simple question answering. "
+        )
     return code_group_chat_manager
 
 def get_main_group_chat_manager(
@@ -201,6 +213,5 @@ def get_main_group_chat_manager(
         llm_config=llm_config,
         is_termination_msg=main_terminate_flow,
         name="main_group_chat_manager",
-        # system_message="You are responsible for completing or answering user request or task. You select which agent to call next based on the user request. "
     )
     return main_group_chat_manager
