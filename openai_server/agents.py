@@ -95,7 +95,6 @@ def get_general_knowledge_agent(
         human_input_mode="NEVER",
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
-    # TODO: improve the description
     general_knowledge_agent.description = (
         "This agent is able to answer general knowledge questions based on its own memory or past conversation context. "
         "Only answers with natural language. "
@@ -162,11 +161,13 @@ def get_code_group_chat_manager(
             "You can solve complex tasks using coding (Python and shell scripting) and language skills. "
             ),
     )
-    # TODO: improve the description and include all the capabilities/reasons to pick this agent
     code_group_chat_manager.description = (
-        "Completes simple or complex tasks via python or sh coding. "
-        "Complex tasks can involve many coding operations and web search. "
-        "It can both generate and execute the code. "
+        "This agent excels at solving tasks through code generation and execution, "
+        "using both Python and shell scripts. "
+        "It can handle anything from complex computations and data processing to "
+        "generating and running executable code. "
+        "Additionally, it can access the web to fetch real-time data, "
+        "making it ideal for tasks that require automation, coding, or retrieving up-to-date information. "
         "This agent has to be picked for any coding related task or tasks that are "
         "more complex than just chatting or simple question answering. "
         )
