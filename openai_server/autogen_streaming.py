@@ -59,6 +59,10 @@ def run_agent_in_proc(run_agent_func, output_queue, query, result_queue, excepti
 
 
 def iostream_generator(run_agent_func, query, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
+    # start capture
+    custom_stream = CustomIOStream()
+    IOStream.set_global_default(custom_stream)
+
     # raise ValueError("Testing Error Handling 2")  #works
     if use_process:
         output_queue = multiprocessing.Queue()

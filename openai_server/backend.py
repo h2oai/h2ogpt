@@ -1,5 +1,6 @@
 import ast
 import base64
+import functools
 import io
 import json
 import os
@@ -359,6 +360,30 @@ def split_concatenated_dicts(concatenated_dicts: str):
     return result
 
 
+def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False):
+    if use_agent:
+        agent_type = gen_kwargs.get('agent_type', 'auto')
+        if agent_type in ['auto', 'autogen_2agent']:
+            from openai_server.autogen_utils import get_autogen_response
+            if agent_type in ['auto', 'autogen_2agent']:
+                from openai_server.agent_utils import set_dummy_term, run_agent
+                set_dummy_term()  # before autogen imported
+                from openai_server.autogen_2agent_backend import run_autogen
+                run_agent_func = functools.partial(run_agent, run_autogen_func=run_autogen)
+            else:
+                raise ValueError("No such agent_type %s" % agent_type)
+            generator = get_autogen_response(run_agent_func,
+                                             instruction, gen_kwargs, chunk_response=stream_output,
+                                             stream_output=stream_output)
+        else:
+            raise ValueError("No such agent_type %s" % agent_type)
+    else:
+        generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
+                                 stream_output=stream_output)
+
+    return generator
+
+
 def chat_completion_action(body: dict, stream_output=False) -> dict:
     messages = body.get('messages', [])
     object_type = 'chat.completions' if not stream_output else 'chat.completions.chunk'
@@ -416,13 +441,8 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
     token_count = count_tokens(instruction)
-    if use_agent:
-        from openai_server.agent_backend import get_agent_response
-        generator = get_agent_response(instruction, gen_kwargs, chunk_response=stream_output,
-                                       stream_output=stream_output)
-    else:
-        generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
-                                 stream_output=stream_output)
+
+    generator = get_generator(instruction, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
 
     answer = ''
     usage = {}
@@ -508,11 +528,9 @@ def completions_action(body: dict, stream_output=False):
             token_count = count_tokens(prompt)
             total_prompt_token_count += token_count
 
-            if use_agent:
-                from openai_server.agent_backend import get_agent_response
-                response, ret = get_last_and_return_value(get_agent_response(prompt, gen_kwargs))
-            else:
-                response, ret = get_last_and_return_value(get_response(prompt, gen_kwargs))
+            generator = get_generator(prompt, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
+            response, ret = get_last_and_return_value(generator)
+
             if isinstance(ret, dict):
                 usage.update(ret)
 
@@ -569,13 +587,7 @@ def completions_action(body: dict, stream_output=False):
 
             return chunk
 
-        if use_agent:
-            from openai_server.agent_backend import get_agent_response
-            generator = get_agent_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                           stream_output=stream_output)
-        else:
-            generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                     stream_output=stream_output)
+        generator = get_generator(prompt, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
 
         response = ''
         usage = {}

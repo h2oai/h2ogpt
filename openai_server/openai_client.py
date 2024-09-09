@@ -70,13 +70,13 @@ def clean_text_string(input_string):
 
 
 def run_openai_client(
-    client,
-    ReturnType=None,
-    convert_to_pdf=None,
-    use_agent=False,
-    base64_encode_agent_files=True,
-    cute=False,
-    **query_kwargs,
+        client,
+        ReturnType=None,
+        convert_to_pdf=None,
+        use_agent=False,
+        base64_encode_agent_files=True,
+        cute=False,
+        **query_kwargs,
 ):
     """
     Bsed upon test in h2oGPT OSS:
@@ -115,7 +115,7 @@ def run_openai_client(
             autogen_max_turns=None,
             autogen_timeout=120,
             autogen_cache_seed=None,
-            autogen_venv_dir=None,
+            agent_venv_dir=None,
             agent_verbose=True,
             text_context_list=text_context_list,
         )

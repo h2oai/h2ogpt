@@ -8,7 +8,7 @@ from openai_server.backend_utils import extract_xml_tags, generate_unique_filena
     structure_to_messages
 
 
-def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_packages):
+def agent_system_prompt(agent_code_writer_system_message, agent_system_site_packages):
     if agent_code_writer_system_message is None:
         cwd = os.path.abspath(os.getcwd())
         have_internet = get_have_internet()
@@ -16,7 +16,7 @@ def agent_system_prompt(agent_code_writer_system_message, autogen_system_site_pa
 
         # The code writer agent's system message is to instruct the LLM on how to use
         # the code executor in the code executor agent.
-        if autogen_system_site_packages:
+        if agent_system_site_packages:
             # heavy packages only expect should use if system inherited
             extra_recommended_packages = """\n  * Image Processing: opencv-python
   * DataBase: pysqlite3
@@ -483,3 +483,28 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
 * A png version of any svg is also created for use with image_query in order to analyze the svg (via the png).
 """
     return mmdc
+
+
+def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
+                           api_key, model, text_context_list, image_file, temp_dir, query):
+    agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
+                                                           agent_system_site_packages)
+
+    image_query_helper = get_image_query_helper(base_url, api_key, model)
+    mermaid_renderer_helper = get_mermaid_renderer_helper()
+
+    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
+                                                               temp_dir,
+                                                               # avoid text version of chat conversation, confuses LLM
+                                                               chat_conversation=None,
+                                                               system_prompt=system_prompt,
+                                                               prompt=query,
+                                                               model=model)
+
+    cwd = os.path.abspath(os.getcwd())
+    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+
+    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
+
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
+    return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
