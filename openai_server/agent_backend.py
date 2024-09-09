@@ -164,6 +164,7 @@ def run_autogen(query=None,
     if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
 
+    # TODO: new_agent_flow check can be removed after the new flow is finalized and tested.
     new_agent_flow = True
     if not new_agent_flow:
     ########################################################
