@@ -78,31 +78,36 @@ def get_code_writer_agent(
     )
     return code_writer_agent
 
-def get_general_knowledge_agent(
+def get_chat_agent(
     llm_config:dict,
     autogen_max_consecutive_auto_reply:int = 1,
 ) -> H2OConversableAgent:
-    gk_system_message = "You answer the question or request provided with natural language only. You can not generate or execute codes. You can not talk to web. You are good at chatting. "
-    # TODO: Think about the Terminate procedure
-    # gk_system_message += (
-    #     f"Add 'TERMINATE' at the end of your response if you think you have enough finding or results to answer user request: {prompt}"
-    # )
-    general_knowledge_agent = H2OConversableAgent(
-        name="general_knowledge_agent",
-        system_message=gk_system_message,
+    system_message = (
+        "You answer the question or request provided with natural language only. "
+        "You can not generate or execute codes. "
+        "You can not talk to web. "
+        "You are good at chatting. "
+        "You are good at answering general knowledge questions "
+        "based on your own memory or past conversation context. "
+        )
+
+    chat_agent = H2OConversableAgent(
+        name="chat_agent",
+        system_message=system_message,
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
-    general_knowledge_agent.description = (
-        "This agent is able to answer general knowledge questions based on its own memory or past conversation context. "
+    chat_agent.description = (
+        "This agent is able to answer general knowledge questions "
+        "based on its own memory or past conversation context. "
         "Only answers with natural language. "
         "It can not execute codes. "
         "It can not generate code examples. "
         "It's only good at chatting and answering simple questions. "
         )
-    return general_knowledge_agent
+    return chat_agent
 
 def get_human_proxy_agent(
     llm_config:dict,

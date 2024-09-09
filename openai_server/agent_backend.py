@@ -305,7 +305,7 @@ def run_autogen(query=None,
             get_code_executor,
             get_human_proxy_agent,
             get_main_group_chat_manager,
-            get_general_knowledge_agent,
+            get_chat_agent,
             get_code_group_chat_manager
             )
 
@@ -352,9 +352,9 @@ def run_autogen(query=None,
             autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
 
         )
-        general_knowledge_agent = get_general_knowledge_agent(
+        chat_agent = get_chat_agent(
             llm_config=llm_config,
-            autogen_max_consecutive_auto_reply=1, # Always 1 turn for general knowledge agent
+            autogen_max_consecutive_auto_reply=1, # Always 1 turn for chat agent
         )
         code_group_chat_manager = get_code_group_chat_manager(
             llm_config=llm_config,
@@ -366,7 +366,7 @@ def run_autogen(query=None,
         main_group_chat_manager = get_main_group_chat_manager(
             llm_config=llm_config,
             prompt=query,
-            agents=[general_knowledge_agent, code_group_chat_manager],
+            agents=[chat_agent, code_group_chat_manager],
             max_round=40,
         )
         # apply chat history to human_proxy_agent and main_group_chat_manager
