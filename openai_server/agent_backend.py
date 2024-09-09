@@ -381,8 +381,8 @@ def run_autogen(query=None,
         chat_result = human_proxy_agent.initiate_chat(
                     main_group_chat_manager,
                     message=query,
-                    summary_method="reflection_with_llm", # TODO: is summary really working for group chat? Doesnt include code group messages in it, why?
-                    summary_args=dict(summary_role="user"), # System by default, but in chat histort it comes last and drops user message in h2ogpt/convert_messages_to_structure method
+                    # summary_method="last_msg", # TODO: is summary really working for group chat? Doesnt include code group messages in it, why?
+                    # summary_args=dict(summary_role="user"), # System by default, but in chat histort it comes last and drops user message in h2ogpt/convert_messages_to_structure method
                     max_turns=1,
                 )
         # It seems chat_result.chat_history doesnt contain code group messages, so I'm manually merging them here. #TODO: research why so?
@@ -390,23 +390,30 @@ def run_autogen(query=None,
             code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages
         )
         chat_result.chat_history = merged_group_chat_messages
-        ### Update summary after including group chats:
-        summarize_prompt = (
-            "Try to answer first user prompt based on the agents' conversations and outputs so far. "
-            "Do not add any introductory phrases. "
-            "If you see some code executions done, try to summarize the process. "
-            "* In your final summarization, if any key figures or plots were produced, "
-            "add inline markdown links to the files so they are rendered as images in the chat history. "
-            "Do not include them in code blocks, just directly inlined markdown like ![image](filename.png). "
-            "Only use the basename of the file, not the full path, and the user will map the basename to a local copy of the file so rendering works normally. "
-            "Do not try to answer the prompt yourself, just answer based on what is provided in the context to you. "
-        )
-        chat_result.summary = human_proxy_agent._reflection_with_llm(
-            prompt=summarize_prompt,
-            messages=chat_result.chat_history,
-            cache=None,
-            role="user"
-        )
+        # Update summary after including group chats:
+        used_agents = list(set([msg['name'] for msg in chat_result.chat_history]))
+        # besides human_proxy_agent, check if there is only chat_agent and human_proxy_agent in the used_agents
+        if len(used_agents) == 2 and 'chat_agent' in used_agents:
+            chat_result.summary = chat_result.chat_history[-1]['content']
+        else:
+            summarize_prompt = (
+                "Given all the findings so far, try to answer user prompt. "
+                "Do not add any introductory phrases. "
+                "If you see some code executions done, try to summarize the process. "
+                "* In your final summarization, if any key figures or plots were produced, "
+                "add inline markdown links to the files so they are rendered as images in the chat history. "
+                "Do not include them in code blocks, just directly inlined markdown like ![image](filename.png). "
+                "Only use the basename of the file, not the full path, "
+                "and the user will map the basename to a local copy of the file so rendering works normally. "
+                "Do not try to answer the prompt yourself, just answer based on what is provided to you. "
+            )
+            chat_result.summary = human_proxy_agent._reflection_with_llm(
+                prompt=summarize_prompt,
+                messages=chat_result.chat_history,
+                cache=None,
+                role="user"
+            )
+
     # DEBUG
     if agent_verbose:
         print("chat_result:", chat_result)
