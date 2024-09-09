@@ -86,6 +86,8 @@ def get_chat_agent(
         "You answer the question or request provided with natural language only. "
         "You can not generate or execute codes. "
         "You can not talk to web. "
+        "You can not do any math or calculations, "
+        "even simple ones like adding numbers. "
         "You are good at chatting. "
         "You are good at answering general knowledge questions "
         "based on your own memory or past conversation context. "
@@ -105,6 +107,9 @@ def get_chat_agent(
         "Only answers with natural language. "
         "It can not execute codes. "
         "It can not generate code examples. "
+        "It can not access the web. "
+        "It can not do any math or calculations, "
+        "even simple ones like adding numbers. "
         "It's only good at chatting and answering simple questions. "
         )
     return chat_agent
@@ -175,6 +180,7 @@ def get_code_group_chat_manager(
         "making it ideal for tasks that require automation, coding, or retrieving up-to-date information. "
         "This agent has to be picked for any coding related task or tasks that are "
         "more complex than just chatting or simple question answering. "
+        "It can also do math and calculations, from simple arithmetic to complex equations. "
         )
     return code_group_chat_manager
 

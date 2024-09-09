@@ -34,13 +34,18 @@ def chat_to_pretty_markdown(
             if role.lower() == "user"
             else "ℹ️"
         )
-        real_role = (
-            assistant_name
-            if role.lower() == "assistant"
-            else user_name
-            if role.lower() == "user"
-            else dummy_name
-        )
+        if 'name' in message and message['name']:
+            # turns 'chat_agent' to 'Chat Agent'
+            real_role = message['name']
+            real_role = ' '.join(word.capitalize() for word in real_role.split('_'))
+        else:
+            real_role = (
+                assistant_name
+                if role.lower() == "assistant"
+                else user_name
+                if role.lower() == "user"
+                else dummy_name
+            )
 
         # Format the role
         if cute:
@@ -122,7 +127,7 @@ def chat_to_pretty_markdown_simple(
             if role.lower() == "user"
             else "ℹ️"
         )
-        if 'name' in message:
+        if 'name' in message and message['name']:
             # turns 'chat_agent' to 'Chat Agent'
             real_role = message['name']
             real_role = ' '.join(word.capitalize() for word in real_role.split('_'))
