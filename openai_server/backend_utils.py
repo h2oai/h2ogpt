@@ -101,7 +101,10 @@ def convert_messages_to_structure(messages):
     tuple: A tuple containing the instruction, system_message, history, and image_files.
     """
 
-    # messages = concatenate_messages(messages, tole='assistant')
+    # Autogen GroupChat messages contain subsequent same-role messages
+    # TODO: Discuss
+    messages = concatenate_messages(messages, role='assistant')
+    messages = concatenate_messages(messages, role='user')
     messages = concat_tool_messages(messages)
     # messages = concatenate_messages(messages, role='tool')
 

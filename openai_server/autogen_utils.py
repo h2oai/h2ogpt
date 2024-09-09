@@ -8,6 +8,7 @@ from typing import List
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
 from autogen import ConversableAgent
+from autogen import GroupChatManager
 import backoff
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
@@ -292,6 +293,23 @@ def backoff_handler(details):
 
 
 class H2OConversableAgent(ConversableAgent):
+    @backoff.on_exception(backoff.expo,
+                          Exception,
+                          max_tries=5,
+                          giveup=lambda e: not any(re.search(pattern, str(e)) for pattern in error_patterns),
+                          on_backoff=backoff_handler)
+    def _generate_oai_reply_from_client(self, llm_client, messages, cache) -> typing.Union[str, typing.Dict, None]:
+        try:
+            return super()._generate_oai_reply_from_client(llm_client, messages, cache)
+        except Exception as e:
+            if any(re.search(pattern, str(e)) for pattern in error_patterns):
+                logger.info(f"Encountered retryable error: {str(e)}")
+                raise  # Re-raise the exception to trigger backoff
+            else:
+                logger.error(f"Encountered non-retryable error: {str(e)}")
+                raise  # If it doesn't match our patterns, raise the original exception
+
+class H2OGroupChatManager(GroupChatManager):
     @backoff.on_exception(backoff.expo,
                           Exception,
                           max_tries=5,

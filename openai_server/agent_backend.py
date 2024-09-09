@@ -19,7 +19,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 
 from openai_server.backend_utils import convert_gen_kwargs, get_user_dir, run_upload_api, structure_to_messages
-from openai_server.agent_utils import in_pycharm, identify_image_files, set_python_path
+from openai_server.agent_utils import in_pycharm, identify_image_files, set_python_path, merge_group_chat_messages
 from openai_server.autogen_streaming import CustomIOStream, iostream_generator
 from openai_server.agent_prompting import agent_system_prompt, get_image_query_helper, get_mermaid_renderer_helper, \
     get_chat_doc_context
@@ -164,134 +164,205 @@ def run_autogen(query=None,
     if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
 
-    # Create a temporary directory to store the code files.
-    # temp_dir = tempfile.TemporaryDirectory().name
-    temp_dir = tempfile.mkdtemp()
+    new_agent_flow = True
+    if not new_agent_flow:
+    ########################################################
+        # Create a temporary directory to store the code files.
+        # temp_dir = tempfile.TemporaryDirectory().name
+        temp_dir = tempfile.mkdtemp()
 
-    # iostream = IOStream.get_default()
-    # iostream.print("\033[32m", end="")
+        # iostream = IOStream.get_default()
+        # iostream.print("\033[32m", end="")
 
-    if autogen_run_code_in_docker:
-        from autogen.coding import DockerCommandLineCodeExecutor
-        # Create a Docker command line code executor.
-        executor = DockerCommandLineCodeExecutor(
-            image="python:3.10-slim-bullseye",
-            timeout=autogen_timeout,  # Timeout for each code execution in seconds.
-            work_dir=temp_dir,  # Use the temporary directory to store the code files.
-        )
-    else:
-        from autogen.code_utils import create_virtual_env
-        if autogen_venv_dir is None:
-            username = str(uuid.uuid4())
-            autogen_venv_dir = ".venv_%s" % username
-        env_args = dict(system_site_packages=autogen_system_site_packages,
-                        with_pip=True,
-                        symlinks=True)
-        if not in_pycharm():
-            virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
+        if autogen_run_code_in_docker:
+            from autogen.coding import DockerCommandLineCodeExecutor
+            # Create a Docker command line code executor.
+            executor = DockerCommandLineCodeExecutor(
+                image="python:3.10-slim-bullseye",
+                timeout=autogen_timeout,  # Timeout for each code execution in seconds.
+                work_dir=temp_dir,  # Use the temporary directory to store the code files.
+            )
         else:
-            print("in PyCharm, can't use virtualenv, so we use the system python", file=sys.stderr)
-            virtual_env_context = None
-        # work_dir = ".workdir_%s" % username
-        # PythonLoader(name='code', ))
+            from autogen.code_utils import create_virtual_env
+            if autogen_venv_dir is None:
+                username = str(uuid.uuid4())
+                autogen_venv_dir = ".venv_%s" % username
+            env_args = dict(system_site_packages=autogen_system_site_packages,
+                            with_pip=True,
+                            symlinks=True)
+            if not in_pycharm():
+                virtual_env_context = create_virtual_env(autogen_venv_dir, **env_args)
+            else:
+                print("in PyCharm, can't use virtualenv, so we use the system python", file=sys.stderr)
+                virtual_env_context = None
+            # work_dir = ".workdir_%s" % username
+            # PythonLoader(name='code', ))
 
-        # Create a local command line code executor.
-        if autogen_code_restrictions_level >= 2:
-            from autogen_utils import H2OLocalCommandLineCodeExecutor
-        else:
-            from autogen.coding.local_commandline_code_executor import \
-                LocalCommandLineCodeExecutor as H2OLocalCommandLineCodeExecutor
-        executor = H2OLocalCommandLineCodeExecutor(
-            timeout=autogen_timeout,  # Timeout for each code execution in seconds.
-            virtual_env_context=virtual_env_context,
-            work_dir=temp_dir,  # Use the temporary directory to store the code files.
+            # Create a local command line code executor.
+            if autogen_code_restrictions_level >= 2:
+                from autogen_utils import H2OLocalCommandLineCodeExecutor
+            else:
+                from autogen.coding.local_commandline_code_executor import \
+                    LocalCommandLineCodeExecutor as H2OLocalCommandLineCodeExecutor
+            executor = H2OLocalCommandLineCodeExecutor(
+                timeout=autogen_timeout,  # Timeout for each code execution in seconds.
+                virtual_env_context=virtual_env_context,
+                work_dir=temp_dir,  # Use the temporary directory to store the code files.
+            )
+
+        # Create an agent with code executor configuration.
+        from openai_server.autogen_utils import H2OConversableAgent
+        code_executor_agent = H2OConversableAgent(
+            "code_executor_agent",
+            llm_config=False,  # Turn off LLM for this agent.
+            code_execution_config={"executor": executor},  # Use the local command line code executor.
+            human_input_mode="NEVER",  # Always take human input for this agent for safety.
+            is_termination_msg=terminate_message_func,
+            max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
         )
 
-    # Create an agent with code executor configuration.
-    from openai_server.autogen_utils import H2OConversableAgent
-    code_executor_agent = H2OConversableAgent(
-        "code_executor_agent",
-        llm_config=False,  # Turn off LLM for this agent.
-        code_execution_config={"executor": executor},  # Use the local command line code executor.
-        human_input_mode="NEVER",  # Always take human input for this agent for safety.
-        is_termination_msg=terminate_message_func,
-        max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-    )
+        agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
+                                                               autogen_system_site_packages)
 
-    agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
-                                                           autogen_system_site_packages)
+        # FIXME:
+        # Auto-pip install
+        # Auto-return file list in each turn
 
-    # FIXME:
-    # Auto-pip install
-    # Auto-return file list in each turn
+        base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
+        api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
+        if agent_verbose:
+            print("base_url: %s" % base_url)
+            print("max_tokens: %s" % max_new_tokens)
 
-    base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
-    api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
-    if agent_verbose:
-        print("base_url: %s" % base_url)
-        print("max_tokens: %s" % max_new_tokens)
+        image_query_helper = get_image_query_helper(base_url, api_key, model)
+        mermaid_renderer_helper = get_mermaid_renderer_helper()
 
-    image_query_helper = get_image_query_helper(base_url, api_key, model)
-    mermaid_renderer_helper = get_mermaid_renderer_helper()
+        chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
+                                                                   temp_dir,
+                                                                   # avoid text version of chat conversation, confuses LLM
+                                                                   chat_conversation=None,
+                                                                   system_prompt=system_prompt,
+                                                                   prompt=query,
+                                                                   model=model)
 
-    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
-                                                               temp_dir,
-                                                               # avoid text version of chat conversation, confuses LLM
-                                                               chat_conversation=None,
-                                                               system_prompt=system_prompt,
-                                                               prompt=query,
-                                                               model=model)
+        cwd = os.path.abspath(os.getcwd())
+        path_agent_tools = f'{cwd}/openai_server/agent_tools/'
 
-    cwd = os.path.abspath(os.getcwd())
-    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+        agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
 
-    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
+        system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
+        code_writer_agent = H2OConversableAgent(
+            "code_writer_agent",
+            system_message=system_message,
+            llm_config={"config_list": [{"model": model,
+                                         "api_key": api_key,
+                                         "base_url": base_url,
+                                         "stream": stream_output,
+                                         "cache_seed": autogen_cache_seed,
+                                         'max_tokens': max_new_tokens}]},
+            code_execution_config=False,  # Turn off code execution for this agent.
+            human_input_mode="NEVER",
+            is_termination_msg=terminate_message_func,
+            max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+        )
 
-    code_writer_agent = H2OConversableAgent(
-        "code_writer_agent",
-        system_message=system_message,
-        llm_config={"config_list": [{"model": model,
-                                     "api_key": api_key,
-                                     "base_url": base_url,
-                                     "stream": stream_output,
-                                     "cache_seed": autogen_cache_seed,
-                                     'max_tokens': max_new_tokens}]},
-        code_execution_config=False,  # Turn off code execution for this agent.
-        human_input_mode="NEVER",
-        is_termination_msg=terminate_message_func,
-        max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-    )
+        # apply chat history
+        if chat_conversation:
+            chat_messages = structure_to_messages(None, None, chat_conversation, None)
+            for message in chat_messages:
+                if message['role'] == 'assistant':
+                    code_writer_agent.send(message['content'], code_executor_agent, request_reply=False)
+                if message['role'] == 'user':
+                    code_executor_agent.send(message['content'], code_writer_agent, request_reply=False)
 
-    # apply chat history
-    if chat_conversation:
-        chat_messages = structure_to_messages(None, None, chat_conversation, None)
-        for message in chat_messages:
-            if message['role'] == 'assistant':
-                code_writer_agent.send(message['content'], code_executor_agent, request_reply=False)
-            if message['role'] == 'user':
-                code_executor_agent.send(message['content'], code_writer_agent, request_reply=False)
-
-    chat_kwargs = dict(recipient=code_writer_agent,
-                       max_turns=autogen_max_turns,
-                       message=query,
-                       cache=None,
-                       silent=autogen_silent_exchange,
-                       clear_history=False,
-                       )
-    if autogen_cache_seed:
-        from autogen import Cache
-        # Use DiskCache as cache
-        cache_root_path = "./autogen_cache"
-        if not os.path.exists(cache_root_path):
-            os.makedirs(cache_root_path, exist_ok=True)
-        with Cache.disk(cache_seed=autogen_cache_seed, cache_path_root=cache_root_path) as cache:
-            chat_kwargs.update(dict(cache=cache))
+        chat_kwargs = dict(recipient=code_writer_agent,
+                           max_turns=autogen_max_turns,
+                           message=query,
+                           cache=None,
+                           silent=autogen_silent_exchange,
+                           clear_history=False,
+                           )
+        if autogen_cache_seed:
+            from autogen import Cache
+            # Use DiskCache as cache
+            cache_root_path = "./autogen_cache"
+            if not os.path.exists(cache_root_path):
+                os.makedirs(cache_root_path, exist_ok=True)
+            with Cache.disk(cache_seed=autogen_cache_seed, cache_path_root=cache_root_path) as cache:
+                chat_kwargs.update(dict(cache=cache))
+                chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+        else:
             chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+        #######################################################
     else:
-        chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+        # New agent flow
+        base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
+        api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
+        temp_dir = tempfile.mkdtemp()
+        from openai_server.agents import get_code_executor
+        executor = get_code_executor(
+            temp_dir=temp_dir,
+            autogen_run_code_in_docker=autogen_run_code_in_docker,
+            autogen_timeout=autogen_timeout,
+            autogen_system_site_packages=autogen_system_site_packages,
+            autogen_code_restrictions_level=autogen_code_restrictions_level,
+            autogen_venv_dir=autogen_venv_dir,
+        )
 
+
+        agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
+                                                            autogen_system_site_packages)
+        image_query_helper = get_image_query_helper(base_url, api_key, model)
+        mermaid_renderer_helper = get_mermaid_renderer_helper()
+
+        chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
+                                                                temp_dir,
+                                                                # avoid text version of chat conversation, confuses LLM
+                                                                chat_conversation=None,
+                                                                system_prompt=system_prompt,
+                                                                prompt=query,
+                                                                model=model)
+
+        cwd = os.path.abspath(os.getcwd())
+        path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+
+        agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
+
+        code_writer_system_prompt = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
+        llm_config={"config_list": [{"model": model,
+                                        "api_key": api_key,
+                                        "base_url": base_url,
+                                        "stream": stream_output,
+                                        "cache_seed": autogen_cache_seed,
+                                        'max_tokens': max_new_tokens}]}
+        from openai_server.agents import get_human_proxy_agent, get_main_group_chat_manager
+        # TODO: chat_history send for each agent as Jon did for code_writer and code_executor
+        human_proxy_agent = get_human_proxy_agent(
+            llm_config=llm_config,
+            autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+
+        )
+        main_group_chat_manager = get_main_group_chat_manager(
+            llm_config=llm_config,
+            prompt=query,
+            autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+            group_chat_manager_max_round=40,
+            code_writer_system_prompt=code_writer_system_prompt,
+            executor=executor,
+        )
+        chat_result = human_proxy_agent.initiate_chat(
+                    main_group_chat_manager,
+                    message=query,
+                    summary_method="reflection_with_llm", # TODO: is summary really working for group chat? Doesnt include code group messages in it, why?
+                    summary_args=dict(summary_role="user"), # System by default, but in chat histort it comes last and drops user message in h2ogpt/convert_messages_to_structure method
+                    max_turns=1,
+                )
+        code_group_chat_manager = main_group_chat_manager.groupchat.agents[1] #TODO: make this based on name
+        merged_group_chat_messages = merge_group_chat_messages(
+            code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages
+        )
+        chat_result.chat_history = merged_group_chat_messages
     # DEBUG
     if agent_verbose:
         print("chat_result:", chat_result)

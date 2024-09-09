@@ -85,3 +85,38 @@ def current_datetime():
 
     # Print the formatted date, time, and time zone
     return "For current user query: Current Date, Time, and Local Time Zone: %s. Note some APIs may have data from different time zones, so may reflect a different date." % formatted_date_time
+
+def merge_group_chat_messages(a, b):
+    """
+    Helps to merge chat messages from two different sources.
+    Mostly messages from Group Chat Managers.
+    """
+    # Create a copy of b to avoid modifying the original list
+    merged_list = b.copy()
+    
+    # Convert b into a set of contents for faster lookup
+    b_contents = {item['content'] for item in b}
+    
+    # Iterate through the list a
+    for i, item_a in enumerate(a):
+        content_a = item_a['content']
+        
+        # If the content is not in b, insert it at the correct position
+        if content_a not in b_contents:
+            # Find the position in b where this content should be inserted
+            # Insert right after the content of the previous item in list a (if it exists)
+            if i > 0:
+                prev_content = a[i - 1]['content']
+                # Find the index of the previous content in the merged list
+                for j, item_b in enumerate(merged_list):
+                    if item_b['content'] == prev_content:
+                        merged_list.insert(j + 1, item_a)
+                        break
+            else:
+                # If it's the first item in a, just append it to the beginning
+                merged_list.insert(0, item_a)
+            
+            # Update the b_contents set
+            b_contents.add(content_a)
+    
+    return merged_list
