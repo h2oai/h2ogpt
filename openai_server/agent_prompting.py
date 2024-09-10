@@ -461,7 +461,12 @@ python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "
 * image_query accepts most image files allowed by PIL (Pillow) except svg.
 * Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
 * If the user asks for a perfect image, use the image_query tool only up to 6 times.  If the user asks for a very rough image, then do not use the image_query tool at all.  If the user does not specify the quality of the image, then use the image_query tool only up to 3 times.  If user asks for more uses of image_query, then do as they ask.
+* Do not use plt.show() or plt.imshow() as the user cannot see that displayed, instead you must use this image_query tool to critique or analyze images as a file.
 """
+    else:
+        image_query_helper = """* Do not use plt.show() or plt.imshow() as the user cannot see that displayed.  Use other ways to analyze the image if required.
+"""
+
     # FIXME: What if chat history, counting will be off
     return image_query_helper
 
