@@ -72,11 +72,17 @@ def run_autogen_2agent(query=None,
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")
 
-    from openai_server.autogen_agents import get_execution_agent
-    code_executor_agent, executor = \
-        get_execution_agent(autogen_run_code_in_docker, autogen_timeout, agent_system_site_packages,
-                            autogen_max_consecutive_auto_reply, autogen_code_restrictions_level,
-                            agent_venv_dir, temp_dir)
+    from openai_server.autogen_agents import get_code_execution_agent
+    from openai_server.autogen_utils import get_code_executor
+    executor = get_code_executor(
+        autogen_run_code_in_docker,
+        autogen_timeout,
+        agent_system_site_packages,
+        autogen_code_restrictions_level,
+        agent_venv_dir,
+        temp_dir
+    )
+    code_executor_agent = get_code_execution_agent(executor, autogen_max_consecutive_auto_reply)
 
     # FIXME:
     # Auto-pip install

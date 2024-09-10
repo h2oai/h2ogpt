@@ -31,7 +31,7 @@ def run_autogen_multi_agent(query=None,
                        autogen_code_restrictions_level=None,
                        autogen_silent_exchange=None,
                        agent_verbose=None) -> dict:
-    assert agent_type in ['autogen_multi_agent', 'auto'], "Invalid agent_type: %s" % agent_type
+    assert agent_type in ['autogen_multi_agent'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
 
@@ -68,8 +68,8 @@ def run_autogen_multi_agent(query=None,
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
     temp_dir = tempfile.mkdtemp()
+    from openai_server.autogen_utils import get_code_executor
     from openai_server.autogen_agents import (
-        get_code_executor,
         get_human_proxy_agent,
         get_main_group_chat_manager,
         get_chat_agent,

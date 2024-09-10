@@ -4,6 +4,7 @@ import re
 import sys
 import typing
 from typing import List
+import uuid
 
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
@@ -13,6 +14,7 @@ import backoff
 
 from openai_server.autogen_streaming import iostream_generator
 from openai_server.backend_utils import convert_gen_kwargs
+from openai_server.agent_utils import in_pycharm, set_python_path
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
@@ -394,6 +396,52 @@ def get_autogen_response(func=None, use_process=False, **kwargs):
         ret_dict = e.value
     return ret_dict
 
+
+def get_code_executor(
+        autogen_run_code_in_docker,
+        autogen_timeout,
+        agent_system_site_packages,
+        autogen_code_restrictions_level,
+        agent_venv_dir,
+        temp_dir
+        ):
+    if autogen_run_code_in_docker:
+        from autogen.coding import DockerCommandLineCodeExecutor
+        # Create a Docker command line code executor.
+        executor = DockerCommandLineCodeExecutor(
+            image="python:3.10-slim-bullseye",
+            timeout=autogen_timeout,  # Timeout for each code execution in seconds.
+            work_dir=temp_dir,  # Use the temporary directory to store the code files.
+        )
+    else:
+        set_python_path()
+        from autogen.code_utils import create_virtual_env
+        if agent_venv_dir is None:
+            username = str(uuid.uuid4())
+            agent_venv_dir = ".venv_%s" % username
+        env_args = dict(system_site_packages=agent_system_site_packages,
+                        with_pip=True,
+                        symlinks=True)
+        if not in_pycharm():
+            virtual_env_context = create_virtual_env(agent_venv_dir, **env_args)
+        else:
+            print("in PyCharm, can't use virtualenv, so we use the system python", file=sys.stderr)
+            virtual_env_context = None
+        # work_dir = ".workdir_%s" % username
+        # PythonLoader(name='code', ))
+
+        # Create a local command line code executor.
+        if autogen_code_restrictions_level >= 2:
+            from autogen_utils import H2OLocalCommandLineCodeExecutor
+        else:
+            from autogen.coding.local_commandline_code_executor import \
+                LocalCommandLineCodeExecutor as H2OLocalCommandLineCodeExecutor
+        executor = H2OLocalCommandLineCodeExecutor(
+            timeout=autogen_timeout,  # Timeout for each code execution in seconds.
+            virtual_env_context=virtual_env_context,
+            work_dir=temp_dir,  # Use the temporary directory to store the code files.
+        )
+    return executor
 
 def merge_group_chat_messages(a, b):
     """
