@@ -109,6 +109,7 @@ Code generation instructions:
 * Ensure you provide well-commented code, so the user can understand what the code does.
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 * Each code block meant for execution should be complete and executable on its own.
+* You must wait for a code block to actually be executed before guessing or summarizing its output.
 </code_generation>
 Code generation to avoid when execution is marked true:
 <code_avoid>
