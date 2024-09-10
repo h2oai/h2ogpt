@@ -503,8 +503,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     cwd = os.path.abspath(os.getcwd())
     path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+    list_dir = os.listdir('openai_server/agent_tools')
+    list_dir = [x for x in list_dir if not x.startswith('__')]
 
-    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {os.listdir('openai_server/agent_tools')}\n"
+    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
     system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper

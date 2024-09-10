@@ -265,22 +265,19 @@ def get_client(user=None):
 
 def get_response(chunk_response=True, **kwargs):
     assert kwargs['query'] is not None, "query must not be None"
+    import ast
+
     stream_output = kwargs.get('stream_output', True)
     verbose = kwargs.get('verbose', False)
-    import ast
-    kwargs = dict(instruction=kwargs['query'])
-    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
-        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    gen_kwargs = convert_gen_kwargs(kwargs)
-    kwargs.update(**gen_kwargs)
+    kwargs = convert_gen_kwargs(kwargs)
 
     # WIP:
     # if gen_kwargs.get('skip_gradio'):
     #    fun_with_dict_str_plain
 
     # concurrent gradio client
-    client = get_client(user=gen_kwargs.get('user'))
+    client = get_client(user=kwargs.get('user'))
 
     if stream_output:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
