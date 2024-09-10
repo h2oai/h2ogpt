@@ -265,6 +265,10 @@ def structure_to_messages(instruction, system_message, history, image_files):
 
 
 def convert_gen_kwargs(gen_kwargs):
+    gen_kwargs.update(dict(instruction=gen_kwargs['query']))
+    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
+        gen_kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
+
     # max_tokens=16 for text completion by default
     gen_kwargs["max_new_tokens"] = gen_kwargs.pop(
         "max_new_tokens", gen_kwargs.pop("max_tokens", 256)

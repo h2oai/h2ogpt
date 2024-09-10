@@ -41,13 +41,13 @@ def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStr
         yield capture_stream
 
 
-def run_agent_in_proc(run_agent_func, output_queue, query, result_queue, exception_queue, **kwargs):
+def run_autogen_in_proc(func, output_queue, result_queue, exception_queue, **kwargs):
     ret_dict = None
     try:
         # raise ValueError("Testing Error Handling 3")  # works
 
         with capture_iostream(output_queue):
-            ret_dict = run_agent_func(query, **kwargs)
+            ret_dict = func(**kwargs)
             # Signal that agent has finished
             result_queue.put(ret_dict)
     except BaseException as e:
@@ -58,7 +58,11 @@ def run_agent_in_proc(run_agent_func, output_queue, query, result_queue, excepti
         result_queue.put(ret_dict)
 
 
-def iostream_generator(run_agent_func, query, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
+def iostream_generator(func, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
+    # start capture
+    custom_stream = CustomIOStream()
+    IOStream.set_global_default(custom_stream)
+
     # raise ValueError("Testing Error Handling 2")  #works
     if use_process:
         output_queue = multiprocessing.Queue()
@@ -72,11 +76,11 @@ def iostream_generator(run_agent_func, query, use_process=False, **kwargs) -> ty
         proc_cls = threading.Thread
 
     # Filter kwargs based on the function signature of run_agent to avoid passing non-picklable things through
-    filtered_kwargs = filter_kwargs(run_agent_func, kwargs)
+    filtered_kwargs = filter_kwargs(func, kwargs)
 
     # Start agent in a separate thread
-    agent_proc = proc_cls(target=run_agent_in_proc,
-                          args=(run_agent_func, output_queue, query, result_queue, exception_queue),
+    agent_proc = proc_cls(target=run_autogen_in_proc,
+                          args=(func, output_queue, result_queue, exception_queue),
                           kwargs=filtered_kwargs)
     agent_proc.start()
 

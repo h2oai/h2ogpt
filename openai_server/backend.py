@@ -1,5 +1,6 @@
 import ast
 import base64
+import functools
 import io
 import json
 import os
@@ -262,21 +263,21 @@ def get_client(user=None):
     return gradio_client
 
 
-def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, stream_output=False):
+def get_response(chunk_response=True, **kwargs):
+    assert kwargs['query'] is not None, "query must not be None"
     import ast
-    kwargs = dict(instruction=instruction)
-    if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
-        kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    gen_kwargs = convert_gen_kwargs(gen_kwargs)
-    kwargs.update(**gen_kwargs)
+    stream_output = kwargs.get('stream_output', True)
+    verbose = kwargs.get('verbose', False)
+
+    kwargs = convert_gen_kwargs(kwargs)
 
     # WIP:
     # if gen_kwargs.get('skip_gradio'):
     #    fun_with_dict_str_plain
 
     # concurrent gradio client
-    client = get_client(user=gen_kwargs.get('user'))
+    client = get_client(user=kwargs.get('user'))
 
     if stream_output:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -359,6 +360,34 @@ def split_concatenated_dicts(concatenated_dicts: str):
     return result
 
 
+def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False, verbose=False):
+    gen_kwargs['stream_output'] = stream_output
+    gen_kwargs['query'] = instruction
+    if gen_kwargs.get('verbose') is None:
+        # for local debugging
+        gen_kwargs['verbose'] = verbose
+
+    if use_agent:
+        agent_type = gen_kwargs.get('agent_type', 'auto')
+        from openai_server.agent_utils import set_dummy_term, run_agent
+        set_dummy_term()  # before autogen imported
+
+        if agent_type == 'auto':
+            agent_type = 'autogen_2agent'
+
+        if agent_type in ['autogen_2agent']:
+            from openai_server.autogen_2agent_backend import run_autogen_2agent
+            func = functools.partial(run_agent, run_agent_func=run_autogen_2agent)
+            from openai_server.autogen_utils import get_autogen_response
+            generator = get_autogen_response(func=func, **gen_kwargs)
+        else:
+            raise ValueError("No such agent_type %s" % agent_type)
+    else:
+        generator = get_response(**gen_kwargs)
+
+    return generator
+
+
 def chat_completion_action(body: dict, stream_output=False) -> dict:
     messages = body.get('messages', [])
     object_type = 'chat.completions' if not stream_output else 'chat.completions.chunk'
@@ -416,13 +445,8 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
     token_count = count_tokens(instruction)
-    if use_agent:
-        from openai_server.agent_backend import get_agent_response
-        generator = get_agent_response(instruction, gen_kwargs, chunk_response=stream_output,
-                                       stream_output=stream_output)
-    else:
-        generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
-                                 stream_output=stream_output)
+
+    generator = get_generator(instruction, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
 
     answer = ''
     usage = {}
@@ -508,11 +532,9 @@ def completions_action(body: dict, stream_output=False):
             token_count = count_tokens(prompt)
             total_prompt_token_count += token_count
 
-            if use_agent:
-                from openai_server.agent_backend import get_agent_response
-                response, ret = get_last_and_return_value(get_agent_response(prompt, gen_kwargs))
-            else:
-                response, ret = get_last_and_return_value(get_response(prompt, gen_kwargs))
+            generator = get_generator(prompt, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
+            response, ret = get_last_and_return_value(generator)
+
             if isinstance(ret, dict):
                 usage.update(ret)
 
@@ -569,13 +591,7 @@ def completions_action(body: dict, stream_output=False):
 
             return chunk
 
-        if use_agent:
-            from openai_server.agent_backend import get_agent_response
-            generator = get_agent_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                           stream_output=stream_output)
-        else:
-            generator = get_response(prompt, gen_kwargs, chunk_response=stream_output,
-                                     stream_output=stream_output)
+        generator = get_generator(prompt, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
 
         response = ''
         usage = {}
