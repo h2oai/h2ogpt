@@ -8,6 +8,7 @@ from typing import List
 from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
 from autogen.coding.base import CommandLineCodeResult
 from autogen import ConversableAgent
+from autogen import GroupChatManager
 import backoff
 
 from openai_server.autogen_streaming import iostream_generator
@@ -327,6 +328,23 @@ class H2OConversableAgent(ConversableAgent):
                 raise  # If it doesn't match our patterns, raise the original exception
 
 
+class H2OGroupChatManager(GroupChatManager):
+    @backoff.on_exception(backoff.expo,
+                          Exception,
+                          max_tries=5,
+                          giveup=lambda e: not any(re.search(pattern, str(e)) for pattern in error_patterns),
+                          on_backoff=backoff_handler)
+    def _generate_oai_reply_from_client(self, llm_client, messages, cache) -> typing.Union[str, typing.Dict, None]:
+        try:
+            return super()._generate_oai_reply_from_client(llm_client, messages, cache)
+        except Exception as e:
+            if any(re.search(pattern, str(e)) for pattern in error_patterns):
+                logger.info(f"Encountered retryable error: {str(e)}")
+                raise  # Re-raise the exception to trigger backoff
+            else:
+                logger.error(f"Encountered non-retryable error: {str(e)}")
+                raise  # If it doesn't match our patterns, raise the original exception
+
 def terminate_message_func(msg):
     # in conversable agent, roles are flipped relative to actual OpenAI, so can't filter by assistant
     #        isinstance(msg.get('role'), str) and
@@ -375,3 +393,39 @@ def get_autogen_response(func=None, use_process=False, **kwargs):
     except StopIteration as e:
         ret_dict = e.value
     return ret_dict
+
+
+def merge_group_chat_messages(a, b):
+    """
+    Helps to merge chat messages from two different sources.
+    Mostly messages from Group Chat Managers.
+    """
+    # Create a copy of b to avoid modifying the original list
+    merged_list = b.copy()
+
+    # Convert b into a set of contents for faster lookup
+    b_contents = {item['content'] for item in b}
+
+    # Iterate through the list a
+    for i, item_a in enumerate(a):
+        content_a = item_a['content']
+
+        # If the content is not in b, insert it at the correct position
+        if content_a not in b_contents:
+            # Find the position in b where this content should be inserted
+            # Insert right after the content of the previous item in list a (if it exists)
+            if i > 0:
+                prev_content = a[i - 1]['content']
+                # Find the index of the previous content in the merged list
+                for j, item_b in enumerate(merged_list):
+                    if item_b['content'] == prev_content:
+                        merged_list.insert(j + 1, item_a)
+                        break
+            else:
+                # If it's the first item in a, just append it to the beginning
+                merged_list.insert(0, item_a)
+
+            # Update the b_contents set
+            b_contents.add(content_a)
+
+    return merged_list

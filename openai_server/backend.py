@@ -372,12 +372,19 @@ def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False,
         from openai_server.agent_utils import set_dummy_term, run_agent
         set_dummy_term()  # before autogen imported
 
+        # how to pass agent_type?
+        print("agent_type: %s" % agent_type, flush=True)
         if agent_type == 'auto':
-            agent_type = 'autogen_2agent'
+            agent_type = 'autogen_multi_agent'
 
         if agent_type in ['autogen_2agent']:
             from openai_server.autogen_2agent_backend import run_autogen_2agent
             func = functools.partial(run_agent, run_agent_func=run_autogen_2agent)
+            from openai_server.autogen_utils import get_autogen_response
+            generator = get_autogen_response(func=func, **gen_kwargs)
+        elif agent_type in ['autogen_multi_agent']:
+            from openai_server.autogen_multi_agent_backend import run_autogen_multi_agent
+            func = functools.partial(run_agent, run_agent_func=run_autogen_multi_agent)
             from openai_server.autogen_utils import get_autogen_response
             generator = get_autogen_response(func=func, **gen_kwargs)
         else:
