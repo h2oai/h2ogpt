@@ -94,12 +94,17 @@ def run_autogen_multi_agent(query=None,
                                api_key, model, text_context_list, image_file,
                                temp_dir, query)
     # Prepare the LLM config for the agents
+    extra_body = {
+        "agent_type": agent_type, # autogen_multi_agent
+    }
     llm_config={"config_list": [{"model": model,
                                     "api_key": api_key,
                                     "base_url": base_url,
                                     "stream": stream_output,
                                     "cache_seed": autogen_cache_seed,
-                                    'max_tokens': max_new_tokens}]}
+                                    'max_tokens': max_new_tokens,
+                                    "extra_body": extra_body, 
+                                    }]}
     human_proxy_agent = get_human_proxy_agent(
                 llm_config=llm_config,
                 autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
