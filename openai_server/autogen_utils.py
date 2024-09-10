@@ -346,14 +346,13 @@ def terminate_message_func(msg):
     return False
 
 
-def get_autogen_response(run_agent_func, query, gen_kwargs, chunk_response=True, stream_output=False,
-                         use_process=False):
+def get_autogen_response(func=None, use_process=False, **kwargs):
     # raise ValueError("Testing Error Handling 1")  # works
 
-    gen_kwargs = convert_gen_kwargs(gen_kwargs)
+    gen_kwargs = convert_gen_kwargs(kwargs)
     kwargs = gen_kwargs.copy()
-    kwargs.update(dict(chunk_response=chunk_response, stream_output=stream_output))
-    gen = iostream_generator(run_agent_func, query, use_process=use_process, **kwargs)
+    assert func is not None, "func must be provided"
+    gen = iostream_generator(func, use_process=use_process, **kwargs)
 
     ret_dict = {}
     try:

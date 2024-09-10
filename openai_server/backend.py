@@ -263,13 +263,16 @@ def get_client(user=None):
     return gradio_client
 
 
-def get_response(instruction, gen_kwargs, verbose=False, chunk_response=True, stream_output=False):
+def get_response(chunk_response=True, **kwargs):
+    assert kwargs['query'] is not None, "query must not be None"
+    stream_output = kwargs.get('stream_output', True)
+    verbose = kwargs.get('verbose', False)
     import ast
-    kwargs = dict(instruction=instruction)
+    kwargs = dict(instruction=kwargs['query'])
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
 
-    gen_kwargs = convert_gen_kwargs(gen_kwargs)
+    gen_kwargs = convert_gen_kwargs(kwargs)
     kwargs.update(**gen_kwargs)
 
     # WIP:
@@ -360,25 +363,30 @@ def split_concatenated_dicts(concatenated_dicts: str):
     return result
 
 
-def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False):
+def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False, verbose=False):
+    gen_kwargs['stream_output'] = stream_output
+    gen_kwargs['query'] = instruction
+    if gen_kwargs.get('verbose') is None:
+        # for local debugging
+        gen_kwargs['verbose'] = verbose
+
     if use_agent:
         agent_type = gen_kwargs.get('agent_type', 'auto')
+        from openai_server.agent_utils import set_dummy_term, run_agent
+        set_dummy_term()  # before autogen imported
+
         if agent_type == 'auto':
             agent_type = 'autogen_2agent'
+
         if agent_type in ['autogen_2agent']:
-            from openai_server.agent_utils import set_dummy_term, run_agent
-            set_dummy_term()  # before autogen imported
             from openai_server.autogen_2agent_backend import run_autogen_2agent
-            run_agent_func = functools.partial(run_agent, run_agent_func=run_autogen_2agent)
+            func = functools.partial(run_agent, run_agent_func=run_autogen_2agent)
             from openai_server.autogen_utils import get_autogen_response
-            generator = get_autogen_response(run_agent_func,
-                                             instruction, gen_kwargs, chunk_response=stream_output,
-                                             stream_output=stream_output)
+            generator = get_autogen_response(func=func, **gen_kwargs)
         else:
             raise ValueError("No such agent_type %s" % agent_type)
     else:
-        generator = get_response(instruction, gen_kwargs, chunk_response=stream_output,
-                                 stream_output=stream_output)
+        generator = get_response(**gen_kwargs)
 
     return generator
 

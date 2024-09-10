@@ -105,13 +105,12 @@ def current_datetime():
 
 
 def run_agent(run_agent_func=None,
-              query=None,
               **kwargs,
               ) -> dict:
     ret_dict = {}
     try:
         assert run_agent_func is not None, "run_agent_func must be provided."
-        ret_dict = run_agent_func(query, **kwargs)
+        ret_dict = run_agent_func(**kwargs)
     finally:
         if kwargs.get('agent_venv_dir') is None and 'agent_venv_dir' in ret_dict and ret_dict['agent_venv_dir']:
             agent_venv_dir = ret_dict['agent_venv_dir']
