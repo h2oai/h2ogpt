@@ -372,8 +372,6 @@ def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False,
         from openai_server.agent_utils import set_dummy_term, run_agent
         set_dummy_term()  # before autogen imported
 
-        # TODO: how to pass agent_type?
-        print("agent_type: %s" % agent_type, flush=True)
         if agent_type == 'auto':
             agent_type = 'autogen_2agent'
 
