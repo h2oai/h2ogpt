@@ -172,6 +172,27 @@ def run_autogen_multi_agent(query=None,
             cache=None,
             role="user"
         )
+    # TODO: put fake token cost for now
+    # for chats containing GroupChatManager, costs seem to be not calculated properly
+    chat_result.cost={
+        'usage_including_cached_inference': {
+            'total_cost': 0,
+            model: {
+                'cost': 0,
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0}
+        },
+        'usage_excluding_cached_inference': {
+            'total_cost': 0,
+            model: {
+                'cost': 0,
+                'prompt_tokens': 0,
+                'completion_tokens': 0,
+                'total_tokens': 0
+            }
+        }
+    }
     #### end
     ret_dict = get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
