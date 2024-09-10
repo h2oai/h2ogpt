@@ -2,6 +2,8 @@ import re
 import textwrap
 from typing import List, Dict
 
+markdown_mark = "---"
+
 
 def chat_to_pretty_markdown(
     chat_history: List[Dict[str, str]],
@@ -24,7 +26,7 @@ def chat_to_pretty_markdown(
 
         # Add a horizontal rule between messages (except before the first one)
         if i > 0:
-            markdown += "---\n\n"
+            markdown += f"{markdown_mark}\n\n"
 
         # Add an emoji based on the role
         emoji = (
@@ -112,7 +114,7 @@ def chat_to_pretty_markdown_simple(
 
         # Add a horizontal rule between messages (except before the first one)
         if i > 0:
-            markdown += "---\n\n"
+            markdown += f"{markdown_mark}\n\n"
 
         # Add an emoji based on the role
         emoji = (

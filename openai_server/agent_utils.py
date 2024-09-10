@@ -1,8 +1,14 @@
+import functools
 import inspect
 import os
+import shutil
 import sys
+import time
+
 import requests
 from PIL import Image
+
+from openai_server.backend_utils import get_user_dir, run_upload_api
 
 
 def get_have_internet():
@@ -46,9 +52,20 @@ def in_pycharm():
     return os.getenv("PYCHARM_HOSTED") is not None
 
 
+def get_inner_function_signature(func):
+    # Check if the function is a functools.partial object
+    if isinstance(func, functools.partial):
+        # Get the original function
+        assert func.keywords is not None and func.keywords, "The function must have keyword arguments."
+        func = func.keywords['run_agent_func']
+        return inspect.signature(func)
+    else:
+        return inspect.signature(func)
+
+
 def filter_kwargs(func, kwargs):
     # Get the parameter list of the function
-    sig = inspect.signature(func)
+    sig = get_inner_function_signature(func)
     valid_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
     return valid_kwargs
 
@@ -85,3 +102,133 @@ def current_datetime():
 
     # Print the formatted date, time, and time zone
     return "For current user query: Current Date, Time, and Local Time Zone: %s. Note some APIs may have data from different time zones, so may reflect a different date." % formatted_date_time
+
+
+def run_agent(run_agent_func=None,
+              **kwargs,
+              ) -> dict:
+    ret_dict = {}
+    try:
+        assert run_agent_func is not None, "run_agent_func must be provided."
+        ret_dict = run_agent_func(**kwargs)
+    finally:
+        if kwargs.get('agent_venv_dir') is None and 'agent_venv_dir' in ret_dict and ret_dict['agent_venv_dir']:
+            agent_venv_dir = ret_dict['agent_venv_dir']
+            if os.path.isdir(agent_venv_dir):
+                if kwargs.get('agent_verbose'):
+                    print("Clean-up: Removing agent_venv_dir: %s" % agent_venv_dir)
+                shutil.rmtree(agent_venv_dir)
+
+    return ret_dict
+
+
+def set_dummy_term():
+    # Disable color and advanced terminal features
+    os.environ['TERM'] = 'dumb'
+    os.environ['COLORTERM'] = ''
+    os.environ['CLICOLOR'] = '0'
+    os.environ['CLICOLOR_FORCE'] = '0'
+    os.environ['ANSI_COLORS_DISABLED'] = '1'
+
+    # force matplotlib to use terminal friendly backend
+    import matplotlib as mpl
+    mpl.use('Agg')
+
+
+def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
+                                  autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
+                                  agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
+                                  chat_doc_query, image_query_helper, mermaid_renderer_helper,
+                                  autogen_code_restrictions_level, autogen_silent_exchange):
+    # DEBUG
+    if agent_verbose:
+        print("chat_result:", chat_result)
+        print("list_dir:", os.listdir(temp_dir))
+
+    # Get all files in the temp_dir and one level deep subdirectories
+    file_list = []
+    for root, dirs, files in os.walk(temp_dir):
+        # Exclude deeper directories by checking the depth
+        if root == temp_dir or os.path.dirname(root) == temp_dir:
+            file_list.extend([os.path.join(root, f) for f in files])
+
+    # Filter the list to include only files
+    file_list = [f for f in file_list if os.path.isfile(f)]
+    internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
+    # filter out internal files for RAG case
+    file_list = [f for f in file_list if os.path.normpath(f) not in internal_file_names_norm_paths]
+    if agent_verbose:
+        print("file_list:", file_list)
+
+    image_files, non_image_files = identify_image_files(file_list)
+    # keep no more than 10 image files:
+    image_files = image_files[:10]
+    file_list = image_files + non_image_files
+
+    # copy files so user can download
+    user_dir = get_user_dir(authorization)
+    if not os.path.isdir(user_dir):
+        os.makedirs(user_dir, exist_ok=True)
+    file_ids = []
+    for file in file_list:
+        new_path = os.path.join(user_dir, os.path.basename(file))
+        shutil.copy(file, new_path)
+        with open(new_path, "rb") as f:
+            content = f.read()
+        purpose = 'assistants'
+        response_dict = run_upload_api(content, new_path, purpose, authorization)
+        file_id = response_dict['id']
+        file_ids.append(file_id)
+
+    # temp_dir.cleanup()
+    if autogen_run_code_in_docker and autogen_stop_docker_executor:
+        t0 = time.time()
+        executor.stop()  # Stop the docker command line code executor (takes about 10 seconds, so slow)
+        if agent_verbose:
+            print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
+
+    ret_dict = {}
+    if file_list:
+        ret_dict.update(dict(files=file_list))
+    if file_ids:
+        ret_dict.update(dict(file_ids=file_ids))
+    if chat_result and hasattr(chat_result, 'chat_history'):
+        ret_dict.update(dict(chat_history=chat_result.chat_history))
+    if chat_result and hasattr(chat_result, 'cost'):
+        ret_dict.update(dict(cost=chat_result.cost))
+    if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
+        ret_dict.update(dict(summary=chat_result.summary))
+        print("Made summary: %s" % chat_result.summary, file=sys.stderr)
+    else:
+        if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
+            summary = chat_result.chat_history[-1]['content']
+            if not summary and len(chat_result.chat_history) >= 2:
+                summary = chat_result.chat_history[-2]['content']
+            if summary:
+                print("Made summary from chat history: %s" % summary, file=sys.stderr)
+                ret_dict.update(dict(summary=summary))
+            else:
+                print("Did NOT make and could not make summary", file=sys.stderr)
+                ret_dict.update(dict(summary=''))
+        else:
+            print("Did NOT make any summary", file=sys.stderr)
+            ret_dict.update(dict(summary=''))
+    if agent_venv_dir is not None:
+        ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
+    if agent_code_writer_system_message is not None:
+        ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
+    if agent_system_site_packages is not None:
+        ret_dict.update(dict(agent_system_site_packages=agent_system_site_packages))
+    if chat_doc_query:
+        ret_dict.update(dict(chat_doc_query=chat_doc_query))
+    if image_query_helper:
+        ret_dict.update(dict(image_query_helper=image_query_helper))
+    if mermaid_renderer_helper:
+        ret_dict.update(dict(mermaid_renderer_helper=mermaid_renderer_helper))
+    ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))
+    ret_dict.update(dict(autogen_silent_exchange=autogen_silent_exchange))
+    # can re-use for chat continuation to avoid sending files over
+    # FIXME: Maybe just delete files and force send back to agent
+    ret_dict.update(dict(temp_dir=temp_dir))
+
+    return ret_dict

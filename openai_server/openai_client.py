@@ -6,6 +6,7 @@ import time
 import base64
 import mimetypes
 from pathlib import Path
+from collections import defaultdict
 from pydantic import BaseModel
 
 from .chat_history_render import chat_to_pretty_markdown
@@ -87,10 +88,11 @@ def run_openai_client(
 
     # pick correct prompt
     langchain_mode = query_kwargs.get("langchain_mode", "LLM")
+    langchain_action = query_kwargs.get("langchain_action", "Query")
     if langchain_mode == "LLM":
         prompt = query_kwargs["instruction"]
-    elif langchain_mode == "Query":
-        prompt = query_kwargs["prompt_query"]
+    elif langchain_action == "Query":
+        prompt = query_kwargs["instruction"]
     else:
         prompt = query_kwargs["prompt_summary"]
 
@@ -111,7 +113,7 @@ def run_openai_client(
             agent_type="auto",
             autogen_stop_docker_executor=False,
             autogen_run_code_in_docker=False,
-            autogen_max_consecutive_auto_reply=10,
+            autogen_max_consecutive_auto_reply=None,
             autogen_max_turns=None,
             autogen_timeout=120,
             autogen_cache_seed=None,
@@ -122,7 +124,7 @@ def run_openai_client(
         # agent needs room, else keep hitting continue
         hyper_kwargs = dict(
             temperature=query_kwargs["temperature"],
-            max_tokens=8192 if 'claude-3-5-sonnet' in model else 4096,
+            max_tokens=8192 if "claude-3-5-sonnet" in model else 4096,
         )
     else:
         extra_body = dict(
@@ -178,11 +180,13 @@ def run_openai_client(
     # Get files
     file_names = get_files_from_ids(usage, client) if use_agent else []
 
-    # See if can make text in case no extension
+    # See if we can make text in case of no extension
     for file_i, file in enumerate(file_names):
         file_path = Path(file)
         suffix = file_path.suffix.lower()
-        if not suffix and not is_binary(file):  # No suffix and not binary
+
+        # If no suffix and not binary, rename to ".txt"
+        if not suffix and not is_binary(file):
             new_file = file_path.with_suffix(".txt")
             try:
                 file_path.rename(new_file)  # Rename the file, overwriting if necessary
@@ -196,16 +200,58 @@ def run_openai_client(
     else:
         files = file_names
 
-    def local_convert_to_pdf(x, *args, **kwargs):
+    def local_convert_to_pdf(x, files_already_pdf, *args, **kwargs):
+        if x in files_already_pdf:
+            return x
         try:
             return convert_to_pdf(x, *args, **kwargs)
         except Exception as e1:
             print(f"Error converting {x} to PDF: {e1}")
             return None
 
+    def group_files_by_base_name(file_names):
+        grouped_files = defaultdict(list)
+        for file in file_names:
+            base_name = Path(file).stem
+            grouped_files[base_name].append(file)
+        return grouped_files
+
+    def select_preferred_file(files):
+        if len(files) == 1:
+            return files[0]
+
+        # Preference order: PDF, PNG, SVG, others
+        for ext in [".pdf", ".png", ".svg"]:
+            for file in files:
+                if file.lower().endswith(ext):
+                    return file
+
+        # If no preferred format found, return the first file
+        return files[0]
+
+    # Group files by base name
+    grouped_files = group_files_by_base_name(file_names)
+
+    # Select preferred files and create a new list
+    selected_files = [select_preferred_file(files) for files in grouped_files.values()]
+
+    # filter out binary files with text-like extensions
+    # e.g. .txt but giant binary, then libreoffice will take too long to convert
+    selected_files = [
+        file
+        for file in selected_files
+        if not (is_binary(file) and Path(file).suffix.lower() in TEXT_EXTENSIONS)
+    ]
+
+    # Identify files that are already PDFs
+    files_already_pdf = set(
+        file for file in selected_files if file.lower().endswith(".pdf")
+    )
+
     # make PDF versions of the files
     pdf_file_names = [
-        local_convert_to_pdf(Path(x), correct_image=False) for x in file_names
+        local_convert_to_pdf(Path(x), files_already_pdf, correct_image=False)
+        for x in selected_files
     ]
     pdf_file_names = [str(x) for x in pdf_file_names if x is not None]
 
@@ -282,6 +328,20 @@ def run_openai_client(
         chat_history_md=chat_history_md,
         files_pdf=files_pdf,
     )
+
+
+# List of common text file extensions
+TEXT_EXTENSIONS = {
+    ".txt",
+    ".md",
+    ".csv",
+    ".html",
+    ".xml",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".log",
+}
 
 
 def is_binary(filename):

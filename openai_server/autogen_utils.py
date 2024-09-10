@@ -10,6 +10,9 @@ from autogen.coding.base import CommandLineCodeResult
 from autogen import ConversableAgent
 import backoff
 
+from openai_server.autogen_streaming import iostream_generator
+from openai_server.backend_utils import convert_gen_kwargs
+
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
 danger_mark = 'Potentially dangerous operation detected'
@@ -148,7 +151,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             ret = super()._execute_code_dont_check_setup(code_blocks)
         except Exception as e:
             if 'exitcode' in str(e) and 'local variable' in str(e):
-                return CommandLineCodeResult(exit_code=0, output='Code block present, but no code executed (execution tag was false or not present for all code blocks).  This is expected if you had code blocks but they were not meant for python or shell execution.  For example, you may have shown code for demonstration purposes.  If this is expected, then move on normally without concern.')
+                return CommandLineCodeResult(exit_code=0,
+                                             output='Code block present, but no code executed (execution tag was false or not present for all code blocks).  This is expected if you had code blocks but they were not meant for python or shell execution.  For example, you may have shown code for demonstration purposes.  If this is expected, then move on normally without concern.')
             if danger_mark in str(e):
                 print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
                 # dont' fail, just return the error so LLM can adjust
@@ -237,7 +241,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 error_message = f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}"
                 print(error_message)
                 print("\nBad Output:\n", ret.output)
-                print(f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}\n Violated values: {', '.join(violated_values)}")
+                print(
+                    f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}\n Violated values: {', '.join(violated_values)}")
                 raise ValueError(error_message)
 
         return ret
@@ -307,3 +312,53 @@ class H2OConversableAgent(ConversableAgent):
             else:
                 logger.error(f"Encountered non-retryable error: {str(e)}")
                 raise  # If it doesn't match our patterns, raise the original exception
+
+
+def terminate_message_func(msg):
+    # in conversable agent, roles are flipped relative to actual OpenAI, so can't filter by assistant
+    #        isinstance(msg.get('role'), str) and
+    #        msg.get('role') == 'assistant' and
+
+    has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
+    has_term = has_message and msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''
+    has_execute = has_message and '# execution: true' in msg.get('content', '')
+
+    if has_execute:
+        # sometimes model stops without verifying results if it dumped all steps in one turn
+        # force it to continue
+        return False
+
+    no_stop_if_code = False
+    if no_stop_if_code:
+        # don't let LLM stop early if it generated code in last message, so it doesn't try to conclude itself
+        from autogen.coding import MarkdownCodeExtractor
+        code_blocks = MarkdownCodeExtractor().extract_code_blocks(msg.get("content", ''))
+        has_code = len(code_blocks) > 0
+
+        # end on TERMINATE or empty message
+        if has_code and has_term:
+            print("Model tried to terminate with code present: %s" % len(code_blocks), file=sys.stderr)
+            # fix
+            msg['content'].replace('TERMINATE', '')
+            return False
+    if has_term:
+        return True
+    return False
+
+
+def get_autogen_response(func=None, use_process=False, **kwargs):
+    # raise ValueError("Testing Error Handling 1")  # works
+
+    gen_kwargs = convert_gen_kwargs(kwargs)
+    kwargs = gen_kwargs.copy()
+    assert func is not None, "func must be provided"
+    gen = iostream_generator(func, use_process=use_process, **kwargs)
+
+    ret_dict = {}
+    try:
+        while True:
+            res = next(gen)
+            yield res
+    except StopIteration as e:
+        ret_dict = e.value
+    return ret_dict
