@@ -1101,17 +1101,22 @@ class GradioClient(Client):
             response = ""
             texts_out = []
             trials = 3
+            # average generation failure for gpt-35-turbo-1106 is 2, but up to 4 in 100 trials, so why chose 10
+            # very quick to do since basically instant failure at start of generation
+            trials_generation = 10
+            trial = 0
+            trial_generation = 0
             t0 = time.time()
             input_tokens = 0
             output_tokens = 0
             tokens_per_second = 0
-            time_to_first_token = None
             vision_visible_model = None
             vision_batch_input_tokens = 0
             vision_batch_output_tokens = 0
             vision_batch_tokens_per_second = 0
             t_taken_s = None
-            for trial in range(trials):
+            while True:
+                time_to_first_token = None
                 t0 = time.time()
                 try:
                     if not stream_output:
@@ -1179,7 +1184,7 @@ class GradioClient(Client):
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,
                             tokens_per_second=tokens_per_second,
-                            time_to_first_token=time_to_first_token,
+                            time_to_first_token=time_to_first_token or (time.time() - t0),
                             vision_visible_model=vision_visible_model,
                             vision_batch_input_tokens=vision_batch_input_tokens,
                             vision_batch_output_tokens=vision_batch_output_tokens,
@@ -1317,6 +1322,7 @@ class GradioClient(Client):
                                 output_tokens=output_tokens,
                                 tokens_per_second=tokens_per_second,
                                 time_to_first_token=time_to_first_token,
+                                trial=trial,
                                 vision_visible_model=vision_visible_model,
                                 vision_batch_input_tokens=vision_batch_input_tokens,
                                 vision_batch_output_tokens=vision_batch_output_tokens,
@@ -1330,8 +1336,18 @@ class GradioClient(Client):
                         else:
                             assert not success
                             check_job(job, timeout=2.0 * timeout, raise_exception=True)
+                    if trial > 0 or trial_generation > 0:
+                        print("trial recovered: %s %s" % (trial, trial_generation))
                     break
                 except Exception as e:
+                    if "No generations" in str(
+                        e
+                    ) or """'NoneType' object has no attribute 'generations'""" in str(
+                        e
+                    ):
+                        trial_generation += 1
+                    else:
+                        trial += 1
                     print_error(
                         "h2oGPT predict failed: %s %s"
                         % (str(e), "".join(traceback.format_tb(e.__traceback__))),
@@ -1341,8 +1357,10 @@ class GradioClient(Client):
                     if bad_error_string and bad_error_string in str(e):
                         # no need to do 3 trials if have disallowed stuff, unlikely that LLM will change its mind
                         raise
-                    if trial == trials - 1:
-                        print_error("trying again failed: %s" % trial)
+                    if trial == trials or trial_generation == trials_generation:
+                        print_error(
+                            "trying again failed: %s %s" % (trial, trial_generation)
+                        )
                         raise
                     else:
                         # both Anthopic and openai gives this kind of error, but h2oGPT only has retries for OpenAI
@@ -1478,7 +1496,7 @@ class GradioClient(Client):
             if outputs_list:
                 res = outputs_list[-1]
                 res_dict = ast.literal_eval(res)
-                text = res_dict["response"] if "response" in res_dict else ''
+                text = res_dict["response"] if "response" in res_dict else ""
                 prompt_and_text = prompt + text
                 if prompter:
                     response = prompter.get_response(
