@@ -134,6 +134,10 @@ def set_dummy_term():
     import matplotlib as mpl
     mpl.use('Agg')
 
+    # Turn off interactive mode
+    import matplotlib.pyplot as plt
+    plt.ioff()
+
 
 def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,

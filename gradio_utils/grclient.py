@@ -1448,11 +1448,11 @@ class GradioClient(Client):
             else:
                 self.server_hash = client.server_hash
 
-    def get_models_full(self) -> List[Dict[str, Any]]:
+    def get_models_full(self, do_lock=False) -> List[Dict[str, Any]]:
         """
         Full model info in list if dict
         """
-        return self._get_models_full(ttl_hash=self._get_ttl_hash())
+        return self._get_models_full(ttl_hash=self._get_ttl_hash(), do_lock=do_lock)
 
     def list_models(self) -> List[str]:
         """
