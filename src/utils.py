@@ -7,6 +7,7 @@ import gc
 import getpass
 import hashlib
 import inspect
+import io
 import json
 import os
 import pathlib
@@ -2011,103 +2012,9 @@ def lg_to_gr(
         url_loaders_options0, url_loaders_options
 
 
-def fix_json(s):
-    # Attempt to parse the string as-is.
-    try:
-        return json.loads(s)
-    except json.JSONDecodeError:
-        pass
-
-    # Initialize variables.
-    new_s = ""
-    stack = []
-    is_inside_string = False
-    escaped = False
-
-    # Process each character in the string one at a time.
-    for char in s:
-        if is_inside_string:
-            if char == '"' and not escaped:
-                is_inside_string = False
-            elif char == '\n' and not escaped:
-                char = '\\n'  # Replace the newline character with the escape sequence.
-            elif char == '\\':
-                escaped = not escaped
-            else:
-                escaped = False
-        else:
-            if char == '"':
-                is_inside_string = True
-                escaped = False
-            elif char == '{':
-                stack.append('}')
-            elif char == '[':
-                stack.append(']')
-            elif char == '}' or char == ']':
-                if stack and stack[-1] == char:
-                    stack.pop()
-                else:
-                    # Mismatched closing character; the input is malformed.
-                    return None
-
-        # Append the processed character to the new string.
-        new_s += char
-
-    # If we're still inside a string at the end of processing, we need to close the string.
-    if is_inside_string:
-        new_s += '"'
-
-    # Close any remaining open structures in the reverse order that they were opened.
-    for closing_char in reversed(stack):
-        new_s += closing_char
-
-    # Attempt to parse the modified string as JSON.
-    try:
-        return json.loads(new_s)
-    except json.JSONDecodeError:
-        # If we still can't parse the string as JSON, return None to indicate failure.
-        return None
-
-
-def wrap_in_try_except(code):
-    # Add import traceback
-    code = "import traceback\n" + code
-
-    # Parse the input code into an AST
-    parsed_code = ast.parse(code)
-
-    # Wrap the entire code's AST in a single try-except block
-    try_except = ast.Try(
-        body=parsed_code.body,
-        handlers=[
-            ast.ExceptHandler(
-                type=ast.Name(id="Exception", ctx=ast.Load()),
-                name=None,
-                body=[
-                    ast.Expr(
-                        value=ast.Call(
-                            func=ast.Attribute(value=ast.Name(id="traceback", ctx=ast.Load()), attr="print_exc",
-                                               ctx=ast.Load()),
-                            args=[],
-                            keywords=[]
-                        )
-                    ),
-                ]
-            )
-        ],
-        orelse=[],
-        finalbody=[]
-    )
-
-    # Assign the try-except block as the new body
-    parsed_code.body = [try_except]
-
-    # Convert the modified AST back to source code
-    return ast.unparse(parsed_code)
-
-
 def enqueue_output(file, queue):
-    for line in iter(file.readline, ''):
+    # for line in iter(file.readline, ''):
+    for line in iter(file.readline, b'' if isinstance(file, io.BufferedReader) else ''):
         queue.put(line)
     file.close()
 
@@ -2120,7 +2027,6 @@ def read_popen_pipes(p):
         pool.submit(enqueue_output, p.stderr, q_stderr)
 
         while True:
-
             if p.poll() is not None and q_stdout.empty() and q_stderr.empty():
                 break
 
@@ -2146,6 +2052,85 @@ def start_process(cmd):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     for c in iter(lambda: process.stdout.read(1), b''):
         sys.stdout.write(c)
+
+
+def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeout=None, capture_output=True,
+                       text=True, print_tags=False, print_literal=True, print_func=print):
+    if script_content is None and cmd is None:
+        raise ValueError("Either script_content or cmd must be provided")
+
+    if script_content is not None:
+        script_path = 'temp_script.py'
+        with open(script_path, 'w') as f:
+            f.write(script_content)
+        cmd = [sys.executable, script_path]
+    else:
+        script_path = None
+        assert cmd, "cmd must be provided if script_content is None"
+
+    try:
+        # Prepare Popen arguments
+        popen_kwargs = {
+            'cwd': cwd,
+            'env': env,
+        }
+
+        if capture_output:
+            popen_kwargs['stdout'] = subprocess.PIPE
+            popen_kwargs['stderr'] = subprocess.PIPE
+
+        if text:
+            popen_kwargs['text'] = True
+            popen_kwargs['encoding'] = 'utf-8'
+        else:
+            popen_kwargs['text'] = False
+
+        with subprocess.Popen(cmd, **popen_kwargs) as p:
+            start_time = time.time()
+            stdout_data = []
+            stderr_data = []
+
+            if capture_output:
+                for out_line, err_line in read_popen_pipes(p):
+                    if out_line:
+                        stdout_data.append(out_line)
+                        if print_tags:
+                            if out_line.strip():  # Only print if there's non-whitespace content
+                                print_func(f"STDOUT: {out_line.strip()}")
+                        elif print_literal:
+                            print_func(out_line, end='')
+                        else:
+                            print_func(out_line)
+                    if err_line:
+                        stderr_data.append(err_line)
+                        if print_tags:
+                            if err_line.strip():  # Only print if there's non-whitespace content
+                                print_func(f"STDERR: {err_line.strip()}")
+                        elif print_literal:
+                            print_func(err_line, end='')
+                        else:
+                            print_func(err_line)
+
+                    # Check for timeout
+                    if timeout and time.time() - start_time > timeout:
+                        p.terminate()
+                        raise subprocess.TimeoutExpired(cmd, timeout)
+            else:
+                p.wait(timeout=timeout)
+
+            p.poll()
+
+        # Prepare return object similar to subprocess.CompletedProcess
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=p.returncode,
+            stdout=''.join(stdout_data) if text else b''.join(stdout_data) if capture_output else None,
+            stderr=''.join(stderr_data) if text else b''.join(stderr_data) if capture_output else None
+        )
+
+    finally:
+        if script_path and os.path.exists(script_path):
+            os.remove(script_path)
 
 
 def str_to_list(x, allow_none=False):
