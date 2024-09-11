@@ -12,7 +12,8 @@ def get_pipe_make_image(gpu_id):
     device = get_device(gpu_id)
 
     pipe = DiffusionPipeline.from_pretrained(
-        "playgroundai/playground-v2-1024px-aesthetic",
+        # "playgroundai/playground-v2-1024px-aesthetic",
+        "playgroundai/playground-v2.5-1024px-aesthetic",
         torch_dtype=torch.float16,
         use_safetensors=True,
         add_watermarker=False,
