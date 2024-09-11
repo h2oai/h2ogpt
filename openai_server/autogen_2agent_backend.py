@@ -121,9 +121,9 @@ def run_autogen_2agent(query=None,
         chat_messages = structure_to_messages(None, None, chat_conversation, None)
         for message in chat_messages:
             if message['role'] == 'assistant':
-                code_writer_agent.send(message['content'], code_executor_agent, request_reply=False)
+                code_writer_agent.send(message['content'], code_executor_agent, request_reply=False, silent=True)
             if message['role'] == 'user':
-                code_executor_agent.send(message['content'], code_writer_agent, request_reply=False)
+                code_executor_agent.send(message['content'], code_writer_agent, request_reply=False, silent=True)
 
     chat_kwargs = dict(recipient=code_writer_agent,
                        max_turns=autogen_max_turns,

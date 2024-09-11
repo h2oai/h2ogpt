@@ -7,6 +7,7 @@ import gc
 import getpass
 import hashlib
 import inspect
+import io
 import json
 import os
 import pathlib
@@ -2012,7 +2013,8 @@ def lg_to_gr(
 
 
 def enqueue_output(file, queue):
-    for line in iter(file.readline, ''):
+    # for line in iter(file.readline, ''):
+    for line in iter(file.readline, b'' if isinstance(file, io.BufferedReader) else ''):
         queue.put(line)
     file.close()
 
@@ -2025,7 +2027,6 @@ def read_popen_pipes(p):
         pool.submit(enqueue_output, p.stderr, q_stderr)
 
         while True:
-
             if p.poll() is not None and q_stdout.empty() and q_stderr.empty():
                 break
 
@@ -2051,6 +2052,85 @@ def start_process(cmd):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     for c in iter(lambda: process.stdout.read(1), b''):
         sys.stdout.write(c)
+
+
+def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeout=None, capture_output=True,
+                       text=True, print_tags=False, print_literal=True):
+    if script_content is None and cmd is None:
+        raise ValueError("Either script_content or cmd must be provided")
+
+    if script_content is not None:
+        script_path = 'temp_script.py'
+        with open(script_path, 'w') as f:
+            f.write(script_content)
+        cmd = [sys.executable, script_path]
+    else:
+        script_path = None
+        assert cmd, "cmd must be provided if script_content is None"
+
+    try:
+        # Prepare Popen arguments
+        popen_kwargs = {
+            'cwd': cwd,
+            'env': env,
+        }
+
+        if capture_output:
+            popen_kwargs['stdout'] = subprocess.PIPE
+            popen_kwargs['stderr'] = subprocess.PIPE
+
+        if text:
+            popen_kwargs['text'] = True
+            popen_kwargs['encoding'] = 'utf-8'
+        else:
+            popen_kwargs['text'] = False
+
+        with subprocess.Popen(cmd, **popen_kwargs) as p:
+            start_time = time.time()
+            stdout_data = []
+            stderr_data = []
+
+            if capture_output:
+                for out_line, err_line in read_popen_pipes(p):
+                    if out_line:
+                        stdout_data.append(out_line)
+                        if print_tags:
+                            if out_line.strip():  # Only print if there's non-whitespace content
+                                print(f"STDOUT: {out_line.strip()}")
+                        elif print_literal:
+                            print(out_line, end='')
+                        else:
+                            print(out_line)
+                    if err_line:
+                        stderr_data.append(err_line)
+                        if print_tags:
+                            if err_line.strip():  # Only print if there's non-whitespace content
+                                print(f"STDERR: {err_line.strip()}")
+                        elif print_literal:
+                            print(err_line, end='')
+                        else:
+                            print(err_line)
+
+                    # Check for timeout
+                    if timeout and time.time() - start_time > timeout:
+                        p.terminate()
+                        raise subprocess.TimeoutExpired(cmd, timeout)
+            else:
+                p.wait(timeout=timeout)
+
+            p.poll()
+
+        # Prepare return object similar to subprocess.CompletedProcess
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=p.returncode,
+            stdout=''.join(stdout_data) if text else b''.join(stdout_data) if capture_output else None,
+            stderr=''.join(stderr_data) if text else b''.join(stderr_data) if capture_output else None
+        )
+
+    finally:
+        if script_path and os.path.exists(script_path):
+            os.remove(script_path)
 
 
 def str_to_list(x, allow_none=False):

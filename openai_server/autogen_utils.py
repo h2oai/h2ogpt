@@ -47,9 +47,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         functions_module: str = "functions",
         execution_policies: Optional[Dict[str, bool]] = None,
         autogen_code_restrictions_level: int = 2,
+        stream_output: bool = True,
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
+        self.stream_output = stream_output
 
     @staticmethod
     def remove_comments_strings(code: str, lang: str) -> str:
@@ -235,7 +237,12 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     cmd = [activation_script, "&&", *cmd]
 
             try:
-                result = subprocess.run(
+                if self.stream_output:
+                    from src.utils import execute_cmd_stream
+                    exec_func = execute_cmd_stream
+                else:
+                    exec_func = subprocess.run
+                result = exec_func(
                     cmd, cwd=self._work_dir, capture_output=True, text=True, timeout=float(self._timeout), env=env
                 )
             except subprocess.TimeoutExpired:
