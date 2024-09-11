@@ -148,6 +148,19 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             code_blocks = [x for x in code_blocks if '# execution: false' not in x.code]
             # give chance for LLM to give generic code blocks without any execution false
             code_blocks = [x for x in code_blocks if '# execution:' in x.code]
+
+            # ensure no plots pop-up if in pycharm mode or outside docker
+            for code_block in code_blocks:
+                lang, code = code_block.language, code_block.code
+                if lang == 'python':
+                    code_block.code = """import matplotlib
+matplotlib.use('Agg')  # Set the backend to non-interactive
+import matplotlib.pyplot as plt
+plt.ioff()
+import os
+os.environ['TERM'] = 'dumb'
+""" + code_block.code
+
             ret = super()._execute_code_dont_check_setup(code_blocks)
         except Exception as e:
             if 'exitcode' in str(e) and 'local variable' in str(e):

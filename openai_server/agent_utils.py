@@ -8,7 +8,7 @@ import time
 import requests
 from PIL import Image
 
-from openai_server.backend_utils import get_user_dir, run_upload_api
+from openai_server.backend_utils import get_user_dir, run_upload_api, extract_xml_tags
 
 
 def get_have_internet():
@@ -134,6 +134,10 @@ def set_dummy_term():
     import matplotlib as mpl
     mpl.use('Agg')
 
+    # Turn off interactive mode
+    import matplotlib.pyplot as plt
+    plt.ioff()
+
 
 def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
@@ -197,8 +201,7 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
     if chat_result and hasattr(chat_result, 'cost'):
         ret_dict.update(dict(cost=chat_result.cost))
     if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
-        ret_dict.update(dict(summary=chat_result.summary))
-        print("Made summary: %s" % chat_result.summary, file=sys.stderr)
+        print("Existing summary: %s" % chat_result.summary, file=sys.stderr)
     else:
         if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
             summary = chat_result.chat_history[-1]['content']
@@ -206,13 +209,19 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
                 summary = chat_result.chat_history[-2]['content']
             if summary:
                 print("Made summary from chat history: %s" % summary, file=sys.stderr)
-                ret_dict.update(dict(summary=summary))
+                chat_result.summary = summary
             else:
                 print("Did NOT make and could not make summary", file=sys.stderr)
-                ret_dict.update(dict(summary=''))
+                chat_result.summary = 'No summary or chat history available'
         else:
             print("Did NOT make any summary", file=sys.stderr)
-            ret_dict.update(dict(summary=''))
+            chat_result.summary = 'No summary available'
+    if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
+        if '<constrained_output>' in chat_result.summary and '</constrained_output>' in chat_result.summary:
+            extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
+            if extracted_summary:
+                chat_result.summary = extracted_summary
+        ret_dict.update(dict(summary=chat_result.summary))
     if agent_venv_dir is not None:
         ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
     if agent_code_writer_system_message is not None:
