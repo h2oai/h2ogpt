@@ -380,6 +380,11 @@ def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False,
             func = functools.partial(run_agent, run_agent_func=run_autogen_2agent)
             from openai_server.autogen_utils import get_autogen_response
             generator = get_autogen_response(func=func, **gen_kwargs)
+        elif agent_type in ['autogen_multi_agent']:
+            from openai_server.autogen_multi_agent_backend import run_autogen_multi_agent
+            func = functools.partial(run_agent, run_agent_func=run_autogen_multi_agent)
+            from openai_server.autogen_utils import get_autogen_response
+            generator = get_autogen_response(func=func, **gen_kwargs)
         else:
             raise ValueError("No such agent_type %s" % agent_type)
     else:
@@ -396,7 +401,21 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
     resp_list = 'choices'
 
     gen_kwargs = body
-    instruction, system_message, history, image_files = convert_messages_to_structure(messages)
+    # Consecutive Autogen messages may have the same role,
+    # especially when agent_type involes group chat messages.
+    # Therefore, they need to be concatenated.
+    agent_type = gen_kwargs.get('agent_type', 'auto')
+    if agent_type == "autogen_multi_agent":
+        concat_assistant = concat_user = True
+    else:
+        concat_assistant = concat_user = False
+
+    instruction, system_message, history, image_files = convert_messages_to_structure(
+        messages=messages,
+        concat_tool=True, # always concat tool calls
+        concat_assistant=concat_assistant,
+        concat_user=concat_user,
+        )
     # get from messages, unless none, then try to get from gen_kwargs from extra_body
     image_file = image_files if image_files else gen_kwargs.get('image_file', [])
     history = history if history else gen_kwargs.get('chat_conversation', [])

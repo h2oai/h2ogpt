@@ -15,7 +15,8 @@ from src.prompter_utils import base64_encode_jinja_template, base64_decode_jinja
 from src.vision.utils_vision import process_file_list
 from src.utils import get_list_or_str, read_popen_pipes, get_token_count, reverse_ucurve_list, undo_reverse_ucurve_list, \
     is_uuid4, has_starting_code_block, extract_code_block_content, looks_like_json, get_json, is_full_git_hash, \
-    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove, get_gradio_depth, create_typed_dict
+    deduplicate_names, handle_json, check_input_type, start_faulthandler, remove, get_gradio_depth, create_typed_dict, \
+    execute_cmd_stream
 from src.enums import invalid_json_str, user_prompt_for_fake_system_prompt0
 from src.prompter import apply_chat_template
 import subprocess as sp
@@ -32,9 +33,11 @@ def test_get_list_or_str():
 
 @wrap_test_forked
 def test_stream_popen1():
-    cmd_python = sys.executable + " -i -q -u"
-    cmd = cmd_python + " -c print('hi')"
-    # cmd = cmd.split(' ')
+    cmd_python = sys.executable
+    python_args = "-q -u"
+    python_code = "print('hi')"
+
+    cmd = f"{cmd_python} {python_args} -c \"{python_code}\""
 
     with sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=True, shell=True) as p:
         for out_line, err_line in read_popen_pipes(p):
@@ -56,11 +59,94 @@ done
 """
     with open('pieces.sh', 'wt') as f:
         f.write(script)
+    os.chmod('pieces.sh', 0o755)
     with sp.Popen(["./pieces.sh"], stdout=sp.PIPE, stderr=sp.PIPE, text=True, shell=True) as p:
         for out_line, err_line in read_popen_pipes(p):
             print(out_line, end='')
             print(err_line, end='')
         p.poll()
+
+
+@wrap_test_forked
+def test_stream_python_execution(capsys):
+    script = """
+import sys
+import time
+for i in range(3):
+    print(f"This message goes to stdout {i}")
+    time.sleep(0.1)
+    print(f"This message goes to stderr {i}", file=sys.stderr)
+    time.sleep(0.1)
+"""
+
+    result = execute_cmd_stream(
+        script_content=script,
+        cwd=None,
+        env=None,
+        timeout=5,
+        capture_output=True,
+        text=True,
+        print_tags=True,
+        print_literal=False,
+    )
+
+    # Capture the printed output
+    captured = capsys.readouterr()
+
+    # Print the captured output for verification
+    print("Captured output:")
+    print(captured.out)
+
+    # Check return code
+    assert result.returncode == 0, f"Expected return code 0, but got {result.returncode}"
+
+    # Check stdout content
+    expected_stdout = "This message goes to stdout 0\nThis message goes to stdout 1\nThis message goes to stdout 2\n"
+    assert expected_stdout in result.stdout, f"Expected stdout to contain:\n{expected_stdout}\nBut got:\n{result.stdout}"
+
+    # Check stderr content
+    expected_stderr = "This message goes to stderr 0\nThis message goes to stderr 1\nThis message goes to stderr 2\n"
+    assert expected_stderr in result.stderr, f"Expected stderr to contain:\n{expected_stderr}\nBut got:\n{result.stderr}"
+
+    # Check if the output was streamed (should appear in captured output)
+    assert "STDOUT: This message goes to stdout 0" in captured.out, "Streaming output not detected in stdout"
+    assert "STDERR: This message goes to stderr 0" in captured.out, "Streaming output not detected in stderr"
+
+    print("All tests passed successfully!")
+
+
+def test_stream_python_execution_empty_lines(capsys):
+    script = """
+import sys
+import time
+print()
+print("Hello")
+print()
+print("World", file=sys.stderr)
+print()
+"""
+
+    result = execute_cmd_stream(
+        script_content=script,
+        cwd=None,
+        env=None,
+        timeout=5,
+        capture_output=True,
+        text=True
+    )
+
+    captured = capsys.readouterr()
+
+    print("Captured output:")
+    print(captured.out)
+
+    # Check that we only see STDOUT and STDERR for non-empty lines
+    assert captured.out.count("STDOUT:") == 1, "Expected only one STDOUT line"
+    assert captured.out.count("STDERR:") == 1, "Expected only one STDERR line"
+    assert "STDOUT: Hello" in captured.out, "Expected 'Hello' in stdout"
+    assert "STDERR: World" in captured.out, "Expected 'World' in stderr"
+
+    print("All tests passed successfully!")
 
 
 @pytest.mark.parametrize("text_context_list",

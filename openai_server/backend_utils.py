@@ -90,7 +90,12 @@ def concat_tool_messages(messages):
     return final_messages
 
 
-def convert_messages_to_structure(messages):
+def convert_messages_to_structure(
+        messages,
+        concat_tool=True,
+        concat_assistant=False,
+        concat_user=False
+        ):
     """
     Convert a list of messages with roles and content into a structured format.
 
@@ -101,9 +106,12 @@ def convert_messages_to_structure(messages):
     tuple: A tuple containing the instruction, system_message, history, and image_files.
     """
 
-    # messages = concatenate_messages(messages, tole='assistant')
-    messages = concat_tool_messages(messages)
-    # messages = concatenate_messages(messages, role='tool')
+    if concat_assistant:
+        messages = concatenate_messages(messages, role='assistant')
+    if concat_user:
+        messages = concatenate_messages(messages, role='user')
+    if concat_tool:
+        messages = concat_tool_messages(messages)
 
     structure = {
         "instruction": None,
