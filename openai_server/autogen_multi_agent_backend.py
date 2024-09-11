@@ -156,16 +156,23 @@ def run_autogen_multi_agent(query=None,
         chat_result.summary = chat_result.chat_history[-1]['content']
     else:
         summarize_prompt = (
-            "Given all the findings so far, try to answer user prompt. "
-            "Do not add any introductory phrases. "
-            "If you see some code executions done, try to summarize the process. "
+            "* Given all the conversation and findings so far, try to answer first user instruction. "
+            "* Do not add any introductory phrases. "
+            "* After answering user instruction, now you can try to summarize the process. "
             "* In your final summarization, if any key figures or plots were produced, "
             "add inline markdown links to the files so they are rendered as images in the chat history. "
             "Do not include them in code blocks, just directly inlined markdown like ![image](filename.png). "
             "Only use the basename of the file, not the full path, "
             "and the user will map the basename to a local copy of the file so rendering works normally. "
-            "Do not try to answer the prompt yourself, just answer based on what is provided to you. "
+            "Do not try to answer the instruction yourself, just answer based on what is in chat history. "
         )
+        summary_chat_history = [msg for msg in chat_result.chat_history]
+        for msg in summary_chat_history:
+            if msg['name'] == 'human_proxy_agent':
+                msg['role'] = 'user'
+            else:
+                msg['role'] = 'assistant'
+
         chat_result.summary = human_proxy_agent._reflection_with_llm(
             prompt=summarize_prompt,
             messages=chat_result.chat_history,
