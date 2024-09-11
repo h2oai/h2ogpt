@@ -242,9 +242,13 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     exec_func = execute_cmd_stream
                 else:
                     exec_func = subprocess.run
+                from autogen.io import IOStream
+                iostream = IOStream.get_default()
                 result = exec_func(
-                    cmd, cwd=self._work_dir, capture_output=True, text=True, timeout=float(self._timeout), env=env
+                    cmd, cwd=self._work_dir, capture_output=True, text=True, timeout=float(self._timeout), env=env,
+                    print_func=iostream.print,
                 )
+                iostream.print("\n\n**Completed execution of code blocks.**\n\nENDOFTURN\n\n")
             except subprocess.TimeoutExpired:
                 logs_all += "\n" + TIMEOUT_MSG
                 # Same exit code as the timeout command on linux.

@@ -2055,7 +2055,7 @@ def start_process(cmd):
 
 
 def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeout=None, capture_output=True,
-                       text=True, print_tags=False, print_literal=True):
+                       text=True, print_tags=False, print_literal=True, print_func=print):
     if script_content is None and cmd is None:
         raise ValueError("Either script_content or cmd must be provided")
 
@@ -2096,20 +2096,20 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
                         stdout_data.append(out_line)
                         if print_tags:
                             if out_line.strip():  # Only print if there's non-whitespace content
-                                print(f"STDOUT: {out_line.strip()}")
+                                print_func(f"STDOUT: {out_line.strip()}")
                         elif print_literal:
-                            print(out_line, end='')
+                            print_func(out_line, end='')
                         else:
-                            print(out_line)
+                            print_func(out_line)
                     if err_line:
                         stderr_data.append(err_line)
                         if print_tags:
                             if err_line.strip():  # Only print if there's non-whitespace content
-                                print(f"STDERR: {err_line.strip()}")
+                                print_func(f"STDERR: {err_line.strip()}")
                         elif print_literal:
-                            print(err_line, end='')
+                            print_func(err_line, end='')
                         else:
-                            print(err_line)
+                            print_func(err_line)
 
                     # Check for timeout
                     if timeout and time.time() - start_time > timeout:
