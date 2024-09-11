@@ -153,7 +153,8 @@ def run_autogen_multi_agent(query=None,
     used_agents = list(set([msg['name'] for msg in chat_result.chat_history]))
     # besides human_proxy_agent, check if there is only chat_agent and human_proxy_agent in the used_agents
     if len(used_agents) == 2 and 'chat_agent' in used_agents:
-        chat_result.summary = chat_result.chat_history[-1]['content']
+        # If it's only chat_agent and human_proxy_agent, then use last message as summary
+        summary = chat_result.chat_history[-1]['content']
     else:
         summarize_prompt = (
             "* Given all the conversation and findings so far, try to answer first user instruction. "
@@ -164,7 +165,8 @@ def run_autogen_multi_agent(query=None,
             "Do not include them in code blocks, just directly inlined markdown like ![image](filename.png). "
             "Only use the basename of the file, not the full path, "
             "and the user will map the basename to a local copy of the file so rendering works normally. "
-            "Do not try to answer the instruction yourself, just answer based on what is in chat history. "
+            "* If you have already displayed some images in your answer to the user, you don't need to add them again in the summary. "
+            "* Do not try to answer the instruction yourself, just answer based on what is in chat history. "
         )
         summary_chat_history = [msg for msg in chat_result.chat_history]
         for msg in summary_chat_history:
@@ -173,12 +175,18 @@ def run_autogen_multi_agent(query=None,
             else:
                 msg['role'] = 'assistant'
 
-        chat_result.summary = human_proxy_agent._reflection_with_llm(
+        summary = human_proxy_agent._reflection_with_llm(
             prompt=summarize_prompt,
             messages=chat_result.chat_history,
             cache=None,
             role="user"
         )
+
+    # A little sumamry clean-up
+    summary = summary.replace("ENDOFTURN", " ").replace("TERMINATE", " ")
+    # Update chat_result with summary
+    chat_result.summary = summary
+
     # TODO: put fake token cost for now
     # for chats containing GroupChatManager, costs seem to be not calculated properly
     chat_result.cost={

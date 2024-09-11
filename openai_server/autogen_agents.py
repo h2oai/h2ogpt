@@ -1,8 +1,5 @@
-import sys
-import uuid
-
-from openai_server.agent_utils import in_pycharm, set_python_path
 from openai_server.autogen_utils import terminate_message_func
+from openai_server.agent_utils import current_datetime
 
 
 def get_code_execution_agent(
@@ -33,6 +30,7 @@ def get_code_writer_agent(
         llm_config=llm_config,
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
+        is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
     return code_writer_agent
@@ -43,6 +41,7 @@ def get_chat_agent(
 ):
     from openai_server.autogen_utils import H2OConversableAgent
     system_message = (
+        f"{current_datetime()}\n"
         "You answer the question or request provided with natural language only. "
         "You can not generate or execute codes. "
         "You can not talk to web. "
@@ -51,6 +50,7 @@ def get_chat_agent(
         "You are good at chatting. "
         "You are good at answering general knowledge questions "
         "based on your own memory or past conversation context. "
+        "You are only good at words. "
         )
 
     chat_agent = H2OConversableAgent(
@@ -144,6 +144,7 @@ def get_code_group_chat_manager(
         "This agent has to be picked for any coding related task or tasks that are "
         "more complex than just chatting or simple question answering. "
         "It can also do math and calculations, from simple arithmetic to complex equations. "
+        "It can also verify the correctness of an answer via coding. "
         )
     return code_group_chat_manager
 
@@ -160,13 +161,15 @@ def get_main_group_chat_manager(
     """
     if agents is None:
         agents = []
+    # TODO: override _process_speaker_selection_result logic to return None
+    # as the selected next speaker if it's empty string.
     select_speaker_message_template = (
                "You are in a role play game. The following roles are available:"
                 "{roles}."
                 "Read the following conversation."
                 "Then select the next role from {agentlist} to play. Only return the role name."
-                f"Important: This is the user prompt: {prompt}"
-                "If you think that the user request is answered, return empty string as the role name."
+                # f"Important: This is the user prompt: {prompt}"
+                # "If you think that the user request is answered, return empty string as the role name."
     )
     from autogen import GroupChat
     main_group_chat = GroupChat(

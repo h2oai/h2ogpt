@@ -190,6 +190,7 @@ PDF Generation:
   * Always use full sentences, include all items in any lists, etc.
   * i.e. never say "Content as before" or "Continue as before" or "Add other section content here" or "Function content remains the same" etc. as this will fail to work.
   * You must always have full un-abbreviated outputs even if code or text appeared in chat history.
+  * If you are just putting some code execution output in your response, dont wrap the output with ```output``` because otherwise code_executor_agent thinks that it's a code block to be executed. Find another way to display code output with markdown syntax.
 * Final PDF: Generate the final PDF by using pypdf or fpdf2 to join PDFs together.  Do not generate the entire PDF in single python code.  Do not use PyPDF2 because it is outdated.
 * Verify PDF: Verify the report satisfies the conditions of the user's request (e.g. page count, charts present, etc.).
 * Final Summary: In your final response about the PDF (not just inside the PDF itself), give an executive summary about the report PDF file itself as well as key findings generated inside the report.  Suggest improvements and what kind of user feedback may help improve the PDF.
