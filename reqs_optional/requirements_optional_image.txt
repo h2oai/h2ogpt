@@ -2,9 +2,9 @@
 fiftyone>=0.24.1
 pytube
 diffusers>=0.29.0
-yt-dlp>=2024.5.27
+yt-dlp>=2024.8.6
 # if want to use gif_to_mp4()
 # moviepy>=0.5.1
 
 # for fiftyone with patches
-pytubefix==6.12.0
+pytubefix==6.15.4
