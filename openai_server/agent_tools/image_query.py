@@ -2,7 +2,7 @@ import os
 import argparse
 import tempfile
 import logging
-import cairosvg
+import time
 
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
@@ -14,6 +14,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 def convert_svg_to_png(svg_path):
+    import cairosvg
     png_path = tempfile.mktemp(suffix='.png')
     cairosvg.svg2png(url=svg_path, write_to=png_path)
     return png_path
@@ -60,6 +61,8 @@ def main():
     parser.add_argument("-m", "--model", type=str, help="OpenAI or Open Source model to use")
     parser.add_argument("-T", "--temperature", type=float, default=0.0, help="Temperature for the model")
     parser.add_argument("--max_tokens", type=int, default=1024, help="Maximum tokens for the model")
+    parser.add_argument("--stream_output", type=bool, help="Whether to stream output", default=True)
+    parser.add_argument("--max_time", type=float, default=60, help="Maximum time to wait for response")
 
     args = parser.parse_args()
 
@@ -112,19 +115,41 @@ def main():
         }
     ]
 
-    response = client.chat.completions.create(
+    responses = client.chat.completions.create(
         messages=messages,
         model=args.model,
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         extra_body=dict(rotate_align_resize_image=True),
+        stream=args.stream_output,
     )
 
-    text = response.choices[0].message.content if response.choices else ''
-    if text:
-        print("Vision Model Response: ", text)
+    if args.stream_output:
+        text = ''
+        first_delta = True
+        tgen0 = time.time()
+        verbose = True
+        for chunk in responses:
+            delta = chunk.choices[0].delta.content if chunk.choices else None
+            if delta:
+                text += delta
+                if first_delta:
+                    first_delta = False
+                    print("**Vision Model Response:**\n\n", flush=True)
+                print(delta, flush=True, end='')
+            if time.time() - tgen0 > args.max_time:
+                if verbose:
+                    print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
+                          flush=True)
+                break
+        if not text:
+            print("**Vision Model returned an empty response**", flush=True)
     else:
-        print("Vision Model returned an empty response")
+        text = responses.choices[0].message.content if responses.choices else ''
+        if text:
+            print("**Vision Model Response:**\n\n", text, flush=True)
+        else:
+            print("**Vision Model returned an empty response**", flush=True)
 
     # Cleanup temporary files
     for image_path in image_paths:
