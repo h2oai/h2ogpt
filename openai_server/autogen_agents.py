@@ -62,15 +62,19 @@ def get_chat_agent(
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
     chat_agent.description = (
-        "This agent is able to answer general knowledge questions "
+        "This agent is able to convey daily and casual chats "
         "based on its own memory or past conversation context. "
         "Only answers with natural language. "
         "It can not execute codes. "
         "It can not generate code examples. "
         "It can not access the web. "
         "It can not do any math or calculations, "
-        "even simple ones like adding numbers. "
-        "It's only good at chatting and answering simple questions. "
+        "even simple ones like adding numbers, "
+        "or counting things. "
+        "It's only good at chatting and answering simple tasks like: "
+        "* making jokes, writing stories or summaries, "
+        "* having daily conversations. "
+        "It has no clue about counts, measurements, or calculations. "
         )
     return chat_agent
 
@@ -143,8 +147,10 @@ def get_code_group_chat_manager(
         "making it ideal for tasks that require automation, coding, or retrieving up-to-date information. "
         "This agent has to be picked for any coding related task or tasks that are "
         "more complex than just chatting or simple question answering. "
-        "It can also do math and calculations, from simple arithmetic to complex equations. "
-        "It can also verify the correctness of an answer via coding. "
+        "It can do math and calculations, from simple arithmetic to complex equations. "
+        "It can verify the correctness of an answer via coding. "
+        "This agent has to be picked for instructions that involves coding, "
+        "math or simple calculation operations, solving complex tasks. "
         )
     return code_group_chat_manager
 
