@@ -594,3 +594,15 @@ def merge_group_chat_messages(a, b):
             b_contents.add(content_a)
 
     return merged_list
+
+def get_all_conversable_agents(group_chat_manager: GroupChatManager) -> List[ConversableAgent]:
+    """
+    Get all conversable agents from a group chat manager and its sub-managers.
+    """
+    all_conversable_agents = []
+    for agent in group_chat_manager.groupchat.agents:
+        if isinstance(agent, GroupChatManager):
+            all_conversable_agents += get_all_conversable_agents(agent)
+        else:
+            all_conversable_agents.append(agent)
+    return all_conversable_agents
