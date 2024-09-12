@@ -164,13 +164,10 @@ def get_main_group_chat_manager(
     # TODO: override _process_speaker_selection_result logic to return None
     # as the selected next speaker if it's empty string.
     select_speaker_message_template = (
-               "You are in a role play game. The following roles are available:"
-                "{roles}."
-                "Read the following conversation."
-                "Then select the next role from {agentlist} to play. Only return the role name."
-                # f"Important: This is the user prompt: {prompt}"
-                # "If you think that the user request is answered, return empty string as the role name."
-    )
+                "You are in a role play game. The following roles are available:"
+                "{roles}\n"
+                "Select the next role from {agentlist} to play. Only return the role name."
+        )
     from autogen import GroupChat
     main_group_chat = GroupChat(
         agents=agents,
@@ -179,8 +176,8 @@ def get_main_group_chat_manager(
         allow_repeat_speaker=True, # Allow the same agent to speak in consecutive rounds.
         send_introductions=True, # Make agents aware of each other.
         speaker_selection_method="auto", # LLM decides which agent to call next.
-        select_speaker_prompt_template=None, # This was adding new system prompt at the end, and was causing instruction to be dropped in h2ogpt/convert_messages_to_structure method
         select_speaker_message_template=select_speaker_message_template,
+        role_for_select_speaker_messages="user", # to have select_speaker_prompt_template at the end of the messages
     )
 
     def main_terminate_flow(msg):
