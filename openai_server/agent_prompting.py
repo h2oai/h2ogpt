@@ -104,6 +104,7 @@ Code generation instructions:
   * Check the execution result returned by the user.
   * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
 * Every python or shell code block MUST be marked whether it is for execution with a comment that shows if execution is true or false, e.g. # execution: true
+* If a python code is marked for execution, do not generate a shell script to execute that python code file, because that would execute the python code twice.
 * You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
 * When you need to collect info, generate code to output the info you need.
 * Ensure you provide well-commented code, so the user can understand what the code does.
