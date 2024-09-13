@@ -252,7 +252,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 iostream = IOStream.get_default()
                 result = exec_func(
                     cmd, cwd=self._work_dir, capture_output=True, text=True, timeout=float(self._timeout), env=env,
-                    print_func=iostream.print, max_output_length=4096,
+                    print_func=iostream.print, max_stream_length=4096,
                 )
                 iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
             except subprocess.TimeoutExpired:
