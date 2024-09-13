@@ -1,11 +1,15 @@
 import os
 import tempfile
 
+from autogen.agentchat import gather_usage_summary
+
 from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
 from openai_server.agent_prompting import get_full_system_prompt
 
 from openai_server.autogen_utils import merge_group_chat_messages
+from openai_server.autogen_utils import get_all_conversable_agents
+
 
 
 def run_autogen_multi_agent(query=None,
@@ -186,28 +190,9 @@ def run_autogen_multi_agent(query=None,
     summary = summary.replace("ENDOFTURN", " ").replace("TERMINATE", " ")
     # Update chat_result with summary
     chat_result.summary = summary
-
-    # TODO: put fake token cost for now
-    # for chats containing GroupChatManager, costs seem to be not calculated properly
-    chat_result.cost={
-        'usage_including_cached_inference': {
-            'total_cost': 0,
-            model: {
-                'cost': 0,
-                'prompt_tokens': 0,
-                'completion_tokens': 0,
-                'total_tokens': 0}
-        },
-        'usage_excluding_cached_inference': {
-            'total_cost': 0,
-            model: {
-                'cost': 0,
-                'prompt_tokens': 0,
-                'completion_tokens': 0,
-                'total_tokens': 0
-            }
-        }
-    }
+    # Update final usage cost
+    all_conversable_agents = [human_proxy_agent] + get_all_conversable_agents(main_group_chat_manager)
+    chat_result.cost = gather_usage_summary(all_conversable_agents)
     #### end
     ret_dict = get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
