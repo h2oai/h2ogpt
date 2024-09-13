@@ -178,7 +178,7 @@ Constraints on output or response:
 * Searching for the constrained response is allowed, including iterating the response with the response changing to match user constraints, but you must avoid infinite loops and try generalized approaches instead of simplistic word or character replacement.
 * Have common sense and be smart, repeating characters or words just to match a constraint about your response is not likely useful.
 * E.g., simple solutions about your response are allowed, such as for "How many words are in your response" can just be a function that generates a sentence that includes the numeric count of the words in that sentence.
-* For a response constrained by the user, the self-consistent constrained textual response must appear inside <constrained_output> </constrained_output> XML tags, before giving a TERMINATE.
+* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags, before giving a TERMINATE.
 /constraints>
 PDF Generation:
 <pdf>
