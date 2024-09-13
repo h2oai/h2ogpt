@@ -156,6 +156,9 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
         if root == temp_dir or os.path.dirname(root) == temp_dir:
             file_list.extend([os.path.join(root, f) for f in files])
 
+    # ensure files are sorted by creation time so newest are last in list
+    file_list.sort(key=lambda x: os.path.getctime(x), reverse=True)
+
     # Filter the list to include only files
     file_list = [f for f in file_list if os.path.isfile(f)]
     internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
@@ -165,8 +168,8 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
         print("file_list:", file_list)
 
     image_files, non_image_files = identify_image_files(file_list)
-    # keep no more than 10 image files:
-    image_files = image_files[:10]
+    # keep no more than 10 image files among latest files created
+    image_files = image_files[-10:]
     file_list = image_files + non_image_files
 
     # copy files so user can download
@@ -222,6 +225,12 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
             if extracted_summary:
                 chat_result.summary = extracted_summary
         chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('TERMINATE', '')
+
+        if '![image](' not in chat_result.summary:
+            latest_image_file = image_files[-1] if image_files else None
+            if latest_image_file:
+                chat_result.summary += f'\n![image]({os.path.basename(latest_image_file)})'
+
         ret_dict.update(dict(summary=chat_result.summary))
     if agent_venv_dir is not None:
         ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
