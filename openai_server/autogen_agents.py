@@ -62,15 +62,19 @@ def get_chat_agent(
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
     chat_agent.description = (
-        "This agent is able to answer general knowledge questions "
+        "This agent is able to convey daily and casual chats "
         "based on its own memory or past conversation context. "
         "Only answers with natural language. "
         "It can not execute codes. "
         "It can not generate code examples. "
         "It can not access the web. "
         "It can not do any math or calculations, "
-        "even simple ones like adding numbers. "
-        "It's only good at chatting and answering simple questions. "
+        "even simple ones like adding numbers, "
+        "or counting things. "
+        "It's only good at chatting and answering simple tasks like: "
+        "* making jokes, writing stories or summaries, "
+        "* having daily conversations. "
+        "It has no clue about counts, measurements, or calculations. "
         )
     return chat_agent
 
@@ -143,8 +147,10 @@ def get_code_group_chat_manager(
         "making it ideal for tasks that require automation, coding, or retrieving up-to-date information. "
         "This agent has to be picked for any coding related task or tasks that are "
         "more complex than just chatting or simple question answering. "
-        "It can also do math and calculations, from simple arithmetic to complex equations. "
-        "It can also verify the correctness of an answer via coding. "
+        "It can do math and calculations, from simple arithmetic to complex equations. "
+        "It can verify the correctness of an answer via coding. "
+        "This agent has to be picked for instructions that involves coding, "
+        "math or simple calculation operations, solving complex tasks. "
         )
     return code_group_chat_manager
 
@@ -164,13 +170,10 @@ def get_main_group_chat_manager(
     # TODO: override _process_speaker_selection_result logic to return None
     # as the selected next speaker if it's empty string.
     select_speaker_message_template = (
-               "You are in a role play game. The following roles are available:"
-                "{roles}."
-                "Read the following conversation."
-                "Then select the next role from {agentlist} to play. Only return the role name."
-                # f"Important: This is the user prompt: {prompt}"
-                # "If you think that the user request is answered, return empty string as the role name."
-    )
+                "You are in a role play game. The following roles are available:"
+                "{roles}\n"
+                "Select the next role from {agentlist} to play. Only return the role name."
+        )
     from autogen import GroupChat
     main_group_chat = GroupChat(
         agents=agents,
@@ -179,8 +182,8 @@ def get_main_group_chat_manager(
         allow_repeat_speaker=True, # Allow the same agent to speak in consecutive rounds.
         send_introductions=True, # Make agents aware of each other.
         speaker_selection_method="auto", # LLM decides which agent to call next.
-        select_speaker_prompt_template=None, # This was adding new system prompt at the end, and was causing instruction to be dropped in h2ogpt/convert_messages_to_structure method
         select_speaker_message_template=select_speaker_message_template,
+        role_for_select_speaker_messages="user", # to have select_speaker_prompt_template at the end of the messages
     )
 
     def main_terminate_flow(msg):
