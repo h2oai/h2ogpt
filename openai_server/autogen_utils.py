@@ -497,6 +497,7 @@ class H2OConversableAgent(ConversableAgent):
             default_auto_reply: Union[str, Dict] = "",
             description: Optional[str] = None,
             chat_messages: Optional[Dict[Agent, List[Dict]]] = None,
+            silent: Optional[bool] = None,
     ):
         code_execution_config = (
             code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
@@ -516,6 +517,7 @@ class H2OConversableAgent(ConversableAgent):
             if is_termination_msg is not None
             else (lambda x: content_str(x.get("content")) == "TERMINATE")
         )
+        self.silent = silent
         # Take a copy to avoid modifying the given dict
         if isinstance(llm_config, dict):
             try:
