@@ -1,19 +1,23 @@
+import copy
 import logging
 import os
 import re
 import subprocess
 import sys
 import typing
+import warnings
+from collections import defaultdict
 from hashlib import md5
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Union
 from types import SimpleNamespace
 import uuid
 
-from autogen.code_utils import PYTHON_VARIANTS, WIN32, _cmd, TIMEOUT_MSG
-from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock
+from autogen.code_utils import PYTHON_VARIANTS, WIN32, _cmd, TIMEOUT_MSG, decide_use_docker, \
+    check_can_use_docker_or_throw, content_str
+from autogen.coding import LocalCommandLineCodeExecutor, CodeBlock, CodeExecutorFactory
 from autogen.coding.base import CommandLineCodeResult
-from autogen import ConversableAgent
+from autogen import ConversableAgent, Agent, OpenAIWrapper
 from autogen import GroupChatManager
 import backoff
 
@@ -22,6 +26,7 @@ from autogen.coding.func_with_reqs import (
     FunctionWithRequirementsStr,
 )
 from autogen.coding.utils import silence_pip, _get_file_name_from_content
+from autogen.runtime_logging import logging_enabled, log_new_agent
 
 from typing_extensions import ParamSpec
 
@@ -39,15 +44,16 @@ bad_output_mark = 'Output contains sensitive information'
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
     def __init__(
-        self,
-        timeout: int = 60,
-        virtual_env_context: Optional[SimpleNamespace] = None,
-        work_dir: Union[Path, str] = Path("."),
-        functions: List[Union[FunctionWithRequirements[Any, A], Callable[..., Any], FunctionWithRequirementsStr]] = [],
-        functions_module: str = "functions",
-        execution_policies: Optional[Dict[str, bool]] = None,
-        autogen_code_restrictions_level: int = 2,
-        stream_output: bool = True,
+            self,
+            timeout: int = 60,
+            virtual_env_context: Optional[SimpleNamespace] = None,
+            work_dir: Union[Path, str] = Path("."),
+            functions: List[
+                Union[FunctionWithRequirements[Any, A], Callable[..., Any], FunctionWithRequirementsStr]] = [],
+            functions_module: str = "functions",
+            execution_policies: Optional[Dict[str, bool]] = None,
+            autogen_code_restrictions_level: int = 2,
+            stream_output: bool = True,
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
@@ -246,9 +252,9 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 iostream = IOStream.get_default()
                 result = exec_func(
                     cmd, cwd=self._work_dir, capture_output=True, text=True, timeout=float(self._timeout), env=env,
-                    print_func=iostream.print,
+                    print_func=iostream.print, max_output_length=4096,
                 )
-                iostream.print("\n\n**Completed execution of code blocks.**\n\nENDOFTURN\n\n")
+                iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
             except subprocess.TimeoutExpired:
                 logs_all += "\n" + TIMEOUT_MSG
                 # Same exit code as the timeout command on linux.
@@ -268,6 +274,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         try:
             # skip code blocks with # execution: false
+            code_blocks_len0 = len(code_blocks)
             code_blocks = [x for x in code_blocks if '# execution: false' not in x.code]
             # give chance for LLM to give generic code blocks without any execution false
             code_blocks = [x for x in code_blocks if '# execution:' in x.code]
@@ -286,9 +293,17 @@ os.environ['TERM'] = 'dumb'
 
             ret = self.__execute_code_dont_check_setup(code_blocks)
 
-            if ret.exit_code == -2 and len(code_blocks) > 0:
+            if ret.exit_code == -2 or len(code_blocks) == 0 and code_blocks_len0 > 0:
                 ret = CommandLineCodeResult(exit_code=0,
-                                             output='Code block present, but no code executed (execution tag was false or not present for all code blocks).  This is expected if you had code blocks but they were not meant for python or shell execution.  For example, you may have shown code for demonstration purposes.  If this is expected, then move on normally without concern.')
+                                            output="""
+<no_code_executed>
+Code block present, but no code executed (execution tag was false or not present for all code blocks).
+This is expected if you had code blocks but they were not meant for python or shell execution.
+For example, you may have shown code for demonstration purposes.
+If you intended to execute code, be sure to add the comment: # execution: true and try again.
+Otherwise, if no code execution was expected, then do not respond or react to this "no_code_execution" text and instead just directly and immediately summarize the actual answer to the user's original question and then TERMINATE.
+</no_code_executed>
+""")
         except Exception as e:
             if danger_mark in str(e):
                 print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
@@ -435,6 +450,142 @@ class H2OConversableAgent(ConversableAgent):
                           max_tries=5,
                           giveup=lambda e: not any(re.search(pattern, str(e)) for pattern in error_patterns),
                           on_backoff=backoff_handler)
+    # init is same, but with ConversableAgent replaced with H2OConversableAgent since they didn't organize class well
+    def __init__(
+            self,
+            name: str,
+            system_message: Optional[Union[str, List]] = "You are a helpful AI Assistant.",
+            is_termination_msg: Optional[Callable[[Dict], bool]] = None,
+            max_consecutive_auto_reply: Optional[int] = None,
+            human_input_mode: typing.Literal["ALWAYS", "NEVER", "TERMINATE"] = "TERMINATE",
+            function_map: Optional[Dict[str, Callable]] = None,
+            code_execution_config: Union[Dict, typing.Literal[False]] = False,
+            llm_config: Optional[Union[Dict, typing.Literal[False]]] = None,
+            default_auto_reply: Union[str, Dict] = "",
+            description: Optional[str] = None,
+            chat_messages: Optional[Dict[Agent, List[Dict]]] = None,
+    ):
+        code_execution_config = (
+            code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
+        )
+
+        self._name = name
+        # a dictionary of conversations, default value is list
+        if chat_messages is None:
+            self._oai_messages = defaultdict(list)
+        else:
+            self._oai_messages = chat_messages
+
+        self._oai_system_message = [{"content": system_message, "role": "system"}]
+        self._description = description if description is not None else system_message
+        self._is_termination_msg = (
+            is_termination_msg
+            if is_termination_msg is not None
+            else (lambda x: content_str(x.get("content")) == "TERMINATE")
+        )
+        # Take a copy to avoid modifying the given dict
+        if isinstance(llm_config, dict):
+            try:
+                llm_config = copy.deepcopy(llm_config)
+            except TypeError as e:
+                raise TypeError(
+                    "Please implement __deepcopy__ method for each value class in llm_config to support deepcopy."
+                    " Refer to the docs for more details: https://microsoft.github.io/autogen/docs/topics/llm_configuration#adding-http-client-in-llm_config-for-proxy"
+                ) from e
+
+        self._validate_llm_config(llm_config)
+
+        if logging_enabled():
+            log_new_agent(self, locals())
+
+        # Initialize standalone client cache object.
+        self.client_cache = None
+
+        self.human_input_mode = human_input_mode
+        self._max_consecutive_auto_reply = (
+            max_consecutive_auto_reply if max_consecutive_auto_reply is not None else self.MAX_CONSECUTIVE_AUTO_REPLY
+        )
+        self._consecutive_auto_reply_counter = defaultdict(int)
+        self._max_consecutive_auto_reply_dict = defaultdict(self.max_consecutive_auto_reply)
+        self._function_map = (
+            {}
+            if function_map is None
+            else {name: callable for name, callable in function_map.items() if self._assert_valid_name(name)}
+        )
+        self._default_auto_reply = default_auto_reply
+        self._reply_func_list = []
+        self._human_input = []
+        self.reply_at_receive = defaultdict(bool)
+        self.register_reply([Agent, None], H2OConversableAgent.generate_oai_reply)
+        self.register_reply([Agent, None], H2OConversableAgent.a_generate_oai_reply, ignore_async_in_sync_chat=True)
+
+        # Setting up code execution.
+        # Do not register code execution reply if code execution is disabled.
+        if code_execution_config is not False:
+            # If code_execution_config is None, set it to an empty dict.
+            if code_execution_config is None:
+                warnings.warn(
+                    "Using None to signal a default code_execution_config is deprecated. "
+                    "Use {} to use default or False to disable code execution.",
+                    stacklevel=2,
+                )
+                code_execution_config = {}
+            if not isinstance(code_execution_config, dict):
+                raise ValueError("code_execution_config must be a dict or False.")
+
+            # We have got a valid code_execution_config.
+            self._code_execution_config = code_execution_config
+
+            if self._code_execution_config.get("executor") is not None:
+                if "use_docker" in self._code_execution_config:
+                    raise ValueError(
+                        "'use_docker' in code_execution_config is not valid when 'executor' is set. Use the appropriate arg in the chosen executor instead."
+                    )
+
+                if "work_dir" in self._code_execution_config:
+                    raise ValueError(
+                        "'work_dir' in code_execution_config is not valid when 'executor' is set. Use the appropriate arg in the chosen executor instead."
+                    )
+
+                if "timeout" in self._code_execution_config:
+                    raise ValueError(
+                        "'timeout' in code_execution_config is not valid when 'executor' is set. Use the appropriate arg in the chosen executor instead."
+                    )
+
+                # Use the new code executor.
+                self._code_executor = CodeExecutorFactory.create(self._code_execution_config)
+                self.register_reply([Agent, None], H2OConversableAgent._generate_code_execution_reply_using_executor)
+            else:
+                # Legacy code execution using code_utils.
+                use_docker = self._code_execution_config.get("use_docker", None)
+                use_docker = decide_use_docker(use_docker)
+                check_can_use_docker_or_throw(use_docker)
+                self._code_execution_config["use_docker"] = use_docker
+                self.register_reply([Agent, None], H2OConversableAgent.generate_code_execution_reply)
+        else:
+            # Code execution is disabled.
+            self._code_execution_config = False
+
+        self.register_reply([Agent, None], H2OConversableAgent.generate_tool_calls_reply)
+        self.register_reply([Agent, None], H2OConversableAgent.a_generate_tool_calls_reply,
+                            ignore_async_in_sync_chat=True)
+        self.register_reply([Agent, None], H2OConversableAgent.generate_function_call_reply)
+        self.register_reply(
+            [Agent, None], H2OConversableAgent.a_generate_function_call_reply, ignore_async_in_sync_chat=True
+        )
+        self.register_reply([Agent, None], H2OConversableAgent.check_termination_and_human_reply)
+        self.register_reply(
+            [Agent, None], H2OConversableAgent.a_check_termination_and_human_reply, ignore_async_in_sync_chat=True
+        )
+
+        # Registered hooks are kept in lists, indexed by hookable method, to be called in their order of registration.
+        # New hookable methods should be added to this list as required to support new agent capabilities.
+        self.hook_lists: Dict[str, List[Callable]] = {
+            "process_last_received_message": [],
+            "process_all_messages_before_reply": [],
+            "process_message_before_send": [],
+        }
+
     def _generate_oai_reply_from_client(self, llm_client, messages, cache) -> typing.Union[str, typing.Dict, None]:
         try:
             return super()._generate_oai_reply_from_client(llm_client, messages, cache)
@@ -445,6 +596,28 @@ class H2OConversableAgent(ConversableAgent):
             else:
                 logger.error(f"Encountered non-retryable error: {str(e)}")
                 raise  # If it doesn't match our patterns, raise the original exception
+
+    def generate_oai_reply(
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[OpenAIWrapper] = None,
+    ) -> typing.Tuple[bool, Union[str, Dict, None]]:
+        valid, extracted_response = super().generate_oai_reply(messages, sender, config)
+        if isinstance(extracted_response, str) and 'ENDOFTURN' not in extracted_response:
+            extracted_response += '\n\nENDOFTURN\n'
+        return (False, None) if extracted_response is None else (True, extracted_response)
+
+    def _generate_code_execution_reply_using_executor(
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[Union[Dict, typing.Literal[False]]] = None,
+    ):
+        valid, output = super()._generate_code_execution_reply_using_executor(messages, sender, config)
+        if output and 'ENDOFTURN' not in output:
+            output += '\n\nENDOFTURN\n'
+        return valid, output
 
 
 class H2OGroupChatManager(GroupChatManager):
@@ -464,6 +637,7 @@ class H2OGroupChatManager(GroupChatManager):
                 logger.error(f"Encountered non-retryable error: {str(e)}")
                 raise  # If it doesn't match our patterns, raise the original exception
 
+
 def terminate_message_func(msg):
     # in conversable agent, roles are flipped relative to actual OpenAI, so can't filter by assistant
     #        isinstance(msg.get('role'), str) and
@@ -478,19 +652,6 @@ def terminate_message_func(msg):
         # force it to continue
         return False
 
-    no_stop_if_code = False
-    if no_stop_if_code:
-        # don't let LLM stop early if it generated code in last message, so it doesn't try to conclude itself
-        from autogen.coding import MarkdownCodeExtractor
-        code_blocks = MarkdownCodeExtractor().extract_code_blocks(msg.get("content", ''))
-        has_code = len(code_blocks) > 0
-
-        # end on TERMINATE or empty message
-        if has_code and has_term:
-            print("Model tried to terminate with code present: %s" % len(code_blocks), file=sys.stderr)
-            # fix
-            msg['content'].replace('TERMINATE', '')
-            return False
     if has_term:
         return True
     return False
@@ -521,7 +682,7 @@ def get_code_executor(
         autogen_code_restrictions_level,
         agent_venv_dir,
         temp_dir
-        ):
+):
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
@@ -548,17 +709,14 @@ def get_code_executor(
         # PythonLoader(name='code', ))
 
         # Create a local command line code executor.
-        if autogen_code_restrictions_level >= 2:
-            from autogen_utils import H2OLocalCommandLineCodeExecutor
-        else:
-            from autogen.coding.local_commandline_code_executor import \
-                LocalCommandLineCodeExecutor as H2OLocalCommandLineCodeExecutor
         executor = H2OLocalCommandLineCodeExecutor(
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             virtual_env_context=virtual_env_context,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
+            autogen_code_restrictions_level=autogen_code_restrictions_level,
         )
     return executor
+
 
 def merge_group_chat_messages(a, b):
     """
@@ -594,3 +752,16 @@ def merge_group_chat_messages(a, b):
             b_contents.add(content_a)
 
     return merged_list
+
+
+def get_all_conversable_agents(group_chat_manager: GroupChatManager) -> List[ConversableAgent]:
+    """
+    Get all conversable agents from a group chat manager and its sub-managers.
+    """
+    all_conversable_agents = []
+    for agent in group_chat_manager.groupchat.agents:
+        if isinstance(agent, GroupChatManager):
+            all_conversable_agents += get_all_conversable_agents(agent)
+        else:
+            all_conversable_agents.append(agent)
+    return all_conversable_agents

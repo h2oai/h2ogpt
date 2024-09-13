@@ -221,6 +221,7 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
             extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
             if extracted_summary:
                 chat_result.summary = extracted_summary
+        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('TERMINATE', '')
         ret_dict.update(dict(summary=chat_result.summary))
     if agent_venv_dir is not None:
         ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
