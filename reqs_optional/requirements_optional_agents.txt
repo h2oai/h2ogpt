@@ -10,7 +10,7 @@ sympy>=1.12
 
 
 # for AutoGen
-pyautogen>=0.2.33
+pyautogen==0.2.33
 pyautogen[redis]
 #pyautogen[ipython]
 pyautogen[retrievechat]
