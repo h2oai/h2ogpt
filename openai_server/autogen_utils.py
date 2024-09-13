@@ -59,6 +59,13 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
         self.stream_output = stream_output
 
+        self.filename_patterns: List[re.Pattern] = [
+            re.compile(r"^<!--\s*filename:\s*([\w.-/]+)\s*-->$"),
+            re.compile(r"^/\*\s*filename:\s*([\w.-/]+)\s*\*/$"),
+            re.compile(r"^//\s*filename:\s*([\w.-/]+)\s*$"),
+            re.compile(r"^#\s*filename:\s*([\w.-/]+)\s*$"),
+        ]
+
     @staticmethod
     def remove_comments_strings(code: str, lang: str) -> str:
         if verbose:
@@ -181,6 +188,32 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 if match.group(f"pat{i}"):
                     raise ValueError(f"{danger_mark}: {patterns[pattern]}\n\n{cleaned_code}")
 
+    def _get_file_name_from_content(self, code: str, workspace_path: Path) -> Optional[str]:
+        lines = code.split("\n")
+        for line in lines:
+            line = line.strip()
+            for pattern in self.filename_patterns:
+                matches = pattern.match(line)
+                if matches is not None:
+                    filename = matches.group(1).strip()
+
+                    # Validate filename
+                    if not re.match(r'^[\w.-/]+$', filename):
+                        continue  # Invalid filename, try next match
+
+                    # Construct the path
+                    path = Path(filename)
+
+                    # Ensure the path doesn't try to go outside the workspace
+                    try:
+                        resolved_path = (workspace_path / path).resolve().relative_to(workspace_path)
+                        return str(resolved_path)
+                    except ValueError:
+                        # Path would be outside the workspace, skip it
+                        continue
+
+        return None
+
     def __execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         # nearly identical to parent, but with control over guardrails via self.sanitize_command
         logs_all = ""
@@ -211,7 +244,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             execute_code = self.execution_policies.get(lang, False)
             try:
                 # Check if there is a filename comment
-                filename = _get_file_name_from_content(code, self._work_dir)
+                filename = self._get_file_name_from_content(code, self._work_dir)
             except ValueError:
                 return CommandLineCodeResult(exit_code=1, output="Filename is not in the workspace")
 

@@ -1,4 +1,6 @@
 import re
+from pathlib import Path
+
 import pytest
 
 from openai_server.autogen_utils import H2OLocalCommandLineCodeExecutor, bad_output_mark, danger_mark
@@ -382,3 +384,77 @@ ENDOFTURN
         pass
     else:
         raise ValueError("Should not reach here")
+
+
+@pytest.fixture
+def workspace_path():
+    return Path("/tmp/workspace"), H2OLocalCommandLineCodeExecutor()
+
+
+def test_basic_filename_extraction(workspace_path):
+    code = "# filename: test.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "test.py"
+
+
+def test_filename_with_path(workspace_path):
+    code = "# filename: subfolder/test.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "subfolder/test.py"
+
+
+def test_filename_with_different_comment_styles(workspace_path):
+    code1 = "<!-- filename: test.html -->\n<html></html>"
+    code2 = "/* filename: test.css */\nbody {}"
+    code3 = "// filename: test.js\nconsole.log('Hello');"
+    assert workspace_path[1]._get_file_name_from_content(code1, workspace_path[0]) == "test.html"
+    assert workspace_path[1]._get_file_name_from_content(code2, workspace_path[0]) == "test.css"
+    assert workspace_path[1]._get_file_name_from_content(code3, workspace_path[0]) == "test.js"
+
+
+def test_filename_not_on_first_line(workspace_path):
+    code = "import os\n# filename: test.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "test.py"
+
+
+def test_no_filename_specified(workspace_path):
+    code = "print('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) is None
+
+
+def test_invalid_filename(workspace_path):
+    code = "# filename: invalid file name.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) is None
+
+
+def test_filename_outside_workspace(workspace_path):
+    code = "# filename: /etc/passwd\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) is None
+
+
+def test_filename_with_colon(workspace_path):
+    code = "# filename: test.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "test.py"
+
+
+def test_filename_without_colon(workspace_path):
+    code = "# filename test.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) is None
+
+
+def test_multiple_filenames(workspace_path):
+    code = "# filename: first.py\n# filename: second.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "first.py"
+
+
+def test_commented_out_filename(workspace_path):
+    code = "# # filename: test.py\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) is None
+
+
+def test_filename_with_spaces_around(workspace_path):
+    code = "#    filename:    test.py    \nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "test.py"
+
+
+def test_filename_with_extension_containing_dot(workspace_path):
+    code = "# filename: test.tar.gz\nprint('Hello, World!')"
+    assert workspace_path[1]._get_file_name_from_content(code, workspace_path[0]) == "test.tar.gz"
