@@ -77,8 +77,13 @@ def run_autogen_multi_agent(query=None,
         get_human_proxy_agent,
         get_main_group_chat_manager,
         get_chat_agent,
-        get_code_group_chat_manager
+        get_code_group_chat_manager,
+        get_tabular_ml_group_chat_manager,
         )
+    
+    include_tabular_ml_group_chat_manager = True
+    if include_tabular_ml_group_chat_manager:
+        autogen_timeout = 480 # longer timeout for tabular ML group chat manager
 
     # Create a code executor.
     executor = get_code_executor(
@@ -125,11 +130,22 @@ def run_autogen_multi_agent(query=None,
             max_round=40, # TODO: Define variable above
             executor=executor,
         )
+    tabular_ml_group_chat_manager = get_tabular_ml_group_chat_manager(
+            llm_config=llm_config,
+            code_writer_system_prompt=code_writer_system_prompt,
+            executor=executor,
+            autogen_max_consecutive_auto_reply=5,
+            max_round=10, # let's keep it short for now
+        )
+    
+    main_group_agents = [chat_agent, code_group_chat_manager]
+    if include_tabular_ml_group_chat_manager:
+        main_group_agents.append(tabular_ml_group_chat_manager)
     main_group_chat_manager = get_main_group_chat_manager(
             llm_config=llm_config,
             prompt=query,
-            agents=[chat_agent, code_group_chat_manager],
-            max_round=40,
+            agents=main_group_agents,
+            max_round=20,
         )
     # apply chat history to human_proxy_agent and main_group_chat_manager
     # TODO: check if working
@@ -152,6 +168,10 @@ def run_autogen_multi_agent(query=None,
     merged_group_chat_messages = merge_group_chat_messages(
         code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages
     )
+    if include_tabular_ml_group_chat_manager:
+        merged_group_chat_messages = merge_group_chat_messages(
+            tabular_ml_group_chat_manager.groupchat.messages, merged_group_chat_messages
+        )
     chat_result.chat_history = merged_group_chat_messages
     # Update summary after including group chats:
     used_agents = list(set([msg['name'] for msg in chat_result.chat_history]))
@@ -159,6 +179,9 @@ def run_autogen_multi_agent(query=None,
     if len(used_agents) == 2 and 'chat_agent' in used_agents:
         # If it's only chat_agent and human_proxy_agent, then use last message as summary
         summary = chat_result.chat_history[-1]['content']
+    if 'tabular_ml_agent' in used_agents:
+        # If tabular_ml_agent is used, then get the last tabular_ml_agent message as summary
+        summary = [msg['content'] for msg in chat_result.chat_history if msg['name'] == 'tabular_ml_agent'][-1]
     else:
         summarize_prompt = (
             "* Given all the conversation and findings so far, try to answer first user instruction. "
@@ -171,6 +194,10 @@ def run_autogen_multi_agent(query=None,
             "and the user will map the basename to a local copy of the file so rendering works normally. "
             "* If you have already displayed some images in your answer to the user, you don't need to add them again in the summary. "
             "* Do not try to answer the instruction yourself, just answer based on what is in chat history. "
+            "* If you have some ML models trained, in multiple rounds, you can use them to answer the user instruction. "
+            "* Try to summarize all the ML iterations, training, and findings. "
+            "* Include all the key findings and the best model's performance. "
+            "* Add charts to show models performance at each iteration. "
         )
         summary_chat_history = [msg for msg in chat_result.chat_history]
         for msg in summary_chat_history:
