@@ -279,6 +279,8 @@ def get_response(chunk_response=True, **kwargs):
     # concurrent gradio client
     client = get_client(user=kwargs.get('user'))
 
+    res_dict = {}
+
     if stream_output:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
         job_outputs_num = 0
@@ -287,19 +289,19 @@ def get_response(chunk_response=True, **kwargs):
             outputs_list = job.outputs().copy()
             job_outputs_num_new = len(outputs_list[job_outputs_num:])
             for num in range(job_outputs_num_new):
-                res = outputs_list[job_outputs_num + num]
-                res = ast.literal_eval(res)
+                res_str = outputs_list[job_outputs_num + num]
+                res_dict = ast.literal_eval(res_str)
                 if verbose:
-                    logger.info('Stream %d: %s\n\n %s\n\n' % (num, res['response'], res))
+                    logger.info('Stream %d: %s\n\n %s\n\n' % (num, res_dict['response'], res_dict))
                     logger.info('Stream %d' % (job_outputs_num + num))
-                if 'error' in res and res['error']:
-                    raise RuntimeError(res['error'])
-                elif 'error_ex' in res and res['error_ex']:
-                    raise RuntimeError(res['error_ex'])
-                elif 'response' not in res:
-                    raise RuntimeError("No response in res: %s" % res)
+                if 'error' in res_dict and res_dict['error']:
+                    raise RuntimeError(res_dict['error'])
+                elif 'error_ex' in res_dict and res_dict['error_ex']:
+                    raise RuntimeError(res_dict['error_ex'])
+                elif 'response' not in res_dict:
+                    raise RuntimeError("No response in res: %s" % res_dict)
                 else:
-                    response = res['response']
+                    response = res_dict['response']
                     chunk = response[len(last_response):]
                 if chunk_response:
                     if chunk:
@@ -312,14 +314,13 @@ def get_response(chunk_response=True, **kwargs):
 
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
-        res = {}
         for num in range(job_outputs_num_new):
-            res = outputs_list[job_outputs_num + num]
-            res = ast.literal_eval(res)
+            res_str = outputs_list[job_outputs_num + num]
+            res_dict = ast.literal_eval(res_str)
             if verbose:
-                logger.info('Final Stream %d: %s\n\n%s\n\n' % (num, res['response'], res))
+                logger.info('Final Stream %d: %s\n\n%s\n\n' % (num, res_dict['response'], res_dict))
                 logger.info('Final Stream %d' % (job_outputs_num + num))
-            response = res['response']
+            response = res_dict['response']
             chunk = response[len(last_response):]
             if chunk_response:
                 if chunk:
@@ -331,9 +332,13 @@ def get_response(chunk_response=True, **kwargs):
         if verbose:
             logger.info("total job_outputs_num=%d" % job_outputs_num)
     else:
-        res = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
-        res = ast.literal_eval(res)
-        yield res['response']
+        res_str = client.predict(str(dict(kwargs)), api_name='/submit_nochat_api')
+        res_dict = ast.literal_eval(res_str)
+        yield res_dict['response']
+
+    # for usage
+    res_dict.pop('audio', None)
+    return res_dict
 
 
 def split_concatenated_dicts(concatenated_dicts: str):

@@ -99,7 +99,7 @@ class H2oGPTParams(BaseModel):
     image_audio_loaders: List | None = None
     pdf_loaders: List | None = None
     url_loaders: List | None = None
-    jq_schema: List | None = None
+    jq_schema: str | None = None
     extract_frames: int | None = 10
     llava_prompt: str | None = 'auto'
     # visible_models
@@ -118,14 +118,14 @@ class H2oGPTParams(BaseModel):
     hyde_template: str | None = 'auto'
     hyde_show_only_final: bool | None = False
     doc_json_mode: bool | None = False
-    metadata_in_context: str | None = 'auto'
+    metadata_in_context: Union[str, list] | None = 'auto'
 
     chatbot_role: str | None = 'None'
     speaker: str | None = 'None'
     tts_language: str | None = 'autodetect'
     tts_speed: float | None = 1.0
 
-    image_file: str | None = None
+    image_file: Union[str, list] | None = None
     image_control: str | None = None
     images_num_max: int | None = None
     image_resolution: tuple | None = None
@@ -135,7 +135,7 @@ class H2oGPTParams(BaseModel):
     image_batch_image_prompt: str | None = None
     image_batch_final_prompt: str | None = None
     image_batch_stream: bool | None = None
-    visible_vision_models: Union[str, int] | None = None
+    visible_vision_models: Union[str, int, list] | None = 'auto'
     video_file: Union[str, list] | None = None
 
     model_lock: dict | None = None
