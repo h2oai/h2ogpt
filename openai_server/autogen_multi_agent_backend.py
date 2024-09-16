@@ -77,7 +77,9 @@ def run_autogen_multi_agent(query=None,
         get_human_proxy_agent,
         get_main_group_chat_manager,
         get_chat_agent,
-        get_code_group_chat_manager
+        get_terminate_agent,
+        get_code_writer_agent,
+        get_code_execution_agent,
         )
 
     # Create a code executor.
@@ -118,17 +120,20 @@ def run_autogen_multi_agent(query=None,
         llm_config=llm_config,
         autogen_max_consecutive_auto_reply=1, # Always 1 turn for chat agent
     )
-    code_group_chat_manager = get_code_group_chat_manager(
-            llm_config=llm_config,
-            code_writer_system_prompt=code_writer_system_prompt,
-            autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-            max_round=40, # TODO: Define variable above
-            executor=executor,
-        )
+    code_executor_agent = get_code_execution_agent(
+        executor=executor,
+        autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+    )
+    code_writer_agent = get_code_writer_agent(
+        code_writer_system_prompt=code_writer_system_prompt,
+        llm_config=llm_config,
+        autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+    )
+    terminate_agent = get_terminate_agent()
     main_group_chat_manager = get_main_group_chat_manager(
             llm_config=llm_config,
             prompt=query,
-            agents=[chat_agent, code_group_chat_manager],
+            agents=[chat_agent, code_writer_agent, code_executor_agent, terminate_agent],
             max_round=40,
         )
     # apply chat history to human_proxy_agent and main_group_chat_manager
@@ -149,19 +154,55 @@ def run_autogen_multi_agent(query=None,
             max_turns=1,
         )
     # It seems chat_result.chat_history doesnt contain code group messages, so I'm manually merging them here. #TODO: research why so?
-    merged_group_chat_messages = merge_group_chat_messages(
-        code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages
-    )
+    merged_group_chat_messages = main_group_chat_manager.groupchat.messages
     chat_result.chat_history = merged_group_chat_messages
-    # Update summary after including group chats:
-    used_agents = list(set([msg['name'] for msg in chat_result.chat_history]))
-    # besides human_proxy_agent, check if there is only chat_agent and human_proxy_agent in the used_agents
-    if len(used_agents) == 2 and 'chat_agent' in used_agents:
-        # If it's only chat_agent and human_proxy_agent, then use last message as summary
+    # Update roles
+    summary_chat_history = [msg for msg in chat_result.chat_history]
+    for msg in summary_chat_history:
+        if msg['name'] == 'human_proxy_agent':
+            msg['role'] = 'user'
+        else:
+            msg['role'] = 'assistant'
+    # Update summary after including group chats
+    # There will be different summarization steps based on the agents used in the conversation
+    # Let's check the used agents first:
+    used_agents = list([msg['name'] for msg in chat_result.chat_history])
+    for fixed_agent in [human_proxy_agent.name, terminate_agent.name]:
+        if fixed_agent in used_agents:
+            used_agents.remove(fixed_agent)
+    if len(used_agents) == 1:
+        # If only one agent was used, then summary can be same as last message
         summary = chat_result.chat_history[-1]['content']
+    elif len(used_agents) == 2 and code_writer_agent.name in used_agents and code_executor_agent.name in used_agents:
+        # If only one code writer and one code executor agent was used,
+        # then summary should be the last generated code and its output
+        code_writer_agent_message = [msg['content'] for msg in chat_result.chat_history if msg['name'] == code_writer_agent.name][0]
+        code_executor_agent_message = [msg['content'] for msg in chat_result.chat_history if msg['name'] == code_executor_agent.name][0]
+        summarize_prompt = (
+            f"You have generated the following code:\n\n"
+            f"{code_writer_agent_message}\n\n"
+            f"Which produced the following code output:\n\n"
+            f"{code_executor_agent_message}\n\n"
+            "Answer first user instruction by reporting the generated code and its output back to the user."
+            "For the code output, use the code block markdown format."
+            "* If any key figures or plots were produced, "
+            "add inline markdown links to the files so they are rendered as images in the chat history. "
+            "Do not include them in code blocks, just directly inlined markdown like ![image](filename.png). "
+            "Only use the basename of the file, not the full path, "
+            "and the user will map the basename to a local copy of the file so rendering works normally. "
+            "* If you have already displayed some images in your answer to the user, you don't need to add them again in the summary. "
+            "* Do not try to answer the instruction yourself, just answer based on what is in chat history. "
+        )
+        summary = human_proxy_agent._reflection_with_llm(
+            prompt=summarize_prompt,
+            messages=chat_result.chat_history,
+            cache=None,
+            role="user"
+        )
     else:
         summarize_prompt = (
-            "* Given all the conversation and findings so far, try to answer first user instruction. "
+            "* Given all the conversation, findings, generated codes and execution  outputs so far, "
+            "try to answer first user instruction. "
             "* Do not add any introductory phrases. "
             "* After answering user instruction, now you can try to summarize the process. "
             "* In your final summarization, if any key figures or plots were produced, "
@@ -172,13 +213,6 @@ def run_autogen_multi_agent(query=None,
             "* If you have already displayed some images in your answer to the user, you don't need to add them again in the summary. "
             "* Do not try to answer the instruction yourself, just answer based on what is in chat history. "
         )
-        summary_chat_history = [msg for msg in chat_result.chat_history]
-        for msg in summary_chat_history:
-            if msg['name'] == 'human_proxy_agent':
-                msg['role'] = 'user'
-            else:
-                msg['role'] = 'assistant'
-
         summary = human_proxy_agent._reflection_with_llm(
             prompt=summarize_prompt,
             messages=chat_result.chat_history,

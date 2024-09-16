@@ -16,6 +16,13 @@ def get_code_execution_agent(
         is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
+    code_executor_agent.description = (
+        "This agent is able to execute code snippets and scripts. "
+        "This agent has to be picked whenever there is a code block coming from "
+        "other agents with the mark # execution: true. "
+        "For code blocks having the mark # execution: false, "
+        "this agent will not be called. "
+        )
     return code_executor_agent
 
 def get_code_writer_agent(
@@ -33,6 +40,20 @@ def get_code_writer_agent(
         is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
+    code_writer_agent.description = (
+        "This agent excels at solving tasks through code generation, "
+        "using both Python and shell scripts. "
+        "It can handle anything from complex computations and data processing to "
+        "generating executable code. "
+        "Additionally, it can access the web to fetch real-time data, "
+        "making it ideal for tasks that require automation, coding, or retrieving up-to-date information. "
+        "This agent has to be picked for any coding related task or tasks that are "
+        "more complex than just chatting or simple question answering. "
+        "It can do math and calculations, from simple arithmetic to complex equations. "
+        "It can verify the correctness of an answer via coding. "
+        "This agent has to be picked for instructions that involves coding, "
+        "math or simple calculation operations, solving complex tasks. "
+        )
     return code_writer_agent
 
 def get_chat_agent(
@@ -174,6 +195,12 @@ def get_main_group_chat_manager(
                 "{roles}\n"
                 "Select the next role from {agentlist} to play. Only return the role name."
         )
+    if prompt:
+        select_speaker_message_template += (
+            f"This is the user prompt: {prompt}. "
+            "If you think that there is enough information gathered to answer the prompt, "
+            "end the chat by calling 'terminate_agent'."
+        )
     from autogen import GroupChat
     main_group_chat = GroupChat(
         agents=agents,
@@ -188,8 +215,8 @@ def get_main_group_chat_manager(
 
     def main_terminate_flow(msg):
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
-        return 'TERMINATE' in msg['content'] or msg['content']==""
-    
+        return 'terminate_agent' in msg['name']
+
     from openai_server.autogen_utils import H2OGroupChatManager
     main_group_chat_manager = H2OGroupChatManager(
         groupchat=main_group_chat,
@@ -198,3 +225,20 @@ def get_main_group_chat_manager(
         name="main_group_chat_manager",
     )
     return main_group_chat_manager
+
+def get_terminate_agent():
+    from openai_server.autogen_utils import H2OConversableAgent
+    terminate_agent = H2OConversableAgent(
+        name="terminate_agent",
+        system_message="You are the terminator agent. You should end the conversation.",
+        llm_config=None,
+        code_execution_config=False,
+        human_input_mode="NEVER",
+        is_termination_msg=terminate_message_func,
+        max_consecutive_auto_reply=1,
+    )
+    terminate_agent.description = (
+        "This agent is the terminator agent. "
+        "It should be called to end the conversation when the user prompt is answered. "
+        )
+    return terminate_agent
