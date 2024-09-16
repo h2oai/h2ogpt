@@ -54,6 +54,7 @@ def main():
     args = parser.parse_args()
 
     try:
+        # TODO: Store the model in h2ogpt endpoint? New image_generation parameter for generate.py?
         model = TextToImageModel()
         image = model.generate(
             text=args.prompt,
@@ -61,7 +62,7 @@ def main():
             height=args.height,
             num_inference_steps=args.num_inference_steps
         )
-
+        # TODO: Parameterize the temp directory
         temp_dir = "./openai_files/"
         image_path = save_image_to_tempfile(image, temp_dir, args.file)
         print(f"Image generated successfully. Saved to {image_path}")
