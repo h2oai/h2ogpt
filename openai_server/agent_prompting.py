@@ -501,6 +501,25 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
     return mmdc
 
 
+def get_image_generation_helper():
+    cwd = os.path.abspath(os.getcwd())
+    image_generation = f"""\n* Image generation using python. Use  for generating GenAI based images.
+* For an image generation, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_image_generation.sh
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file "image.png"
+```
+By default this prompt will create a 512x512 image and save it.
+If user is interested in high resolution images then you can make the call with the following command.
+```sh
+# filename: my_image_generation.sh
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file "image.png" --width 1024 --height 1024
+```
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file FILE
+* If you make an image, ensure you use python or shell code properly to generate the image file.
+"""
+    return image_generation
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
@@ -508,6 +527,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
+    image_generation_helper = get_image_generation_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -524,5 +544,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + agent_tools_note + chat_doc_query
+    # TODO: Also return image_generation_helper ? 
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
