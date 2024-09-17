@@ -507,15 +507,10 @@ def get_image_generation_helper():
 * For an image generation, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_generation.sh
-python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file "image.png"
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png"
 ```
 By default this prompt will create a 512x512 image and save it.
-If user is interested in high resolution images then you can make the call with the following command.
-```sh
-# filename: my_image_generation.sh
-python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file "image.png" --width 1024 --height 1024
-```
-* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file FILE
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE
 * If you make an image, ensure you use python or shell code properly to generate the image file.
 """
     return image_generation

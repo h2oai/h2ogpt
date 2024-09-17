@@ -5,6 +5,7 @@ from io import BytesIO
 import os
 import base64
 import argparse
+from openai import OpenAI
 
 class TextToImageModel:
     def __init__(self) -> None:
@@ -39,7 +40,7 @@ def save_image_to_tempfile(image: str, temp_dir: str, filename:str) -> str:
 
     return save_path
 
-def main():
+def main_old():
     parser = argparse.ArgumentParser(description="Generate images from text prompts")
     # Prompt
     parser.add_argument("--prompt", type=str, required=True, help="User prompt")
@@ -68,6 +69,52 @@ def main():
         print(f"Image generated successfully. Saved to {image_path}")
     except Exception as e:
         print(f"Error generating the image: {e}")  
+
+def main():
+    try:
+        parser = argparse.ArgumentParser(description="Generate images from text prompts")
+        # Prompt
+        parser.add_argument("--prompt", type=str, required=True, help="User prompt")
+        # Model
+        parser.add_argument("--model", type=str, default="sdxl_turbo", help="Model name")
+        # File name
+        parser.add_argument("--file_name", type=str, default="output.jpg", help="Name of the output file")
+        args = parser.parse_args()
+        ##
+        base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
+        assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
+        server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+
+        # TODO: ?
+        if not args.model:
+            args.model = os.getenv('H2OGPT_OPENAI_IMAGEGEN_MODEL')
+        client = OpenAI(base_url=base_url, api_key=server_api_key)
+        response = client.images.generate(
+        prompt=args.prompt,
+        model=args.model,
+        )
+
+        # Convert the response to image
+        # Extract the base64 encoded data
+        image_data_base64 = response.data[0].b64_json  # Correct way to access the base64 image
+
+        # Decode the base64 data
+        image_data = base64.b64decode(image_data_base64)
+
+        # TODO: Parameterize the temp directory =?
+        temp_dir = "./openai_files/"
+        # Create the directory if it doesn't exist
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)
+        full_path = os.path.join(temp_dir, args.file_name)
+
+        # Write the image data to a file
+        with open(full_path, "wb") as img_file:
+            img_file.write(image_data)
+
+        print(f"Image successfully saved to the path: {full_path}")
+    except Exception as e:
+        print(f"Error generating the image: {e}")
 
 if __name__ == "__main__":
     main()

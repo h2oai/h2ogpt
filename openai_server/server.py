@@ -720,6 +720,7 @@ async def handle_image_generation(request: Request):
         n = body.get('n', 1)  # ignore the batch limits of max 10
         response_format = body.get('response_format', 'b64_json')  # or url
 
+        # TODO: Why not using image_request? size, quality and stuff?
         image_request = dict(model=model, prompt=prompt, size=size, quality=quality, n=n,
                              response_format=response_format)
     except KeyError as e:
