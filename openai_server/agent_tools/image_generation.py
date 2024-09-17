@@ -101,12 +101,12 @@ def main():
         # Decode the base64 data
         image_data = base64.b64decode(image_data_base64)
 
-        # TODO: Parameterize the temp directory =?
-        temp_dir = "./openai_files/"
+        # Save the image to a file
+        base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
         # Create the directory if it doesn't exist
-        if not os.path.exists(temp_dir):
-            os.makedirs(temp_dir)
-        full_path = os.path.join(temp_dir, args.file_name)
+        if not os.path.exists(base_path):
+            os.makedirs(base_path)
+        full_path = os.path.join(base_path, args.file_name)
 
         # Write the image data to a file
         with open(full_path, "wb") as img_file:

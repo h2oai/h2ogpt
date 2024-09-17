@@ -502,16 +502,19 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
 
 
 def get_image_generation_helper():
+    # TODO: how to check existing visible_image_models here and assign new env variable here before calling image_generation.py?
+    # Or always use flux-schenell for now?
     cwd = os.path.abspath(os.getcwd())
+    base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
     image_generation = f"""\n* Image generation using python. Use  for generating GenAI based images.
 * For an image generation, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_generation.sh
 python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png"
 ```
-By default this prompt will create a 512x512 image and save it.
 * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE
 * If you make an image, ensure you use python or shell code properly to generate the image file.
+* By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
 """
     return image_generation
 
@@ -522,6 +525,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
+    # TODO: Make this tool available if enable_imagegen is True?
     image_generation_helper = get_image_generation_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
