@@ -525,7 +525,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
-    # TODO: Make this tool available if enable_imagegen is True?
+    # TODO: Make this tool available if enable_imagegen is True? How to check if current client has enable_imagegen=True ?
     image_generation_helper = get_image_generation_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
