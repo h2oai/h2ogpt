@@ -30,6 +30,21 @@ def get_code_writer_agent(
         code_writer_system_prompt:str | None = None,
         autogen_max_consecutive_auto_reply:int = 1,
         ):
+    
+    code_writer_system_prompt += (
+        "\n\n"
+        "* Important: If you have past conversation context, "
+        "and if you see code execution errors, "
+        "you should focus on fixing the errors in the code. "
+        "* Important: If you realize you run into a lot of similar "
+        "errors for a certain approach, then instead of trying to fix the errors, "
+        "you should try a different approach. "
+        "* Imoprtant: You have to make sure that code blocks that "
+        "are supposed to be executed are marked with # execution: true. "
+        "And the code blocks that are not supposed to be executed are marked with # execution: false. "
+        "* Important: # execution mark has to be placed at the beginning of the code block, right "
+        "after the # filename: <filename> mark. "
+    )
     from openai_server.autogen_utils import H2OConversableAgent
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
@@ -93,8 +108,7 @@ def get_chat_agent(
         "even simple ones like adding numbers, "
         "or counting things. "
         "It's only good at chatting and answering simple tasks like: "
-        "* making jokes, writing stories or summaries, "
-        "* having daily conversations. "
+        "* making jokes and answering daily conversations. "
         "It has no clue about counts, measurements, or calculations. "
         )
     return chat_agent
@@ -191,16 +205,27 @@ def get_main_group_chat_manager(
     # TODO: override _process_speaker_selection_result logic to return None
     # as the selected next speaker if it's empty string.
     select_speaker_message_template = (
-                "You are in a role play game. The following roles are available:"
+                "You are in a role play game and your task is to select the next role. "
+                "The following roles are available:"
                 "{roles}\n"
                 "Select the next role from {agentlist} to play. Only return the role name."
         )
-    if prompt:
-        select_speaker_message_template += (
-            f"This is the user prompt: {prompt}. "
-            "If you think that there is enough information gathered to answer the prompt, "
-            "end the chat by calling 'terminate_agent'."
-        )
+    agent_roles_as_text = "\n".join([f"{agent.name}: {agent.description}" for agent in agents])
+    select_speaker_prompt_template = (
+        "You are in a role play game. The following roles are available:"
+        f"{agent_roles_as_text}\n"
+        "Read the above conversation and "
+        "then select the next role from {agentlist} to play. Only return the role."
+    )
+    # extra instruction for the agent selection
+    select_speaker_prompt_template += (
+        f"This is the user prompt: {prompt}. "
+        "* If you think that there is enough information gathered to answer the prompt, "
+        "end the chat by calling 'terminate_agent'."
+        "* If there are code blocks with # execution: true in the last message, "
+        "you should never call 'terminate_agent'. "
+        "Instead, you should call code_executor_agent to execute the code. "
+    )
     from autogen import GroupChat
     main_group_chat = GroupChat(
         agents=agents,
@@ -210,12 +235,20 @@ def get_main_group_chat_manager(
         send_introductions=True, # Make agents aware of each other.
         speaker_selection_method="auto", # LLM decides which agent to call next.
         select_speaker_message_template=select_speaker_message_template,
+        select_speaker_prompt_template=select_speaker_prompt_template,
         role_for_select_speaker_messages="user", # to have select_speaker_prompt_template at the end of the messages
     )
 
     def main_terminate_flow(msg):
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
-        return 'terminate_agent' in msg['name']
+        terminate_flow = False
+        if msg['name'] == "code_writer_agent" and 'TERMINATE' in msg['content']:
+            print("main_group_chat_manager: code_writer_agent tells to terminate")
+            terminate_flow = True
+        if msg['name'] == 'terminate_agent':
+            print("main_group_chat_manager: terminate_agent called")
+            terminate_flow = True
+        return terminate_flow
 
     from openai_server.autogen_utils import H2OGroupChatManager
     main_group_chat_manager = H2OGroupChatManager(

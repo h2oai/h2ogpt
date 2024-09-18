@@ -53,7 +53,7 @@ def run_autogen_multi_agent(query=None,
     if autogen_run_code_in_docker is None:
         autogen_run_code_in_docker = False
     if autogen_max_consecutive_auto_reply is None:
-        autogen_max_consecutive_auto_reply = 40
+        autogen_max_consecutive_auto_reply = 10
     if autogen_max_turns is None:
         autogen_max_turns = 40
     if autogen_timeout is None:
@@ -134,7 +134,7 @@ def run_autogen_multi_agent(query=None,
             llm_config=llm_config,
             prompt=query,
             agents=[chat_agent, code_writer_agent, code_executor_agent, terminate_agent],
-            max_round=40,
+            max_round=20,
         )
     # apply chat history to human_proxy_agent and main_group_chat_manager
     # TODO: check if working
