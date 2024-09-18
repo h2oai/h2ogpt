@@ -10,19 +10,19 @@ def main():
         # Prompt
         parser.add_argument("--prompt", type=str, required=True, help="User prompt")
         # Model
-        parser.add_argument("--model", type=str, default="sdxl_turbo", help="Model name")
+        parser.add_argument("--model", type=str, required=False, help="Model name")
         # File name
         parser.add_argument("--file_name", type=str, default="output.jpg", help="Name of the output file")
         args = parser.parse_args()
         ##
-        base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
-        assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
-        server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+        imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", None)
+        assert imagegen_url is not None, "IMAGEGEN_OPENAI_BASE_URL environment variable is not set"
+        server_api_key = os.getenv('IMAGEGEN_OPENAI_API_KEY', 'EMPTY')
 
-        # TODO: ?
         if not args.model:
-            args.model = os.getenv('H2OGPT_OPENAI_IMAGEGEN_MODEL')
-        client = OpenAI(base_url=base_url, api_key=server_api_key)
+            args.model = os.getenv('IMAGEGEN_OPENAI_MODEL')
+
+        client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
         response = client.images.generate(
         prompt=args.prompt,
         model=args.model,

@@ -502,20 +502,26 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
 
 
 def get_image_generation_helper():
-    # TODO: how to check existing visible_image_models here and assign new env variable here before calling image_generation.py?
-    # Or always use flux-schenell for now?
-    cwd = os.path.abspath(os.getcwd())
-    base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
-    image_generation = f"""\n* Image generation using python. Use  for generating GenAI based images.
-* For an image generation, you are recommended to use the existing pre-built python code, E.g.:
-```sh
-# filename: my_image_generation.sh
-python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png"
-```
-* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE
-* If you make an image, ensure you use python or shell code properly to generate the image file.
-* By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
-"""
+    imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", None)
+    if imagegen_url:
+        # TODO: When available, get the model from the url
+        if not os.getenv("IMAGEGEN_OPENAI_MODEL"):
+            os.environ["IMAGEGEN_OPENAI_MODEL"] = "sdxl_turbo"
+
+        cwd = os.path.abspath(os.getcwd())
+        base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
+        image_generation = f"""\n* Image generation using python. Use  for generating GenAI based images.
+    * For an image generation, you are recommended to use the existing pre-built python code, E.g.:
+    ```sh
+    # filename: my_image_generation.sh
+    python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png"
+    ```
+    * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE
+    * If you make an image, ensure you use python or shell code properly to generate the image file.
+    * By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
+    """
+    else:
+        image_generation = "There is no available image generation tool, so you cannot generate images."
     return image_generation
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
@@ -525,7 +531,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
-    # TODO: Make this tool available if enable_imagegen is True? How to check if current client has enable_imagegen=True ?
     image_generation_helper = get_image_generation_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
