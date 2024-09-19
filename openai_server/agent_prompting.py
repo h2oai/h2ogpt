@@ -514,9 +514,10 @@ def get_image_generation_helper():
     * For an image generation, you are recommended to use the existing pre-built python code, E.g.:
     ```sh
     # filename: my_image_generation.sh
+    # execution: true
     python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png"
     ```
-    * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE
+    * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE_NAME
     * If you make an image, ensure you use python or shell code properly to generate the image file.
     * By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
     """
@@ -527,6 +528,26 @@ def get_image_generation_helper():
             )
     return image_generation
 
+def get_audio_transcription_helper():
+    stt_url = os.getenv("STT_OPENAI_BASE_URL", None)
+    if stt_url:
+        cwd = os.path.abspath(os.getcwd())
+        audio_transcription = f"""\n* Audio transcription using python. Use for transcribing audio files to text.
+    * For an audio transcription, you are recommended to use the existing pre-built python code, E.g.:
+    ```sh
+    # filename: my_audio_transcription.sh
+    # execution: true
+    python {cwd}/openai_server/agent_tools/audio_transcription.py --file_path "./audio.wav"
+    ```
+    * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --file_path FILE_PATH
+    * If you make an audio transcription, ensure you use python or shell code properly to generate the text file.
+    """
+    else:
+        audio_transcription = (
+            "There is no available audio transcription tool, so you can not transcribe audio. "
+        )
+    return audio_transcription
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
@@ -535,7 +556,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
-    print("image_generation_helper: ", image_generation_helper)
+    audio_transcription_helper = get_audio_transcription_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -552,6 +573,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + agent_tools_note + chat_doc_query
-    # TODO: Also return image_generation_helper ? 
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + agent_tools_note + chat_doc_query
+    # TODO: Also return image_generation_helper and audio_transcription_helper ? 
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
