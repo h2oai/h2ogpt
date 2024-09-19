@@ -96,8 +96,8 @@ def make_image(prompt,
             height=image_size[0],
             width=image_size[1],
             num_inference_steps=image_num_inference_steps,
-            guidance_scale=image_guidance_scale
-                           ** extra1,
+            guidance_scale=image_guidance_scale,
+            **extra1,
         ).images
         if refiner:
             image = refiner(
@@ -105,8 +105,8 @@ def make_image(prompt,
                 height=image_size[0],
                 width=image_size[1],
                 num_inference_steps=image_num_inference_steps,
-                guidance_scale=image_guidance_scale
-                               ** extra2,
+                guidance_scale=image_guidance_scale,
+                **extra2,
                 image=image,
             ).images[0]
 
