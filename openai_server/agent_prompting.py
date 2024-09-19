@@ -508,7 +508,6 @@ def get_image_generation_helper():
     imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", '')
     if imagegen_url:
         cwd = os.path.abspath(os.getcwd())
-        base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
 
         if imagegen_url == "https://api.gpt.h2o.ai/v1":
             if os.getenv("IMAGEGEN_OPENAI_MODELS"):
@@ -577,7 +576,6 @@ def get_audio_transcription_helper():
         if not os.getenv("STT_OPENAI_MODEL"):
             os.environ["STT_OPENAI_MODEL"] = "whisper-1"
         cwd = os.path.abspath(os.getcwd())
-        base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
         audio_transcription = f"""\n* Audio transcription using python. Use for transcribing audio files to text.
     * For an audio transcription, you are recommended to use the existing pre-built python code, E.g.:
     ```sh

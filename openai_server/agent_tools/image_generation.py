@@ -2,16 +2,17 @@ import ast
 import base64
 import os
 import argparse
+import uuid
 
 
 def main():
     parser = argparse.ArgumentParser(description="Generate images from text prompts")
     parser.add_argument("--prompt", type=str, required=True, help="User prompt")
-    parser.add_argument("--model", type=str, help="Model name")
-    parser.add_argument("--output", type=str, default="output.jpg", help="Name of the output file")
-    parser.add_argument("--quality", type=str, choices=['standard', 'hd', 'quick', 'manual'], default='standard',
+    parser.add_argument("--model", type=str, required=False, help="Model name")
+    parser.add_argument("--output", type=str, required=False, default="output.jpg", help="Name of the output file")
+    parser.add_argument("--quality", type=str, required=False, choices=['standard', 'hd', 'quick', 'manual'], default='standard',
                         help="Image quality")
-    parser.add_argument("--size", type=str, default="1024x1024", help="Image size (height x width)")
+    parser.add_argument("--size", type=str, required=False, default="1024x1024", help="Image size (height x width)")
 
     imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", '')
     assert imagegen_url is not None, "IMAGEGEN_OPENAI_BASE_URL environment variable is not set"
@@ -118,17 +119,17 @@ def main():
     image_data = base64.b64decode(image_data_base64)
 
     # Save the image to a file
-    base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
-    # Create the directory if it doesn't exist
-    if not os.path.exists(base_path):
-        os.makedirs(base_path)
-    full_path = os.path.join(base_path, args.output)
+    if not args.output:
+        args.output = f"transcription_{uuid.uuid4()}.txt"
 
     # Write the image data to a file
-    with open(full_path, "wb") as img_file:
+    with open(args.output, "wb") as img_file:
         img_file.write(image_data)
 
-    print(f"Image successfully saved to the path: {full_path}")
+    full_path = os.path.abspath(args.output)
+    print(f"Image successfully saved to the file: {full_path}")
+
+    # NOTE: Could provide stats like image size, etc.
 
 
 if __name__ == "__main__":
