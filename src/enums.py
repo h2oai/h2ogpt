@@ -140,7 +140,7 @@ class LangChainAction(Enum):
     IMAGE_STYLE = "ImageStyle"
 
 
-valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'sd3', 'playv2', 'flux.1-dev']
+valid_imagegen_models = ['sdxl_turbo', 'sdxl', 'sd3', 'playv2', 'flux.1-dev', 'flux.1-schnell']
 valid_imagechange_models = ['sdxl_change']
 valid_imagestyle_models = ['sdxl_style']
 

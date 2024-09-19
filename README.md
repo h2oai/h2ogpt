@@ -4,6 +4,8 @@ Turn ★ into ⭐ (top-right corner) if you like the project!
 
 Query and summarize your documents or just chat with local private GPT LLMs using h2oGPT, an Apache V2 open-source project.
 
+Check out a long CoT Open-o1 open 🍓strawberry🍓 project: https://github.com/pseudotensor/open-strawberry
+
 ## Live Demo
 
 [![img-small.png](docs/img-small.png) Gradio Demo](https://gpt.h2o.ai/)
@@ -66,7 +68,10 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
   - JSON mode for some older OpenAI or Gemini models with schema control if model is smart enough (e.g. gemini 1.5 flash)
   - Any model via code block extraction
 - **Web-Search** integration with Chat and Document Q/A
-- **Agents** for Search, Document Q/A, Python Code, CSV frames (Experimental, best with OpenAI currently)
+- **Agents** for Search, Document Q/A, Python Code, CSV frames
+  - High quality Agents via OpenAI proxy server on separate port
+  - Code-first agent that generates plots, researches, evaluates images via vision model, etc. (client code openai_server/openai_client.py).
+  - No UI for this, just API
 - **Evaluate** performance using reward models
 - **Quality** maintained with over 1000 unit and integration tests taking over 24 GPU-hours
 

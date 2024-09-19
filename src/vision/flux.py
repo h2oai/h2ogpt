@@ -19,6 +19,17 @@ def get_pipe_make_image(gpu_id):
     return pipe
 
 
+def get_pipe_make_image_2(gpu_id):
+    device = get_device(gpu_id)
+
+    pipe = FluxPipeline.from_pretrained(
+        "black-forest-labs/FLUX.1-schnell",
+        torch_dtype=torch.bfloat16,
+    ).to(device)
+
+    return pipe
+
+
 def make_image(prompt, filename=None, gpu_id='auto', pipe=None, guidance_scale=3.0, height=1024, width=1024,
                num_inference_steps=50, max_sequence_length=512):
     if pipe is None:

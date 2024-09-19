@@ -708,6 +708,9 @@ def get_image_model_dict(enable_image,
                                                refiner_model=None)
             elif image_model_name == 'flux.1-dev':
                 from src.vision.flux import get_pipe_make_image, make_image
+            elif image_model_name == 'flux.1-schnell':
+                from src.vision.flux import get_pipe_make_image_2 as get_pipe_make_image
+                from src.vision.flux import make_image
             elif image_model_name == 'sdxl_change':
                 from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
                 make_image = change_image
