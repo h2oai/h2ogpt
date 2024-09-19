@@ -557,7 +557,7 @@ def get_image_generation_helper():
 ```sh
 # filename: my_image_generation.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --output "image.png" --model MODEL {extra_params}
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT"
 ```
 * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT [--output OUTPUT_FILE_NAME] [--model MODEL] [--quality QUALITY] [--size SIZE] {helper_style} {helper_guidance}
 * Available models: {models}
