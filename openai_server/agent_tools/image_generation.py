@@ -2,6 +2,7 @@ import ast
 import base64
 import os
 import argparse
+import tempfile
 import uuid
 
 
@@ -102,6 +103,7 @@ def main():
         "model": args.model,
         "quality": args.quality,
         "size": args.size,
+        "response_format": "b64_json",
     })
 
     if not is_openai:
@@ -115,8 +117,20 @@ def main():
 
     response = client.images.generate(**generation_params)
 
-    image_data_base64 = response.data[0].b64_json
-    image_data = base64.b64decode(image_data_base64)
+    if hasattr(response.data[0], 'revised_prompt') and response.data[0].revised_prompt:
+        print("Image Generator revised the prompt (this is expected): %s" % response.data[0].revised_prompt)
+
+    assert response.data[0].b64_json is not None or response.data[0].url is not None, "No image data returned"
+
+    if response.data[0].b64_json:
+        image_data_base64 = response.data[0].b64_json
+        image_data = base64.b64decode(image_data_base64)
+    else:
+        from src.utils import download_simple
+        dest = download_simple(response.data[0].url, overwrite=True)
+        with open(dest, "rb") as f:
+            image_data = f.read()
+        os.remove(dest)
 
     # Determine file type and name
     image_format = get_image_format(image_data)
