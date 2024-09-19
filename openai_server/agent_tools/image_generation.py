@@ -118,9 +118,15 @@ def main():
     image_data_base64 = response.data[0].b64_json
     image_data = base64.b64decode(image_data_base64)
 
-    # Save the image to a file
+    # Determine file type and name
+    image_format = get_image_format(image_data)
     if not args.output:
-        args.output = f"image_{str(uuid.uuid4())[:6]}.png"
+        args.output = f"image_{str(uuid.uuid4())[:6]}.{image_format}"
+    else:
+        # If an output path is provided, ensure it has the correct extension
+        base, ext = os.path.splitext(args.output)
+        if ext.lower() != f".{image_format}":
+            args.output = f"{base}.{image_format}"
 
     # Write the image data to a file
     with open(args.output, "wb") as img_file:
@@ -130,6 +136,14 @@ def main():
     print(f"Image successfully saved to the file: {full_path}")
 
     # NOTE: Could provide stats like image size, etc.
+
+
+def get_image_format(image_data):
+    from PIL import Image
+    import io
+    # Use PIL to determine the image format
+    with Image.open(io.BytesIO(image_data)) as img:
+        return img.format.lower()
 
 
 if __name__ == "__main__":
