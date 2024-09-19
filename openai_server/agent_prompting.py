@@ -548,9 +548,6 @@ python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --f
 * Quality options: {quality_options}
 * Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'
 * Style options: {style_options}{guidance_steps_string}
-* If you make an image, ensure you use python or shell code properly to generate the image file.
-* By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
-* The IMAGEGEN_OPENAI_BASE_URL is set to: {imagegen_url}
 """
     else:
         image_generation = (
@@ -575,8 +572,6 @@ def get_audio_transcription_helper():
     python {cwd}/openai_server/agent_tools/audio_transcription.py --file_path "./audio.wav"
     ```
     * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --file_path FILE_PATH
-    * If you make an audio transcription, ensure you use python or shell code properly to generate the text file.
-    * By default the text file will be saved in the base directory: {base_path}, you can read the text file from there.
     """
     else:
         audio_transcription = (
