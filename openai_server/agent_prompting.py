@@ -76,10 +76,12 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
 * You DO have access to the internet.{serp}{papers_search}{wolframalpha}{news_api}
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
-* Do not generate code that requires any API keys or credentials that were not already given."""
+* Do not generate code that requires any API keys or credentials that were not already given.
+* You CAN use API and API keys given to you by user or in any document context and you CAN run code using those API keys."""
         else:
             apis = """\nAPIs and external services instructions:
-* You DO NOT have access to the internet.  You cannot use any APIs that require internet access."""
+* You DO NOT have access to the internet.  You cannot use any APIs that require broad internet access.
+* You CAN use API and API keys given to you by user or in any document context and you CAN run code using those API keys."""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 * {date_str}
 Query understanding instructions:
