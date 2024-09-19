@@ -550,6 +550,8 @@ python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --f
 * Available models: {models}
 * Quality options: {quality_options}
 * Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'{style_options}{guidance_steps_string}
+* Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
+# However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
 """
     else:
         image_generation = (
