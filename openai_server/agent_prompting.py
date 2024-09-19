@@ -509,12 +509,12 @@ def get_image_generation_helper():
     if imagegen_url:
         cwd = os.path.abspath(os.getcwd())
 
+        quality_string = "[--quality {quality}]"
         if imagegen_url == "https://api.gpt.h2o.ai/v1":
             if os.getenv("IMAGEGEN_OPENAI_MODELS"):
                 models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
             else:
                 models = "['flux.1-schnell', 'playv2']"
-            extra_params = "--quality {quality} --size {size} --style {style} --guidance_scale {guidance_scale} --num_inference_steps {num_inference_steps}"
             quality_options = "['standard', 'hd', 'quick', 'manual']"
             style_options = "* Choose playv2 model for more artistic renderings, flux.1-schnell for more accurate renderings."
             guidance_steps_string = """
@@ -528,7 +528,6 @@ def get_image_generation_helper():
                 models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
             else:
                 models = "['dall-e-2', 'dall-e-3']"
-            extra_params = "--quality {quality} --size {size} --style {style}"
             quality_options = "['standard', 'hd']"
             style_options = """
 * Style options: ['vivid', 'natural']"""
@@ -540,7 +539,6 @@ def get_image_generation_helper():
             helper_guidance = """"""
         else:
             models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))  # must be set then
-            extra_params = "--quality {quality} --size {size} --style {style} --guidance_scale {guidance_scale} --num_inference_steps {num_inference_steps}"
             quality_options = "['standard', 'hd', 'quick', 'manual']"
             style_options = ""
             # probably local host or local pod, so allow
@@ -558,12 +556,13 @@ def get_image_generation_helper():
 # execution: true
 python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT"
 ```
-* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT [--output OUTPUT_FILE_NAME] [--model MODEL] [--quality QUALITY] [--size SIZE] {helper_style} {helper_guidance}
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT [--output OUTPUT_FILE_NAME] [--model MODEL] {quality_string} {helper_style} {helper_guidance}
 * Available models: {models}
 * Quality options: {quality_options}{size_info}{style_options}{guidance_steps_string}
 * As a helpful assistant, you will convert the user's requested image generation prompt into an excellent prompt, unless the user directly requests a specific prompt be used for image generation.
 * Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
-# However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
+* However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
+* Do not do an image_query on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image.
 """
     else:
         image_generation = ''
