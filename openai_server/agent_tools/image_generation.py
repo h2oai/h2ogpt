@@ -122,7 +122,7 @@ def main():
     # Create the directory if it doesn't exist
     if not os.path.exists(base_path):
         os.makedirs(base_path)
-    full_path = os.path.join(base_path, args.file_name)
+    full_path = os.path.join(base_path, args.output)
 
     # Write the image data to a file
     with open(full_path, "wb") as img_file:
