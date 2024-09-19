@@ -514,10 +514,10 @@ def get_image_generation_helper():
             if os.getenv("IMAGEGEN_OPENAI_MODELS"):
                 models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
             else:
-                models = "['playv2', 'flux.1-schnell']"
+                models = "['flux.1-schnell', 'playv2']"
             extra_params = "--quality {quality} --size {size} --style {style} --guidance_scale {guidance_scale} --num_inference_steps {num_inference_steps}"
             quality_options = "['standard', 'hd', 'quick', 'manual']"
-            style_options = "['vivid', 'natural', 'artistic']"
+            style_options = "* Choose playv2 model for more artistic renderings, flux.1-schnell for more accurate renderings."
             guidance_steps_string = """
 * Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
         elif imagegen_url == "https://api.openai.com/v1":
@@ -527,14 +527,17 @@ def get_image_generation_helper():
                 models = "['dall-e-2', 'dall-e-3']"
             extra_params = "--quality {quality} --size {size} --style {style}"
             quality_options = "['standard', 'hd']"
-            style_options = "['vivid', 'natural']"
+            style_options = """
+* Style options: ['vivid', 'natural']"""
             guidance_steps_string = ''
         else:
             models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))  # must be set then
-            extra_params = "--quality {quality} --size {size} --style {style}"
+            extra_params = "--quality {quality} --size {size} --style {style} --guidance_scale {guidance_scale} --num_inference_steps {num_inference_steps}"
             quality_options = "['standard', 'hd', 'quick', 'manual']"
-            style_options = "['vivid', 'natural', 'artistic']"
-            guidance_steps_string = ''
+            style_options = ""
+            # probably local host or local pod, so allow
+            guidance_steps_string = """
+* Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
 
         image_generation = f"""\n* Image generation using python. Use for generating images from prompt.
 * For image generation, you are recommended to use the existing pre-built python code, E.g.:
@@ -546,8 +549,7 @@ python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --f
 * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE_NAME [--model MODEL] [--quality QUALITY] [--size SIZE] [--style STYLE] [--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]
 * Available models: {models}
 * Quality options: {quality_options}
-* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'
-* Style options: {style_options}{guidance_steps_string}
+* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'{style_options}{guidance_steps_string}
 """
     else:
         image_generation = (

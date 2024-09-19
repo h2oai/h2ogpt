@@ -26,14 +26,14 @@ def main():
     client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
 
     if imagegen_url == "https://api.gpt.h2o.ai/v1":
-        available_models = ['playv2', 'flux.1-schnell']
+        available_models = ['flux.1-schnell', 'playv2']
         if os.getenv('IMAGEGEN_OPENAI_MODELS'):
             # allow override
             available_models = ast.literal_eval(os.getenv('IMAGEGEN_OPENAI_MODELS'))
         if not args.model:
-            args.model = available_models[1]
+            args.model = available_models[0]
         if args.model not in available_models:
-            args.model = available_models[1]
+            args.model = available_models[0]
     elif imagegen_url == "https://api.openai.com/v1":
         # https://platform.openai.com/docs/api-reference/images/create
         available_models = ['dall-e-2', 'dall-e-3']
@@ -65,7 +65,8 @@ def main():
         assert available_models, "IMAGEGEN_OPENAI_MODELS environment variable is not set, must be for this server"
         if args.model is None:
             args.model = available_models[0]
-        assert args.model in available_models, "model %s not among available_models=%s" % (args.model, available_models)
+        if args.model not in available_models:
+            args.model = available_models[0]
 
     generation_params = {
         "prompt": args.prompt,
