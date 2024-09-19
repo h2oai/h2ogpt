@@ -4,7 +4,7 @@ import filelock
 import torch
 
 from src.utils import makedirs
-from src.vision.sdxl import get_device
+from src.vision.sdxl_turbo import get_device
 
 
 def get_pipe_make_image(gpu_id, refine=True,
@@ -57,10 +57,24 @@ def make_image(prompt,
                filename=None,
                gpu_id='auto',
                pipe=None,
-               guidance_scale=3.0,
+               image_size="1024x1024",
+               image_quality='standard',
+               image_guidance_scale=3.0,
                base_model=None,
                refiner_model=None,
-               n_steps=40, high_noise_frac=0.8):
+               image_num_inference_steps=40, high_noise_frac=0.8):
+    if image_quality == 'manual':
+        # listen to guidance_scale and num_inference_steps passed in
+        pass
+    else:
+        if image_quality == 'quick':
+            image_num_inference_steps = 10
+            image_size = "512x512"
+        elif image_quality == 'standard':
+            image_num_inference_steps = 20
+        elif image_quality == 'hd':
+            image_num_inference_steps = 50
+
     if pipe is None:
         base, refiner, extra1, extra2 = get_pipe_make_image(gpu_id=gpu_id,
                                                             base_model=base_model,
@@ -79,13 +93,19 @@ def make_image(prompt,
         # run both experts
         image = base(
             prompt=prompt,
-            num_inference_steps=n_steps,
+            height=image_size.lower().split('x')[0],
+            width=image_size.lower().split('x')[1],
+            num_inference_steps=image_num_inference_steps,
+            guidance_scale=image_guidance_scale,
             **extra1,
         ).images
         if refiner:
             image = refiner(
                 prompt=prompt,
-                num_inference_steps=n_steps,
+                height=image_size.lower().split('x')[0],
+                width=image_size.lower().split('x')[1],
+                num_inference_steps=image_num_inference_steps,
+                guidance_scale=image_guidance_scale,
                 **extra2,
                 image=image,
             ).images[0]

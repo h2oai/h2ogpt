@@ -85,7 +85,7 @@ from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_
     get_model_max_length_from_tokenizer, \
     get_model_retry, remove_refs, model_name_to_prompt_type
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
-    input_args_list
+    input_args_list, image_quality_choices, image_size_default
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -742,6 +742,10 @@ def go_gradio(**kwargs):
                                        filterable=False,
                                        max_choices=None,
                                        )
+    image_quality_kwargs = dict(choices=image_quality_choices, label="Image Quality", value=image_quality_choices[0], visible=not is_public)
+    image_size_kwargs = dict(value=image_size_default, label="Image Size", visible=not is_public)
+    image_guidance_kwargs = dict(label="Image generation guidance", value=3.0, visible=not is_public)
+    image_num_inference_steps_kwargs = dict(label="Image generation inference steps", value=50, visible=not is_public)
 
     with demo:
         support_state_callbacks = hasattr(gr.State(), 'callback')
@@ -1394,6 +1398,10 @@ def go_gradio(**kwargs):
                 with image_tab:
                     if image_tab_visible:
                         visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
+                        image_size = gr.Textbox(**image_size_kwargs)
+                        image_quality = gr.Dropdown(**image_quality_kwargs)
+                        image_guidance_scale = gr.Number(**image_guidance_kwargs)
+                        image_num_inference_steps = gr.Number(**image_num_inference_steps_kwargs)
                     with gr.Row(visible=image_control_panels_visible):
                         image_control = gr.Image(label="Input Image", type='filepath', elem_id="warning",
                                                  elem_classes="feedback")
@@ -1910,6 +1918,14 @@ def go_gradio(**kwargs):
                                                         **noqueue_kwargs2,
                                                         )
 
+                    imagegen_control_visible = not image_tab_visible
+                    markdown_label = "Image Generation Control"
+                    gr.Markdown(markdown_label, visible=audio_visible)
+                    with gr.Row(visible=imagegen_control_visible):
+                        image_size = gr.Textbox(**image_size_kwargs)
+                        image_quality = gr.Dropdown(**image_quality_kwargs)
+                        image_guidance_scale = gr.Number(**image_guidance_kwargs)
+                        image_num_inference_steps = gr.Number(**image_num_inference_steps_kwargs)
                 models_tab = gr.TabItem("Models", visible=kwargs['visible_models_tab']) if kwargs[
                     'visible_models_tab'] else gr.Row(visible=False)
                 with models_tab:

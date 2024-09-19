@@ -1,3 +1,4 @@
+import ast
 import os
 import tempfile
 import time
@@ -76,10 +77,12 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
 * You DO have access to the internet.{serp}{papers_search}{wolframalpha}{news_api}
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * Only generate code with API code that uses publicly available APIs or uses API keys already given.
-* Do not generate code that requires any API keys or credentials that were not already given."""
+* Do not generate code that requires any API keys or credentials that were not already given.
+* You CAN use API and API keys given to you by user or in any document context and you CAN run code using those API keys."""
         else:
             apis = """\nAPIs and external services instructions:
-* You DO NOT have access to the internet.  You cannot use any APIs that require internet access."""
+* You DO NOT have access to the internet.  You cannot use any APIs that require broad internet access.
+* You CAN use API and API keys given to you by user or in any document context and you CAN run code using those API keys."""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 * {date_str}
 Query understanding instructions:
@@ -448,7 +451,6 @@ def get_image_query_helper(base_url, api_key, model):
     model_list = client.models.list()
     image_models = [x.id for x in model_list if x.model_extra['actually_image']]
     we_are_vision_model = len([x for x in model_list if x.id == model]) > 0
-    image_query_helper = ''
     if we_are_vision_model:
         vision_model = model
     elif not we_are_vision_model and len(image_models) > 0:
@@ -501,6 +503,91 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
     return mmdc
 
 
+def get_image_generation_helper():
+    imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", '')
+    if imagegen_url:
+        cwd = os.path.abspath(os.getcwd())
+
+        quality_string = "[--quality {quality}]"
+        if imagegen_url == "https://api.gpt.h2o.ai/v1":
+            if os.getenv("IMAGEGEN_OPENAI_MODELS"):
+                models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
+            else:
+                models = "['flux.1-schnell', 'playv2']"
+            quality_options = "['standard', 'hd', 'quick', 'manual']"
+            style_options = "* Choose playv2 model for more artistic renderings, flux.1-schnell for more accurate renderings."
+            guidance_steps_string = """
+* Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
+            size_info = """
+* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'"""
+            helper_style = """"""
+            helper_guidance = """[--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]"""
+        elif imagegen_url == "https://api.openai.com/v1" or 'openai.azure.com' in imagegen_url:
+            if os.getenv("IMAGEGEN_OPENAI_MODELS"):
+                models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
+            else:
+                models = "['dall-e-2', 'dall-e-3']"
+            quality_options = "['standard', 'hd']"
+            style_options = """
+* Style options: ['vivid', 'natural']"""
+            guidance_steps_string = ''
+            size_info = """
+* Size allowed for dall-e-2: ['256x256', '512x512', '1024x1024']
+* Size allowed for dall-e-3: ['1024x1024', '1792x1024', '1024x1792']"""
+            helper_style = """[--style STYLE]"""
+            helper_guidance = """"""
+        else:
+            models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))  # must be set then
+            quality_options = "['standard', 'hd', 'quick', 'manual']"
+            style_options = ""
+            # probably local host or local pod, so allow
+            guidance_steps_string = """
+* Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
+            size_info = """
+* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'"""
+            helper_style = """"""
+            helper_guidance = """[--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]"""
+
+        image_generation = f"""\n* Image generation using python. Use for generating images from prompt.
+* For image generation, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_image_generation.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT"
+```
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT [--output OUTPUT_FILE_NAME] [--model MODEL] {quality_string} {helper_style} {helper_guidance}
+* Available models: {models}
+* Quality options: {quality_options}{size_info}{style_options}{guidance_steps_string}
+* As a helpful assistant, you will convert the user's requested image generation prompt into an excellent prompt, unless the user directly requests a specific prompt be used for image generation.
+* Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
+* However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
+* Do not do an image_query on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image generated.
+"""
+    else:
+        image_generation = ''
+    return image_generation
+
+
+def get_audio_transcription_helper():
+    stt_url = os.getenv("STT_OPENAI_BASE_URL", '')
+    if stt_url:
+        if not os.getenv("STT_OPENAI_MODEL"):
+            os.environ["STT_OPENAI_MODEL"] = "whisper-1"
+        cwd = os.path.abspath(os.getcwd())
+        audio_transcription = f"""\n* Audio transcription using python. Use for transcribing audio files to text.
+    * For an audio transcription, you are recommended to use the existing pre-built python code, E.g.:
+    ```sh
+    # filename: my_audio_transcription.sh
+    # execution: true
+    python {cwd}/openai_server/agent_tools/audio_transcription.py --file_path "./audio.wav"
+    ```
+    * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --file_path FILE_PATH
+    """
+    else:
+        audio_transcription = ''
+    return audio_transcription
+
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
@@ -508,6 +595,8 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
+    image_generation_helper = get_image_generation_helper()
+    audio_transcription_helper = get_audio_transcription_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -524,5 +613,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + agent_tools_note + chat_doc_query
+    # TODO: Also return image_generation_helper and audio_transcription_helper ? 
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper

@@ -34,6 +34,10 @@ def run_eval(  # for local function:
         enable_pdf_doctr=None,
         enable_image=None,
         visible_image_models=None,
+        image_size=None,
+        image_quality=None,
+        image_guidance_scale=None,
+        image_num_inference_steps=None,
 
         try_pdf_as_html=None,
         # for evaluate args beyond what's already above, or things that are always dynamic and locally created

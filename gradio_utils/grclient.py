@@ -15,7 +15,7 @@ from datetime import timedelta
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Callable, Generator, Any, Union, List, Dict, Literal
+from typing import Callable, Generator, Any, Union, List, Dict, Literal, Tuple
 import ast
 import inspect
 import numpy as np
@@ -798,6 +798,10 @@ class GradioClient(Client):
         tts_language: str = "autodetect",
         tts_speed: float = 1.0,
         visible_image_models: List[str] = [],
+        image_size: str = "1024x1024",
+        image_quality: str = 'standard',
+        image_guidance_scale: float = 3.0,
+        image_num_inference_steps: int = 30,
         visible_models: Union[str, int, list] = None,
         # don't use the below (no doc string stuff) block
         num_return_sequences: int = None,
@@ -976,6 +980,10 @@ class GradioClient(Client):
             :param tts_speed: Default speed of TTS, < 1.0 (needs rubberband) for slower than normal, > 1.0 for faster.  Tries to keep fixed pitch.
 
             :param visible_image_models: Which image gen models to include
+            :param image_size
+            :param image_quality
+            :param image_guidance_scale
+            :param image_num_inference_steps
             :param visible_models: Which models in model_lock list to show by default
                    Takes integers of position in model_lock (model_states) list or strings of base_model names
                    Ignored if model_lock not used

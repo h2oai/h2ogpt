@@ -32,7 +32,7 @@ https://github.com/h2oai/h2ogpt/assets/2249614/2f805035-2c85-42fb-807f-fd0bca79a
 - **Gradio UI** or CLI with streaming of all models
   - **Upload** and **View** documents through the UI (control multiple collaborative or personal collections)
   - **Vision Models** LLaVa, Claude-3, Gemini-Pro-Vision, GPT-4-Vision
-  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl, SD3) and PlaygroundAI (playv2)
+  - **Image Generation** Stable Diffusion (sdxl-turbo, sdxl, SD3), PlaygroundAI (playv2), and Flux
   - **Voice STT** using Whisper with streaming audio conversion
   - **Voice TTS** using MIT-Licensed Microsoft Speech T5 with multiple voices and Streaming audio conversion
   - **Voice TTS** using MPL2-Licensed TTS including Voice Cloning and Streaming audio conversion
