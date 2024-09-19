@@ -562,7 +562,7 @@ python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT"
 * As a helpful assistant, you will convert the user's requested image generation prompt into an excellent prompt, unless the user directly requests a specific prompt be used for image generation.
 * Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
 * However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
-* Do not do an image_query on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image.
+* Do not do an image_query on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image generated.
 """
     else:
         image_generation = ''
