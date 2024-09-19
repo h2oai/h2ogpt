@@ -554,15 +554,12 @@ python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --f
 # However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
 """
     else:
-        image_generation = (
-            "There is no available image generation tool, so you cannot generate images. "
-            "You cannot try other approaches to generate images either."
-        )
+        image_generation = ''
     return image_generation
 
 
 def get_audio_transcription_helper():
-    stt_url = os.getenv("STT_OPENAI_BASE_URL", None)
+    stt_url = os.getenv("STT_OPENAI_BASE_URL", '')
     if stt_url:
         if not os.getenv("STT_OPENAI_MODEL"):
             os.environ["STT_OPENAI_MODEL"] = "whisper-1"
@@ -578,9 +575,7 @@ def get_audio_transcription_helper():
     * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --file_path FILE_PATH
     """
     else:
-        audio_transcription = (
-            "There is no available audio transcription tool, so you can not transcribe audio. "
-        )
+        audio_transcription = ''
     return audio_transcription
 
 
