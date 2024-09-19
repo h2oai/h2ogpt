@@ -504,7 +504,6 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
 def get_image_generation_helper():
     imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", None)
     if imagegen_url:
-        # TODO: When available, get the model from the url
         if not os.getenv("IMAGEGEN_OPENAI_MODEL"):
             os.environ["IMAGEGEN_OPENAI_MODEL"] = "flux.1-schnell"
 
@@ -531,7 +530,10 @@ def get_image_generation_helper():
 def get_audio_transcription_helper():
     stt_url = os.getenv("STT_OPENAI_BASE_URL", None)
     if stt_url:
+        if not os.getenv("STT_OPENAI_MODEL"):
+            os.environ["STT_OPENAI_MODEL"] = "whisper-1"
         cwd = os.path.abspath(os.getcwd())
+        base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
         audio_transcription = f"""\n* Audio transcription using python. Use for transcribing audio files to text.
     * For an audio transcription, you are recommended to use the existing pre-built python code, E.g.:
     ```sh
@@ -541,6 +543,7 @@ def get_audio_transcription_helper():
     ```
     * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --file_path FILE_PATH
     * If you make an audio transcription, ensure you use python or shell code properly to generate the text file.
+    * By default the text file will be saved in the base directory: {base_path}, you can read the text file from there.
     """
     else:
         audio_transcription = (
