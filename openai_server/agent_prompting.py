@@ -520,6 +520,10 @@ def get_image_generation_helper():
             style_options = "* Choose playv2 model for more artistic renderings, flux.1-schnell for more accurate renderings."
             guidance_steps_string = """
 * Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
+            size_info = """
+* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'"""
+            helper_style = """"""
+            helper_guidance = """[--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]"""
         elif imagegen_url == "https://api.openai.com/v1" or 'openai.azure.com' in imagegen_url:
             if os.getenv("IMAGEGEN_OPENAI_MODELS"):
                 models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
@@ -530,6 +534,11 @@ def get_image_generation_helper():
             style_options = """
 * Style options: ['vivid', 'natural']"""
             guidance_steps_string = ''
+            size_info = """
+* Size allowed for dall-e-2: ['256x256', '512x512', '1024x1024']
+* Size allowed for dall-e-3: ['1024x1024', '1792x1024', '1024x1792']"""
+            helper_style = """[--style STYLE]"""
+            helper_guidance = """"""
         else:
             models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))  # must be set then
             extra_params = "--quality {quality} --size {size} --style {style} --guidance_scale {guidance_scale} --num_inference_steps {num_inference_steps}"
@@ -538,6 +547,10 @@ def get_image_generation_helper():
             # probably local host or local pod, so allow
             guidance_steps_string = """
 * Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
+            size_info = """
+* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'"""
+            helper_style = """"""
+            helper_guidance = """[--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]"""
 
         image_generation = f"""\n* Image generation using python. Use for generating images from prompt.
 * For image generation, you are recommended to use the existing pre-built python code, E.g.:
@@ -546,10 +559,10 @@ def get_image_generation_helper():
 # execution: true
 python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --output "image.png" --model MODEL {extra_params}
 ```
-* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --output OUTPUT_FILE_NAME [--model MODEL] [--quality QUALITY] [--size SIZE] [--style STYLE] [--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT [--output OUTPUT_FILE_NAME] [--model MODEL] [--quality QUALITY] [--size SIZE] {helper_style} {helper_guidance}
 * Available models: {models}
-* Quality options: {quality_options}
-* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'{style_options}{guidance_steps_string}
+* Quality options: {quality_options}{size_info}{style_options}{guidance_steps_string}
+* As a helpful assistant, you will convert the user's requested image generation prompt into an excellent prompt, unless the user directly requests a specific prompt be used for image generation.
 * Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
 # However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
 """

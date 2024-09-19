@@ -12,7 +12,6 @@ def main():
     parser.add_argument("--quality", type=str, choices=['standard', 'hd', 'quick', 'manual'], default='standard',
                         help="Image quality")
     parser.add_argument("--size", type=str, default="1024x1024", help="Image size (height x width)")
-    args = parser.parse_args()
 
     imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", '')
     assert imagegen_url is not None, "IMAGEGEN_OPENAI_BASE_URL environment variable is not set"
@@ -21,6 +20,7 @@ def main():
     if imagegen_url == "https://api.gpt.h2o.ai/v1":
         parser.add_argument("--guidance_scale", type=float, help="Guidance scale for image generation")
         parser.add_argument("--num_inference_steps", type=int, help="Number of inference steps")
+        args = parser.parse_args()
         from openai import OpenAI
         client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
         available_models = ['flux.1-schnell', 'playv2']
@@ -34,6 +34,7 @@ def main():
     elif imagegen_url == "https://api.openai.com/v1" or 'openai.azure.com' in imagegen_url:
         parser.add_argument("--style", type=str, choices=['vivid', 'natural', 'artistic'], default='vivid',
                             help="Image style")
+        args = parser.parse_args()
         # https://platform.openai.com/docs/api-reference/images/create
         available_models = ['dall-e-3', 'dall-e-2']
         # assumes deployment name matches model name, unless override
@@ -75,6 +76,8 @@ def main():
     else:
         parser.add_argument("--guidance_scale", type=float, help="Guidance scale for image generation")
         parser.add_argument("--num_inference_steps", type=int, help="Number of inference steps")
+        args = parser.parse_args()
+
         from openai import OpenAI
         client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
         assert os.getenv('IMAGEGEN_OPENAI_MODELS'), "IMAGEGEN_OPENAI_MODELS environment variable is not set"
