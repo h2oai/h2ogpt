@@ -35,6 +35,7 @@ def main():
             print(f"Warning: Model {args.model} not in available models {available_models}. Using default.")
             args.model = available_models[0]
     elif imagegen_url == "https://api.openai.com/v1":
+        # https://platform.openai.com/docs/api-reference/images/create
         available_models = ['dall-e-2', 'dall-e-3']
         if args.model not in available_models:
             print(f"Warning: Model {args.model} not in available models {available_models}. Using default.")
