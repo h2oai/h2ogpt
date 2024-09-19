@@ -1,3 +1,4 @@
+import ast
 import os
 import tempfile
 import time
@@ -504,30 +505,60 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
 
 
 def get_image_generation_helper():
-    imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", None)
+    imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", '')
     if imagegen_url:
-        if not os.getenv("IMAGEGEN_OPENAI_MODEL"):
-            os.environ["IMAGEGEN_OPENAI_MODEL"] = "flux.1-schnell"
-
         cwd = os.path.abspath(os.getcwd())
         base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
-        image_generation = f"""\n* Image generation using python. Use  for generating GenAI based images.
-    * For an image generation, you are recommended to use the existing pre-built python code, E.g.:
-    ```sh
-    # filename: my_image_generation.sh
-    # execution: true
-    python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png" --artistic=False
-    ```
-    * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE_NAME
-    * If you make an image, ensure you use python or shell code properly to generate the image file.
-    * By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
-    """
+
+        if imagegen_url == "https://api.gpt.h2o.ai/v1":
+            if os.getenv("IMAGEGEN_OPENAI_MODELS"):
+                models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
+            else:
+                models = "['playv2', 'flux.1-schnell']"
+            extra_params = "--quality {quality} --size {size} --style {style} --guidance_scale {guidance_scale} --num_inference_steps {num_inference_steps}"
+            quality_options = "['standard', 'hd', 'quick', 'manual']"
+            style_options = "['vivid', 'natural', 'artistic']"
+            guidance_steps_string = """
+* Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
+        elif imagegen_url == "https://api.openai.com/v1":
+            if os.getenv("IMAGEGEN_OPENAI_MODELS"):
+                models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
+            else:
+                models = "['dall-e-2', 'dall-e-3']"
+            extra_params = "--quality {quality} --size {size} --style {style}"
+            quality_options = "['standard', 'hd']"
+            style_options = "['vivid', 'natural']"
+            guidance_steps_string = ''
+        else:
+            models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))  # must be set then
+            extra_params = "--quality {quality} --size {size} --style {style}"
+            quality_options = "['standard', 'hd', 'quick', 'manual']"
+            style_options = "['vivid', 'natural', 'artistic']"
+            guidance_steps_string = ''
+
+        image_generation = f"""\n* Image generation using python. Use for generating images from prompt.
+* For image generation, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_image_generation.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png" --model MODEL {extra_params}
+```
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE_NAME [--model MODEL] [--quality QUALITY] [--size SIZE] [--style STYLE] [--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]
+* Available models: {models}
+* Quality options: {quality_options}
+* Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'
+* Style options: {style_options}{guidance_steps_string}
+* If you make an image, ensure you use python or shell code properly to generate the image file.
+* By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
+* The IMAGEGEN_OPENAI_BASE_URL is set to: {imagegen_url}
+"""
     else:
         image_generation = (
-            "There is no available image generation tool, so you can not generate images. "
-            "You can not try other approaches to generate images either."
-            )
+            "There is no available image generation tool, so you cannot generate images. "
+            "You cannot try other approaches to generate images either."
+        )
     return image_generation
+
 
 def get_audio_transcription_helper():
     stt_url = os.getenv("STT_OPENAI_BASE_URL", None)
@@ -552,6 +583,7 @@ def get_audio_transcription_helper():
             "There is no available audio transcription tool, so you can not transcribe audio. "
         )
     return audio_transcription
+
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):

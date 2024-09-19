@@ -1,3 +1,4 @@
+import ast
 import base64
 import os
 import argparse
@@ -22,24 +23,27 @@ def main():
     assert imagegen_url is not None, "IMAGEGEN_OPENAI_BASE_URL environment variable is not set"
     server_api_key = os.getenv('IMAGEGEN_OPENAI_API_KEY', 'EMPTY')
 
-    if not args.model:
-        imagegen_model = os.getenv('IMAGEGEN_OPENAI_MODEL')
-        assert imagegen_model is not None, "IMAGEGEN_OPENAI_MODEL environment variable is not set"
-        args.model = imagegen_model
-
     client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
 
     if imagegen_url == "https://api.gpt.h2o.ai/v1":
         available_models = ['playv2', 'flux.1-schnell']
+        if os.getenv('IMAGEGEN_OPENAI_MODELS'):
+            # allow override
+            available_models = ast.literal_eval(os.getenv('IMAGEGEN_OPENAI_MODELS'))
+        if not args.model:
+            args.model = available_models[1]
         if args.model not in available_models:
-            print(f"Warning: Model {args.model} not in available models {available_models}. Using default.")
-            args.model = available_models[0]
+            args.model = available_models[1]
     elif imagegen_url == "https://api.openai.com/v1":
         # https://platform.openai.com/docs/api-reference/images/create
         available_models = ['dall-e-2', 'dall-e-3']
+        if os.getenv('IMAGEGEN_OPENAI_MODELS'):
+            # allow override
+            available_models = ast.literal_eval(os.getenv('IMAGEGEN_OPENAI_MODELS'))
+        if not args.model:
+            args.model = available_models[1]
         if args.model not in available_models:
-            print(f"Warning: Model {args.model} not in available models {available_models}. Using default.")
-            args.model = 'dall-e-2'
+            args.model = 'dall-e-3'
 
         max_chars = 1000 if args.model == 'dall-e-2' else 4000
         args.prompt = args.prompt[:max_chars]
@@ -55,6 +59,13 @@ def main():
 
         args.quality = 'standard' if args.quality not in ['standard', 'hd'] else args.quality
         args.style = 'vivid' if args.style not in ['vivid', 'natural'] else args.style
+    else:
+        assert os.getenv('IMAGEGEN_OPENAI_MODELS'), "IMAGEGEN_OPENAI_MODELS environment variable is not set"
+        available_models = ast.literal_eval(os.getenv('IMAGEGEN_OPENAI_MODELS'))  # must be string of list of strings
+        assert available_models, "IMAGEGEN_OPENAI_MODELS environment variable is not set, must be for this server"
+        if args.model is None:
+            args.model = available_models[0]
+        assert args.model in available_models, "model %s not among available_models=%s" % (args.model, available_models)
 
     generation_params = {
         "prompt": args.prompt,
