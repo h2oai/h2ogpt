@@ -10,7 +10,7 @@ def main():
     # Model
     parser.add_argument("--model", type=str, required=False, help="Model name")
     # File name
-    parser.add_argument("--output", type=str, required=False, help="Path (ensure unique) to the audio file")
+    parser.add_argument("--output", type=str, default='', required=False, help="Path (ensure unique) to the audio file")
     args = parser.parse_args()
     ##
     stt_url = os.getenv("STT_OPENAI_BASE_URL", None)
@@ -31,7 +31,7 @@ def main():
     )
     # Save the image to a file
     if not args.output:
-        args.output = f"transcription_{uuid.uuid4()}.txt"
+        args.output = f"transcription_{uuid.uuid4()[:6]}.txt"
     # Write the transcription to a file
     with open(args.output, "wt") as txt_file:
         txt_file.write(transcription.text)

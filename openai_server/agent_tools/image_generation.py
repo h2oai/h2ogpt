@@ -9,7 +9,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate images from text prompts")
     parser.add_argument("--prompt", type=str, required=True, help="User prompt")
     parser.add_argument("--model", type=str, required=False, help="Model name")
-    parser.add_argument("--output", type=str, required=False, default="output.jpg", help="Name of the output file")
+    parser.add_argument("--output", type=str, required=False, default="", help="Name (unique) of the output file")
     parser.add_argument("--quality", type=str, required=False, choices=['standard', 'hd', 'quick', 'manual'], default='standard',
                         help="Image quality")
     parser.add_argument("--size", type=str, required=False, default="1024x1024", help="Image size (height x width)")
@@ -120,7 +120,7 @@ def main():
 
     # Save the image to a file
     if not args.output:
-        args.output = f"transcription_{uuid.uuid4()}.txt"
+        args.output = f"image_{uuid.uuid4()[:6]}.txt"
 
     # Write the image data to a file
     with open(args.output, "wb") as img_file:

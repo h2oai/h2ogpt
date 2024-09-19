@@ -451,7 +451,6 @@ def get_image_query_helper(base_url, api_key, model):
     model_list = client.models.list()
     image_models = [x.id for x in model_list if x.model_extra['actually_image']]
     we_are_vision_model = len([x for x in model_list if x.id == model]) > 0
-    image_query_helper = ''
     if we_are_vision_model:
         vision_model = model
     elif not we_are_vision_model and len(image_models) > 0:
