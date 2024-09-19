@@ -84,6 +84,10 @@ eval_func_param_names = (
         + [
             "visible_models",
             "visible_image_models",
+            "image_size",
+            "image_quality",
+            "image_guidance_scale",
+            "image_num_inference_steps",
             "h2ogpt_key",
             "add_search_to_context",
             "chat_conversation",
@@ -143,3 +147,6 @@ in_model_state_and_evaluate = ['prompt_type', 'prompt_dict', 'chat_template',
                                'visible_models', 'h2ogpt_key', 'images_num_max',
                                'image_resolution',
                                'image_format', 'video_frame_period', 'visible_vision_models']
+
+image_quality_choices = ['standard', 'hd', 'quick', 'manual']
+image_size_default = "1024x1024"

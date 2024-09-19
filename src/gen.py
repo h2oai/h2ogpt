@@ -61,7 +61,8 @@ from db_utils import fetch_user
 from model_utils import switch_a_roo_llama, get_score_model, get_model_retry, get_model, \
     get_client_from_inference_server, model_lock_to_state
 
-from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list
+from evaluate_params import eval_func_param_names, no_default_param_names, input_args_list, image_size_default, \
+    image_quality_choices
 from enums import DocumentSubset, LangChainMode, no_lora_str, no_model_str, \
     LangChainAction, LangChainAgent, DocumentChoice, LangChainTypes, super_source_prefix, \
     super_source_postfix, t5_type, get_langchain_prompts, gr_to_lg, invalid_key_msg, docs_joiner_default, \
@@ -523,6 +524,10 @@ def main(
 
         enable_image: bool = False,
         visible_image_models: typing.List[str] = [],
+        image_size: str = image_size_default,
+        image_quality: str = 'standard',
+        image_guidance_scale: float = 3.0,
+        image_num_inference_steps: int = 30,
         image_gpu_ids: typing.List[Union[str, int]] = None,
         enable_llava_chat: bool = False,
 
@@ -1357,6 +1362,10 @@ def main(
 
     :param enable_image: Whether to enable image generation model
     :param visible_image_models: Which image gen models to include
+    :param image_size
+    :param image_quality
+    :param image_guidance_scale
+    :param image_num_inference_steps
     :param image_gpu_ids: GPU ids to use for each visible image model
 
     :param enable_llava_chat: Whether to use LLaVa model to chat directly against instead of just for ingestion
@@ -1398,6 +1407,8 @@ def main(
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
     visible_image_models = str_to_list(visible_image_models)
+    if not image_size:
+        image_size = image_size_default
     image_gpu_ids = str_to_list(image_gpu_ids)
     document_choice = str_to_list(document_choice)
     visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
@@ -2512,6 +2523,10 @@ def evaluate(
         llava_prompt,
         visible_models,
         visible_image_models,
+        image_size,
+        image_quality,
+        image_guidance_scale,
+        image_num_inference_steps,
         h2ogpt_key,
         add_search_to_context,
 
@@ -2713,6 +2728,8 @@ def evaluate(
 
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
+    if not image_size:
+        imag_size = image_size_default
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']
@@ -2742,6 +2759,10 @@ def evaluate(
         image_file_gen = make_image(instruction,
                                     filename=os.path.join(gradio_tmp, filename_image),
                                     pipe=pipe,
+                                    image_size=image_size,
+                                    image_quality=image_quality,
+                                    image_guidance_scale=float(image_guidance_scale),
+                                    image_num_inference_steps=int(image_num_inference_steps),
                                     )
         response = (image_file_gen,)
         # FIXME: Could run this through image model if was selected
@@ -3843,6 +3864,10 @@ def evaluate(
                                          llava_prompt=llava_prompt,
                                          visible_models=visible_models,
                                          visible_image_models=visible_image_models,
+                                         image_size=image_size,
+                                         image_quality=image_quality,
+                                         image_guidance_scale=image_guidance_scale,
+                                         image_num_inference_steps=image_num_inference_steps,
                                          h2ogpt_key=h2ogpt_key,
                                          add_search_to_context=client_add_search_to_context,
                                          docs_ordering_type=docs_ordering_type,
@@ -4668,12 +4693,16 @@ y = np.random.randint(0, 1, 100)
                     jq_schema,
                     extract_frames,
                     llava_prompt,
-                    None,
-                    None,
-                    None,
-                    False,
-                    None,
-                    None,
+                    None,  # visible_models
+                    None,  # visible_image_models
+                    image_size_default,  # image_size
+                    image_quality_choices[0],  # image_quality
+                    3.0,  # image_guidance_scale
+                    30,  # image_num_inference_steps
+                    None,  # h2ogpt_key
+                    False,  # add_search_to_context
+                    None,  # chat_conversation
+                    None,  # text_context_list
                     docs_ordering_type,
                     min_max_new_tokens,
                     max_input_tokens,

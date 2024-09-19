@@ -693,7 +693,7 @@ def get_image_model_dict(enable_image,
         if image_model_name in image_models:
             imagegen_index = image_models.index(image_model_name)
             if image_model_name == 'sdxl_turbo':
-                from src.vision.sdxl import get_pipe_make_image, make_image
+                from src.vision.sdxl_turbo import get_pipe_make_image, make_image
             elif image_model_name == 'playv2':
                 from src.vision.playv2 import get_pipe_make_image, make_image
             elif image_model_name == 'sdxl':
@@ -712,7 +712,7 @@ def get_image_model_dict(enable_image,
                 from src.vision.flux import get_pipe_make_image_2 as get_pipe_make_image
                 from src.vision.flux import make_image
             elif image_model_name == 'sdxl_change':
-                from src.vision.sdxl import get_pipe_change_image as get_pipe_make_image, change_image
+                from src.vision.sdxl_turbo import get_pipe_change_image as get_pipe_make_image, change_image
                 make_image = change_image
             # FIXME: style
             else:

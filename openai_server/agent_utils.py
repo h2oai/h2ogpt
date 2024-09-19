@@ -1,6 +1,7 @@
 import functools
 import inspect
 import os
+import re
 import shutil
 import sys
 import time
@@ -139,6 +140,53 @@ def set_dummy_term():
     plt.ioff()
 
 
+def fix_markdown_image_paths(text):
+    def replace_path(match):
+        alt_text = match.group(1)
+        full_path = match.group(2)
+        base_name = os.path.basename(full_path)
+        return f"![{alt_text}]({base_name})"
+
+    # Pattern for inline images: ![alt text](path/to/image.jpg)
+    inline_pattern = r'!\[(.*?)\]\s*\((.*?)\)'
+    text = re.sub(inline_pattern, replace_path, text)
+
+    # Pattern for reference-style images: ![alt text][ref]
+    ref_pattern = r'!\[(.*?)\]\s*\[(.*?)\]'
+
+    def collect_references(text):
+        ref_dict = {}
+        ref_def_pattern = r'^\s*\[(.*?)\]:\s*(.*?)$'
+        for match in re.finditer(ref_def_pattern, text, re.MULTILINE):
+            ref_dict[match.group(1)] = match.group(2)
+        return ref_dict
+
+    ref_dict = collect_references(text)
+
+    def replace_ref_image(match):
+        alt_text = match.group(1)
+        ref = match.group(2)
+        if ref in ref_dict:
+            full_path = ref_dict[ref]
+            base_name = os.path.basename(full_path)
+            ref_dict[ref] = base_name  # Update reference
+            return f"![{alt_text}][{ref}]"
+        return match.group(0)  # If reference not found, leave unchanged
+
+    text = re.sub(ref_pattern, replace_ref_image, text)
+
+    # Update reference definitions
+    def replace_ref_def(match):
+        ref = match.group(1)
+        if ref in ref_dict:
+            return f"[{ref}]: {ref_dict[ref]}"
+        return match.group(0)
+
+    text = re.sub(r'^\s*\[(.*?)\]:\s*(.*?)$', replace_ref_def, text, flags=re.MULTILINE)
+
+    return text
+
+
 def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
@@ -230,6 +278,11 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
             latest_image_file = image_files[-1] if image_files else None
             if latest_image_file:
                 chat_result.summary += f'\n![image]({os.path.basename(latest_image_file)})'
+        else:
+            try:
+                chat_result.summary = fix_markdown_image_paths(chat_result.summary)
+            except:
+                print("Failed to fix markdown image paths", file=sys.stderr)
 
         ret_dict.update(dict(summary=chat_result.summary))
     if agent_venv_dir is not None:

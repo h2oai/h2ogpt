@@ -31,14 +31,14 @@ def test_llava_client_stream():
 
 @wrap_test_forked
 def test_make_image():
-    from src.vision.sdxl import make_image
+    from src.vision.sdxl_turbo import make_image
     prompt = "A cinematic shot of a baby racoon wearing an intricate italian priest robe."
     make_image(prompt, filename="output_p2i.png")
 
 
 @wrap_test_forked
 def test_change_image():
-    from src.vision.sdxl import change_image
+    from src.vision.sdxl_turbo import change_image
     init_file = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cat.png"
     change_image(init_file=init_file,
                  prompt="cat wizard, gandalf, lord of the rings, detailed, fantasy, cute, adorable, Pixar, Disney, 8k",
