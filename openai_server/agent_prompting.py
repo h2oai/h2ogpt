@@ -506,7 +506,7 @@ def get_image_generation_helper():
     if imagegen_url:
         # TODO: When available, get the model from the url
         if not os.getenv("IMAGEGEN_OPENAI_MODEL"):
-            os.environ["IMAGEGEN_OPENAI_MODEL"] = "sdxl_turbo"
+            os.environ["IMAGEGEN_OPENAI_MODEL"] = "flux.1-schnell"
 
         cwd = os.path.abspath(os.getcwd())
         base_path = os.getenv("H2OGPT_OPENAI_BASE_FILE_PATH", "./openai_files/")
@@ -521,7 +521,10 @@ def get_image_generation_helper():
     * By default the image will be saved in the base directory: {base_path}, you can read the image file from there.
     """
     else:
-        image_generation = "There is no available image generation tool, so you cannot generate images."
+        image_generation = (
+            "There is no available image generation tool, so you can not generate images. "
+            "You can not try other approaches to generate images either."
+            )
     return image_generation
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
@@ -532,6 +535,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     image_query_helper = get_image_query_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
+    print("image_generation_helper: ", image_generation_helper)
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
