@@ -520,7 +520,7 @@ def get_image_generation_helper():
             style_options = "* Choose playv2 model for more artistic renderings, flux.1-schnell for more accurate renderings."
             guidance_steps_string = """
 * Only applicable of quality is set to manual. guidance_scale is 3.0 by default, can be 0.0 to 10.0, num_inference_steps is 30 by default, can be 1 for low quality and 50 for high quality"""
-        elif imagegen_url == "https://api.openai.com/v1":
+        elif imagegen_url == "https://api.openai.com/v1" or 'openai.azure.com' in imagegen_url:
             if os.getenv("IMAGEGEN_OPENAI_MODELS"):
                 models = ast.literal_eval(os.getenv("IMAGEGEN_OPENAI_MODELS"))
             else:

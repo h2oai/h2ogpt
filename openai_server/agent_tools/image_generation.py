@@ -2,7 +2,6 @@ import ast
 import base64
 import os
 import argparse
-from openai import OpenAI
 
 
 def main():
@@ -19,13 +18,13 @@ def main():
     parser.add_argument("--num_inference_steps", type=int, help="Number of inference steps")
     args = parser.parse_args()
 
-    imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL")
+    imagegen_url = os.getenv("IMAGEGEN_OPENAI_BASE_URL", '')
     assert imagegen_url is not None, "IMAGEGEN_OPENAI_BASE_URL environment variable is not set"
     server_api_key = os.getenv('IMAGEGEN_OPENAI_API_KEY', 'EMPTY')
 
-    client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
-
     if imagegen_url == "https://api.gpt.h2o.ai/v1":
+        from openai import OpenAI
+        client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
         available_models = ['flux.1-schnell', 'playv2']
         if os.getenv('IMAGEGEN_OPENAI_MODELS'):
             # allow override
@@ -34,32 +33,48 @@ def main():
             args.model = available_models[0]
         if args.model not in available_models:
             args.model = available_models[0]
-    elif imagegen_url == "https://api.openai.com/v1":
+    elif imagegen_url == "https://api.openai.com/v1" or 'openai.azure.com' in imagegen_url:
         # https://platform.openai.com/docs/api-reference/images/create
-        available_models = ['dall-e-2', 'dall-e-3']
+        available_models = ['dall-e-3', 'dall-e-2']
+        # assumes deployment name matches model name, unless override
         if os.getenv('IMAGEGEN_OPENAI_MODELS'):
             # allow override
             available_models = ast.literal_eval(os.getenv('IMAGEGEN_OPENAI_MODELS'))
         if not args.model:
-            args.model = available_models[1]
+            args.model = available_models[0]
         if args.model not in available_models:
-            args.model = 'dall-e-3'
+            args.model = available_models[0]
 
-        max_chars = 1000 if args.model == 'dall-e-2' else 4000
+        if 'openai.azure.com' in imagegen_url:
+            # https://learn.microsoft.com/en-us/azure/ai-services/openai/dall-e-quickstart?tabs=dalle3%2Ccommand-line%2Ctypescript&pivots=programming-language-python
+            from openai import AzureOpenAI
+            client = AzureOpenAI(
+                api_version="2024-02-01" if args.model == 'dall-e-3' else '2023-06-01-preview',
+                api_key=os.environ["IMAGEGEN_OPENAI_API_KEY"],
+                # like base_url, but Azure endpoint like https://PROJECT.openai.azure.com/
+                azure_endpoint=os.environ['IMAGEGEN_OPENAI_BASE_URL']
+            )
+        else:
+            from openai import OpenAI
+            client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
+
+        dalle2aliases = ['dall-e-2', 'dalle2', 'dalle-2']
+        max_chars = 1000 if args.model in dalle2aliases else 4000
         args.prompt = args.prompt[:max_chars]
 
-        if args.model == 'dall-e-2':
+        if args.model in dalle2aliases:
             valid_sizes = ['256x256', '512x512', '1024x1024']
         else:
             valid_sizes = ['1024x1024', '1792x1024', '1024x1792']
 
         if args.size not in valid_sizes:
-            print(f"Warning: Size {args.size} not valid for {args.model}. Using default.")
             args.size = valid_sizes[0]
 
         args.quality = 'standard' if args.quality not in ['standard', 'hd'] else args.quality
         args.style = 'vivid' if args.style not in ['vivid', 'natural'] else args.style
     else:
+        from openai import OpenAI
+        client = OpenAI(base_url=imagegen_url, api_key=server_api_key)
         assert os.getenv('IMAGEGEN_OPENAI_MODELS'), "IMAGEGEN_OPENAI_MODELS environment variable is not set"
         available_models = ast.literal_eval(os.getenv('IMAGEGEN_OPENAI_MODELS'))  # must be string of list of strings
         assert available_models, "IMAGEGEN_OPENAI_MODELS environment variable is not set, must be for this server"
@@ -68,6 +83,7 @@ def main():
         if args.model not in available_models:
             args.model = available_models[0]
 
+    # for azure, args.model use assume deployment name matches model name (i.e. dall-e-3 not dalle3) unless IMAGEGEN_OPENAI_MODELS set
     generation_params = {
         "prompt": args.prompt,
         "model": args.model,
