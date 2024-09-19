@@ -31,7 +31,7 @@ def main():
     )
     # Save the image to a file
     if not args.output:
-        args.output = f"transcription_{uuid.uuid4()[:6]}.txt"
+        args.output = f"transcription_{str(uuid.uuid4())[:6]}.txt"
     # Write the transcription to a file
     with open(args.output, "wt") as txt_file:
         txt_file.write(transcription.text)

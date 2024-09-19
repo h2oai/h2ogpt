@@ -120,7 +120,7 @@ def main():
 
     # Save the image to a file
     if not args.output:
-        args.output = f"image_{uuid.uuid4()[:6]}.txt"
+        args.output = f"image_{str(uuid.uuid4())[:6]}.txt"
 
     # Write the image data to a file
     with open(args.output, "wb") as img_file:
