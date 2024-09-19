@@ -717,18 +717,25 @@ async def handle_image_generation(request: Request):
         prompt = body['prompt']
         size = body.get('size', '1024x1024')
         quality = body.get('quality', 'standard')
+        guidance_scale = body.get('guidance_scale')
+        num_inference_steps = body.get('num_inference_steps')
         n = body.get('n', 1)  # ignore the batch limits of max 10
         response_format = body.get('response_format', 'b64_json')  # or url
 
         # TODO: Why not using image_request? size, quality and stuff?
         image_request = dict(model=model, prompt=prompt, size=size, quality=quality, n=n,
-                             response_format=response_format)
+                             response_format=response_format, guidance_scale=guidance_scale,
+                             num_inference_steps=num_inference_steps)
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Missing key in request body: {str(e)}")
 
     # no streaming
     from openai_server.backend import completions
-    body_image = dict(prompt=prompt, langchain_action='ImageGen', visible_image_models=model)
+    body_image = dict(prompt=prompt, langchain_action='ImageGen', visible_image_models=model,
+                      image_size=size,
+                      image_quality=quality,
+                      image_guidance_scale=guidance_scale,
+                      image_num_inference_steps=num_inference_steps)
     response = completions(body_image)
     image = response['choices'][0]['text'][0]
     resp = {

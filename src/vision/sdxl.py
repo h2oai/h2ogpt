@@ -27,9 +27,23 @@ def get_pipe_make_image(gpu_id='auto'):
     return pipe
 
 
-def make_image(prompt, filename=None, gpu_id='auto', pipe=None):
+def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
+               image_size=(1024, 1024), image_quality='standard',
+               image_num_inference_steps=1, image_guidance_scale=0.0):
     if pipe is None:
         pipe = get_pipe_make_image(gpu_id=gpu_id)
+
+    if image_quality == 'manual':
+        # listen to guidance_scale and num_inference_steps passed in
+        pass
+    else:
+        if image_quality == 'quick':
+            image_num_inference_steps = 1
+            image_size = (512, 512)
+        elif image_quality == 'standard':
+            image_num_inference_steps = 2
+        elif image_quality == 'quality':
+            image_num_inference_steps = 3
 
     lock_type = 'image'
     base_path = os.path.join('locks', 'image_locks')
@@ -37,7 +51,12 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None):
     lock_file = os.path.join(base_path, "%s.lock" % lock_type)
     makedirs(os.path.dirname(lock_file))  # ensure made
     with filelock.FileLock(lock_file):
-        image = pipe(prompt=prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
+        image = pipe(prompt=prompt,
+                     height=image_size[0],
+                     width=image_size[1],
+                     num_inference_steps=image_num_inference_steps,  # more than 1 not really helpful
+                     guidance_scale=0.0,  # disabled: https://huggingface.co/stabilityai/sdxl-turbo#diffusers
+                     ).images[0]
     if filename:
         image.save(filename)
         return filename

@@ -85,7 +85,7 @@ from gen import get_model, languages_covered, evaluate, score_qa, inputs_kwargs_
     get_model_max_length_from_tokenizer, \
     get_model_retry, remove_refs, model_name_to_prompt_type
 from evaluate_params import eval_func_param_names, no_default_param_names, eval_func_param_names_defaults, \
-    input_args_list
+    input_args_list, image_quality_choices, image_size_default
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -742,6 +742,8 @@ def go_gradio(**kwargs):
                                        filterable=False,
                                        max_choices=None,
                                        )
+    image_quality_kwargs = dict(choices=image_quality_choices, label="Image Quality", value=image_quality_choices[0], visible=False)
+    image_size_kwargs = dict(value=str(image_size_default), label="Image Size", visible=False)
 
     with demo:
         support_state_callbacks = hasattr(gr.State(), 'callback')
@@ -1181,6 +1183,10 @@ def go_gradio(**kwargs):
                                                              )
                                 if not image_tab_visible:
                                     visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
+                                    image_size = gr.Textbox(**image_size_kwargs)
+                                    image_quality = gr.Dropdown(**image_quality_kwargs)
+                                    image_guidance_scale = gr.Number(value=3.0, visible=False)
+                                    image_num_inference_steps = gr.Number(value=30, visible=False)
                                 mw0 = 100
                                 with gr.Column(min_width=mw0):
                                     if not kwargs['actions_in_sidebar']:
@@ -1394,6 +1400,10 @@ def go_gradio(**kwargs):
                 with image_tab:
                     if image_tab_visible:
                         visible_image_models = gr.Dropdown(**visible_image_models_kwargs)
+                        image_size = gr.Textbox(**image_size_kwargs)
+                        image_quality = gr.Dropdown(**image_quality_kwargs)
+                        image_guidance_scale = gr.Number(value=3.0, visible=False)
+                        image_num_inference_steps = gr.Number(value=30, visible=False)
                     with gr.Row(visible=image_control_panels_visible):
                         image_control = gr.Image(label="Input Image", type='filepath', elem_id="warning",
                                                  elem_classes="feedback")
