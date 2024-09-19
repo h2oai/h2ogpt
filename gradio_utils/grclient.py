@@ -798,7 +798,7 @@ class GradioClient(Client):
         tts_language: str = "autodetect",
         tts_speed: float = 1.0,
         visible_image_models: List[str] = [],
-        image_size: Tuple[str] | List[str] | None = None,
+        image_size: str = "1024x1024",
         image_quality: str = 'standard',
         image_guidance_scale: float = 3.0,
         image_num_inference_steps: int = 30,

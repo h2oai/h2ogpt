@@ -148,5 +148,5 @@ in_model_state_and_evaluate = ['prompt_type', 'prompt_dict', 'chat_template',
                                'image_resolution',
                                'image_format', 'video_frame_period', 'visible_vision_models']
 
-image_quality_choices = ['standard', 'quality', 'quick', 'manual']
-image_size_default = [1024, 1024]
+image_quality_choices = ['standard', 'hd', 'quick', 'manual']
+image_size_default = "1024x1024"

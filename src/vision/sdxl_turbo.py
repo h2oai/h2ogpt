@@ -28,7 +28,7 @@ def get_pipe_make_image(gpu_id='auto'):
 
 
 def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
-               image_size=(1024, 1024), image_quality='standard',
+               image_size="1024x1024", image_quality='standard',
                image_num_inference_steps=1, image_guidance_scale=0.0):
     if pipe is None:
         pipe = get_pipe_make_image(gpu_id=gpu_id)
@@ -39,10 +39,10 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
     else:
         if image_quality == 'quick':
             image_num_inference_steps = 1
-            image_size = (512, 512)
+            image_size = "512x512"
         elif image_quality == 'standard':
             image_num_inference_steps = 2
-        elif image_quality == 'quality':
+        elif image_quality == 'hd':
             image_num_inference_steps = 3
 
     lock_type = 'image'
@@ -52,8 +52,8 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
     makedirs(os.path.dirname(lock_file))  # ensure made
     with filelock.FileLock(lock_file):
         image = pipe(prompt=prompt,
-                     height=image_size[0],
-                     width=image_size[1],
+                     height=image_size.lower().split('x')[0],
+                     width=image_size.lower().split('x')[1],
                      num_inference_steps=image_num_inference_steps,  # more than 1 not really helpful
                      guidance_scale=0.0,  # disabled: https://huggingface.co/stabilityai/sdxl-turbo#diffusers
                      ).images[0]

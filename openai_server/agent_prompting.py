@@ -516,7 +516,7 @@ def get_image_generation_helper():
     ```sh
     # filename: my_image_generation.sh
     # execution: true
-    python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png"
+    python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png" --artistic=False
     ```
     * usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE_NAME
     * If you make an image, ensure you use python or shell code properly to generate the image file.

@@ -524,7 +524,7 @@ def main(
 
         enable_image: bool = False,
         visible_image_models: typing.List[str] = [],
-        image_size: typing.Tuple[str] | typing.List[str] | None = image_size_default,
+        image_size: str = image_size_default,
         image_quality: str = 'standard',
         image_guidance_scale: float = 3.0,
         image_num_inference_steps: int = 30,
@@ -1407,9 +1407,8 @@ def main(
     tts_action_phrases = str_to_list(tts_action_phrases)
     tts_stop_phrases = str_to_list(tts_stop_phrases)
     visible_image_models = str_to_list(visible_image_models)
-    image_size = str_to_list(image_size) if image_size is not None else None
-    if image_size:
-        assert len(image_size) == 2
+    if not image_size:
+        image_size = image_size_default
     image_gpu_ids = str_to_list(image_gpu_ids)
     document_choice = str_to_list(document_choice)
     visible_models = str_to_list(visible_models, allow_none=True)  # None means first model
@@ -2729,9 +2728,8 @@ def evaluate(
 
     chat_conversation = str_to_list(chat_conversation)
     text_context_list = str_to_list(text_context_list)
-    image_size = str_to_list(image_size) if image_size is not None else image_size_default
-    if image_size:
-        assert len(image_size) == 2
+    if not image_size:
+        imag_size = image_size_default
 
     langchain_modes = selection_docs_state['langchain_modes']
     langchain_mode_paths = selection_docs_state['langchain_mode_paths']

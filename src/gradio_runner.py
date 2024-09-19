@@ -743,7 +743,7 @@ def go_gradio(**kwargs):
                                        max_choices=None,
                                        )
     image_quality_kwargs = dict(choices=image_quality_choices, label="Image Quality", value=image_quality_choices[0], visible=not is_public)
-    image_size_kwargs = dict(value=str(image_size_default), label="Image Size", visible=not is_public)
+    image_size_kwargs = dict(value=image_size_default, label="Image Size", visible=not is_public)
     image_guidance_kwargs = dict(label="Image generation guidance", value=3.0, visible=not is_public)
     image_num_inference_steps_kwargs = dict(label="Image generation inference steps", value=50, visible=not is_public)
 

@@ -57,7 +57,7 @@ def make_image(prompt,
                filename=None,
                gpu_id='auto',
                pipe=None,
-               image_size=(1024, 1024),
+               image_size="1024x1024",
                image_quality='standard',
                image_guidance_scale=3.0,
                base_model=None,
@@ -69,10 +69,10 @@ def make_image(prompt,
     else:
         if image_quality == 'quick':
             image_num_inference_steps = 10
-            image_size = (512, 512)
+            image_size = "512x512"
         elif image_quality == 'standard':
             image_num_inference_steps = 20
-        elif image_quality == 'quality':
+        elif image_quality == 'hd':
             image_num_inference_steps = 50
 
     if pipe is None:
@@ -93,8 +93,8 @@ def make_image(prompt,
         # run both experts
         image = base(
             prompt=prompt,
-            height=image_size[0],
-            width=image_size[1],
+            height=image_size.lower().split('x')[0],
+            width=image_size.lower().split('x')[1],
             num_inference_steps=image_num_inference_steps,
             guidance_scale=image_guidance_scale,
             **extra1,
@@ -102,8 +102,8 @@ def make_image(prompt,
         if refiner:
             image = refiner(
                 prompt=prompt,
-                height=image_size[0],
-                width=image_size[1],
+                height=image_size.lower().split('x')[0],
+                width=image_size.lower().split('x')[1],
                 num_inference_steps=image_num_inference_steps,
                 guidance_scale=image_guidance_scale,
                 **extra2,

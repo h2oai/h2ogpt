@@ -32,7 +32,7 @@ def get_pipe_make_image_2(gpu_id):
 
 def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
                image_guidance_scale=3.0,
-               image_size=(1024, 1024),
+               image_size="1024x1024",
                image_quality='standard',
                image_num_inference_steps=50,
                max_sequence_length=512):
@@ -45,10 +45,10 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
     else:
         if image_quality == 'quick':
             image_num_inference_steps = 10
-            image_size = (512, 512)
+            image_size = "512x512"
         elif image_quality == 'standard':
             image_num_inference_steps = 20
-        elif image_quality == 'quality':
+        elif image_quality == 'hd':
             image_num_inference_steps = 50
 
     lock_type = 'image'
@@ -58,8 +58,8 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
     makedirs(os.path.dirname(lock_file))  # ensure made
     with filelock.FileLock(lock_file):
         image = pipe(prompt=prompt,
-                     height=image_size[0],
-                     width=image_size[1],
+                     height=image_size.lower().split('x')[0],
+                     width=image_size.lower().split('x')[1],
                      num_inference_steps=image_num_inference_steps,
                      max_sequence_length=max_sequence_length,
                      guidance_scale=image_guidance_scale).images[0]
