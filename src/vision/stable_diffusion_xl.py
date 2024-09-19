@@ -4,7 +4,7 @@ import filelock
 import torch
 
 from src.utils import makedirs
-from src.vision.sdxl import get_device
+from src.vision.sdxl_turbo import get_device
 
 
 def get_pipe_make_image(gpu_id, refine=True,
