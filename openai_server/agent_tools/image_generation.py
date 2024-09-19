@@ -17,6 +17,9 @@ def main():
     assert imagegen_url is not None, "IMAGEGEN_OPENAI_BASE_URL environment variable is not set"
     server_api_key = os.getenv('IMAGEGEN_OPENAI_API_KEY', 'EMPTY')
 
+    generation_params = {}
+
+    is_openai = False
     if imagegen_url == "https://api.gpt.h2o.ai/v1":
         parser.add_argument("--guidance_scale", type=float, help="Guidance scale for image generation")
         parser.add_argument("--num_inference_steps", type=int, help="Number of inference steps")
@@ -32,6 +35,7 @@ def main():
         if args.model not in available_models:
             args.model = available_models[0]
     elif imagegen_url == "https://api.openai.com/v1" or 'openai.azure.com' in imagegen_url:
+        is_openai = True
         parser.add_argument("--style", type=str, choices=['vivid', 'natural', 'artistic'], default='vivid',
                             help="Image style")
         args = parser.parse_args()
@@ -73,6 +77,9 @@ def main():
 
         args.quality = 'standard' if args.quality not in ['standard', 'hd'] else args.quality
         args.style = 'vivid' if args.style not in ['vivid', 'natural'] else args.style
+        generation_params.update({
+            "style": args.style,
+        })
     else:
         parser.add_argument("--guidance_scale", type=float, help="Guidance scale for image generation")
         parser.add_argument("--num_inference_steps", type=int, help="Number of inference steps")
@@ -89,15 +96,14 @@ def main():
             args.model = available_models[0]
 
     # for azure, args.model use assume deployment name matches model name (i.e. dall-e-3 not dalle3) unless IMAGEGEN_OPENAI_MODELS set
-    generation_params = {
+    generation_params.update({
         "prompt": args.prompt,
         "model": args.model,
         "quality": args.quality,
         "size": args.size,
-        "style": args.style,
-    }
+    })
 
-    if imagegen_url != "https://api.openai.com/v1":
+    if not is_openai:
         extra_body = {}
         if args.guidance_scale:
             extra_body["guidance_scale"] = args.guidance_scale
