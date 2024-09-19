@@ -544,9 +544,9 @@ def get_image_generation_helper():
 ```sh
 # filename: my_image_generation.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --file_name "image.png" --model MODEL {extra_params}
+python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT" --output "image.png" --model MODEL {extra_params}
 ```
-* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --file_name FILE_NAME [--model MODEL] [--quality QUALITY] [--size SIZE] [--style STYLE] [--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT --output OUTPUT_FILE_NAME [--model MODEL] [--quality QUALITY] [--size SIZE] [--style STYLE] [--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]
 * Available models: {models}
 * Quality options: {quality_options}
 * Size: Specified as 'HEIGHTxWIDTH', e.g., '1024x1024'{style_options}{guidance_steps_string}
