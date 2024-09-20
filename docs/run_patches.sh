@@ -49,3 +49,5 @@ patch $sp/autogen/agentchat/conversable_agent.py docs/autogen2.patch
 
 # diff -Naru /home/jon/miniconda3/envs/h2ogpt/lib/python3.10/site-packages/openai/_streaming.py ~/_streaming.py > docs/openai.patch
 patch $sp/openai/_streaming.py docs/openai.patch
+
+find $sp/flaml/ -type f -name '*.py' -exec sed -i 's/^except ImportError:/except (ModuleNotFoundError, ImportError):/g' {} +
