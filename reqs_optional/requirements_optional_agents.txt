@@ -11,6 +11,8 @@ sympy>=1.12
 
 # for AutoGen
 pyautogen==0.2.33
+# 2.3.0 breaks older autogen with xgboost import
+flaml==2.2.0
 pyautogen[redis]
 #pyautogen[ipython]
 pyautogen[retrievechat]
