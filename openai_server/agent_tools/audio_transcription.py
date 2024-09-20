@@ -35,6 +35,9 @@ def main():
                         help="Path (ensure unique) to output text file")
     args = parser.parse_args()
     ##
+    if not args.model:
+        args.model = os.getenv('STT_OPENAI_MODEL', 'whisper-1')
+
     stt_url = os.getenv("STT_OPENAI_BASE_URL", None)
     assert stt_url is not None, "STT_OPENAI_BASE_URL environment variable is not set"
 
@@ -50,6 +53,7 @@ def main():
                 api_key=stt_api_key,
                 # like base_url, but Azure endpoint like https://PROJECT.openai.azure.com/
                 azure_endpoint=stt_url,
+                azure_deployment=args.model,
             )
         else:
             from openai import OpenAI
@@ -61,28 +65,29 @@ def main():
         stt_api_key = os.getenv('STT_OPENAI_API_KEY', 'EMPTY')
         client = OpenAI(base_url=stt_url, api_key=stt_api_key)
 
-    if not args.model:
-        args.model = os.getenv('STT_OPENAI_MODEL', 'whisper-1')
-
     # Read the audio file
     with open(args.input, "rb") as f:
         transcription = client.audio.transcriptions.create(
             model=args.model,
-            file=f.read(),
+            file=f,
             response_format="text",
         )
+    if hasattr(transcription, 'text'):
+        trans = transcription.text
+    else:
+        trans = transcription
     # Save the image to a file
     if not args.output:
         args.output = f"transcription_{str(uuid.uuid4())[:6]}.txt"
     # Write the transcription to a file
-    with open(args.output, "wt") as txt_file:
-        txt_file.write(transcription.text)
+    with open(args.output, "wt") as f:
+        f.write(trans)
 
     full_path = os.path.abspath(args.output)
     print(f"Transcription successfully saved to the file: {full_path}")
     # generally too much, have agent read if too long for context of LLM
-    if len(transcription.text) < 1024:
-        print(f"Audio file successfully transcribed as follows:\n\n{transcription.text}")
+    if len(trans) < 1024:
+        print(f"Audio file successfully transcribed as follows:\n\n{trans}")
 
 
 if __name__ == "__main__":
