@@ -93,8 +93,8 @@ def make_image(prompt,
         # run both experts
         image = base(
             prompt=prompt,
-            height=image_size.lower().split('x')[0],
-            width=image_size.lower().split('x')[1],
+            height=int(image_size.lower().split('x')[0]),
+            width=int(image_size.lower().split('x')[1]),
             num_inference_steps=image_num_inference_steps,
             guidance_scale=image_guidance_scale,
             **extra1,
@@ -102,8 +102,8 @@ def make_image(prompt,
         if refiner:
             image = refiner(
                 prompt=prompt,
-                height=image_size.lower().split('x')[0],
-                width=image_size.lower().split('x')[1],
+                height=int(image_size.lower().split('x')[0]),
+                width=int(image_size.lower().split('x')[1]),
                 num_inference_steps=image_num_inference_steps,
                 guidance_scale=image_guidance_scale,
                 **extra2,
