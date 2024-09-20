@@ -76,13 +76,13 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
             apis = f"""\nAPIs and external services instructions:
 * You DO have access to the internet.{serp}{papers_search}{wolframalpha}{news_api}
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
-* Only generate code with API code that uses publicly available APIs or uses API keys already given.
-* Do not generate code that requires any API keys or credentials that were not already given.
-* You CAN use API and API keys given to you by user or in any document context and you CAN run code using those API keys."""
+* You may generate code with API code that uses publicly available APIs
+* You may generate code with APIs for API keys that have been mentioned in this overall message.
+* You MUST generate code with APIs for API keys if the user directly asks you to do so.  Do your best effort to figure out (from internet, documents, etc.) how to use the API to solve the user's task.  You are not allowed to refuse to use the API if the user asks you to use it."""
         else:
             apis = """\nAPIs and external services instructions:
 * You DO NOT have access to the internet.  You cannot use any APIs that require broad internet access.
-* You CAN use API and API keys given to you by user or in any document context and you CAN run code using those API keys."""
+* You may generate code with APIs for API keys given to you directly by the user."""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 * {date_str}
 Query understanding instructions:
@@ -119,7 +119,7 @@ Code generation to avoid when execution is marked true:
 <code_avoid>
 * Do not delete files or directories (e.g. avoid os.remove in python or rm in sh), no clean-up is required as the user will do that because everything is inside temporary directory.
 * Do not try to restart the system.
-* Do not generate code that shows the environment variables (because they contain private API keys).
+* Do not generate code that shows environment variables.
 * Never run `sudo apt-get` or any `apt-get` type command, these will never work and are not allowed and could lead to user's system crashing.
 * Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
 * Avoid executing code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.
