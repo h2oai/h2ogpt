@@ -342,26 +342,53 @@ async def options_route():
 
 @app.post('/v1/completions', response_model=TextResponse, dependencies=check_key)
 async def openai_completions(request: Request, request_data: TextRequest, authorization: str = Header(None)):
-    request_data_dict = dict(request_data)
-    request_data_dict['authorization'] = authorization
+    try:
+        request_data_dict = dict(request_data)
+        request_data_dict['authorization'] = authorization
 
-    if request_data.stream:
-        async def generator():
-            from openai_server.backend import stream_completions
-            response = stream_completions(request_data_dict)
-            for resp in response:
-                disconnected = await request.is_disconnected()
-                if disconnected:
-                    break
+        if request_data.stream:
+            async def generator():
+                try:
+                    from openai_server.backend import stream_completions
+                    response = stream_completions(request_data_dict)
+                    for resp in response:
+                        disconnected = await request.is_disconnected()
+                        if disconnected:
+                            break
 
-                yield {"data": json.dumps(resp)}
+                        yield {"data": json.dumps(resp)}
+                except Exception as e1:
+                    error_response = {
+                        "error": {
+                            "message": str(e1),
+                            "type": "server_error",
+                            "param": None,
+                            "code": "500"
+                        }
+                    }
+                    yield {"data": json.dumps(error_response)}
+                    # After yielding the error, we'll close the connection
+                    raise e1
 
-        return EventSourceResponse(generator())
+            return EventSourceResponse(generator())
 
-    else:
-        from openai_server.backend import completions
-        response = completions(request_data_dict)
-        return JSONResponse(response)
+        else:
+            from openai_server.backend import completions
+            response = completions(request_data_dict)
+            return JSONResponse(response)
+
+    except Exception as e:
+        # This will handle any exceptions that occur outside of the streaming context
+        # or in the non-streaming case
+        error_response = {
+            "error": {
+                "message": str(e),
+                "type": "server_error",
+                "param": None,
+                "code": 500
+            }
+        }
+        raise HTTPException(status_code=500, detail=error_response)
 
 
 def random_uuid() -> str:
@@ -380,6 +407,21 @@ class ToolCall(BaseModel):
 
 
 async def get_tool(request: Request, request_data: ChatRequest, authorization: str = Header(None)):
+    try:
+        return _get_tool(request, request_data, authorization)
+    except Exception as e1:
+        # For non-streaming responses, we'll return a JSON error response
+        raise HTTPException(status_code=500, detail={
+            "error": {
+                "message": str(e1),
+                "type": "server_error",
+                "param": None,
+                "code": 500
+            }
+        })
+
+
+async def _get_tool(request: Request, request_data: ChatRequest, authorization: str = Header(None)):
     request_data_dict = dict(request_data)
     request_data_dict = copy.deepcopy(request_data_dict)
 
@@ -546,11 +588,11 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
         try:
             response = chat_completions(request_data_dict)
             return JSONResponse(response)
-        except Exception as e1:
+        except Exception as e:
             # For non-streaming responses, we'll return a JSON error response
             raise HTTPException(status_code=500, detail={
                 "error": {
-                    "message": str(e1),
+                    "message": str(e),
                     "type": "server_error",
                     "param": None,
                     "code": 500
@@ -611,33 +653,59 @@ class AudiotoTextRequest(BaseModel):
 
 @app.post('/v1/audio/transcriptions', dependencies=check_key)
 async def handle_audio_transcription(request: Request):
-    form = await request.form()
-    audio_file = await form["file"].read()
-    model = form["model"]
-    stream = form.get("stream", False)
-    response_format = form.get("response_format", 'text')
-    chunk = form.get("chunk", 'interval')
-    request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format, chunk=chunk)
+    try:
+        form = await request.form()
+        audio_file = await form["file"].read()
+        model = form["model"]
+        stream = form.get("stream", False)
+        response_format = form.get("response_format", 'text')
+        chunk = form.get("chunk", 'interval')
+        request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format, chunk=chunk)
 
-    if stream:
-        from openai_server.backend import audio_to_text
+        if stream:
+            from openai_server.backend import audio_to_text
 
-        async def generator():
-            response = audio_to_text(**request_data)
-            for resp in response:
-                disconnected = await request.is_disconnected()
-                if disconnected:
-                    break
+            async def generator():
+                try:
+                    response = audio_to_text(**request_data)
+                    for resp in response:
+                        disconnected = await request.is_disconnected()
+                        if disconnected:
+                            break
 
-                yield {"data": json.dumps(resp)}
+                        yield {"data": json.dumps(resp)}
+                except Exception as e1:
+                    error_response = {
+                        "error": {
+                            "message": str(e1),
+                            "type": "server_error",
+                            "param": None,
+                            "code": "500"
+                        }
+                    }
+                    yield {"data": json.dumps(error_response)}
+                    raise e1  # This will close the connection after sending the error
 
-        return EventSourceResponse(generator())
-    else:
-        from openai_server.backend import _audio_to_text
-        response = ''
-        for response1 in _audio_to_text(**request_data):
-            response = response1
-        return JSONResponse(response)
+            return EventSourceResponse(generator())
+        else:
+            from openai_server.backend import _audio_to_text
+            response = ''
+            for response1 in _audio_to_text(**request_data):
+                response = response1
+            return JSONResponse(response)
+
+    except Exception as e:
+        # This will handle any exceptions that occur outside of the streaming context
+        # or in the non-streaming case
+        error_response = {
+            "error": {
+                "message": str(e),
+                "type": "server_error",
+                "param": None,
+                "code": 500
+            }
+        }
+        raise HTTPException(status_code=500, detail=error_response)
 
 
 # Define your request data model
@@ -684,40 +752,58 @@ def modify_wav_header(wav_bytes):
 
 
 @app.post('/v1/audio/speech', dependencies=check_key)
-async def handle_audio_to_speech(
-        request: Request,
-):
-    request_data = await request.json()
-    audio_request = AudioTextRequest(**request_data)
+async def handle_audio_to_speech(request: Request):
+    try:
+        request_data = await request.json()
+        audio_request = AudioTextRequest(**request_data)
 
-    if audio_request.stream:
-        from openai_server.backend import text_to_audio
+        if audio_request.stream:
+            from openai_server.backend import text_to_audio
 
-        async def generator():
-            chunki = 0
-            for chunk in text_to_audio(**dict(audio_request)):
-                disconnected = await request.is_disconnected()
-                if disconnected:
-                    break
+            async def generator():
+                try:
+                    chunki = 0
+                    for chunk in text_to_audio(**dict(audio_request)):
+                        disconnected = await request.is_disconnected()
+                        if disconnected:
+                            break
 
-                if chunki == 0 and audio_request.response_format == 'wav':
-                    # pretend longer than is, like OpenAI does
-                    chunk = modify_wav_header(chunk)
-                # h2oGPT sends each chunk as full object, we need rest to be raw data without header for real streaming
-                if chunki > 0 and audio_request.stream_strip:
-                    from pydub import AudioSegment
-                    chunk = AudioSegment.from_file(io.BytesIO(chunk), format=audio_request.response_format).raw_data
+                        if chunki == 0 and audio_request.response_format == 'wav':
+                            # pretend longer than is, like OpenAI does
+                            chunk = modify_wav_header(chunk)
+                        # h2oGPT sends each chunk as full object, we need rest to be raw data without header for real streaming
+                        if chunki > 0 and audio_request.stream_strip:
+                            from pydub import AudioSegment
+                            chunk = AudioSegment.from_file(io.BytesIO(chunk), format=audio_request.response_format).raw_data
 
-                yield chunk
-                chunki += 1
+                        yield chunk
+                        chunki += 1
+                except Exception as e:
+                    # For streaming audio, we can't send a JSON error response in the middle of the stream
+                    # Instead, we'll log the error and stop the stream
+                    print(f"Error in audio streaming: {str(e)}")
+                    return  # This will effectively close the stream
 
-        return StreamingResponse(generator(), media_type="audio/%s" % audio_request.response_format)
-    else:
-        from openai_server.backend import text_to_audio
-        response = ''
-        for response1 in text_to_audio(**dict(audio_request)):
-            response = response1
-        return Response(content=response, media_type="audio/%s" % audio_request.response_format)
+            return StreamingResponse(generator(), media_type=f"audio/{audio_request.response_format}")
+        else:
+            from openai_server.backend import text_to_audio
+            response = b''
+            for response1 in text_to_audio(**dict(audio_request)):
+                response = response1
+            return Response(content=response, media_type=f"audio/{audio_request.response_format}")
+
+    except Exception as e:
+        # This will handle any exceptions that occur outside of the streaming context
+        # or in the non-streaming case
+        error_response = {
+            "error": {
+                "message": str(e),
+                "type": "server_error",
+                "param": None,
+                "code": 500
+            }
+        }
+        return JSONResponse(status_code=500, content=error_response)
 
 
 class ImageGenerationRequest(BaseModel):
