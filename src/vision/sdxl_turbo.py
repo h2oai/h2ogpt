@@ -52,8 +52,8 @@ def make_image(prompt, filename=None, gpu_id='auto', pipe=None,
     makedirs(os.path.dirname(lock_file))  # ensure made
     with filelock.FileLock(lock_file):
         image = pipe(prompt=prompt,
-                     height=image_size.lower().split('x')[0],
-                     width=image_size.lower().split('x')[1],
+                     height=int(image_size.lower().split('x')[0]),
+                     width=int(image_size.lower().split('x')[1]),
                      num_inference_steps=image_num_inference_steps,  # more than 1 not really helpful
                      guidance_scale=0.0,  # disabled: https://huggingface.co/stabilityai/sdxl-turbo#diffusers
                      ).images[0]
