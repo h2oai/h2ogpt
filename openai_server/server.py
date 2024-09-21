@@ -538,7 +538,7 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
                 }
                 yield {"data": json.dumps(error_response)}
                 # After yielding the error, we'll close the connection
-                raise e
+                raise e1
 
         return EventSourceResponse(generator())
     else:
