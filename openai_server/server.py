@@ -526,14 +526,36 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
                         break
 
                     yield {"data": json.dumps(resp)}
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
+            except Exception as e1:
+                # Instead of raising an HTTPException, we'll yield a special error message
+                error_response = {
+                    "error": {
+                        "message": str(e1),
+                        "type": "server_error",
+                        "param": None,
+                        "code": "500"
+                    }
+                }
+                yield {"data": json.dumps(error_response)}
+                # After yielding the error, we'll close the connection
+                raise e
 
         return EventSourceResponse(generator())
     else:
         from openai_server.backend import chat_completions
-        response = chat_completions(request_data_dict)
-        return JSONResponse(response)
+        try:
+            response = chat_completions(request_data_dict)
+            return JSONResponse(response)
+        except Exception as e1:
+            # For non-streaming responses, we'll return a JSON error response
+            raise HTTPException(status_code=500, detail={
+                "error": {
+                    "message": str(e1),
+                    "type": "server_error",
+                    "param": None,
+                    "code": 500
+                }
+            })
 
 
 # https://platform.openai.com/docs/api-reference/models/list
