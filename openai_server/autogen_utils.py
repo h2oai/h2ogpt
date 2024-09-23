@@ -175,6 +175,13 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             r"\bhttp\.server\b": "Running HTTP servers is not allowed.",
         }
 
+        # patterns can always block if appear in code
+        any_patterns = ['H2OGPT_MODEL_LOCK', 'H2OGPT_MAIN_KWARGS', 'H2OGPT_FUNCTION_API_KEY',
+                        'H2OGPT_FUNCTION_PORT', 'H2OGPT_SSL_KEYFILE_PASSWORD', 'H2OGPT_AUTH', 'H2OGPT_AUTH_FILENAME',
+                        'H2OGPT_ENFORCE_H2OGPT_API_KEY', 'H2OGPT_ENFORCE_H2OGPT_UI_KEY',
+                        'H2OGPT_H2OGPT_API_KEYS', 'H2OGPT_KEY'
+                        ]
+
         patterns = shell_patterns if lang in ["bash", "shell", "sh"] else python_patterns
         combined_pattern = "|".join(f"(?P<pat{i}>{pat})" for i, pat in enumerate(patterns.keys()))
         combined_pattern = re.compile(combined_pattern, re.MULTILINE | re.IGNORECASE)
@@ -187,6 +194,9 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             for i, pattern in enumerate(patterns.keys()):
                 if match.group(f"pat{i}"):
                     raise ValueError(f"{danger_mark}: {patterns[pattern]}\n\n{cleaned_code}")
+
+        if any(any_pattern in code for any_pattern in any_patterns):
+            raise ValueError(f"{danger_mark}: {any_patterns}\n\n{cleaned_code}")
 
     def _get_file_name_from_content(self, code: str, workspace_path: Path) -> Optional[str]:
         lines = code.split("\n")
@@ -359,7 +369,8 @@ Otherwise, if no code execution was expected, then do not respond or react to th
     @staticmethod
     def output_guardrail(ret: CommandLineCodeResult) -> CommandLineCodeResult:
         # List of API key environment variable names to check
-        api_key_names = ['OPENAI_AZURE_KEY', 'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
+        api_key_names = ['OPENAI_AZURE_KEY', 'OPENAI_AZURE_API_BASE',
+                         'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
                          'H2OGPT_H2OGPT_KEY', 'TWITTER_API_KEY', 'FACEBOOK_ACCESS_TOKEN', 'API_KEY', 'LINKEDIN_API_KEY',
                          'STRIPE_API_KEY', 'ADMIN_PASS', 'S2_API_KEY', 'ANTHROPIC_API_KEY', 'AUTH_TOKEN',
                          'AWS_SERVER_PUBLIC_KEY', 'OPENAI_API_KEY', 'HUGGING_FACE_HUB_TOKEN', 'AWS_ACCESS_KEY_ID',
@@ -367,8 +378,10 @@ Otherwise, if no code execution was expected, then do not respond or react to th
                          'SLACK_API_TOKEN', 'MISTRAL_API_KEY', 'TOGETHERAI_API_TOKEN', 'GITHUB_TOKEN', 'SECRET_KEY',
                          'GOOGLE_API_KEY', 'REPLICATE_API_TOKEN', 'GOOGLE_CLIENT_SECRET', 'GROQ_API_KEY',
                          'AWS_SERVER_SECRET_KEY', 'H2OGPT_OPENAI_BASE_URL', 'H2OGPT_OPENAI_API_KEY',
-                         'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY', 'IMAGEGEN_OPENAI_BASE_URL', 'IMAGEGEN_OPENAI_API_KEY',
-                         'STT_OPENAI_BASE_URL', 'STT_OPENAI_API_KEY'
+                         'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY', 'IMAGEGEN_OPENAI_BASE_URL',
+                         'IMAGEGEN_OPENAI_API_KEY',
+                         'STT_OPENAI_BASE_URL', 'STT_OPENAI_API_KEY',
+                         'H2OGPT_MODEL_LOCK',
                          ]
 
         # Get the values of these environment variables
