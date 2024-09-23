@@ -308,24 +308,36 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
 
 import faiss
 import numpy as np
-from langchain.embeddings.openai import OpenAIEmbeddings
-
+from openai import OpenAI
 class MemoryVectorDB:
-    def __init__(self, model_name: str, api_key: str):
+    def __init__(self, model: str, openai_base_url:str, openai_api_key: str):
         # Initialize OpenAI embeddings model
-        self.embedding_model = OpenAIEmbeddings(model=model_name, openai_api_key=api_key)
-        
+        self.client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
+        self.model = model
+
         # Initialize FAISS index (using L2 distance)
         self.index = None
         self.texts = []
         self.embeddings = None
         self.id_map = {}
 
+    def get_embeddings(self, texts: list):
+        # Generate embedding  for the texts via client
+        response = self.client.embeddings.create(
+        input=texts,
+        model=self.model
+    )
+        # To reach embeddings for the first item in the list, use response.data[0].embedding and so on
+        embeddings = []
+        for i in range(len(response.data)):
+            embeddings.append(response.data[i].embedding)
+
+        embedding_matrix = np.array(embeddings).astype('float32')
+        return embedding_matrix
+
     def add_texts(self, texts: list):
         # Generate embeddings for the texts
-        # TODO: How to use h2ogpt embeddings endpoint?
-        embeddings = self.embedding_model.embed_documents(texts)
-        embedding_matrix = np.array(embeddings).astype('float32')
+        embedding_matrix = self.get_embeddings(texts)
 
         # Update the list of stored texts and id map
         start_id = len(self.texts)
@@ -348,10 +360,9 @@ class MemoryVectorDB:
         print("Texts added successfully.")
         print("Number of items in FAISS index:", self.index.ntotal)
 
-    def query(self, query_text: str, k: int = 2, threshold: float = 1.0):
+    def query(self, query_text: str, k: int = 2, threshold: float = 2.0):
         # Generate embedding for the query
-        query_embedding = self.embedding_model.embed_query(query_text)
-        query_embedding_np = np.array([query_embedding]).astype('float32')
+        query_embedding_np = self.get_embeddings([query_text])
 
         # Check if FAISS index is initialized
         if self.index is None or self.index.ntotal == 0:
@@ -369,10 +380,11 @@ class MemoryVectorDB:
                 distances.append(D[0][i])
             else:
                 print(f"Warning: Index {idx} not found in id_map. It might have been deleted.")
-        
-        print(f"Memory VetorDB: Returns {len(results)} results.")
+        final_results = [r for r, d in zip(results, distances) if d <= threshold]
+        final_distances = [d for d in distances if d <= threshold]
+        print(f"Memory VetorDB: Returns {len(final_results)} results.")
         # Returns results having distance less than or equal to the threshold
-        return [r for r, d in zip(results, distances) if d <= threshold], [d for d in distances if d <= threshold]
+        return final_results, final_distances
 
     def delete_text_by_id(self, idx: int):
         # Remove the text from stored texts and id map

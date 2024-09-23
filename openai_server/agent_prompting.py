@@ -593,6 +593,7 @@ def get_save_solution_memory_helper():
     save_solution_memor = f"""\n
 * You always keep an eye on the errors you encounter and the solutions you find to them.
 * You have to save the solutions to memory so that you can refer to them in the future and avoid making the same mistakes again.
+* You can also save new memories to make sure you don't forget them and make use of them in the future.
 * Never skips saving the error solutions to the memory.
 
 * Save error solutions to memory using python. Use for saving error solutions to memory.
@@ -604,29 +605,45 @@ python {cwd}/openai_server/agent_tools/save_solution_memory.py --task "TASK" --e
 
 * usage: python {cwd}/openai_server/agent_tools/save_solution_memory.py [-h] --task "TASK" --error "ERROR" --solution "SOLUTION"
 * You should save solutions you have found to errors while solving user tasks. 
+* Solutions have to be callable codes if possible, otherwise just put explanations.
 * While saving the solution, you should explicityl mention: 1-the task that lead you to the error,
-2-the error you encountered, and 3-the solution you found to the error.
+2-the error you encountered, and 3-the solution you found to the error, as a code or explanation.
 * Example task: 'While trying to scrape X data from the web I used the 123.xyz URL but it was blocked by the server.'
 * Example error: 'Error 403: Forbidden'
 * Example solution: 'For similar type of data, I found this another URL 456.xyz that worked.'
+* Another example solution: 'Use following code to scrape X data from the web: ...'
 * It's really important to save the solutions to memory so that you can refer to them in the future and avoid making the same mistakes again.
 """
     return save_solution_memor
 
 def get_memories(instruction:str):
-    memory_df_path = 'openai_files/62224bfb-c832-4452-81e7-8a4bdabbe164/solutions_memory.csv'
-    # Check if memory file exists, if not return empty string
-    if not os.path.exists(memory_df_path):
+    # read all the csv files that starts with the name 'memory_' in the directory: openai_files/62224bfb-c832-4452-81e7-8a4bdabbe164/
+    # and concatenate them into single memory_df
+
+    # find memory paths via os
+    memory_df_paths = []
+    # TODO: This is just a toy code. In real usage, the memory files should be stored in a stable DB
+    for root, dirs, files in os.walk('openai_files/62224bfb-c832-4452-81e7-8a4bdabbe164/'):
+        for file in files:
+            if file.startswith('memory_') and file.endswith('.csv'):
+                memory_df_paths.append(os.path.join(root, file))
+    print(f"Memory Paths: {memory_df_paths}")
+    # if no memory files found, return empty string
+    if len(memory_df_paths) == 0:
         return ""
+
     from openai_server.agent_utils import MemoryVectorDB
     # Initialize vector DB with OpenAI model
-    # openai_api_ket is not set in the environment variables, return empty string
-    if os.getenv("OPENAI_API_KEY") is None:
-        return ""
-    memory_db = MemoryVectorDB(model_name="text-embedding-ada-002", api_key=os.getenv("OPENAI_API_KEY"))
-    
+    # TODO: In the real usage, there has to be a stable vectordb tha will work accross different chats
+    # Currently this is just a dummy vectordb to test the functionality
+    memory_db = MemoryVectorDB(
+        model="text-embedding-3-small",
+        openai_api_key=ast.literal_eval(os.getenv('H2OGPT_H2OGPT_API_KEYS'))[0],
+        openai_base_url="https://api.gpt.h2o.ai/v1"
+        )
+
     import pandas as pd
-    memory_df = pd.read_csv(memory_df_path)
+    memory_df = pd.concat([pd.read_csv(memory_df_path) for memory_df_path in memory_df_paths])
     # Create VectorDB documents from memory_df rows
     documents = []
     for index, row in memory_df.iterrows():
@@ -636,7 +653,7 @@ def get_memories(instruction:str):
     memory_db.add_texts(documents)
 
     # Get the most similar 5 documents to the instruction
-    results, distances = memory_db.query(instruction, k=5, threshold=0.5)
+    results, distances = memory_db.query(instruction, k=5, threshold=0.95)
     if len(results) == 0:
         return ""
 
