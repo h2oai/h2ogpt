@@ -588,6 +588,62 @@ def get_audio_transcription_helper():
         audio_transcription = ''
     return audio_transcription
 
+def get_save_solution_memory_helper():
+    cwd = os.path.abspath(os.getcwd())
+    save_solution_memor = f"""\n
+* You always keep an eye on the errors you encounter and the solutions you find to them.
+* You have to save the solutions to memory so that you can refer to them in the future and avoid making the same mistakes again.
+* Never skips saving the error solutions to the memory.
+
+* Save error solutions to memory using python. Use for saving error solutions to memory.
+* For saving an error solution to memory, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_save_solution_memory.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/save_solution_memory.py --task "TASK" --error "ERROR" --solution "SOLUTION"
+
+* usage: python {cwd}/openai_server/agent_tools/save_solution_memory.py [-h] --task "TASK" --error "ERROR" --solution "SOLUTION"
+* You should save solutions you have found to errors while solving user tasks. 
+* While saving the solution, you should explicityl mention: 1-the task that lead you to the error,
+2-the error you encountered, and 3-the solution you found to the error.
+* Example task: 'While trying to scrape X data from the web I used the 123.xyz URL but it was blocked by the server.'
+* Example error: 'Error 403: Forbidden'
+* Example solution: 'For similar type of data, I found this another URL 456.xyz that worked.'
+* It's really important to save the solutions to memory so that you can refer to them in the future and avoid making the same mistakes again.
+"""
+    return save_solution_memor
+
+def get_memories(instruction:str):
+    memory_df_path = 'openai_files/62224bfb-c832-4452-81e7-8a4bdabbe164/solutions_memory.csv'
+    # Check if memory file exists, if not return empty string
+    if not os.path.exists(memory_df_path):
+        return ""
+    from openai_server.agent_utils import MemoryVectorDB
+    # Initialize vector DB with OpenAI model
+    # openai_api_ket is not set in the environment variables, return empty string
+    if os.getenv("OPENAI_API_KEY") is None:
+        return ""
+    memory_db = MemoryVectorDB(model_name="text-embedding-ada-002", api_key=os.getenv("OPENAI_API_KEY"))
+    
+    import pandas as pd
+    memory_df = pd.read_csv(memory_df_path)
+    # Create VectorDB documents from memory_df rows
+    documents = []
+    for index, row in memory_df.iterrows():
+        document = f"{row['task']}, {row['error']}, {row['solution']}"
+        documents.append(document)
+    # Add documents to VectorDB
+    memory_db.add_texts(documents)
+
+    # Get the most similar 5 documents to the instruction
+    results, distances = memory_db.query(instruction, k=5, threshold=0.5)
+    if len(results) == 0:
+        return ""
+
+    memory_prompt = "\n# Previous Solutions Memory:"
+    # join results with new line, also add index to each result
+    memory_prompt += "\n".join([f"{i+1}. {result}" for i, result in enumerate(results)])
+    return memory_prompt
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):
@@ -598,6 +654,9 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
+    save_solution_memory_helper = get_save_solution_memory_helper()
+    memories_prompt = get_memories(query)
+    print(f"Memories Prompt: {memories_prompt}")
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -614,6 +673,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + save_solution_memory_helper + memories_prompt + agent_tools_note + chat_doc_query
     # TODO: Also return image_generation_helper and audio_transcription_helper ? 
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
