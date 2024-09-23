@@ -588,7 +588,7 @@ def get_audio_transcription_helper():
         audio_transcription = ''
     return audio_transcription
 
-def get_save_solution_memory_helper():
+def get_save_memory_helper():
     cwd = os.path.abspath(os.getcwd())
     save_solution_memor = f"""\n
 * You always keep an eye on the errors you encounter and the solutions you find to them.
@@ -601,9 +601,9 @@ def get_save_solution_memory_helper():
 ```sh
 # filename: my_save_solution_memory.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/save_solution_memory.py --task "TASK" --error "ERROR" --solution "SOLUTION"
+python {cwd}/openai_server/agent_tools/save_memory.py --task "TASK" --error "ERROR" --solution "SOLUTION"
 
-* usage: python {cwd}/openai_server/agent_tools/save_solution_memory.py [-h] --task "TASK" --error "ERROR" --solution "SOLUTION"
+* usage: python {cwd}/openai_server/agent_tools/save_memory.py [-h] --task "TASK" --error "ERROR" --solution "SOLUTION"
 * You should save solutions you have found to errors while solving user tasks. 
 * Solutions have to be callable codes if possible, otherwise just put explanations.
 * While saving the solution, you should explicityl mention: 1-the task that lead you to the error,
@@ -659,7 +659,7 @@ def get_memories(instruction:str):
 
     memory_prompt = "\n# Previous Solutions Memory:"
     # join results with new line, also add index to each result
-    memory_prompt += "\n".join([f"{i+1}. {result}" for i, result in enumerate(results)])
+    memory_prompt += "\n".join([f"Memory-{i+1}:\n {result}" for i, result in enumerate(results)])
     return memory_prompt
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
@@ -671,7 +671,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
-    save_solution_memory_helper = get_save_solution_memory_helper()
+    save_memory_helper = get_save_memory_helper()
     memories_prompt = get_memories(query)
     print(f"Memories Prompt: {memories_prompt}")
 
@@ -690,6 +690,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + save_solution_memory_helper + memories_prompt + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + save_memory_helper + memories_prompt + agent_tools_note + chat_doc_query
     # TODO: Also return image_generation_helper and audio_transcription_helper ? 
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
