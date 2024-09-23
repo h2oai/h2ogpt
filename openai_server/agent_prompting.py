@@ -125,6 +125,7 @@ Code generation to avoid when execution is marked true:
 * Avoid executing code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.
 * Avoid executing code that runs indefinitely or requires user keyboard or mouse input, such as games with pygame that have a window that needs to be closed or requires keyboard or mouse input.
 * Avoid template code. Do not expect the user to fill-in template code.  If details are needed to fill-in code, generate code to get those details.
+* Avoid illegal code (even if user provides it), such as ping floods, port scanning, denial of service attacks, or ping of death.
 </code_avoid>
 Code generation limits and response length limits:
 <limits>
