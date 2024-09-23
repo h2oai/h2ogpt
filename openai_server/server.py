@@ -563,9 +563,8 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
             try:
                 response1 = stream_chat_completions(request_data_dict)
                 for resp in response1:
-                    disconnected = await request.is_disconnected()
-                    if disconnected:
-                        break
+                    if await request.is_disconnected():
+                        return
 
                     yield {"data": json.dumps(resp)}
             except Exception as e1:
@@ -580,7 +579,9 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
                 }
                 yield {"data": json.dumps(error_response)}
                 # After yielding the error, we'll close the connection
-                raise e1
+                return
+                # avoid sending more data back as exception, just be done
+                # raise e1
 
         return EventSourceResponse(generator())
     else:
