@@ -406,6 +406,7 @@ Otherwise, if no code execution was expected, then do not respond or react to th
             'CHANGE_ME', 'REPLACE_ME', 'YOUR_TOKEN_HERE',
             'N/A', 'NA', 'None', 'not_set', 'NOT_SET', 'NOT-SET',
             'undefined', 'UNDEFINED', 'foo', 'bar',
+            'https://api.openai.com', 'https://api.openai.com/v1',
             # Add any other common dummy values you've encountered
         }
         set_allowed = {x.lower() for x in set_allowed}
