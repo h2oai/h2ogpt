@@ -638,5 +638,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
         "And the code blocks that are not supposed to be executed are marked with # execution: false. "
         "* Important: # execution mark has to be placed at the beginning of the code block, right "
         "after the # filename: <filename> mark. "
+        "* Important: When you run into unsolvable errors for some tasks, you always "
+        "try different approaches instead of being stuck at one approach. "
+        "* Important: When you are finalizing the task and generating your final response, "
+        "always focus on the first user request "
+        "and try to answer it in your final answer before going into explanations and summaries. "
     )
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
