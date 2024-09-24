@@ -623,5 +623,20 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
     system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + agent_tools_note + chat_doc_query
-    # TODO: Also return image_generation_helper and audio_transcription_helper ? 
+    
+    # Emphasize the most important points at the end
+    system_message += (
+        "\n\n"
+        "* Important: If you have past conversation context, "
+        "and if you see code execution errors, "
+        "you should focus on fixing the errors in the code. "
+        "* Important: If you realize you run into a lot of similar "
+        "errors for a certain approach, then instead of trying to fix the errors, "
+        "you should try a different approach. "
+        "* Imoprtant: You have to make sure that code blocks that "
+        "are supposed to be executed are marked with # execution: true. "
+        "And the code blocks that are not supposed to be executed are marked with # execution: false. "
+        "* Important: # execution mark has to be placed at the beginning of the code block, right "
+        "after the # filename: <filename> mark. "
+    )
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
