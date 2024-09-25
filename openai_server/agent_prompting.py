@@ -596,6 +596,26 @@ def get_audio_transcription_helper():
         audio_transcription = ''
     return audio_transcription
 
+def get_image_download_helper():
+    # check if SERPAPI_API_KEY env variable is provided if not, return empty string
+    if not os.getenv("SERPAPI_API_KEY"):
+        return ""
+    
+    cwd = os.path.abspath(os.getcwd())
+    image_download = f"""\n
+* Web Image Download tool using python. Use for downloading images from the web/internet.
+* For downloading images from the web, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_image_download.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/image_downloader.py --text "Text to search for" --file "file_name.jpg"
+```
+* usage: python {cwd}/openai_server/agent_tools/image_downloader.py [-h] --text "TEXT TO SEARCH FOR" --file "FILE_NAME"
+* The image_downloader tool uses the Google Search API to download images from the web.
+* The image_downloader tool can be used to download images for use in generating responses or for analysis.
+* The image_downloader tool has to be your first option for downloading images from the web.
+"""
+    return image_download
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):
@@ -606,6 +626,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
+    image_download_helper = get_image_download_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -622,26 +643,37 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + image_download_helper + agent_tools_note + chat_doc_query
     
     # Emphasize the most important points at the end
     system_message += (
         "\n\n"
-        "* Important: If you have past conversation context, "
-        "and if you see code execution errors, "
-        "you should focus on fixing the errors in the code. "
-        "* Important: If you realize you run into a lot of similar "
+        "<final_tips>"
+        "* If you realize you run into a lot of similar "
         "errors for a certain approach, then instead of trying to fix the errors, "
         "you should try a different approach. "
-        "* Imoprtant: You have to make sure that code blocks that "
+        "* You have to make sure that code blocks that "
         "are supposed to be executed are marked with # execution: true. "
         "And the code blocks that are not supposed to be executed are marked with # execution: false. "
-        "* Important: # execution mark has to be placed at the beginning of the code block, right "
+        "* # execution mark has to be placed at the beginning of the code block, right "
         "after the # filename: <filename> mark. "
-        "* Important: When you run into unsolvable errors for some tasks, you always "
-        "try different approaches instead of being stuck at one approach. "
-        "* Important: When you are finalizing the task and generating your final response, "
+        "* When you are finalizing the task and generating your final response, "
         "always focus on the first user request "
         "and try to answer it in your final answer before going into explanations and summaries. "
+        "</final_tips>"
+        "<tasks_involve_artifacts>"
+        "* Important: If your task involves having some artifacts or files, "
+        "you should always verify that the files are created and exist first before coming up "
+        "with a full solution. If you need certain images, or files, or web knowledge, "
+        "then come up with code blocks to have them first. "
+        "</tasks_involve_artifacts>"
+        "<python_packages>"
+        "* Important: You always verify the existence of python modules "
+        "and packages before using them in your code. If they are not installed, "
+        "you should generate code to install them first. "
+        "</python_packages>"
+        "<tools>"
+        "* Important: You have to prioritize the tools provided to you in this system message first. "
+        "</tools>"
     )
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
