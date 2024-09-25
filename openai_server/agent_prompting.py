@@ -617,36 +617,8 @@ python {cwd}/openai_server/agent_tools/image_downloader.py --text "Text to searc
 """
     return image_download
 
-def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
-                           api_key, model, text_context_list, image_file, temp_dir, query):
-    agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
-                                                           agent_system_site_packages)
-
-    image_query_helper = get_image_query_helper(base_url, api_key, model)
-    mermaid_renderer_helper = get_mermaid_renderer_helper()
-    image_generation_helper = get_image_generation_helper()
-    audio_transcription_helper = get_audio_transcription_helper()
-    image_download_helper = get_image_download_helper()
-
-    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
-                                                               temp_dir,
-                                                               # avoid text version of chat conversation, confuses LLM
-                                                               chat_conversation=None,
-                                                               system_prompt=system_prompt,
-                                                               prompt=query,
-                                                               model=model)
-
-    cwd = os.path.abspath(os.getcwd())
-    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
-    list_dir = os.listdir('openai_server/agent_tools')
-    list_dir = [x for x in list_dir if not x.startswith('__')]
-
-    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
-
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + image_download_helper + agent_tools_note + chat_doc_query
-    
-    # Emphasize the most important points at the end
-    system_message += (
+def get_final_system_highlights():
+    return (
         "\n\n"
         "<tasks_involve_artifacts>"
         "* Important: If your task involves having some artifacts or files, "
@@ -677,4 +649,35 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
         "the most important information or what user actually is looking for in your final response. "
         "</final_tips>"
     )
+
+def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
+                           api_key, model, text_context_list, image_file, temp_dir, query):
+    agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
+                                                           agent_system_site_packages)
+
+    image_query_helper = get_image_query_helper(base_url, api_key, model)
+    mermaid_renderer_helper = get_mermaid_renderer_helper()
+    image_generation_helper = get_image_generation_helper()
+    audio_transcription_helper = get_audio_transcription_helper()
+    image_download_helper = get_image_download_helper()
+
+    chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
+                                                               temp_dir,
+                                                               # avoid text version of chat conversation, confuses LLM
+                                                               chat_conversation=None,
+                                                               system_prompt=system_prompt,
+                                                               prompt=query,
+                                                               model=model)
+
+    cwd = os.path.abspath(os.getcwd())
+    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+    list_dir = os.listdir('openai_server/agent_tools')
+    list_dir = [x for x in list_dir if not x.startswith('__')]
+
+    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
+
+    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + image_download_helper + agent_tools_note + chat_doc_query
+    
+    # Emphasize the most important points at the end
+    system_message += get_final_system_highlights()
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
