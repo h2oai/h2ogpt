@@ -55,7 +55,7 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
     ```sh
     # filename: my_wolfram_response.sh
     # execution: true
-    python {cwd}/openai_server/agent_tools/wolfram_query.py "QUERY GOES HERE"
+    python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
     ```
     * usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
     * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
