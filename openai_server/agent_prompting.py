@@ -647,6 +647,8 @@ def get_final_system_highlights():
         "include it in your final response. Don't assume that the user sees all your previous "
         "messages. The user only sees your last message, that's why you should always include "
         "the most important information or what user actually is looking for in your final response. "
+        "* You can not do any math by heart, even simple operations like counting or adding. "
+        "That's why you always use your coding skills for tasks that require any math operations. "
         "</final_tips>"
     )
 
