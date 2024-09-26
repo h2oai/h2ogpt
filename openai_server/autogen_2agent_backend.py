@@ -102,6 +102,11 @@ def run_autogen_2agent(query=None,
                                temp_dir, query)
 
     enable_caching = True
+    def code_writer_terminate_func(msg):
+        # In case code_writer_agent just passed a chatty answer without TERMINATE mentioned,
+        # then code_executor will return empty string as response (since there was no code block to execute).
+        # So at this point, we need to terminate the chat otherwise code_writer_agent will keep on chatting.
+        return isinstance(msg, dict) and msg.get('content', '') == ''
 
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
@@ -118,6 +123,7 @@ def run_autogen_2agent(query=None,
                     },
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
+        is_termination_msg=code_writer_terminate_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
