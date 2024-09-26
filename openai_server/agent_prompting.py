@@ -623,18 +623,6 @@ python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to
 """
     return image_download
 
-def get_final_system_highlights():
-    return (
-        "\n\n"
-        "<tools>"
-        "* Important: You have to prioritize the tools provided to you in this system message first. "
-        "</tools>"
-        "<final_tips>"
-        "* You can not do any math by heart, even simple operations like counting or adding. "
-        "That's why you always use your coding skills for tasks that require any math operations. "
-        "</final_tips>"
-    )
-
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
