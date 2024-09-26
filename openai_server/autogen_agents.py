@@ -5,7 +5,7 @@ from openai_server.agent_utils import current_datetime
 def get_code_execution_agent(
         executor,
         autogen_max_consecutive_auto_reply,
-        ):
+):
     # Create an agent with code executor configuration.
     from openai_server.autogen_utils import H2OConversableAgent
     code_executor_agent = H2OConversableAgent(
@@ -18,11 +18,12 @@ def get_code_execution_agent(
     )
     return code_executor_agent
 
+
 def get_code_writer_agent(
-        llm_config:dict,
-        code_writer_system_prompt:str | None = None,
-        autogen_max_consecutive_auto_reply:int = 1,
-        ):
+        llm_config: dict,
+        code_writer_system_prompt: str | None = None,
+        autogen_max_consecutive_auto_reply: int = 1,
+):
     from openai_server.autogen_utils import H2OConversableAgent
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
@@ -35,9 +36,10 @@ def get_code_writer_agent(
     )
     return code_writer_agent
 
+
 def get_chat_agent(
-    llm_config:dict,
-    autogen_max_consecutive_auto_reply:int = 1,
+        llm_config: dict,
+        autogen_max_consecutive_auto_reply: int = 1,
 ):
     from openai_server.autogen_utils import H2OConversableAgent
     system_message = (
@@ -51,7 +53,7 @@ def get_chat_agent(
         "You are good at answering general knowledge questions "
         "based on your own memory or past conversation context. "
         "You are only good at words. "
-        )
+    )
 
     chat_agent = H2OConversableAgent(
         name="chat_agent",
@@ -75,12 +77,13 @@ def get_chat_agent(
         "* making jokes, writing stories or summaries, "
         "* having daily conversations. "
         "It has no clue about counts, measurements, or calculations. "
-        )
+    )
     return chat_agent
 
+
 def get_human_proxy_agent(
-    llm_config:dict,
-    autogen_max_consecutive_auto_reply:int = 1,
+        llm_config: dict,
+        autogen_max_consecutive_auto_reply: int = 1,
 ):
     # Human Proxy 
     from openai_server.autogen_utils import H2OConversableAgent
@@ -93,12 +96,13 @@ def get_human_proxy_agent(
     )
     return human_proxy_agent
 
+
 def get_code_group_chat_manager(
-        llm_config:dict,
+        llm_config: dict,
         executor,
-        code_writer_system_prompt:str | None = None,
-        autogen_max_consecutive_auto_reply:int = 1,
-        max_round:int = 10,
+        code_writer_system_prompt: str | None = None,
+        autogen_max_consecutive_auto_reply: int = 1,
+        max_round: int = 10,
 ):
     """
     Returns a group chat manager for code writing and execution.
@@ -114,17 +118,18 @@ def get_code_group_chat_manager(
         executor=executor,
         autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
+
     def group_terminate_flow(msg):
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
-        return 'TERMINATE' in msg['content'] or msg['content']==""
+        return 'TERMINATE' in msg['content'] or msg['content'] == ""
 
     # Group Chats
     from autogen import GroupChat
     code_group_chat = GroupChat(
-    agents=[code_writer_agent, code_executor_agent],
-    messages=[],
-    max_round=max_round,
-    speaker_selection_method="round_robin" # call in order as defined in agents
+        agents=[code_writer_agent, code_executor_agent],
+        messages=[],
+        max_round=max_round,
+        speaker_selection_method="round_robin"  # call in order as defined in agents
     )
     from openai_server.autogen_utils import H2OGroupChatManager
     code_group_chat_manager = H2OGroupChatManager(
@@ -136,7 +141,7 @@ def get_code_group_chat_manager(
             "You are able to generate and execute codes. "
             "You can talk to web. "
             "You can solve complex tasks using coding (Python and shell scripting) and language skills. "
-            ),
+        ),
     )
     code_group_chat_manager.description = (
         "This agent excels at solving tasks through code generation and execution, "
@@ -151,14 +156,15 @@ def get_code_group_chat_manager(
         "It can verify the correctness of an answer via coding. "
         "This agent has to be picked for instructions that involves coding, "
         "math or simple calculation operations, solving complex tasks. "
-        )
+    )
     return code_group_chat_manager
 
+
 def get_main_group_chat_manager(
-        llm_config:dict,
-        prompt:str,
-        agents= None,
-        max_round:int = 10,
+        llm_config: dict,
+        prompt: str,
+        agents=None,
+        max_round: int = 10,
 ):
     """
     Returns Main Group Chat Manager to distribute the roles among the agents.
@@ -170,26 +176,26 @@ def get_main_group_chat_manager(
     # TODO: override _process_speaker_selection_result logic to return None
     # as the selected next speaker if it's empty string.
     select_speaker_message_template = (
-                "You are in a role play game. The following roles are available:"
-                "{roles}\n"
-                "Select the next role from {agentlist} to play. Only return the role name."
-        )
+        "You are in a role play game. The following roles are available:"
+        "{roles}\n"
+        "Select the next role from {agentlist} to play. Only return the role name."
+    )
     from autogen import GroupChat
     main_group_chat = GroupChat(
         agents=agents,
         messages=[],
         max_round=max_round,
-        allow_repeat_speaker=True, # Allow the same agent to speak in consecutive rounds.
-        send_introductions=True, # Make agents aware of each other.
-        speaker_selection_method="auto", # LLM decides which agent to call next.
+        allow_repeat_speaker=True,  # Allow the same agent to speak in consecutive rounds.
+        send_introductions=True,  # Make agents aware of each other.
+        speaker_selection_method="auto",  # LLM decides which agent to call next.
         select_speaker_message_template=select_speaker_message_template,
-        role_for_select_speaker_messages="user", # to have select_speaker_prompt_template at the end of the messages
+        role_for_select_speaker_messages="user",  # to have select_speaker_prompt_template at the end of the messages
     )
 
     def main_terminate_flow(msg):
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
-        return 'TERMINATE' in msg['content'] or msg['content']==""
-    
+        return 'TERMINATE' in msg['content'] or msg['content'] == ""
+
     from openai_server.autogen_utils import H2OGroupChatManager
     main_group_chat_manager = H2OGroupChatManager(
         groupchat=main_group_chat,
