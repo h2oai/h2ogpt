@@ -38,6 +38,7 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
             papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find scientific papers (not news or financial information).
     * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
     ```sh
+    # execution: true
     python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
     ```
     usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
@@ -53,6 +54,7 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
     * In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
     ```sh
     # filename: my_wolfram_response.sh
+    # execution: true
     python {cwd}/openai_server/agent_tools/wolfram_query.py "QUERY GOES HERE"
     ```
     * usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
@@ -65,6 +67,7 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
     * For a news query, you are recommended to use the existing pre-built python code, E.g.:
     ```sh
     # filename: my_news_response.sh
+    # execution: true
     python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY GOES HERE"
     ```
     * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
@@ -474,6 +477,7 @@ def get_ask_question_about_image_helper(base_url, api_key, model):
 * If you need to ask a question about an image, use the following sh code:
 ```sh
 # filename: my_image_response.sh
+# execution: true
 python {cwd}/openai_server/agent_tools/ask_question_about_image.py --prompt "PROMPT" --file "LOCAL FILE NAME"
 ```
 * usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
@@ -499,6 +503,7 @@ def get_mermaid_renderer_helper():
 * For a mermaid rendering, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_mermaid_render.sh
+# execution: true
 python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" --output "mermaid.svg"
 ```
 * usage: python {cwd}/openai_server/agent_tools/mermaid_renderer.py [-h] (--file FILE | [--output OUTPUT]
@@ -620,12 +625,6 @@ python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to
 def get_final_system_highlights():
     return (
         "\n\n"
-        "<tasks_involve_artifacts>"
-        "* Important: If your task involves having some artifacts or files, "
-        "you should always verify that the files are created and exist first before coming up "
-        "with a full solution. If you need certain images, or files, or web knowledge, "
-        "then come up with code blocks to have them first. "
-        "</tasks_involve_artifacts>"
         "<tools>"
         "* Important: You have to prioritize the tools provided to you in this system message first. "
         "</tools>"
@@ -635,7 +634,7 @@ def get_final_system_highlights():
         "And the code blocks that are not supposed to be executed are marked with # execution: false. "
         "* # execution mark has to be placed at the beginning of the code block, right "
         "after the # filename: <filename> mark. "
-        "* If users asks you to provide some code our specific output, you should always "
+        "* If users asks you to provide some code or specific output, you should always "
         "include it in your final response. Don't assume that the user sees all your previous "
         "messages. The user only sees your last message, that's why you should always include "
         "the most important information or what user actually is looking for in your final response. "
