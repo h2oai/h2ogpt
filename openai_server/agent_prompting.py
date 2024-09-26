@@ -629,15 +629,6 @@ def get_final_system_highlights():
         "* Important: You have to prioritize the tools provided to you in this system message first. "
         "</tools>"
         "<final_tips>"
-        "* You have to make sure that code blocks that "
-        "are supposed to be executed are marked with # execution: true. "
-        "And the code blocks that are not supposed to be executed are marked with # execution: false. "
-        "* # execution mark has to be placed at the beginning of the code block, right "
-        "after the # filename: <filename> mark. "
-        "* If users asks you to provide some code or specific output, you should always "
-        "include it in your final response. Don't assume that the user sees all your previous "
-        "messages. The user only sees your last message, that's why you should always include "
-        "the most important information or what user actually is looking for in your final response. "
         "* You can not do any math by heart, even simple operations like counting or adding. "
         "That's why you always use your coding skills for tasks that require any math operations. "
         "</final_tips>"
@@ -667,12 +658,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     list_dir = os.listdir('openai_server/agent_tools')
     list_dir = [x for x in list_dir if not x.startswith('__')]
 
-    agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
+    agent_tools_note = (
+        f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir} "
+        "You have to prioritize these tools for the relevant tasks before using other tools or methods. \n"
+        )
 
     system_message = agent_code_writer_system_message + ask_question_about_image_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + download_one_web_image_helper + agent_tools_note + chat_doc_query
-    
-    is_weak_model = model not in ['claude-3-5-sonnet-20240620', 'gpt-4o', 'o1-preview']
-    if is_weak_model: # TODO: Any other strong models?
-        # Emphasize the most important points at the end for weaker models
-        system_message += get_final_system_highlights()
     return system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper
