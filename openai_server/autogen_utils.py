@@ -294,6 +294,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
             try:
                 if self.stream_output:
+                    if 'src' not in sys.path:
+                        sys.path.append('src')
                     from src.utils import execute_cmd_stream
                     exec_func = execute_cmd_stream
                 else:

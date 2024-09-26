@@ -1,5 +1,6 @@
 import ast
 import os
+import sys
 import tempfile
 import time
 import uuid
@@ -278,6 +279,8 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     b2imgs = []
     meta_data_images = []
     for img_file_one in image_file:
+        if 'src' not in sys.path:
+            sys.path.append('src')
         from src.utils import check_input_type
         str_type = check_input_type(img_file_one)
         if str_type == 'unknown':
@@ -285,11 +288,15 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
 
         img_file_path = os.path.join(tempfile.gettempdir(), 'image_file_%s' % str(uuid.uuid4()))
         if str_type == 'url':
+            if 'src' not in sys.path:
+                sys.path.append('src')
             from src.utils import download_image
             img_file_one = download_image(img_file_one, img_file_path)
             # only delete if was made by us
             image_files_to_delete.append(img_file_one)
         elif str_type == 'base64':
+            if 'src' not in sys.path:
+                sys.path.append('src')
             from src.vision.utils_vision import base64_to_img
             img_file_one = base64_to_img(img_file_one, img_file_path)
             # only delete if was made by us

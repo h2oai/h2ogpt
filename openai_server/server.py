@@ -5,6 +5,7 @@ import sys
 import ast
 import json
 import time
+import traceback
 import uuid
 from traceback import print_exception
 from typing import List, Dict, Optional, Literal, Union, Any
@@ -358,6 +359,7 @@ async def openai_completions(request: Request, request_data: TextRequest, author
 
                         yield {"data": json.dumps(resp)}
                 except Exception as e1:
+                    print(traceback.format_exc())
                     error_response = {
                         "error": {
                             "message": str(e1),
@@ -568,6 +570,7 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
 
                     yield {"data": json.dumps(resp)}
             except Exception as e1:
+                print(traceback.format_exc())
                 # Instead of raising an HTTPException, we'll yield a special error message
                 error_response = {
                     "error": {
