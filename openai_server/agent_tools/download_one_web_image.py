@@ -62,7 +62,7 @@ def main():
     # check with assert if os.getenv("SERPAPI_API_KEY") is defined, if not, print a message
     assert os.getenv("SERPAPI_API_KEY"), "Please set the SERPAPI_API_KEY environment variable"
 
-    parser = argparse.ArgumentParser(description="Download an image from the web")
+    parser = argparse.ArgumentParser(description="Download one image from the web based on a search text")
     parser.add_argument("--text", type=str, required=True, help="The text to search for")
     #file
     parser.add_argument("--file", type=str, help="The file name to save the image to")

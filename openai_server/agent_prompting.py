@@ -596,24 +596,24 @@ def get_audio_transcription_helper():
         audio_transcription = ''
     return audio_transcription
 
-def get_image_download_helper():
+def get_download_one_web_image_helper():
     # check if SERPAPI_API_KEY env variable is provided if not, return empty string
     if not os.getenv("SERPAPI_API_KEY"):
         return ""
     
     cwd = os.path.abspath(os.getcwd())
     image_download = f"""\n
-* Web Image Download tool using python. Use for downloading images from the web/internet.
+* Download One Web Image should be used for downloading images from the web/internet, one at a time.
 * For downloading images from the web, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_download.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/image_downloader.py --text "Text to search for" --file "file_name.jpg"
+python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --file "file_name.jpg"
 ```
-* usage: python {cwd}/openai_server/agent_tools/image_downloader.py [-h] --text "TEXT TO SEARCH FOR" --file "FILE_NAME"
-* The image_downloader tool uses the Google Search API to download images from the web.
-* The image_downloader tool can be used to download images for use in generating responses or for analysis.
-* The image_downloader tool has to be your first option for downloading images from the web.
+* usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --file "FILE_NAME"
+* The download_one_web_image tool uses the Google Search API to download one image at a time from the web based on passed text.
+* The download_one_web_image tool has to be your first option for downloading images from the web.
+
 """
     return image_download
 
@@ -653,7 +653,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
-    image_download_helper = get_image_download_helper()
+    image_download_helper = get_download_one_web_image_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
