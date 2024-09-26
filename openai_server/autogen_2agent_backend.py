@@ -118,7 +118,6 @@ def run_autogen_2agent(query=None,
                     },
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
-        is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 

@@ -763,9 +763,8 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
     has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
-    has_no_code_executed_message = has_message and "<no_code_executed>" in msg.get('content', '')
-    has_term = has_message and "TERMINATE" in msg.get('content', '') and not has_no_code_executed_message or msg.get('content', '') == ''
-    has_execute = has_message and '# execution: true' in msg.get('content', '') and not has_no_code_executed_message
+    has_term = has_message and "TERMINATE" in msg.get('content', '') or msg.get('content', '') == ''
+    has_execute = has_message and '# execution: true' in msg.get('content', '')
     if has_execute:
         # sometimes model stops without verifying results if it dumped all steps in one turn
         # force it to continue
