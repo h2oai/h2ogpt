@@ -626,18 +626,10 @@ def get_final_system_highlights():
         "with a full solution. If you need certain images, or files, or web knowledge, "
         "then come up with code blocks to have them first. "
         "</tasks_involve_artifacts>"
-        "<python_packages>"
-        "* Important: You always verify the existence of python modules "
-        "and packages before using them in your code. If they are not installed, "
-        "you should generate code to install them first. "
-        "</python_packages>"
         "<tools>"
         "* Important: You have to prioritize the tools provided to you in this system message first. "
         "</tools>"
         "<final_tips>"
-        "* If you realize you run into a lot of similar "
-        "errors for a certain approach, then instead of trying to fix the errors, "
-        "you should try a different approach. "
         "* You have to make sure that code blocks that "
         "are supposed to be executed are marked with # execution: true. "
         "And the code blocks that are not supposed to be executed are marked with # execution: false. "
@@ -680,6 +672,8 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + image_download_helper + agent_tools_note + chat_doc_query
     
-    # Emphasize the most important points at the end
-    system_message += get_final_system_highlights()
+    is_weak_model = model not in ['claude-3-5-sonnet-20240620', 'gpt-4o', 'o1-preview']
+    if is_weak_model: # TODO: Any other strong models?
+        # Emphasize the most important points at the end for weaker models
+        system_message += get_final_system_highlights()
     return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper

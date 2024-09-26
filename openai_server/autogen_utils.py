@@ -391,7 +391,7 @@ os.environ['TERM'] = 'dumb'
    - Instead just directly and immediately provide the actual answer to the user's original question.
    - The user will only see your final message, that's why make sure to include the answer that the user is looking for in your final message.
    - Do not thank the user for telling you that the code was not executed.
-   - If there is no more task left, terminate the chat with the <FINISHED_ALL_TASKS> string.
+   - If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
