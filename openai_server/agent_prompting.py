@@ -453,7 +453,7 @@ def get_standard_answer(prompt, text_context_list, image_file=None, chat_convers
     return text
 
 
-def get_image_query_helper(base_url, api_key, model):
+def get_ask_question_about_image_helper(base_url, api_key, model):
     from openai import OpenAI
     client = OpenAI(base_url=base_url, api_key=api_key, timeout=60)
     model_list = client.models.list()
@@ -470,26 +470,26 @@ def get_image_query_helper(base_url, api_key, model):
         os.environ['H2OGPT_OPENAI_VISION_MODEL'] = vision_model
 
         cwd = os.path.abspath(os.getcwd())
-        image_query_helper = f"""\n# Image Query Helper:
+        ask_question_about_image_helper = f"""\n# Ask Question About Image Helper:
 * If you need to ask a question about an image, use the following sh code:
 ```sh
 # filename: my_image_response.sh
-python {cwd}/openai_server/agent_tools/image_query.py --prompt "PROMPT" --file "LOCAL FILE NAME"
+python {cwd}/openai_server/agent_tools/ask_question_about_image.py --prompt "PROMPT" --file "LOCAL FILE NAME"
 ```
-* usage: {cwd}/openai_server/agent_tools/image_query.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
-* image_query gives a text response for either a URL or local file
-* image_query can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
-* image_query accepts most image files allowed by PIL (Pillow) except svg.
-* Only use image_query on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
-* If the user asks for a perfect image, use the image_query tool only up to 6 times.  If the user asks for a very rough image, then do not use the image_query tool at all.  If the user does not specify the quality of the image, then use the image_query tool only up to 3 times.  If user asks for more uses of image_query, then do as they ask.
-* Do not use plt.show() or plt.imshow() as the user cannot see that displayed, instead you must use this image_query tool to critique or analyze images as a file.
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
+* ask_question_about_image gives a text response for either a URL or local file
+* ask_question_about_image can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
+* ask_question_about_image accepts most image files allowed by PIL (Pillow) except svg.
+* Only use ask_question_about_image on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
+* If the user asks for a perfect image, use the ask_question_about_image tool only up to 6 times.  If the user asks for a very rough image, then do not use the ask_question_about_image tool at all.  If the user does not specify the quality of the image, then use the ask_question_about_image tool only up to 3 times.  If user asks for more uses of ask_question_about_image, then do as they ask.
+* Do not use plt.show() or plt.imshow() as the user cannot see that displayed, instead you must use this ask_question_about_image tool to critique or analyze images as a file.
 """
     else:
-        image_query_helper = """* Do not use plt.show() or plt.imshow() as the user cannot see that displayed.  Use other ways to analyze the image if required.
+        ask_question_about_image_helper = """* Do not use plt.show() or plt.imshow() as the user cannot see that displayed.  Use other ways to analyze the image if required.
 """
 
     # FIXME: What if chat history, counting will be off
-    return image_query_helper
+    return ask_question_about_image_helper
 
 
 def get_mermaid_renderer_helper():
@@ -506,7 +506,7 @@ python {cwd}/openai_server/agent_tools/mermaid_renderer.py --file "mermaid.mmd" 
 * Good input file names would have an .mmd extension.
 * Output file can be svg, pdf, or png extension.
 * Ensure you use reasonable color schemes good for presentations (e.g. avoid white text in light green boxes).
-* A png version of any svg is also created for use with image_query in order to analyze the svg (via the png).
+* A png version of any svg is also created for use with ask_question_about_image in order to analyze the svg (via the png).
 """
     return mmdc
 
@@ -569,7 +569,7 @@ python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT"
 * As a helpful assistant, you will convert the user's requested image generation prompt into an excellent prompt, unless the user directly requests a specific prompt be used for image generation.
 * Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
 * However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
-* Do not do an image_query on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image generated.
+* Do not do an ask_question_about_image on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image generated.
 """
     else:
         image_generation = ''
@@ -649,11 +649,11 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
                                                            agent_system_site_packages)
 
-    image_query_helper = get_image_query_helper(base_url, api_key, model)
+    ask_question_about_image_helper = get_ask_question_about_image_helper(base_url, api_key, model)
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
-    image_download_helper = get_download_one_web_image_helper()
+    download_one_web_image_helper = get_download_one_web_image_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -670,10 +670,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     agent_tools_note = f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}\n"
 
-    system_message = agent_code_writer_system_message + image_query_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + image_download_helper + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + ask_question_about_image_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + download_one_web_image_helper + agent_tools_note + chat_doc_query
     
     is_weak_model = model not in ['claude-3-5-sonnet-20240620', 'gpt-4o', 'o1-preview']
     if is_weak_model: # TODO: Any other strong models?
         # Emphasize the most important points at the end for weaker models
         system_message += get_final_system_highlights()
-    return system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper
+    return system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper
