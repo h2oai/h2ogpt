@@ -5,7 +5,7 @@ from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
 from openai_server.agent_prompting import get_full_system_prompt
 
-from openai_server.autogen_utils import terminate_message_func, H2OConversableAgent
+from openai_server.autogen_utils import H2OConversableAgent
 
 
 def run_autogen_2agent(query=None,
