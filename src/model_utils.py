@@ -129,7 +129,7 @@ def get_config(base_model,
                                                 offload_folder=offload_folder,
                                                 revision=revision,
                                                 **rope_kwargs)
-        except OSError as e:
+        except (ValueError, OSError) as e:
             if raise_exception:
                 raise
             if base_model in anthropic_gpts + openai_gpts + google_gpts + mistralai_gpts + groq_gpts + non_hf_types:
@@ -139,7 +139,8 @@ def get_config(base_model,
                     'OSError: You are trying to access a gated repo.' in str(e) or \
                     'Repository Not Found for url' in str(e) or \
                     'does not appear to have a file' in str(e) or \
-                    'ncorrect path_or_model_id' in str(e):
+                    'ncorrect path_or_model_id' in str(e) or \
+                    'recognize this architecture' in str(e):
                 # e.g. llama, gpjt, etc.
                 # e.g. HF TGI but not model on HF or private etc.
                 if max_seq_len is None and base_model.lower() in non_hf_types:
