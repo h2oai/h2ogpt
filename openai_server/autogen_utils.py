@@ -25,8 +25,9 @@ from autogen.coding.func_with_reqs import (
     FunctionWithRequirements,
     FunctionWithRequirementsStr,
 )
-from autogen.coding.utils import silence_pip, _get_file_name_from_content
+from autogen.coding.utils import silence_pip
 from autogen.runtime_logging import logging_enabled, log_new_agent
+from pydantic import Field
 
 from typing_extensions import ParamSpec
 
@@ -40,6 +41,12 @@ verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
 danger_mark = 'Potentially dangerous operation detected'
 bad_output_mark = 'Output contains sensitive information'
+
+
+class H2OCodeBlock(CodeBlock):
+    """(Experimental) A class that represents a code block."""
+
+    execute: bool = Field(description="Whether to execute the code.")
 
 
 class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
@@ -267,7 +274,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 f.write(code)
             file_names.append(written_file)
 
-            if not execute_code:
+            if not execute_code or hasattr(code_block, 'execute') and not code_block.execute:
                 # Just return a message that the file is saved.
                 logs_all += f"Code saved to {str(written_file)}\n"
                 exitcode = 0
@@ -318,34 +325,46 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         try:
             # skip code blocks with # execution: false
             code_blocks_len0 = len(code_blocks)
-            code_blocks = [x for x in code_blocks if '# execution: false' not in x.code]
-            # give chance for LLM to give generic code blocks without any execution false
-            code_blocks = [x for x in code_blocks if '# execution:' in x.code]
+
+            code_blocks_new = []
+            for code_block in code_blocks:
+                if '# execution: false' not in code_block.code and \
+                        '# execution:' in code_block.code in code_block.code:
+                    code_block_new = H2OCodeBlock(code=code_block.code, language=code_block.language, execute=True)
+                else:
+                    code_block_new = H2OCodeBlock(code=code_block.code, language=code_block.language, execute=False)
+                code_blocks_new.append(code_block_new)
+            code_blocks = code_blocks_new
+            code_blocks_exec = [x for x in code_blocks if x.execute]
 
             # ensure no plots pop-up if in pycharm mode or outside docker
             for code_block in code_blocks:
                 lang, code = code_block.language, code_block.code
                 if lang == 'python':
-                    code_block.code = """import matplotlib
+                    code_block.code = """
+# BEGIN: user added these matplotlib lines to ensure any plots do not pop-up in their UI
+import matplotlib
 matplotlib.use('Agg')  # Set the backend to non-interactive
 import matplotlib.pyplot as plt
 plt.ioff()
 import os
 os.environ['TERM'] = 'dumb'
+# END: user added these matplotlib lines to ensure any plots do not pop-up in their UI
 """ + code_block.code
 
             ret = self.__execute_code_dont_check_setup(code_blocks)
 
-            if ret.exit_code == -2 or len(code_blocks) == 0 and code_blocks_len0 > 0:
+            if ret.exit_code == -2 or len(code_blocks_exec) == 0 and code_blocks_len0 > 0:
                 ret = CommandLineCodeResult(exit_code=0,
                                             output="""
-<no_code_executed>
-Code block present, but no code executed (execution tag was false or not present for all code blocks).
-This is expected if you had code blocks but they were not meant for python or shell execution.
-For example, you may have shown code for demonstration purposes.
-If you intended to execute code, be sure to add the comment: # execution: true and try again.
-Otherwise, if no code execution was expected, then do not respond or react to this "no_code_execution" text and instead just directly and immediately summarize the actual answer to the user's original question and then TERMINATE.
-</no_code_executed>
+<no_code_executed_notes>
+* Code block present, but no code executed (execution tag was false or not present for all code blocks).
+* This is expected if you had code blocks but they were not meant for python or shell execution.
+* For example, you may have shown code for demonstration purposes.
+* If you intended to execute code, be sure to add the comment: # execution: true and try again.
+* Otherwise, if no code execution was expected, then do not respond or react to this "no_code_execution" text and instead just directly and immediately summarize the actual answer to the user's original question and then TERMINATE.
+* Do not thank the user for telling you that the code was not executed.
+</no_code_executed_notes>
 """)
         except Exception as e:
             if danger_mark in str(e):
@@ -364,6 +383,17 @@ Otherwise, if no code execution was expected, then do not respond or react to th
             else:
                 raise
         ret = self.truncate_output(ret)
+        ret = self.executed_code_note(ret)
+        return ret
+
+    def executed_code_note(self, ret: CommandLineCodeResult) -> CommandLineCodeResult:
+        if ret.exit_code == 0:
+            ret.output += """
+<code_executed_notes>
+* You should use these output without thanking the user for them.
+* You should use these outputs without noting that the code was successfully executed.
+</code_executed_notes>
+"""
         return ret
 
     @staticmethod
