@@ -121,7 +121,7 @@ def get_code_group_chat_manager(
 
     def group_terminate_flow(msg):
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
-        return 'TERMINATE' in msg['content'] or msg['content'] == ""
+        return '<FINISHED_ALL_TASKS>' in msg['content'] or msg['content'] == ""
 
     # Group Chats
     from autogen import GroupChat
@@ -194,7 +194,7 @@ def get_main_group_chat_manager(
 
     def main_terminate_flow(msg):
         # Terminate the chat if the message contains 'TERMINATE' or is empty.
-        return 'TERMINATE' in msg['content'] or msg['content'] == ""
+        return '<FINISHED_ALL_TASKS>' in msg['content'] or msg['content'] == ""
 
     from openai_server.autogen_utils import H2OGroupChatManager
     main_group_chat_manager = H2OGroupChatManager(

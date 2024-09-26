@@ -275,7 +275,7 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
             extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
             if extracted_summary:
                 chat_result.summary = extracted_summary
-        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('TERMINATE', '')
+        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '')
 
         if '![image](' not in chat_result.summary:
             latest_image_file = image_files[-1] if image_files else None

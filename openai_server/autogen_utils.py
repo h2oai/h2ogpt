@@ -391,7 +391,7 @@ os.environ['TERM'] = 'dumb'
    - Instead just directly and immediately provide the actual answer to the user's original question.
    - The user will only see your final message, that's why make sure to include the answer that the user is looking for in your final message.
    - Do not thank the user for telling you that the code was not executed.
-   - If there is no more task left, TERMINATE the chat.
+   - If there is no more task left, terminate the chat with the <FINISHED_ALL_TASKS> string.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -763,7 +763,7 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
     has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
-    has_term = has_message and "TERMINATE" in msg.get('content', '') or msg.get('content', '') == ''
+    has_term = has_message and "<FINISHED_ALL_TASKS>" in msg.get('content', '') or msg.get('content', '') == ''
     has_execute = has_message and '# execution: true' in msg.get('content', '')
     if has_execute:
         # sometimes model stops without verifying results if it dumped all steps in one turn

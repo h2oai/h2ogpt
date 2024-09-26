@@ -184,7 +184,7 @@ Constraints on output or response:
 * Searching for the constrained response is allowed, including iterating the response with the response changing to match user constraints, but you must avoid infinite loops and try generalized approaches instead of simplistic word or character replacement.
 * Have common sense and be smart, repeating characters or words just to match a constraint about your response is not likely useful.
 * E.g., simple solutions about your response are allowed, such as for "How many words are in your response" can just be a function that generates a sentence that includes the numeric count of the words in that sentence.
-* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags, before giving a TERMINATE.
+* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags, before giving a <FINISHED_ALL_TASKS>.
 /constraints>
 PDF Generation:
 <pdf>
@@ -235,8 +235,8 @@ Stopping instructions:
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
-* Only once you have verification that the user completed the task do you summarize and add the 'TERMINATE' string to stop the conversation.
-* If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response before TERMINATE.
+* Only once you have verification that the user completed the task do you summarize and add the '<FINISHED_ALL_TASKS>' string to stop the conversation.
+* If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response before the <FINISHED_ALL_TASKS> string.
 </stopping>
 """
     return agent_code_writer_system_message
