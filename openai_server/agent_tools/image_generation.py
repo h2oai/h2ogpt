@@ -2,6 +2,7 @@ import ast
 import base64
 import os
 import argparse
+import sys
 import tempfile
 import uuid
 
@@ -126,6 +127,8 @@ def main():
         image_data_base64 = response.data[0].b64_json
         image_data = base64.b64decode(image_data_base64)
     else:
+        if 'src' not in sys.path:
+            sys.path.append('src')
         from src.utils import download_simple
         dest = download_simple(response.data[0].url, overwrite=True)
         with open(dest, "rb") as f:
