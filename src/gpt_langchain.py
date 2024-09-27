@@ -2811,7 +2811,6 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
             # put messages and system back in
             payload['messages'] = messages_cached
             payload['system'] = system_cached
-            time.sleep(1000000)
         return payload
 
 
