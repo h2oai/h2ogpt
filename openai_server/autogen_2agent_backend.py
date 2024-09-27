@@ -101,15 +101,21 @@ def run_autogen_2agent(query=None,
                                api_key, model, text_context_list, image_file,
                                temp_dir, query)
 
+    enable_caching = True
+
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
         system_message=system_message,
-        llm_config={"config_list": [{"model": model,
+        llm_config={'timeout': autogen_timeout,
+                    'extra_body': dict(enable_caching=enable_caching),
+                    "config_list": [{"model": model,
                                      "api_key": api_key,
                                      "base_url": base_url,
                                      "stream": stream_output,
-                                     "cache_seed": autogen_cache_seed,
-                                     'max_tokens': max_new_tokens}]},
+                                     'max_tokens': max_new_tokens,
+                                     'cache_seed': autogen_cache_seed,
+                                     }]
+                    },
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
         is_termination_msg=terminate_message_func,

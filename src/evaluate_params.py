@@ -38,7 +38,7 @@ reader_names = [
 ]
 
 eval_func_param_names = (
-        ["instruction", "iinput", "context", "stream_output", "prompt_type", "prompt_dict", "chat_template"]
+        ["instruction", "iinput", "context", "stream_output", "enable_caching", "prompt_type", "prompt_dict", "chat_template"]
         + gen_hyper
         + [
             "chat",
