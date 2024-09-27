@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import base64
 import functools
 import io
@@ -398,7 +399,7 @@ def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False,
     return generator
 
 
-def chat_completion_action(body: dict, stream_output=False) -> dict:
+async def achat_completion_action(body: dict, stream_output=False):
     messages = body.get('messages', [])
     object_type = 'chat.completions' if not stream_output else 'chat.completions.chunk'
     created_time = int(time.time())
@@ -407,7 +408,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     gen_kwargs = body
     # Consecutive Autogen messages may have the same role,
-    # especially when agent_type involes group chat messages.
+    # especially when agent_type involves group chat messages.
     # Therefore, they need to be concatenated.
     agent_type = gen_kwargs.get('agent_type', 'auto')
     if agent_type == "autogen_multi_agent":
@@ -483,6 +484,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
                 yield chat_chunk
             else:
                 answer = chunk
+            await asyncio.sleep(0.005)
     except StopIteration as e:
         ret_dict = e.value
         if isinstance(ret_dict, dict):
@@ -526,7 +528,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         yield resp
 
 
-def completions_action(body: dict, stream_output=False):
+async def acompletions_action(body: dict, stream_output=False):
     object_type = 'text_completion.chunk' if stream_output else 'text_completion'
     created_time = int(time.time())
     res_id = "res_id-%s" % str(uuid.uuid4())
@@ -625,6 +627,7 @@ def completions_action(body: dict, stream_output=False):
                 response += chunk
                 yield_chunk = text_streaming_chunk(chunk)
                 yield yield_chunk
+                await asyncio.sleep(0.005)
         except StopIteration as e:
             # Get the return value
             if isinstance(e.value, dict):
@@ -643,23 +646,13 @@ def completions_action(body: dict, stream_output=False):
         yield chunk
 
 
-def chat_completions(body: dict) -> dict:
-    generator = chat_completion_action(body, stream_output=False)
-    return deque(generator, maxlen=1).pop()
-
-
-def stream_chat_completions(body: dict):
-    for resp in chat_completion_action(body, stream_output=True):
+async def astream_chat_completions(body: dict, stream_output=True):
+    async for resp in achat_completion_action(body, stream_output=stream_output):
         yield resp
 
 
-def completions(body: dict) -> dict:
-    generator = completions_action(body, stream_output=False)
-    return deque(generator, maxlen=1).pop()
-
-
-def stream_completions(body: dict):
-    for resp in completions_action(body, stream_output=True):
+async def astream_completions(body: dict, stream_output=True):
+    async for resp in acompletions_action(body, stream_output=stream_output):
         yield resp
 
 
@@ -709,7 +702,7 @@ def split_audio_fixed_intervals(audio_bytes, interval_ms=10000):
     return chunk_bytes
 
 
-def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+async def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
     if chunk != 'none':
         # break-up audio file
         if chunk == 'silence':
@@ -718,14 +711,14 @@ def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
             audio_files = split_audio_fixed_intervals(audio_file, interval_ms=chunk)
 
         for audio_file1 in audio_files:
-            for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
+            async for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
                 yield text
     else:
-        for text in _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+        async for text in _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
             yield text
 
 
-def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+async def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
     # assumes enable_stt=True set for h2oGPT
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
@@ -765,7 +758,7 @@ def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
         yield dict(text=text.strip())
 
 
-def text_to_audio(model, voice, input, stream, response_format, **kwargs):
+async def text_to_audio(model, voice, input, stream, response_format, **kwargs):
     # tts_model = 'microsoft/speecht5_tts'
     # tts_model = 'tts_models/multilingual/multi-dataset/xtts_v2'
     # assumes enable_tts=True set for h2oGPT
@@ -804,12 +797,14 @@ def text_to_audio(model, voice, input, stream, response_format, **kwargs):
         n = 0
         for audio_str in job:
             yield audio_str_to_bytes(audio_str, response_format=response_format)
+            await asyncio.sleep(0.005)
             n += 1
 
         # get rest after job done
         outputs = job.outputs().copy()
         for audio_str in outputs[n:]:
             yield audio_str_to_bytes(audio_str, response_format=response_format)
+            await asyncio.sleep(0.005)
             n += 1
     else:
         audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')

@@ -68,10 +68,13 @@ def run_openai_client(stream_output, chat, local_server, openai_workers, prompt,
                       repeat):
     base_model = 'h2oai/h2o-danube2-1.8b-chat'
     # base_model = 'gemini-pro'
+    # base_model = 'claude-3-5-sonnet-20240620'
 
     if local_server:
         from src.gen import main
-        main(base_model=base_model, chat=False,
+        main(base_model=base_model,
+             # inference_server='anthropic',
+             chat=False,
              stream_output=stream_output, gradio=True,
              num_beams=1, block_gradio_exit=False,
              add_disk_models_to_ui=False,

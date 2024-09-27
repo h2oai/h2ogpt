@@ -350,12 +350,11 @@ async def openai_completions(request: Request, request_data: TextRequest, author
         if request_data.stream:
             async def generator():
                 try:
-                    from openai_server.backend import stream_completions
-                    response = stream_completions(request_data_dict)
-                    for resp in response:
+                    from openai_server.backend import astream_completions
+                    async for resp in astream_completions(request_data_dict, stream_output=True):
                         disconnected = await request.is_disconnected()
                         if disconnected:
-                            break
+                            return
 
                         yield {"data": json.dumps(resp)}
                 except Exception as e1:
@@ -370,13 +369,18 @@ async def openai_completions(request: Request, request_data: TextRequest, author
                     }
                     yield {"data": json.dumps(error_response)}
                     # After yielding the error, we'll close the connection
-                    raise e1
+                    return
+                    # raise e1
 
             return EventSourceResponse(generator())
 
         else:
-            from openai_server.backend import completions
-            response = completions(request_data_dict)
+            from openai_server.backend import astream_completions
+            response = {}
+            async for resp in astream_completions(request_data_dict, stream_output=False):
+                if await request.is_disconnected():
+                    return
+                response = resp
             return JSONResponse(response)
 
     except Exception as e:
@@ -559,16 +563,15 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
         request_data_dict['response_format'] = ResponseFormat(type='json_object')
 
     if request_data.stream:
-        from openai_server.backend import stream_chat_completions
+        from openai_server.backend import astream_chat_completions
 
         async def generator():
             try:
-                response1 = stream_chat_completions(request_data_dict)
-                for resp in response1:
+                async for resp1 in astream_chat_completions(request_data_dict, stream_output=True):
                     if await request.is_disconnected():
                         return
 
-                    yield {"data": json.dumps(resp)}
+                    yield {"data": json.dumps(resp1)}
             except Exception as e1:
                 print(traceback.format_exc())
                 # Instead of raising an HTTPException, we'll yield a special error message
@@ -588,9 +591,13 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
 
         return EventSourceResponse(generator())
     else:
-        from openai_server.backend import chat_completions
+        from openai_server.backend import astream_chat_completions
         try:
-            response = chat_completions(request_data_dict)
+            response = {}
+            async for resp in astream_chat_completions(request_data_dict, stream_output=False):
+                if await request.is_disconnected():
+                    return
+                response = resp
             return JSONResponse(response)
         except Exception as e:
             # For non-streaming responses, we'll return a JSON error response
@@ -625,7 +632,9 @@ async def handle_models(request: Request):
         }
         return JSONResponse(response)
     else:
-        model_info = model_dict.get(model_name) if model_name else None
+        model_info = [x for x in model_dict if x.get('base_model') == model_name]
+        if model_info:
+            model_info = model_info[0]
         response = model_info.copy() if model_info else {}
         if model_info is None:
             raise ValueError("No such model %s" % model_name)
@@ -671,8 +680,7 @@ async def handle_audio_transcription(request: Request):
 
             async def generator():
                 try:
-                    response = audio_to_text(**request_data)
-                    for resp in response:
+                    async for resp in audio_to_text(**request_data):
                         disconnected = await request.is_disconnected()
                         if disconnected:
                             break
@@ -694,7 +702,7 @@ async def handle_audio_transcription(request: Request):
         else:
             from openai_server.backend import _audio_to_text
             response = ''
-            for response1 in _audio_to_text(**request_data):
+            async for response1 in _audio_to_text(**request_data):
                 response = response1
             return JSONResponse(response)
 
@@ -767,7 +775,7 @@ async def handle_audio_to_speech(request: Request):
             async def generator():
                 try:
                     chunki = 0
-                    for chunk in text_to_audio(**dict(audio_request)):
+                    async for chunk in text_to_audio(**dict(audio_request)):
                         disconnected = await request.is_disconnected()
                         if disconnected:
                             break
@@ -792,7 +800,7 @@ async def handle_audio_to_speech(request: Request):
         else:
             from openai_server.backend import text_to_audio
             response = b''
-            for response1 in text_to_audio(**dict(audio_request)):
+            async for response1 in text_to_audio(**dict(audio_request)):
                 response = response1
             return Response(content=response, media_type=f"audio/{audio_request.response_format}")
 
