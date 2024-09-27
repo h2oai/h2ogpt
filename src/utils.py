@@ -1608,7 +1608,7 @@ except (PackageNotFoundError, AssertionError):
     have_langid = False
 
 try:
-    assert distribution('TTS') is not None
+    assert distribution('coqui-tts') is not None
     have_TTS = True
 except (PackageNotFoundError, AssertionError):
     have_TTS = False

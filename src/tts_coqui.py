@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import io
 import os
 import tempfile
 import traceback
@@ -37,7 +36,7 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
 
     from TTS.tts.configs.xtts_config import XttsConfig
     from TTS.tts.models.xtts import Xtts
-    from TTS.utils.generic_utils import get_user_data_dir
+    from trainer.io import get_user_data_dir
 
     # This will trigger downloading model
     print("Downloading if not downloaded Coqui XTTS V2")
@@ -59,11 +58,12 @@ def get_xtt(model_name="tts_models/multilingual/multi-dataset/xtts_v2", deepspee
     with filelock.FileLock(get_lock_file(coqui_lock_name)):
         model.load_checkpoint(
             config,
-            checkpoint_dir=os.path.dirname(os.path.join(model_path, "model.pth")),
+            #checkpoint_dir=os.path.dirname(os.path.join(model_path, "model.pth")),
             checkpoint_path=os.path.join(model_path, "model.pth"),
-            vocab_path=os.path.join(model_path, "vocab.json"),
+            #vocab_path=os.path.join(model_path, "vocab.json"),
             eval=True,
-            use_deepspeed=deepspeed,
+            cache=True,
+            #use_deepspeed=deepspeed,
         )
         if use_gpu:
             if gpu_id == 'auto':
