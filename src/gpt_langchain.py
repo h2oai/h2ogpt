@@ -35,6 +35,7 @@ import filelock
 import tabulate
 
 from joblib import delayed
+from langchain_anthropic.chat_models import _format_messages, _tools_in_params, _make_message_chunk_from_anthropic_event
 from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler, BaseCallbackManager
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
@@ -45,10 +46,11 @@ from langchain.prompts.chat import ChatPromptValue
 from langchain.schema import LLMResult, Generation, PromptValue
 from langchain.schema.output import GenerationChunk
 from langchain_core.globals import get_llm_cache
+from langchain_core.language_models import LanguageModelInput
 from langchain_core.language_models.llms import aget_prompts, aupdate_cache
 from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult, RunInfo
+from langchain_core.outputs import ChatResult, RunInfo, ChatGenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain_community.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -87,7 +89,7 @@ from enums import DocumentSubset, no_lora_str, model_token_mapping, source_prefi
     noop_prompt_type, unknown_prompt_type, template_prompt_type, none, claude3_image_tokens, gemini_image_tokens, \
     gpt4_image_tokens, user_prompt_for_fake_system_prompt0, empty_prompt_type, \
     is_gradio_vision_model, is_json_model, anthropic_mapping, gemini15image_num_max, gemini15imagetag, \
-    openai_supports_functiontools, openai_supports_parallel_functiontools
+    openai_supports_functiontools, openai_supports_parallel_functiontools, anthropic_prompt_caching
 from evaluate_params import gen_hyper, gen_hyper0
 from gen import SEED, get_limited_prompt, get_relaxed_max_new_tokens, get_model_retry, gradio_to_llm, \
     get_client_from_inference_server
@@ -930,6 +932,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
 
     return_full_text: bool = False
     stream_output: bool = False
+    enable_caching: bool = False
     sanitize_bot_response: bool = False
 
     prompter: Any = None
@@ -1017,6 +1020,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
         # This is good, so gradio server can also handle stopping.py conditions
         # this is different than TGI server that uses prompter to inject prompt_type prompting
         stream_output = self.stream_output
+        enable_caching = self.enable_caching
         # don't double-up langchain behavior, already did langchain part
         client_langchain_mode = LangChainMode.LLM.value
         client_add_chat_history_to_context = self.add_chat_history_to_context
@@ -1047,6 +1051,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              # streaming output is supported, loops over and outputs each generation in streaming mode
                              # but leave stream_output=False for simple input/output mode
                              stream_output=stream_output,
+                             enable_caching=enable_caching,
                              prompt_type=prompt_type,
                              prompt_dict='',
                              chat_template=self.chat_template,
@@ -2465,6 +2470,8 @@ class GenerateStream:
                 print("Internal server error, retrying", flush=True)
                 time.sleep(5)
                 return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            else:
+                raise
 
     async def agenerate_prompt(
             self,
@@ -2734,6 +2741,8 @@ class H2OChatAnthropic2(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, Cha
     count_output_tokens: Any = 0
     tokenizer: Any = None
     prompter: Any = None
+    supports_caching: bool = False
+    enable_caching: bool = False
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
@@ -2752,8 +2761,100 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
     count_output_tokens: Any = 0
     tokenizer: Any = None
     prompter: Any = None
+    supports_caching: bool = False
+    enable_caching: bool = False
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
+
+    def _get_request_payload(
+            self,
+            input_: LanguageModelInput,
+            *,
+            stop: Optional[List[str]] = None,
+            **kwargs: Dict,
+    ) -> Dict:
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+        if hasattr(self, 'supports_caching') and self.supports_caching and \
+                hasattr(self, 'enable_caching') and self.enable_caching:
+            messages = payload['messages']
+            system = payload.get('system', '')
+
+            # fix system
+            system_cached = [{
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral"}
+            }] if system else None
+
+            # fix messages
+            # Prepare the messages list
+            messages_cached = []
+
+            # Process user and assistant messages
+            user_message_count = sum(1 for msg in messages if msg["role"] == "user")
+            for i, message in enumerate(messages):
+                if message["role"] == "user":
+                    content = {
+                        "type": "text",
+                        "text": message["content"]
+                    }
+
+                    # Add cache control to the last two user messages
+                    if user_message_count - i <= 2:
+                        content["cache_control"] = {"type": "ephemeral"}
+
+                    messages_cached.append({
+                        "role": "user",
+                        "content": [content]
+                    })
+                else:
+                    messages_cached.append(message)
+
+            # put messages and system back in
+            payload['messages'] = messages_cached
+            payload['system'] = system_cached
+        return payload
+
+    def _stream(
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            *,
+            stream_usage: Optional[bool] = None,
+            **kwargs: Any,
+    ) -> typing.Iterator[ChatGenerationChunk]:
+        if stream_usage is None:
+            stream_usage = self.stream_usage
+        kwargs["stream"] = True
+        payload = self._get_request_payload(messages, stop=stop, **kwargs)
+        stream = self._client.messages.create(**payload)
+        coerce_content_to_string = not _tools_in_params(payload)
+        for event in stream:
+            if event.type == "message_start":
+                usage = event.message.usage
+                input_tokens = dict(usage).get('input_tokens', 0)
+                cache_creation_input_tokens = dict(usage).get('cache_creation_input_tokens', 0)
+                cache_read_input_tokens = dict(usage).get('cache_read_input_tokens', 0)
+                # estimated cost effect, cache hits are roughly free compared to input or creation
+                self.count_input_tokens += (cache_creation_input_tokens - cache_read_input_tokens)
+                print(f"input_tokens: {input_tokens}")
+                print(f"cache_creation_input_tokens: {cache_creation_input_tokens}")
+                print(f"cache_read_input_tokens: {cache_read_input_tokens}")
+            elif event.type == "message_delta":
+                output_tokens = dict(event.usage).get('output_tokens', 0)
+                self.count_output_tokens += output_tokens
+
+            msg = _make_message_chunk_from_anthropic_event(
+                event,
+                stream_usage=stream_usage,
+                coerce_content_to_string=coerce_content_to_string,
+            )
+            if msg is not None:
+                chunk = ChatGenerationChunk(message=msg)
+                if run_manager and isinstance(msg.content, str):
+                    run_manager.on_llm_new_token(msg.content, chunk=chunk)
+                yield chunk
 
 
 class H2OChatAnthropic3Sys(H2OChatAnthropic3):
@@ -2896,6 +2997,7 @@ def get_llm(use_openai_model=False,
             langchain_only_model=None,
             load_awq='',
             stream_output=False,
+            enable_caching=False,
             async_output=True,
             num_async=3,
             do_sample=False,
@@ -3317,6 +3419,10 @@ def get_llm(use_openai_model=False,
             # FIXME: _AnthropicCommon ignores these and makes no client anyways
             kwargs_extra.update(dict(client=model['client'], async_client=model['async_client']))
 
+        supports_caching = model_name in anthropic_prompt_caching
+        if supports_caching:
+            kwargs_extra.update(extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"})
+
         callbacks = [streaming_callback]
         llm = cls(model=model_name,
                   anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
@@ -3332,6 +3438,8 @@ def get_llm(use_openai_model=False,
                   tokenizer=tokenizer,
                   prompter=prompter,
                   verbose=verbose,
+                  supports_caching=supports_caching,
+                  enable_caching=enable_caching,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
@@ -3705,6 +3813,7 @@ def get_llm(use_openai_model=False,
 
                 callbacks=callbacks if stream_output else None,
                 stream_output=stream_output,
+                enable_caching=enable_caching,
 
                 prompter=prompter,
                 context=context,
@@ -6752,6 +6861,7 @@ def _run_qa_db(query=None,
                migrate_embedding_model=False,
                stream_output0=False,
                stream_output=False,
+               enable_caching=False,
                async_output=True,
                num_async=3,
                prompter=None,
@@ -7023,6 +7133,7 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
                       langchain_only_model=langchain_only_model,
                       load_awq=load_awq,
                       stream_output=stream_output,
+                      enable_caching=enable_caching,
                       async_output=async_output,
                       num_async=num_async,
                       do_sample=do_sample,

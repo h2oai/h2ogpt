@@ -59,7 +59,7 @@ def run_autogen_in_proc(func, output_queue, result_queue, exception_queue, **kwa
         result_queue.put(ret_dict)
 
 
-async def iostream_generator(func, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
+async def iostream_generator(func, use_process=False, **kwargs) -> typing.AsyncGenerator[str, None]:
     # start capture
     custom_stream = CustomIOStream()
     IOStream.set_global_default(custom_stream)
@@ -91,11 +91,11 @@ async def iostream_generator(func, use_process=False, **kwargs) -> typing.Genera
         if not exception_queue.empty():
             e = exception_queue.get()
             raise e
-
-        output = output_queue.get()
-        if output is None:  # End of agent execution
-            break
-        yield output
+        if not output_queue.empty():
+            output = output_queue.get()
+            if output is None:  # End of agent execution
+                break
+            yield output
         await asyncio.sleep(0.005)
 
     agent_proc.join()
