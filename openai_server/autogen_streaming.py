@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing
 import queue
 import threading
@@ -42,7 +43,7 @@ def capture_iostream(output_queue: queue.Queue) -> typing.Generator[CaptureIOStr
 
 
 def run_autogen_in_proc(func, output_queue, result_queue, exception_queue, **kwargs):
-    ret_dict = None
+    ret_dict = {}
     try:
         # raise ValueError("Testing Error Handling 3")  # works
 
@@ -58,7 +59,7 @@ def run_autogen_in_proc(func, output_queue, result_queue, exception_queue, **kwa
         result_queue.put(ret_dict)
 
 
-def iostream_generator(func, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
+async def iostream_generator(func, use_process=False, **kwargs) -> typing.Generator[str, None, None]:
     # start capture
     custom_stream = CustomIOStream()
     IOStream.set_global_default(custom_stream)
@@ -95,8 +96,13 @@ def iostream_generator(func, use_process=False, **kwargs) -> typing.Generator[st
         if output is None:  # End of agent execution
             break
         yield output
+        await asyncio.sleep(0.005)
 
     agent_proc.join()
+
+    # Return the final result
+    ret_dict = result_queue.get() if not result_queue.empty() else None
+    yield ret_dict
 
     # Return the final result
     if not exception_queue.empty():
@@ -105,7 +111,3 @@ def iostream_generator(func, use_process=False, **kwargs) -> typing.Generator[st
             raise ValueError("SystemExit")
         else:
             raise e
-
-    # Return the final result
-    ret_dict = result_queue.get() if not result_queue.empty() else None
-    return ret_dict
