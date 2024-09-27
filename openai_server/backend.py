@@ -479,10 +479,10 @@ async def achat_completion_action(body: dict, stream_output=False):
     usage = {}
     async for chunk in generator:
         if stream_output:
-            chat_chunk = chat_streaming_chunk(chunk)
-            if isinstance(chat_chunk, dict):
-                usage.update(chat_chunk)
+            if isinstance(chunk, dict):
+                usage.update(chunk)
             else:
+                chat_chunk = chat_streaming_chunk(chunk)
                 answer += chunk
                 yield chat_chunk
         else:
