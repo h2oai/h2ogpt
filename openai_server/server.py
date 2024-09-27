@@ -50,6 +50,7 @@ class ResponseFormat(BaseModel):
 class H2oGPTParams(BaseModel):
     # keep in sync with evaluate()
     # handled by extra_body passed to OpenAI API
+    enable_caching: bool | None = None
     prompt_type: str | None = None
     prompt_dict: Dict | str | None = None
     chat_template: str | None = None

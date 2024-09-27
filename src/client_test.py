@@ -71,7 +71,9 @@ def get_client(serialize=not is_gradio_version4):
     return client
 
 
-def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
+def get_args(prompt, prompt_type=None, chat=False,
+             stream_output=False,
+             enable_caching=False,
              max_new_tokens=50,
              top_k_docs=3,
              langchain_mode='Disabled',
@@ -110,6 +112,7 @@ def get_args(prompt, prompt_type=None, chat=False, stream_output=False,
                          # streaming output is supported, loops over and outputs each generation in streaming mode
                          # but leave stream_output=False for simple input/output mode
                          stream_output=stream_output,
+                         enable_caching=enable_caching,
                          prompt_type=prompt_type,
                          prompt_dict=prompt_dict,
                          chat_template=chat_template,

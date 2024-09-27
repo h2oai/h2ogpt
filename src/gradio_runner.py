@@ -1776,6 +1776,7 @@ def go_gradio(**kwargs):
                             label="guided_whitespace_pattern, empty string means None",
                             info="https://github.com/vllm-project/vllm/pull/4305/files",
                             visible=not is_public)
+                        enable_caching = gr.Checkbox(value=kwargs['enable_caching'], visible=False)
                         images_num_max = gr.Number(
                             label='Number of Images per LLM call, -1 is auto mode, 0 is avoid using images',
                             value=kwargs['images_num_max'] if kwargs['images_num_max'] is not None else -1,

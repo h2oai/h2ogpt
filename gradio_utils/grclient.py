@@ -741,6 +741,7 @@ class GradioClient(Client):
         model: str | int | None = None,
         model_lock: dict | None = None,
         stream_output: bool = False,
+        enable_caching: bool = False,
         do_sample: bool = False,
         seed: int | None = 0,
         temperature: float = 0.0,
@@ -905,6 +906,7 @@ class GradioClient(Client):
             :param max_input_tokens: see src/gen.py
             :param max_total_input_tokens: see src/gen.py
             :param stream_output: Whether to stream output
+            :param enable_caching: Whether to enable caching
             :param max_time: how long to take
 
             :param add_search_to_context: Whether to do web search and add results to context

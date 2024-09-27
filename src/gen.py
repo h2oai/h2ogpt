@@ -234,6 +234,7 @@ def main(
         text_context_list: typing.List[str] = None,
 
         stream_output: bool = True,
+        enable_caching: bool = False,
         async_output: bool = True,
         num_async: int = 3,
         stream_map: bool = False,
@@ -844,6 +845,7 @@ def main(
            Forces LangChain code path and uses as many entries in list as possible given max_seq_len, with first assumed to be most relevant and to go near prompt.
 
     :param stream_output: whether to stream output
+    :param enable_caching: whether to enable caching (Only for anthropic)
     :param async_output: Whether to do asyncio handling
            For summarization
            Applicable to HF TGI server
@@ -1950,7 +1952,7 @@ def main(
                             inference_server,
                             llamacpp_dict,
                             chat,
-                            stream_output, show_examples,
+                            stream_output, enable_caching, show_examples,
                             prompt_type, prompt_dict, chat_template,
                             system_prompt,
                             pre_prompt_query, prompt_query,
@@ -2460,6 +2462,7 @@ def evaluate(
         iinput,
         context,
         stream_output,
+        enable_caching,
         prompt_type,
         prompt_dict,
         chat_template,
@@ -3295,6 +3298,7 @@ def evaluate(
                 context=context,
                 stream_output0=stream_output0,
                 stream_output=stream_output,
+                enable_caching=enable_caching,
                 chunk=chunk,
                 chunk_size=chunk_size,
 
@@ -3805,6 +3809,7 @@ def evaluate(
                                          # streaming output is supported, loops over and outputs each generation in streaming mode
                                          # but leave stream_output=False for simple input/output mode
                                          stream_output=stream_output,
+                                         enable_caching=enable_caching,
 
                                          **gen_server_kwargs,
 
@@ -4424,7 +4429,7 @@ def get_generate_params(model_lower,
                         inference_server,
                         llamacpp_dict,
                         chat,
-                        stream_output, show_examples,
+                        stream_output, enable_caching, show_examples,
                         prompt_type, prompt_dict, chat_template,
                         system_prompt,
                         pre_prompt_query, prompt_query,
@@ -4611,7 +4616,7 @@ Philipp: ok, ok you can find everything here. https://huggingface.co/blog/the-pa
         do_sample = False if do_sample is None else do_sample
     # doesn't include chat, instruction_nochat, iinput_nochat, added later
     params_list = ["",
-                   stream_output,
+                   stream_output, enable_caching,
                    prompt_type, prompt_dict, chat_template,
                    temperature, top_p, top_k, penalty_alpha, num_beams,
                    max_new_tokens, min_new_tokens,

@@ -233,6 +233,11 @@ anthropic_mapping_outputs = {
     "claude-3-haiku-20240307": 4096,
 }
 
+anthropic_prompt_caching = ["claude-3-opus-20240229",
+                            "claude-3-5-sonnet-20240620",
+                            "claude-3-haiku-20240307",
+                            ]
+
 claude3imagetag = 'claude-3-image'
 gpt4imagetag = 'gpt-4-image'
 geminiimagetag = 'gemini-image'
@@ -797,7 +802,6 @@ json_schema_instruction0 = 'Ensure you follow this JSON schema, and ensure to us
 json_object_post_prompt_reminder0 = 'Ensure your response is strictly valid JSON text.'
 json_code_post_prompt_reminder0 = 'Ensure your response satisfies the schema mentioned above and place the response inside JSON code block.  Do not just repeat the JSON schema, ensure your response uses that schema to respond by choosing particular values for each type.'
 json_code2_post_prompt_reminder0 = 'Ensure your response is inside a JSON code block.'
-
 
 image_batch_image_prompt0 = """<response_instructions>
 - Act as a keen observer with a sharp eye for detail.
