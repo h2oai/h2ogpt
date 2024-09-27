@@ -1,6 +1,6 @@
 import json
 import os
-import typing
+import re
 import uuid
 from collections import defaultdict
 
@@ -364,20 +364,6 @@ def run_upload_api(content, filename, purpose, authorization):
     with open(file_path_meta, "wt") as f:
         f.write(json.dumps(response_dict))
     return response_dict
-
-
-def get_last_and_return_value(gen):
-    last_value = None
-    return_value = None
-    try:
-        while True:
-            last_value = next(gen)
-    except StopIteration as e:
-        return_value = e.value
-    return last_value, return_value
-
-
-import re
 
 
 def extract_xml_tags(full_text, tags=['name', 'page']):

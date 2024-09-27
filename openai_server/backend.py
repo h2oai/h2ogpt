@@ -1,4 +1,5 @@
 import ast
+import asyncio
 import base64
 import functools
 import io
@@ -17,7 +18,7 @@ import filelock
 import numpy as np
 
 from log import logger
-from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
+from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs
 
 
 def start_faulthandler():
@@ -263,7 +264,7 @@ def get_client(user=None):
     return gradio_client
 
 
-def get_response(chunk_response=True, **kwargs):
+async def get_response(chunk_response=True, **kwargs):
     assert kwargs['query'] is not None, "query must not be None"
     import ast
 
@@ -309,8 +310,9 @@ def get_response(chunk_response=True, **kwargs):
                 else:
                     yield response
                 last_response = response
+                await asyncio.sleep(0.005)
+            await asyncio.sleep(0.005)
             job_outputs_num += job_outputs_num_new
-            time.sleep(0.005)
 
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
@@ -328,6 +330,7 @@ def get_response(chunk_response=True, **kwargs):
             else:
                 yield response
             last_response = response
+            await asyncio.sleep(0.005)
         job_outputs_num += job_outputs_num_new
         if verbose:
             logger.info("total job_outputs_num=%d" % job_outputs_num)
@@ -338,7 +341,7 @@ def get_response(chunk_response=True, **kwargs):
 
     # for usage
     res_dict.pop('audio', None)
-    return res_dict
+    yield res_dict
 
 
 def split_concatenated_dicts(concatenated_dicts: str):
@@ -398,7 +401,7 @@ def get_generator(instruction, gen_kwargs, use_agent=False, stream_output=False,
     return generator
 
 
-def chat_completion_action(body: dict, stream_output=False) -> dict:
+async def achat_completion_action(body: dict, stream_output=False):
     messages = body.get('messages', [])
     object_type = 'chat.completions' if not stream_output else 'chat.completions.chunk'
     created_time = int(time.time())
@@ -407,7 +410,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     gen_kwargs = body
     # Consecutive Autogen messages may have the same role,
-    # especially when agent_type involes group chat messages.
+    # especially when agent_type involves group chat messages.
     # Therefore, they need to be concatenated.
     agent_type = gen_kwargs.get('agent_type', 'auto')
     if agent_type == "autogen_multi_agent":
@@ -417,10 +420,10 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     instruction, system_message, history, image_files = convert_messages_to_structure(
         messages=messages,
-        concat_tool=True, # always concat tool calls
+        concat_tool=True,  # always concat tool calls
         concat_assistant=concat_assistant,
         concat_user=concat_user,
-        )
+    )
     # get from messages, unless none, then try to get from gen_kwargs from extra_body
     image_file = image_files if image_files else gen_kwargs.get('image_file', [])
     history = history if history else gen_kwargs.get('chat_conversation', [])
@@ -474,19 +477,17 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
 
     answer = ''
     usage = {}
-    try:
-        while True:
-            chunk = next(generator)
-            if stream_output:
-                answer += chunk
-                chat_chunk = chat_streaming_chunk(chunk)
-                yield chat_chunk
+    async for chunk in generator:
+        if stream_output:
+            if isinstance(chunk, dict):
+                usage.update(chunk)
             else:
-                answer = chunk
-    except StopIteration as e:
-        ret_dict = e.value
-        if isinstance(ret_dict, dict):
-            usage.update(ret_dict)
+                chat_chunk = chat_streaming_chunk(chunk)
+                answer += chunk
+                yield chat_chunk
+        else:
+            answer = chunk
+        await asyncio.sleep(0.005)
 
     completion_token_count = count_tokens(answer)
     stop_reason = "stop"
@@ -526,7 +527,7 @@ def chat_completion_action(body: dict, stream_output=False) -> dict:
         yield resp
 
 
-def completions_action(body: dict, stream_output=False):
+async def acompletions_action(body: dict, stream_output=False):
     object_type = 'text_completion.chunk' if stream_output else 'text_completion'
     created_time = int(time.time())
     res_id = "res_id-%s" % str(uuid.uuid4())
@@ -557,7 +558,16 @@ def completions_action(body: dict, stream_output=False):
             total_prompt_token_count += token_count
 
             generator = get_generator(prompt, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
-            response, ret = get_last_and_return_value(generator)
+            ret = {}
+            response = ""
+            try:
+                async for last_value in generator:
+                    if isinstance(last_value, dict):
+                        ret = last_value
+                    else:
+                        response = last_value
+            except StopIteration:
+                pass
 
             if isinstance(ret, dict):
                 usage.update(ret)
@@ -619,16 +629,14 @@ def completions_action(body: dict, stream_output=False):
 
         response = ''
         usage = {}
-        try:
-            while True:
-                chunk = next(generator)
+        async for chunk in generator:
+            if isinstance(chunk, dict):
+                usage.update(chunk)
+            else:
                 response += chunk
                 yield_chunk = text_streaming_chunk(chunk)
                 yield yield_chunk
-        except StopIteration as e:
-            # Get the return value
-            if isinstance(e.value, dict):
-                usage.update(e.value)
+            await asyncio.sleep(0.005)
 
         completion_token_count = count_tokens(response)
         stop_reason = "stop"
@@ -643,23 +651,13 @@ def completions_action(body: dict, stream_output=False):
         yield chunk
 
 
-def chat_completions(body: dict) -> dict:
-    generator = chat_completion_action(body, stream_output=False)
-    return deque(generator, maxlen=1).pop()
-
-
-def stream_chat_completions(body: dict):
-    for resp in chat_completion_action(body, stream_output=True):
+async def astream_chat_completions(body: dict, stream_output=True):
+    async for resp in achat_completion_action(body, stream_output=stream_output):
         yield resp
 
 
-def completions(body: dict) -> dict:
-    generator = completions_action(body, stream_output=False)
-    return deque(generator, maxlen=1).pop()
-
-
-def stream_completions(body: dict):
-    for resp in completions_action(body, stream_output=True):
+async def astream_completions(body: dict, stream_output=True):
+    async for resp in acompletions_action(body, stream_output=stream_output):
         yield resp
 
 
@@ -709,7 +707,7 @@ def split_audio_fixed_intervals(audio_bytes, interval_ms=10000):
     return chunk_bytes
 
 
-def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+async def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
     if chunk != 'none':
         # break-up audio file
         if chunk == 'silence':
@@ -718,14 +716,14 @@ def audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
             audio_files = split_audio_fixed_intervals(audio_file, interval_ms=chunk)
 
         for audio_file1 in audio_files:
-            for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
+            async for text in _audio_to_text(model, audio_file1, stream, response_format, chunk, **kwargs):
                 yield text
     else:
-        for text in _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+        async for text in _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
             yield text
 
 
-def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
+async def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
     # assumes enable_stt=True set for h2oGPT
     if os.getenv('GRADIO_H2OGPT_H2OGPT_KEY') and not kwargs.get('h2ogpt_key'):
         kwargs.update(dict(h2ogpt_key=os.getenv('GRADIO_H2OGPT_H2OGPT_KEY')))
@@ -765,7 +763,7 @@ def _audio_to_text(model, audio_file, stream, response_format, chunk, **kwargs):
         yield dict(text=text.strip())
 
 
-def text_to_audio(model, voice, input, stream, response_format, **kwargs):
+async def text_to_audio(model, voice, input, stream, response_format, **kwargs):
     # tts_model = 'microsoft/speecht5_tts'
     # tts_model = 'tts_models/multilingual/multi-dataset/xtts_v2'
     # assumes enable_tts=True set for h2oGPT
@@ -804,12 +802,14 @@ def text_to_audio(model, voice, input, stream, response_format, **kwargs):
         n = 0
         for audio_str in job:
             yield audio_str_to_bytes(audio_str, response_format=response_format)
+            await asyncio.sleep(0.005)
             n += 1
 
         # get rest after job done
         outputs = job.outputs().copy()
         for audio_str in outputs[n:]:
             yield audio_str_to_bytes(audio_str, response_format=response_format)
+            await asyncio.sleep(0.005)
             n += 1
     else:
         audio_str = client.predict(*tuple(list(inputs.values())), api_name='/speak_text_api')

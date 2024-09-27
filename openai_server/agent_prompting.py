@@ -190,7 +190,7 @@ PDF Generation:
 <pdf>
 * Strategy: If asked to make a multi-section detailed PDF, first collect source content from resources like news or papers, then make a plan, then break-down the PDF generation process into paragraphs, sections, subsections, figures, and images, and generate each part separately before making the final PDF.
 * Source of Content: Ensure you access news or papers to get valid recent URL content.  Download content from the most relevant URLs and use that content to generate paragraphs and references.
-* Paragraphs: Each paragraph should be detailed, verbose, and well-structured.  When using reportlab, multi-line content must use HTML.  In Paragraph(), only HTML will preserve formatting (e.g. new lines should have <br/> tags not just \n).
+* Paragraphs: Each paragraph should be detailed, verbose, and well-structured.  When using reportlab with Paragraph(), multi-line content must use HTML -- only HTML will preserve formatting (e.g. new lines should have <br/> tags not just \n).
 * Figures: Extract figures from web content, papers, etc.  Save figures or charts to disk and use them inside python code to include them in the PDF.
 * Images: Extract images from web content, papers, etc.  Save images to disk and use python code to include them in the PDF.
 * Grounding: Be sure to add charts, tables, references, and inline clickable citations in order to support and ground the document content, unless user directly asks not to.
