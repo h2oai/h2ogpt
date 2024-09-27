@@ -1705,7 +1705,8 @@ class Prompter(object):
            In which case we need to put promptA at very front to recover correct behavior
         :return:
         """
-        if self.prompt_type in [template_prompt_type, unknown_prompt_type] and not isinstance(self.tokenizer, FakeTokenizer):
+        if self.prompt_type in [template_prompt_type, unknown_prompt_type] and not isinstance(self.tokenizer,
+                                                                                              FakeTokenizer):
             assert self.use_chat_template, "Please specify prompt_type or for chat template then pass tokenizer_base_model"
             assert self.tokenizer is not None
             from gen import apply_chat_template
@@ -2365,7 +2366,8 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
     else:
         already_system = False
 
-    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] and not already_system else None, None]
+    system_prompts_to_use = [system_prompt if system_prompt not in [None, '', 'auto'] and not already_system else None,
+                             None]
     for si, system_prompt_to_use in enumerate(system_prompts_to_use):
         try:
             messages = structure_to_messages(instruction,
@@ -2376,7 +2378,8 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
             if not messages:
                 return ''
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            if si == 0 and system_prompt_to_use not in [None, ''] and system_prompt_to_use.strip() != '' and system_prompt_to_use.strip() not in prompt.strip():
+            if si == 0 and system_prompt_to_use not in [None,
+                                                        ''] and system_prompt_to_use.strip() != '' and system_prompt_to_use.strip() not in prompt.strip():
                 raise ValueError("System prompt not used: %s" % system_prompt_to_use)
             break
         except Exception as e:
@@ -2389,7 +2392,10 @@ def apply_chat_template(instruction, system_prompt, history, image_file,
                 history.insert(0, [user_prompt_for_fake_system_prompt, system_prompt])
 
             exceptions.append(ex)
-            if si == 0 and ('Conversation roles must alternate' in str(e) or 'System role not supported' in str(e) or 'System prompt not used' in str(e)):
+            if si == 0 and ('Conversation roles must alternate' in str(e) or
+                            'System role not supported' in str(e) or
+                            'System prompt not used' in str(e) or
+                            'Prompting with images is incompatible with system messages' in str(e)):
                 if verbose:
                     print("No system prompt supported: %s" % str(ex))
             elif os.getenv('HARD_ASSERTS'):
@@ -2406,7 +2412,9 @@ def template_supports_system_prompt(tokenizer):
     try:
         tokenizer.apply_chat_template([{'role': 'system', 'content': 'Test system prompt'}])
     except jinja2.exceptions.TemplateError as e:
-        if 'System role not supported' in str(e):
+        if 'System role not supported' in str(e) or \
+                'System prompt not used' in str(e) or \
+                'Prompting with images is incompatible with system messages' in str(e):
             return False
         else:
             raise
