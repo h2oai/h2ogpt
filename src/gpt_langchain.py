@@ -2470,6 +2470,8 @@ class GenerateStream:
                 print("Internal server error, retrying", flush=True)
                 time.sleep(5)
                 return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            else:
+                raise
 
     async def agenerate_prompt(
             self,
@@ -2778,11 +2780,11 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
             system = payload.get('system', '')
 
             # fix system
-            system_cached = {
+            system_cached = [{
                 "type": "text",
                 "text": system,
                 "cache_control": {"type": "ephemeral"}
-            }
+            }] if system else None
 
             # fix messages
             # Prepare the messages list
