@@ -853,14 +853,19 @@ async def handle_image_generation(request: Request):
         raise HTTPException(status_code=400, detail=f"Missing key in request body: {str(e)}")
 
     # no streaming
-    from openai_server.backend import completions
+    from openai_server.backend import astream_completions
     body_image = dict(prompt=prompt, langchain_action='ImageGen', visible_image_models=model,
                       image_size=size,
                       image_quality=quality,
                       image_guidance_scale=guidance_scale,
                       image_num_inference_steps=num_inference_steps)
-    response = completions(body_image)
-    image = response['choices'][0]['text'][0]
+    response = {}
+    async for resp in astream_completions(body_image, stream_output=False):
+        response = resp
+    if 'choices' in response:
+        image = response['choices'][0]['text'][0]
+    else:
+        image = b''
     resp = {
         'created': int(time.time()),
         'data': []
