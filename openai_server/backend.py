@@ -471,8 +471,6 @@ async def achat_completion_action(body: dict, stream_output=False):
     if instruction is None:
         instruction = ''  # allowed by h2oGPT, e.g. for summarize or extract
 
-    token_count = count_tokens(instruction)
-
     generator = get_generator(instruction, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
 
     answer = ''
@@ -489,8 +487,18 @@ async def achat_completion_action(body: dict, stream_output=False):
             answer = chunk
         await asyncio.sleep(0.005)
 
-    completion_token_count = count_tokens(answer)
     stop_reason = "stop"
+
+    real_prompt_tokens = usage.get('save_dict', {}).get('extra_dict', {}).get('num_prompt_tokens')
+    if real_prompt_tokens is not None:
+        token_count = real_prompt_tokens
+    else:
+        token_count = count_tokens(instruction)
+    real_completion_tokens = usage.get('save_dict', {}).get('extra_dict', {}).get('ntokens')
+    if real_completion_tokens is not None:
+        completion_token_count = real_completion_tokens
+    else:
+        completion_token_count = count_tokens(answer)
 
     usage.update({
         "prompt_tokens": token_count,

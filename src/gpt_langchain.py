@@ -2838,6 +2838,7 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
                 cache_read_input_tokens = dict(usage).get('cache_read_input_tokens', 0)
                 # estimated cost effect, cache hits are roughly free compared to input or creation
                 self.count_input_tokens += (cache_creation_input_tokens - cache_read_input_tokens)
+                print(f"input_tokens: {input_tokens}")
                 print(f"cache_creation_input_tokens: {cache_creation_input_tokens}")
                 print(f"cache_read_input_tokens: {cache_read_input_tokens}")
             elif event.type == "message_delta":
