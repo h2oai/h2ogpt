@@ -18,7 +18,7 @@ import filelock
 import numpy as np
 
 from log import logger
-from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs, get_last_and_return_value
+from openai_server.backend_utils import convert_messages_to_structure, convert_gen_kwargs
 
 
 def start_faulthandler():
@@ -264,7 +264,7 @@ def get_client(user=None):
     return gradio_client
 
 
-def get_response(chunk_response=True, **kwargs):
+async def get_response(chunk_response=True, **kwargs):
     assert kwargs['query'] is not None, "query must not be None"
     import ast
 
@@ -310,8 +310,9 @@ def get_response(chunk_response=True, **kwargs):
                 else:
                     yield response
                 last_response = response
+                await asyncio.sleep(0.005)
+            await asyncio.sleep(0.005)
             job_outputs_num += job_outputs_num_new
-            time.sleep(0.005)
 
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
@@ -329,6 +330,7 @@ def get_response(chunk_response=True, **kwargs):
             else:
                 yield response
             last_response = response
+            await asyncio.sleep(0.005)
         job_outputs_num += job_outputs_num_new
         if verbose:
             logger.info("total job_outputs_num=%d" % job_outputs_num)
@@ -339,7 +341,7 @@ def get_response(chunk_response=True, **kwargs):
 
     # for usage
     res_dict.pop('audio', None)
-    return res_dict
+    yield res_dict
 
 
 def split_concatenated_dicts(concatenated_dicts: str):
@@ -475,20 +477,18 @@ async def achat_completion_action(body: dict, stream_output=False):
 
     answer = ''
     usage = {}
-    try:
-        while True:
-            chunk = next(generator)
-            if stream_output:
-                answer += chunk
-                chat_chunk = chat_streaming_chunk(chunk)
-                yield chat_chunk
+    while True:
+        chunk = await next(generator)
+        if stream_output:
+            answer += chunk
+            chat_chunk = chat_streaming_chunk(chunk)
+            if isinstance(chat_chunk, dict):
+                usage.update(chat_chunk)
             else:
-                answer = chunk
-            await asyncio.sleep(0.005)
-    except StopIteration as e:
-        ret_dict = e.value
-        if isinstance(ret_dict, dict):
-            usage.update(ret_dict)
+                yield chat_chunk
+        else:
+            answer = chunk
+        await asyncio.sleep(0.005)
 
     completion_token_count = count_tokens(answer)
     stop_reason = "stop"
@@ -559,7 +559,17 @@ async def acompletions_action(body: dict, stream_output=False):
             total_prompt_token_count += token_count
 
             generator = get_generator(prompt, gen_kwargs, use_agent=use_agent, stream_output=stream_output)
-            response, ret = get_last_and_return_value(generator)
+            ret = {}
+            response = ""
+            try:
+                while True:
+                    last_value = await anext(generator)
+                    if isinstance(last_value, dict):
+                        ret = last_value
+                    else:
+                        response = last_value
+            except StopIteration:
+                pass
 
             if isinstance(ret, dict):
                 usage.update(ret)
@@ -623,7 +633,7 @@ async def acompletions_action(body: dict, stream_output=False):
         usage = {}
         try:
             while True:
-                chunk = next(generator)
+                chunk = await anext(generator)
                 response += chunk
                 yield_chunk = text_streaming_chunk(chunk)
                 yield yield_chunk

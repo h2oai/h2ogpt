@@ -123,9 +123,16 @@ def run_server(host: str = '0.0.0.0',
             command.extend(['--keyfile', ssl_keyfile])
         command.append('openai_server.' + app)  # This should be a string like 'server:app'
 
+        file_path = os.getenv('H2OGPT_OPENAI_LOG_PATH', 'openai_logs')
+        if not os.path.exists(file_path):
+            try:
+                os.makedirs(file_path, exist_ok=True)
+            except FileExistsError:
+                # for races among workers
+                pass
         file_prefix = "gunicorn" + '_' + name + '_' + str(uuid.uuid4()) + '_'
-        file_stdout = file_prefix + 'stdout.log'
-        file_stderr = file_prefix + 'stderr.log'
+        file_stdout = os.path.join(file_path, file_prefix + 'stdout.log')
+        file_stderr = os.path.join(file_path, file_prefix + 'stderr.log')
         f_stdout = open(file_stdout, 'wt')
         f_stderr = open(file_stderr, 'wt')
         process = subprocess.Popen(command, stdout=f_stdout, stderr=f_stderr)

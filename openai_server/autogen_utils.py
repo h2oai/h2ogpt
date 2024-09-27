@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import logging
 import os
@@ -738,7 +739,7 @@ def terminate_message_func(msg):
     return False
 
 
-def get_autogen_response(func=None, use_process=False, **kwargs):
+async def get_autogen_response(func=None, use_process=False, **kwargs):
     # raise ValueError("Testing Error Handling 1")  # works
 
     gen_kwargs = convert_gen_kwargs(kwargs)
@@ -749,11 +750,12 @@ def get_autogen_response(func=None, use_process=False, **kwargs):
     ret_dict = {}
     try:
         while True:
-            res = next(gen)
+            res = await anext(gen)
             yield res
+            await asyncio.sleep(0.005)
     except StopIteration as e:
         ret_dict = e.value
-    return ret_dict
+    yield ret_dict
 
 
 def get_code_executor(
