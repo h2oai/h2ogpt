@@ -748,12 +748,12 @@ async def get_autogen_response(func=None, use_process=False, **kwargs):
     gen = iostream_generator(func, use_process=use_process, **kwargs)
 
     ret_dict = {}
-    try:
-        async for res in gen:
+    async for res in gen:
+        if isinstance(res, dict):
+            ret_dict = res
+        else:
             yield res
-            await asyncio.sleep(0.005)
-    except StopIteration as e:
-        ret_dict = e.value
+        await asyncio.sleep(0.005)
     yield ret_dict
 
 
