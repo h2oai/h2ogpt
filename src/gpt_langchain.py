@@ -35,7 +35,7 @@ import filelock
 import tabulate
 
 from joblib import delayed
-from langchain_anthropic.chat_models import _format_messages
+from langchain_anthropic.chat_models import _format_messages, _tools_in_params, _make_message_chunk_from_anthropic_event
 from langchain_core.callbacks import streaming_stdout, AsyncCallbackManager, BaseCallbackHandler, BaseCallbackManager
 from langchain.callbacks.base import Callbacks
 from langchain_community.document_transformers import Html2TextTransformer, BeautifulSoupTransformer
@@ -50,7 +50,7 @@ from langchain_core.language_models import LanguageModelInput
 from langchain_core.language_models.llms import aget_prompts, aupdate_cache
 from langchain_core.load import dumpd
 from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult, RunInfo
+from langchain_core.outputs import ChatResult, RunInfo, ChatGenerationChunk
 from langchain_experimental.tools import PythonREPLTool
 from langchain_community.tools.json.tool import JsonSpec
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -2767,11 +2767,11 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
     def _get_request_payload(
-        self,
-        input_: LanguageModelInput,
-        *,
-        stop: Optional[List[str]] = None,
-        **kwargs: Dict,
+            self,
+            input_: LanguageModelInput,
+            *,
+            stop: Optional[List[str]] = None,
+            **kwargs: Dict,
     ) -> Dict:
         payload = super()._get_request_payload(input_, stop=stop, **kwargs)
         if hasattr(self, 'supports_caching') and self.supports_caching and \
@@ -2814,6 +2814,46 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
             payload['messages'] = messages_cached
             payload['system'] = system_cached
         return payload
+
+    def _stream(
+            self,
+            messages: List[BaseMessage],
+            stop: Optional[List[str]] = None,
+            run_manager: Optional[CallbackManagerForLLMRun] = None,
+            *,
+            stream_usage: Optional[bool] = None,
+            **kwargs: Any,
+    ) -> typing.Iterator[ChatGenerationChunk]:
+        if stream_usage is None:
+            stream_usage = self.stream_usage
+        kwargs["stream"] = True
+        payload = self._get_request_payload(messages, stop=stop, **kwargs)
+        stream = self._client.messages.create(**payload)
+        coerce_content_to_string = not _tools_in_params(payload)
+        for event in stream:
+            if event.type == "message_start":
+                usage = event.message.usage
+                input_tokens = dict(usage).get('input_tokens', 0)
+                cache_creation_input_tokens = dict(usage).get('cache_creation_input_tokens', 0)
+                cache_read_input_tokens = dict(usage).get('cache_read_input_tokens', 0)
+                # estimated cost effect, cache hits are roughly free compared to input or creation
+                self.count_input_tokens += (cache_creation_input_tokens - cache_read_input_tokens)
+                print(f"cache_creation_input_tokens: {cache_creation_input_tokens}")
+                print(f"cache_read_input_tokens: {cache_read_input_tokens}")
+            elif event.type == "message_delta":
+                output_tokens = dict(event.usage).get('output_tokens', 0)
+                self.count_output_tokens += output_tokens
+
+            msg = _make_message_chunk_from_anthropic_event(
+                event,
+                stream_usage=stream_usage,
+                coerce_content_to_string=coerce_content_to_string,
+            )
+            if msg is not None:
+                chunk = ChatGenerationChunk(message=msg)
+                if run_manager and isinstance(msg.content, str):
+                    run_manager.on_llm_new_token(msg.content, chunk=chunk)
+                yield chunk
 
 
 class H2OChatAnthropic3Sys(H2OChatAnthropic3):
