@@ -304,3 +304,100 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
     ret_dict.update(dict(temp_dir=temp_dir))
 
     return ret_dict
+
+
+import faiss
+import numpy as np
+from openai import OpenAI
+class MemoryVectorDB:
+    def __init__(self, model: str, openai_base_url:str, openai_api_key: str):
+        # Initialize OpenAI embeddings model
+        self.client = OpenAI(base_url=openai_base_url, api_key=openai_api_key)
+        self.model = model
+
+        # Initialize FAISS index (using L2 distance)
+        self.index = None
+        self.texts = []
+        self.embeddings = None
+        self.id_map = {}
+
+    def get_embeddings(self, texts: list):
+        # Generate embedding  for the texts via client
+        response = self.client.embeddings.create(
+        input=texts,
+        model=self.model
+    )
+        # To reach embeddings for the first item in the list, use response.data[0].embedding and so on
+        embeddings = []
+        for i in range(len(response.data)):
+            embeddings.append(response.data[i].embedding)
+
+        embedding_matrix = np.array(embeddings).astype('float32')
+        return embedding_matrix
+
+    def add_texts(self, texts: list):
+        # Generate embeddings for the texts
+        embedding_matrix = self.get_embeddings(texts)
+
+        # Update the list of stored texts and id map
+        start_id = len(self.texts)
+        self.texts.extend(texts)
+        for i, text in enumerate(texts):
+            self.id_map[start_id + i] = text
+
+        # Create or update the FAISS index
+        if self.index is None:
+            # Initialize the FAISS index with the embedding dimension
+            self.index = faiss.IndexFlatL2(embedding_matrix.shape[1])
+            # Add embeddings to the FAISS index
+            self.index.add(embedding_matrix)
+            self.embeddings = embedding_matrix
+        else:
+            self.index.add(embedding_matrix)
+            self.embeddings = np.vstack((self.embeddings, embedding_matrix))
+
+        # Confirm embeddings were added
+        print("Texts added successfully.")
+        print("Number of items in FAISS index:", self.index.ntotal)
+
+    def query(self, query_text: str, k: int = 2, threshold: float = 2.0):
+        # Generate embedding for the query
+        query_embedding_np = self.get_embeddings([query_text])
+
+        # Check if FAISS index is initialized
+        if self.index is None or self.index.ntotal == 0:
+            raise ValueError("FAISS index is empty or not initialized. Please add texts before querying.")
+
+        # Perform FAISS search
+        D, I = self.index.search(query_embedding_np, k)
+        
+        # Ensure valid indices and handle potential errors
+        results = []
+        distances = []
+        for i, idx in enumerate(I[0]):
+            if idx in self.id_map:
+                results.append(self.id_map[idx])
+                distances.append(D[0][i])
+            else:
+                print(f"Warning: Index {idx} not found in id_map. It might have been deleted.")
+        final_results = [r for r, d in zip(results, distances) if d <= threshold]
+        final_distances = [d for d in distances if d <= threshold]
+        print(f"Memory VetorDB: Returns {len(final_results)} results.")
+        # Returns results having distance less than or equal to the threshold
+        return final_results, final_distances
+
+    def delete_text_by_id(self, idx: int):
+        # Remove the text from stored texts and id map
+        if idx in self.id_map:
+            del self.id_map[idx]
+            self.texts.pop(idx)
+
+            # Remove the embedding from FAISS index and rebuild the index
+            self.embeddings = np.delete(self.embeddings, idx, axis=0)
+            self.index.reset()
+            self.index.add(self.embeddings)
+        else:
+            print(f"Warning: Text with index {idx} not found in the database.")
+
+    def get_all_texts(self):
+        return self.texts
