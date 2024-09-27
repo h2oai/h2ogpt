@@ -749,8 +749,7 @@ async def get_autogen_response(func=None, use_process=False, **kwargs):
 
     ret_dict = {}
     try:
-        while True:
-            res = await anext(gen)
+        async for res in gen:
             yield res
             await asyncio.sleep(0.005)
     except StopIteration as e:

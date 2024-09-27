@@ -420,10 +420,10 @@ async def achat_completion_action(body: dict, stream_output=False):
 
     instruction, system_message, history, image_files = convert_messages_to_structure(
         messages=messages,
-        concat_tool=True, # always concat tool calls
+        concat_tool=True,  # always concat tool calls
         concat_assistant=concat_assistant,
         concat_user=concat_user,
-        )
+    )
     # get from messages, unless none, then try to get from gen_kwargs from extra_body
     image_file = image_files if image_files else gen_kwargs.get('image_file', [])
     history = history if history else gen_kwargs.get('chat_conversation', [])
@@ -477,8 +477,7 @@ async def achat_completion_action(body: dict, stream_output=False):
 
     answer = ''
     usage = {}
-    while True:
-        chunk = await next(generator)
+    async for chunk in generator:
         if stream_output:
             answer += chunk
             chat_chunk = chat_streaming_chunk(chunk)
@@ -562,8 +561,7 @@ async def acompletions_action(body: dict, stream_output=False):
             ret = {}
             response = ""
             try:
-                while True:
-                    last_value = await anext(generator)
+                async for last_value in generator:
                     if isinstance(last_value, dict):
                         ret = last_value
                     else:
@@ -632,8 +630,7 @@ async def acompletions_action(body: dict, stream_output=False):
         response = ''
         usage = {}
         try:
-            while True:
-                chunk = await anext(generator)
+            async for chunk in generator:
                 response += chunk
                 yield_chunk = text_streaming_chunk(chunk)
                 yield yield_chunk

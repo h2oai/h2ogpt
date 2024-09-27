@@ -673,7 +673,8 @@ async def handle_audio_transcription(request: Request):
         stream = form.get("stream", False)
         response_format = form.get("response_format", 'text')
         chunk = form.get("chunk", 'interval')
-        request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format, chunk=chunk)
+        request_data = dict(model=model, stream=stream, audio_file=audio_file, response_format=response_format,
+                            chunk=chunk)
 
         if stream:
             from openai_server.backend import audio_to_text
@@ -696,7 +697,8 @@ async def handle_audio_transcription(request: Request):
                         }
                     }
                     yield {"data": json.dumps(error_response)}
-                    raise e1  # This will close the connection after sending the error
+                    # raise e1  # This will close the connection after sending the error
+                    return
 
             return EventSourceResponse(generator())
         else:
@@ -786,7 +788,8 @@ async def handle_audio_to_speech(request: Request):
                         # h2oGPT sends each chunk as full object, we need rest to be raw data without header for real streaming
                         if chunki > 0 and audio_request.stream_strip:
                             from pydub import AudioSegment
-                            chunk = AudioSegment.from_file(io.BytesIO(chunk), format=audio_request.response_format).raw_data
+                            chunk = AudioSegment.from_file(io.BytesIO(chunk),
+                                                           format=audio_request.response_format).raw_data
 
                         yield chunk
                         chunki += 1
