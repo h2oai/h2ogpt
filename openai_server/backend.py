@@ -479,11 +479,11 @@ async def achat_completion_action(body: dict, stream_output=False):
     usage = {}
     async for chunk in generator:
         if stream_output:
-            answer += chunk
             chat_chunk = chat_streaming_chunk(chunk)
             if isinstance(chat_chunk, dict):
                 usage.update(chat_chunk)
             else:
+                answer += chunk
                 yield chat_chunk
         else:
             answer = chunk
@@ -629,16 +629,14 @@ async def acompletions_action(body: dict, stream_output=False):
 
         response = ''
         usage = {}
-        try:
-            async for chunk in generator:
+        async for chunk in generator:
+            if isinstance(chunk, dict):
+                usage.update(chunk)
+            else:
                 response += chunk
                 yield_chunk = text_streaming_chunk(chunk)
                 yield yield_chunk
-                await asyncio.sleep(0.005)
-        except StopIteration as e:
-            # Get the return value
-            if isinstance(e.value, dict):
-                usage.update(e.value)
+            await asyncio.sleep(0.005)
 
         completion_token_count = count_tokens(response)
         stop_reason = "stop"
