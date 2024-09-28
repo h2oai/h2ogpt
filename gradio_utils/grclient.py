@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import atexit
 import concurrent
+import copy
 import difflib
 import re
 import threading
@@ -19,6 +21,7 @@ from typing import Callable, Generator, Any, Union, List, Dict, Literal, Tuple
 import ast
 import inspect
 import numpy as np
+from gradio_client.compatibility import EndpointV3Compatibility
 
 try:
     from gradio_utils.yield_utils import ReturnType
@@ -465,7 +468,7 @@ class H2OGradioClient(Client):
     def _clone(self):
         if self.config is None:
             self.setup()
-        client = GradioClient("")
+        client = self.__class__("")
         for k, v in self.__dict__.items():
             setattr(client, k, v)
         client.reset_session()
@@ -1778,7 +1781,103 @@ class H2OGradioClient(Client):
         return res_dict, text0
 
 
+from functools import cached_property
+
+
+class CloneableGradioClient(Client):
+    def __init__(self, *args, **kwargs):
+        self._original_config = None
+        self._original_info = None
+        self._original_endpoints = None
+        self._original_executor = None
+        self._original_heartbeat = None
+        super().__init__(*args, **kwargs)
+        self._initialize_session_specific()
+        self._initialize_shared_info()
+        atexit.register(self.cleanup)
+
+    def _initialize_session_specific(self):
+        """Initialize or reset session-specific attributes."""
+        self.session_hash = str(uuid.uuid4())
+        self._refresh_heartbeat = threading.Event()
+        self._kill_heartbeat = threading.Event()
+        self.stream_open = False
+        self.streaming_future = None
+        self.pending_messages_per_event = {}
+        self.pending_event_ids = set()
+
+    def _initialize_shared_info(self):
+        """Initialize information that can be shared across clones."""
+        if self._original_config is None:
+            self._original_config = super().config
+        if self._original_info is None:
+            self._original_info = super()._info
+        if self._original_endpoints is None:
+            self._original_endpoints = super().endpoints
+        if self._original_executor is None:
+            self._original_executor = super().executor
+        if self._original_heartbeat is None:
+            self._original_heartbeat = super().heartbeat
+
+    @property
+    def config(self):
+        return self._original_config
+
+    @config.setter
+    def config(self, value):
+        self._original_config = value
+
+    @property
+    def _info(self):
+        return self._original_info
+
+    @_info.setter
+    def _info(self, value):
+        self._original_info = value
+
+    @property
+    def endpoints(self):
+        return self._original_endpoints
+
+    @endpoints.setter
+    def endpoints(self, value):
+        self._original_endpoints = value
+
+    @property
+    def executor(self):
+        return self._original_executor
+
+    @executor.setter
+    def executor(self, value):
+        self._original_executor = value
+
+    @property
+    def heartbeat(self):
+        return self._original_heartbeat
+
+    @heartbeat.setter
+    def heartbeat(self, value):
+        self._original_heartbeat = value
+
+    def clone(self):
+        """Create a new CloneableGradioClient instance with the same configuration but a new session."""
+        new_client = copy.copy(self)
+        new_client._initialize_session_specific()
+        atexit.register(new_client.cleanup)
+        return new_client
+
+    def cleanup(self):
+        """Clean up resources used by this client."""
+        if self._original_executor:
+            self._original_executor.shutdown(wait=False)
+        if self._kill_heartbeat:
+            self._kill_heartbeat.set()
+        if self._original_heartbeat:
+            self._original_heartbeat.join(timeout=1)
+        atexit.unregister(self.cleanup)
+
+
 if old_gradio:
     GradioClient = H2OGradioClient
 else:
-    GradioClient = Client
+    GradioClient = CloneableGradioClient
