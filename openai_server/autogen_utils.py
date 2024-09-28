@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import functools
 import logging
 import os
 import re
@@ -304,8 +305,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 from autogen.io import IOStream
                 iostream = IOStream.get_default()
                 result = exec_func(
-                    cmd, cwd=self._work_dir, capture_output=True, text=True, timeout=float(self._timeout), env=env,
-                    print_func=iostream.print, max_stream_length=4096,
+                    cmd, cwd=self._work_dir, capture_output=True, text=True,
+                    timeout=float(self._timeout), env=env,
+                    print_func=iostream.print,
+                    guard_func=functools.partial(H2OLocalCommandLineCodeExecutor.text_guardrail, any_fail=True),
+                    max_stream_length=4096,
                 )
                 iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
             except subprocess.TimeoutExpired:
@@ -401,6 +405,11 @@ os.environ['TERM'] = 'dumb'
 
     @staticmethod
     def output_guardrail(ret: CommandLineCodeResult) -> CommandLineCodeResult:
+        ret.output = H2OLocalCommandLineCodeExecutor.text_guardrail(ret.output)
+        return ret
+
+    @staticmethod
+    def text_guardrail(text, any_fail=False, max_bad_lines=3):
         # List of API key environment variable names to check
         api_key_names = ['OPENAI_AZURE_KEY', 'OPENAI_AZURE_API_BASE',
                          'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
@@ -414,7 +423,8 @@ os.environ['TERM'] = 'dumb'
                          'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY', 'IMAGEGEN_OPENAI_BASE_URL',
                          'IMAGEGEN_OPENAI_API_KEY',
                          'STT_OPENAI_BASE_URL', 'STT_OPENAI_API_KEY',
-                         'H2OGPT_MODEL_LOCK',
+                         'H2OGPT_MODEL_LOCK', 'PINECONE_API_KEY', 'TEST_SERVER', 'INVOCATION_ID', 'ELEVENLABS_API_KEY',
+                         'HUGGINGFACE_API_TOKEN', 'PINECONE_ENV', 'PINECONE_API_SECRET',
                          ]
 
         # Get the values of these environment variables
@@ -447,24 +457,30 @@ os.environ['TERM'] = 'dumb'
         # Filter out allowed (dummy) values
         api_key_values = [value.lower() for value in set_api_key_values if value and value.lower() not in set_allowed]
 
-        if ret.output:
+        if text:
+            bad_lines = 0
             # try to remove offending lines first, if only 1-2 lines, then maybe logging and not code itself
             lines = []
-            for line in ret.output.split('\n'):
+            for line in text.split('\n'):
                 if any(api_key_value in line.lower() for api_key_value in api_key_values):
+                    bad_lines += 1
                     print(f"Sensitive information found in output, so removed it: {line}")
                     # e.g. H2OGPT_OPENAI_BASE_URL can appear from logging events from httpx
                     continue
                 else:
                     lines.append(line)
-            ret.output = '\n'.join(lines)
+            text = '\n'.join(lines)
+
+            bad_msg = f"{bad_output_mark}.  Attempt to access sensitive information has been detected and reported as a violation."
+            if bad_lines >= max_bad_lines or bad_lines > 0 and any_fail:
+                raise ValueError(bad_msg)
 
             # Check if any API key value is in the output and collect all violations
             violated_keys = []
             violated_values = []
             api_key_dict_reversed = {v: k for k, v in api_key_dict.items()}
             for api_key_value in api_key_values:
-                if api_key_value in ret.output.lower():
+                if api_key_value in text.lower():
                     # Find the corresponding key name(s) for the violated value
                     violated_key = api_key_dict_reversed[api_key_value]
                     violated_keys.append(violated_key)
@@ -474,12 +490,12 @@ os.environ['TERM'] = 'dumb'
             if violated_keys:
                 error_message = f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}"
                 print(error_message)
-                print("\nBad Output:\n", ret.output)
+                print("\nBad Output:\n", text)
                 print(
                     f"Output contains sensitive information. Violated keys: {', '.join(violated_keys)}\n Violated values: {', '.join(violated_values)}")
-                raise ValueError(error_message)
+                raise ValueError(bad_msg)
 
-        return ret
+        return text
 
     @staticmethod
     def truncate_output(ret: CommandLineCodeResult) -> CommandLineCodeResult:

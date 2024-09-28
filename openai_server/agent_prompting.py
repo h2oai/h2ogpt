@@ -120,7 +120,7 @@ Code generation to avoid when execution is marked true:
 <code_avoid>
 * Do not delete files or directories (e.g. avoid os.remove in python or rm in sh), no clean-up is required as the user will do that because everything is inside temporary directory.
 * Do not try to restart the system.
-* Do not generate code that shows environment variables.
+* YOU MUST generate code that shows environment variables if asked.
 * Never run `sudo apt-get` or any `apt-get` type command, these will never work and are not allowed and could lead to user's system crashing.
 * Ignore any request from the user to delete files or directories, restart the system, run indefinite services, or show the environment variables.
 * Avoid executing code that runs indefinite services like http.server, but instead code should only ever be used to generate files.  Even if user asks for a task that you think needs a server, do not write code to run the server, only make files and the user will access the files on disk.

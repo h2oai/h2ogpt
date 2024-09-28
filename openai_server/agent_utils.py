@@ -220,6 +220,9 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
     image_files = image_files[-10:]
     file_list = image_files + non_image_files
 
+    # guardrail artifacts even if LLM never saw them, shouldn't show user either
+    file_list = guardrail_files(file_list)
+
     # copy files so user can download
     user_dir = get_user_dir(authorization)
     if not os.path.isdir(user_dir):
@@ -304,3 +307,49 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
     ret_dict.update(dict(temp_dir=temp_dir))
 
     return ret_dict
+
+
+def guardrail_files(file_list, hard_fail=True):
+    from openai_server.autogen_utils import H2OLocalCommandLineCodeExecutor
+
+    file_list_new = []
+    for file in file_list:
+        try:
+            # Determine if the file is binary or text
+            is_binary = is_binary_file(file)
+
+            if is_binary:
+                # For binary files, read in binary mode and process in chunks
+                with open(file, "rb") as f:
+                    chunk_size = 1024 * 1024  # 1 MB chunks
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        # Convert binary chunk to string for guardrail check
+                        text = chunk.decode('utf-8', errors='ignore')
+                        H2OLocalCommandLineCodeExecutor.text_guardrail(text)
+            else:
+                # For text files, read as text
+                with open(file, "rt", encoding='utf-8', errors='ignore') as f:
+                    text = f.read()
+                H2OLocalCommandLineCodeExecutor.text_guardrail(text, any_fail=True, max_bad_lines=1)
+
+            file_list_new.append(file)
+        except Exception as e:
+            print(f"Guardrail failed for file: {file}, {e}", flush=True)
+            if hard_fail:
+                raise e
+
+    return file_list_new
+
+
+def is_binary_file(file_path, sample_size=1024):
+    """
+    Check if a file is binary by reading a sample of its contents.
+    """
+    with open(file_path, 'rb') as f:
+        sample = f.read(sample_size)
+
+    text_characters = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
+    return bool(sample.translate(None, text_characters))
