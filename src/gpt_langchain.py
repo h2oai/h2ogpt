@@ -2458,6 +2458,7 @@ class ExtraChat:
         else:
             return len(tokens)
 
+
 class GenerateStream:
     def generate_prompt(
             self,
