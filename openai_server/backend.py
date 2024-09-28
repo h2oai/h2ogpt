@@ -297,7 +297,7 @@ async def get_response(chunk_response=True, **kwargs):
             if verbose:
                 logger.info('Final Stream %d: %s\n\n%s\n\n' % (num, res_dict['response'], res_dict))
                 logger.info('Final Stream %d' % (job_outputs_num + num))
-            response = res_dict['response']
+            response = res_dict.get('response', '')
             chunk = response[len(last_response):]
             if chunk_response:
                 if chunk:
