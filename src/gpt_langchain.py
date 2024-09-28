@@ -2449,6 +2449,14 @@ class ExtraChat:
             print('count_input_tokens for %s: %s' % (str(self.__class__.__name__), self.count_input_tokens), flush=True)
         return prompt_messages
 
+    def get_num_tokens(self, text: str) -> int:
+        tokens = self.get_token_ids(text)
+        if isinstance(tokens, list):
+            return len(tokens)
+        elif isinstance(tokens, dict) and 'input_ids' in tokens:
+            return len(tokens['input_ids'])
+        else:
+            return len(tokens)
 
 class GenerateStream:
     def generate_prompt(
