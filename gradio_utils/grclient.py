@@ -1796,6 +1796,7 @@ class CloneableGradioClient(CommonClient, Client):
         self._initialize_session_specific()
         self._initialize_shared_info()
         atexit.register(self.cleanup)
+        self.auth = kwargs.get('auth')
 
     def _initialize_session_specific(self):
         """Initialize or reset session-specific attributes."""
