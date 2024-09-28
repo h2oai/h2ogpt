@@ -183,36 +183,13 @@ def get_client(user=None):
         print("client.auth=%s" % str(gradio_client.auth), file=sys.stderr)
         try:
             new_hash = gradio_client.get_server_hash()
-            if new_hash != gradio_client0.server_hash:
-                with user_lock:
-                    gradio_client0.refresh_client()
+            assert new_hash
         except Exception as e:
             ex = traceback.format_exc()
-            print(ex, file=sys.stderr)
-            # just get fresh client
-            print("client", file=sys.stderr)
-            print(gradio_client, file=sys.stderr)
-            print("client dict", file=sys.stderr)
-            print(gradio_client.__dict__, file=sys.stderr)
-            print("get fresh client", file=sys.stderr)
-            gradio_client = get_gradio_client(user=user)
-            print("done fresh client", file=sys.stderr)
-            print("fresh client", file=sys.stderr)
-            print(gradio_client, file=sys.stderr)
-            print("fresh client dict", file=sys.stderr)
-            print(gradio_client.__dict__, file=sys.stderr)
-            print("cloning back to global", file=sys.stderr)
-            with user_lock:
-                for k, v in gradio_client.__dict__.items():
-                    setattr(gradio_client0, k, v)
-                gradio_client0.reset_session()
-
-                gradio_client.get_endpoints(gradio_client0)
-
-                # transfer internals in case used
-                gradio_client0.server_hash = gradio_client.server_hash
-                gradio_client0.chat_conversation = gradio_client.chat_conversation
-                gradio_client_list[user] = gradio_client0
+            print(f"re-getting fresh client due to exception: {ex}", file=sys.stderr)
+            # just get fresh client if any issues
+            print(f"re-getting fresh client due to exception: {str(e)}", file=sys.stderr)
+            gradio_client_list[user] = get_gradio_client(user=user, verbose=True)
     if not hasattr(gradio_client, 'clone') and not got_fresh_client:
         print(
             "re-get to ensure concurrency ok, slower if API is large, for speed ensure gradio_utils/grclient.py exists.",
