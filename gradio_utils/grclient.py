@@ -1781,9 +1781,6 @@ class H2OGradioClient(Client):
         return res_dict, text0
 
 
-from functools import cached_property
-
-
 class CloneableGradioClient(Client):
     def __init__(self, *args, **kwargs):
         self._original_config = None
@@ -1791,6 +1788,7 @@ class CloneableGradioClient(Client):
         self._original_endpoints = None
         self._original_executor = None
         self._original_heartbeat = None
+        self._quiet = kwargs.pop('quiet', False)
         super().__init__(*args, **kwargs)
         self._initialize_session_specific()
         self._initialize_shared_info()
@@ -1859,12 +1857,27 @@ class CloneableGradioClient(Client):
     def heartbeat(self, value):
         self._original_heartbeat = value
 
+    def setup(self):
+        # no-op
+        pass
+
     def clone(self):
         """Create a new CloneableGradioClient instance with the same configuration but a new session."""
         new_client = copy.copy(self)
         new_client._initialize_session_specific()
+        new_client._quiet = True  # Set the cloned client to quiet mode
         atexit.register(new_client.cleanup)
         return new_client
+
+    def __repr__(self):
+        if self._quiet:
+            return f"<CloneableGradioClient (quiet) connected to {self.src}>"
+        return super().__repr__()
+
+    def __str__(self):
+        if self._quiet:
+            return f"CloneableGradioClient (quiet) connected to {self.src}"
+        return super().__str__()
 
     def cleanup(self):
         """Clean up resources used by this client."""
