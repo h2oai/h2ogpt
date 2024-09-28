@@ -188,8 +188,25 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         any_patterns = ['H2OGPT_MODEL_LOCK', 'H2OGPT_MAIN_KWARGS', 'H2OGPT_FUNCTION_API_KEY',
                         'H2OGPT_FUNCTION_PORT', 'H2OGPT_SSL_KEYFILE_PASSWORD', 'H2OGPT_AUTH', 'H2OGPT_AUTH_FILENAME',
                         'H2OGPT_ENFORCE_H2OGPT_API_KEY', 'H2OGPT_ENFORCE_H2OGPT_UI_KEY',
-                        'H2OGPT_H2OGPT_API_KEYS', 'H2OGPT_KEY'
+                        'H2OGPT_H2OGPT_API_KEYS', 'H2OGPT_KEY', 'GRADIO_H2OGPT_H2OGPT_KEY',
+                        'H2OGPT_H2OGPT_KEY',
                         ]
+
+        if os.getenv('STRICT_KEY_USAGE', '0') == '1':
+            # allow broader patterns if user wants to be stricter, so no insertion of keys into chat and usage of keys
+            any_patterns += ['REPLICATE_API_TOKEN',
+                             'ANTHROPIC_API_KEY', 'AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY',
+                             'GOOGLE_API_KEY', 'TWILIO_AUTH_TOKEN', 'OPENAI_AZURE_KEY',
+                             'PINECONE_API_KEY', 'GROQ_SECRET_ACCESS_KEY', 'OPENAI_APY_KEY',
+                             'ELEVENLABS_API_KEY', 'PINECONE_ENV', 'GROQ_API_KEY', 'OPENAI_AZURE_KEY',
+                             'HUGGINGFACE_API_TOKEN',
+                             'MISTRAL_API_KEY', 'OPENAI_API_KEY',
+                             ]
+        # Do NOT include these as just patterns, since used by tools:
+        # just shown for reference to avoid being added later:
+        used_by_tools = ['H2OGPT_OPENAI_API_KEY', 'S2_API_KEY,' 'NEWS_API_KEY', 'SERPAPI_API_KEY',
+                         'WOLFRAM_ALPHA_APPID', 'STT_OPENAI_API_KEY', 'IMAGEGEN_OPENAI_API_KEY']
+        assert used_by_tools
 
         patterns = shell_patterns if lang in ["bash", "shell", "sh"] else python_patterns
         combined_pattern = "|".join(f"(?P<pat{i}>{pat})" for i, pat in enumerate(patterns.keys()))
@@ -425,6 +442,7 @@ os.environ['TERM'] = 'dumb'
                          'STT_OPENAI_BASE_URL', 'STT_OPENAI_API_KEY',
                          'H2OGPT_MODEL_LOCK', 'PINECONE_API_KEY', 'TEST_SERVER', 'INVOCATION_ID', 'ELEVENLABS_API_KEY',
                          'HUGGINGFACE_API_TOKEN', 'PINECONE_ENV', 'PINECONE_API_SECRET',
+                         'GROQ_SECRET_ACCESS_KEY',
                          ]
 
         # Get the values of these environment variables
