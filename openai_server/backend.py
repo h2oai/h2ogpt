@@ -122,22 +122,20 @@ def get_gradio_client(user=None, verbose=False):
 
     try:
         from gradio_utils.grclient import GradioClient as Client
-        concurrent_client = True
     except ImportError:
         print("Using slower gradio API, for speed ensure gradio_utils/grclient.py exists.")
         from gradio_client import Client
-        concurrent_client = False
 
     if auth_kwargs:
         print("Getting gradio client at %s with auth" % gradio_url, flush=True)
         client = Client(gradio_url, **auth_kwargs)
-        if concurrent_client:
+        if hasattr(client, 'setup'):
             with client_lock:
                 client.setup()
     else:
         print("BEGIN: Getting non-user gradio client at %s" % gradio_url, flush=True)
         client = Client(gradio_url)
-        if concurrent_client:
+        if hasattr(client, 'setup'):
             with client_lock:
                 client.setup()
         print("END: getting non-user gradio client at %s" % gradio_url, flush=True)
