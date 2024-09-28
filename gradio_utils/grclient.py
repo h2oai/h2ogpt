@@ -101,8 +101,11 @@ prompt_extraction0 = (
 
 hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
+client_version = distribution("gradio_client").version
+old_gradio = version.parse(client_version) <= version.parse("0.6.1")
 
-class GradioClient(Client):
+
+class H2OGradioClient(Client):
     """
     Parent class of gradio client
     To handle automatically refreshing client if detect gradio server changed
@@ -1773,3 +1776,9 @@ class GradioClient(Client):
             yield res_dict
             time.sleep(0.005)
         return res_dict, text0
+
+
+if old_gradio:
+    GradioClient = H2OGradioClient
+else:
+    GradioClient = Client
