@@ -2766,6 +2766,45 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
 
     # max_new_tokens0: Any = None  # FIXME: Doesn't seem to have same max_tokens == -1 for prompts==1
 
+    @staticmethod
+    def process_messages(messages, max_cache_controls=3):
+        processed_messages = []
+        cache_control_count = 0
+
+        for message in reversed(messages):
+            if message["role"] == "user":
+                if isinstance(message["content"], str):
+                    content = [{
+                        "type": "text",
+                        "text": message["content"]
+                    }]
+                    if cache_control_count < max_cache_controls:
+                        content[0]["cache_control"] = {"type": "ephemeral"}
+                        cache_control_count += 1
+                elif isinstance(message["content"], list):
+                    content = []
+                    for item in reversed(message["content"]):
+                        if isinstance(item, dict):
+                            item_copy = item.copy()
+                            if cache_control_count < max_cache_controls:
+                                item_copy["cache_control"] = {"type": "ephemeral"}
+                                cache_control_count += 1
+                            content.append(item_copy)
+                        else:
+                            content.append(item)
+                    content.reverse()  # Restore original order within the message
+                else:
+                    content = message["content"]
+
+                processed_messages.append({
+                    "role": "user",
+                    "content": content
+                })
+            else:
+                processed_messages.append(message)
+
+        return list(reversed(processed_messages))  # Reverse to restore original order
+
     def _get_request_payload(
             self,
             input_: LanguageModelInput,
@@ -2786,33 +2825,13 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
                 "cache_control": {"type": "ephemeral"}
             }] if system else None
 
-            # fix messages
-            # Prepare the messages list
-            messages_cached = []
-
             # Process user and assistant messages
-            user_message_count = sum(1 for msg in messages if msg["role"] == "user")
-            for i, message in enumerate(messages):
-                if message["role"] == "user":
-                    content = {
-                        "type": "text",
-                        "text": message["content"]
-                    }
-
-                    # Add cache control to the last two user messages
-                    if user_message_count - i <= 2:
-                        content["cache_control"] = {"type": "ephemeral"}
-
-                    messages_cached.append({
-                        "role": "user",
-                        "content": [content]
-                    })
-                else:
-                    messages_cached.append(message)
+            messages_cached = self.process_messages(messages)
 
             # put messages and system back in
             payload['messages'] = messages_cached
             payload['system'] = system_cached
+        print('payload: %s' % payload, flush=True)
         return payload
 
     def _stream(
