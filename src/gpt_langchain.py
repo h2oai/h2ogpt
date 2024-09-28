@@ -2803,8 +2803,7 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
             else:
                 processed_messages.append(message)
 
-        processed_messages.reverse()  # Restore original message order
-        return processed_messages
+        return list(reversed(processed_messages))  # Reverse to restore original order
 
     def _get_request_payload(
             self,

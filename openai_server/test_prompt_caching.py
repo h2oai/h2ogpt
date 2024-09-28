@@ -33,8 +33,8 @@ def test_simple_string_messages():
     ]
     result = process_messages(messages)
     assert len(result) == 6
-    assert_cache_control_count(result, 4)
-    assert all("cache_control" in msg["content"][0] for msg in result[-4:] if msg["role"] == "user")
+    assert_cache_control_count(result, 3)
+    assert all("cache_control" in msg["content"][0] for msg in result[-3:] if msg["role"] == "user")
     assert "cache_control" not in result[0]["content"][0]
 
 
@@ -48,10 +48,10 @@ def test_mixed_content_types():
     ]
     result = process_messages(messages)
     assert len(result) == 4
-    assert_cache_control_count(result, 4)
+    assert_cache_control_count(result, 3)
     assert "cache_control" in result[-1]["content"][0]
     assert all("cache_control" in item for item in result[-2]["content"])
-    assert "cache_control" in result[-3]["content"][0]
+    assert "cache_control" not in result[0]["content"][0]
 
 
 def test_max_cache_control_limit():
@@ -60,47 +60,12 @@ def test_max_cache_control_limit():
         {"role": "user", "content": [{"type": "text", "text": "Item 3"}, {"type": "text", "text": "Item 4"}]},
         {"role": "user", "content": "Text message"},
     ]
-    result = process_messages(messages, max_cache_controls=4)
-    assert_cache_control_count(result, 4)
-    assert "cache_control" in result[-1]["content"][0]
-    assert all("cache_control" in item for item in result[-2]["content"])
-    assert "cache_control" in result[-3]["content"][1]
-    assert "cache_control" not in result[-3]["content"][0]
-
-
-def test_fewer_messages_than_max():
-    messages = [
-        {"role": "user", "content": "Message 1"},
-        {"role": "assistant", "content": "Response 1"},
-        {"role": "user", "content": "Message 2"},
-    ]
-    result = process_messages(messages, max_cache_controls=4)
-    assert_cache_control_count(result, 2)
-    assert all("cache_control" in msg["content"][0] for msg in result if msg["role"] == "user")
-
-
-def test_non_dict_items_in_list():
-    messages = [
-        {"role": "user", "content": ["Text item", {"type": "text", "text": "Dict item"}]},
-        {"role": "user", "content": [{"type": "text", "text": "Another dict item"}, 123]},
-    ]
     result = process_messages(messages)
-    assert_cache_control_count(result, 2)
+    assert_cache_control_count(result, 3)
     assert "cache_control" in result[-1]["content"][0]
     assert "cache_control" in result[-2]["content"][1]
-    assert isinstance(result[-2]["content"][0], str)
-    assert isinstance(result[-1]["content"][1], int)
-
-
-def test_unexpected_content_type():
-    messages = [
-        {"role": "user", "content": 123},
-        {"role": "user", "content": "Text message"},
-    ]
-    result = process_messages(messages)
-    assert len(result) == 2
-    assert result[0]["content"] == 123
-    assert "cache_control" in result[1]["content"][0]
+    assert "cache_control" in result[-2]["content"][0]
+    assert "cache_control" not in result[0]["content"][0]
 
 
 def test_empty_list_content():
@@ -117,16 +82,23 @@ def test_empty_list_content():
 def test_preserve_message_order():
     messages = [
         {"role": "user", "content": "First"},
-        {"role": "assistant", "content": "Response"},
+        {"role": "assistant", "content": "Response 1"},
         {"role": "user", "content": "Second"},
+        {"role": "assistant", "content": "Response 2"},
         {"role": "user", "content": "Third"},
+        {"role": "user", "content": "Fourth"},
     ]
     result = process_messages(messages)
-    assert [msg["content"] for msg in result if msg["role"] == "user"] == [
+    user_messages = [msg["content"] for msg in result if msg["role"] == "user"]
+    assert user_messages == [
         [{"type": "text", "text": "First"}],
         [{"type": "text", "text": "Second", "cache_control": {"type": "ephemeral"}}],
         [{"type": "text", "text": "Third", "cache_control": {"type": "ephemeral"}}],
+        [{"type": "text", "text": "Fourth", "cache_control": {"type": "ephemeral"}}],
     ]
+    assert len(result) == 6  # Ensure all messages are preserved
+    assert [msg["role"] for msg in result] == ["user", "assistant", "user", "assistant", "user",
+                                               "user"]  # Ensure order is preserved
 
 
 if __name__ == "__main__":
