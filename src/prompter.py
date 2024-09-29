@@ -1650,7 +1650,7 @@ def inject_chatsep(prompt_type, prompt, chat_sep=None):
 class Prompter(object):
     def __init__(self, prompt_type, prompt_dict, debug=False, stream_output=False, repeat_penalty=False,
                  allowed_repeat_line_length=10, system_prompt=None, tokenizer=None,
-                 base_model=None, verbose=False):
+                 base_model=None, image_file=[], verbose=False):
         self.prompt_type = prompt_type
         self.prompt_dict = prompt_dict
         self.debug = debug
@@ -1683,8 +1683,9 @@ class Prompter(object):
         if self.use_chat_template:
             # see if chat template handles system prompt
             system_prompt = '1234####*****@@!(#%@#%@#%'
-            self.can_handle_system_prompt = system_prompt in apply_chat_template("Test", system_prompt, [], [],
+            self.can_handle_system_prompt = system_prompt in apply_chat_template("Test", system_prompt, [],
                                                                                  self.tokenizer,
+                                                                                 image_file=image_file,
                                                                                  test_only=True,
                                                                                  user_prompt_for_fake_system_prompt=None)
 
@@ -1712,8 +1713,9 @@ class Prompter(object):
             from gen import apply_chat_template
             instruction = data_point['instruction']
             # ignore context and iinput when using chat template
-            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation, image_file,
+            prompt = apply_chat_template(instruction, self.system_prompt, chat_conversation,
                                          self.tokenizer,
+                                         image_file=image_file,
                                          user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          test_only=False, verbose=self.verbose)
             return prompt
@@ -2349,8 +2351,10 @@ def get_llm_history(history, only_text=False):
     return history_new
 
 
-def apply_chat_template(instruction, system_prompt, history, image_file,
-                        tokenizer, user_prompt_for_fake_system_prompt=None,
+def apply_chat_template(instruction, system_prompt, history,
+                        tokenizer,
+                        image_file=[],
+                        user_prompt_for_fake_system_prompt=None,
                         test_only=False, verbose=False):
     image_file = []  # NA for tokenizer version of things, usually much more specific non-OpenAI compliant thing
     history = get_llm_history(history, only_text=True)
