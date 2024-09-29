@@ -166,7 +166,7 @@ fi
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
 #
 # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-pip install optimum==1.22.0 -c reqs_optional/reqs_constraints.txt
+#pip install optimum==1.22.0 -c reqs_optional/reqs_constraints.txt
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 
 

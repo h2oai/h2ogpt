@@ -94,8 +94,8 @@ def get_loaders(model_name, reward_type, llama_type=None,
                                          **gptq_dict,
                                          )
         return model_loader, AutoTokenizer, False
-    if load_gptq and not use_autogptq:
-        assert have_optimum, "To use HF transformers GPTQ, please: pip install optimum"
+    #if load_gptq and not use_autogptq:
+    #    assert have_optimum, "To use HF transformers GPTQ, please: pip install optimum"
     if load_awq:
         from transformers import AutoTokenizer
         from awq import AutoAWQForCausalLM

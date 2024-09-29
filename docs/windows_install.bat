@@ -89,7 +89,7 @@ CALL pip uninstall -y auto-gptq
 REM     # GPU
 CALL pip install auto-gptq==0.6.0 -c reqs_optional/reqs_constraints.txt
 REM     # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-CALL pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
+REM CALL pip install optimum==1.16.1 -c reqs_optional/reqs_constraints.txt
 
 REM * AutoAWQ support:
 CALL pip uninstall -y autoawq autoawq_kernels
