@@ -165,7 +165,7 @@ fi
 #* GPU Optional: For AutoGPTQ support on x86_64 linux
 #
 # in-transformers support of AutoGPTQ, requires also auto-gptq above to be installed since used internally by transformers/optimum
-pip install optimum==1.17.1 -c reqs_optional/reqs_constraints.txt
+pip install optimum==1.22.0 -c reqs_optional/reqs_constraints.txt
 #    See [AutoGPTQ](README_GPU.md#autogptq) about running AutoGPT models.
 
 
@@ -215,7 +215,7 @@ fi
 if [[ -v CUDA_HOME ]];
 then
     pip install --upgrade pip
-    pip install flash-attn==2.4.2 --no-build-isolation --no-cache-dir -c reqs_optional/reqs_constraints.txt
+    pip install flash-attn==2.6.3 --no-build-isolation --no-cache-dir -c reqs_optional/reqs_constraints.txt
 fi
 
 
