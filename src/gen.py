@@ -2972,6 +2972,17 @@ def evaluate(
             isinstance(model, GradioClient) or isinstance(model, Client))
     h2ogpt_gradio_server = gradio_server and not is_gradio_vision_model(base_model)
 
+    if image_file and tokenizer.chat_template:
+        tokenizer.apply_chat_template()
+        system_prompt_xml = f"""\n<system_prompt>\n{system_prompt}\n</system_prompt>\n""" if system_prompt else ''
+        if instruction and system_prompt_xml:
+            instruction = system_prompt_xml + '\n\n' + instruction
+        else:
+            if system_prompt_xml:
+                prompt_query = system_prompt_xml + prompt_query
+                prompt_summary = system_prompt_xml + prompt_summary
+        system_prompt = ''
+
     if guided_json == '':
         guided_json = None
     if guided_regex == '':
@@ -5173,13 +5184,15 @@ def get_limited_prompt(instruction,
 
     if use_chat_template:
         # see if chat template handles system prompt
-        if system_prompt in apply_chat_template("Test", system_prompt, [], [],
+        if system_prompt in apply_chat_template("Test", system_prompt, [],
                                                 tokenizer,
+                                                image_file=[],
                                                 test_only=True, user_prompt_for_fake_system_prompt=None):
             can_handle_system_prompt = True
 
-        base_size = len(apply_chat_template("Test", None, [], [],
+        base_size = len(apply_chat_template("Test", None, [],
                                             tokenizer,
+                                            image_file=[],
                                             test_only=True, user_prompt_for_fake_system_prompt=None))
     else:
         base_size = 0
@@ -5262,8 +5275,9 @@ def get_limited_prompt(instruction,
     ###########################
     # get context2 without history or system_prompt
     if use_chat_template:
-        context2 = apply_chat_template(instruction, '', [], image_file,
+        context2 = apply_chat_template(instruction, '', [],
                                        tokenizer,
+                                       image_file=image_file,
                                        user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         iinput = ''
         context1 = ''
@@ -5341,8 +5355,9 @@ def get_limited_prompt(instruction,
             history_to_use = history[0 + chat_index:]
 
         if use_chat_template:
-            context2 = apply_chat_template(instruction, system_prompt, history_to_use, image_file,
+            context2 = apply_chat_template(instruction, system_prompt, history_to_use,
                                            tokenizer,
+                                           image_file=image_file,
                                            user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         else:
             context2, history_to_use = history_to_context_func(history_to_use, system_prompt=system_prompt)
@@ -5373,8 +5388,9 @@ def get_limited_prompt(instruction,
     ###########################
     # get final context2
     if use_chat_template:
-        context2 = apply_chat_template(instruction, system_prompt, history_to_use_final, image_file,
+        context2 = apply_chat_template(instruction, system_prompt, history_to_use_final,
                                        tokenizer,
+                                       image_file=image_file,
                                        user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt)
         # now context2 has system tokens
         num_system_tokens = 0
