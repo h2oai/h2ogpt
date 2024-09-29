@@ -21,7 +21,6 @@ from typing import Callable, Generator, Any, Union, List, Dict, Literal, Tuple
 import ast
 import inspect
 import numpy as np
-from gradio_client.compatibility import EndpointV3Compatibility
 
 try:
     from gradio_utils.yield_utils import ReturnType
