@@ -2701,7 +2701,7 @@ class GenerateStream2:
 
 
 class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, H2OBaseChatOpenAI, ChatOpenAI):
-    tokenizer: Any = None  # for vllm_chat
+    tokenizer: Any = None
     system_prompt: Any = None
     chat_conversation: Any = []
     user_prompt_for_fake_system_prompt: Any = None
@@ -2728,6 +2728,7 @@ class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, H2
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     prompter: Any = None
+    tokenizer: Any = None
 
     def get_token_ids(self, text: str) -> List[int]:
         """Get the tokens present in the text with tiktoken package."""
@@ -3305,8 +3306,7 @@ def get_llm(use_openai_model=False,
                     kwargs_extra.update(dict(response_format=dict(type=response_format if guided_json else 'text')))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
-                kwargs_extra.update(dict(tokenizer=tokenizer,
-                                         openai_api_key=api_key,
+                kwargs_extra.update(dict(openai_api_key=api_key,
                                          # batch_size=1,
                                          client=openai_client_completions,
                                          async_client=openai_async_client_completions,
@@ -3357,7 +3357,6 @@ def get_llm(use_openai_model=False,
                                          sanitize_bot_response=sanitize_bot_response,
                                          context=context,
                                          iinput=iinput,
-                                         tokenizer=tokenizer,
                                          chat_conversation=chat_conversation,
                                          user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          openai_api_base=base_url,
@@ -3399,6 +3398,7 @@ def get_llm(use_openai_model=False,
                   verbose=verbose,
                   request_timeout=max_time,
                   prompter=prompter,
+                  tokenizer=tokenizer,
                   **kwargs_extra
                   )
         streamer = callbacks[0] if stream_output else None
