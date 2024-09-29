@@ -2976,11 +2976,14 @@ def evaluate(
         if 'Prompting with images is incompatible with system messages' in tokenizer.chat_template:
             system_prompt_xml = f"""\n<system_prompt>\n{system_prompt}\n</system_prompt>\n""" if system_prompt else ''
             if instruction and system_prompt_xml:
-                instruction = system_prompt_xml + '\n\n' + instruction
+                if '<system_prompt>' not in instruction:
+                    instruction = system_prompt_xml + '\n\n' + instruction
             else:
                 if system_prompt_xml:
-                    prompt_query = system_prompt_xml + prompt_query
-                    prompt_summary = system_prompt_xml + prompt_summary
+                    if '<system_prompt>' not in prompt_query:
+                        prompt_query = system_prompt_xml + prompt_query
+                    if '<system_prompt>' not in prompt_summary:
+                        prompt_summary = system_prompt_xml + prompt_summary
             system_prompt = ''
 
     if guided_json == '':
