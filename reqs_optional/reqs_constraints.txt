@@ -1,8 +1,8 @@
 # ensure doesn't drift, e.g. Issue #1348
 torch==2.2.1; sys_platform != "darwin" and platform_machine != "arm64"
 torch==2.3.1; sys_platform == "darwin" and platform_machine == "arm64"
-gradio==4.26.0
-gradio_client==0.15.1
+gradio==4.44.0
+gradio_client==1.3.0
 transformers>=4.43.2
 # https://github.com/langchain-ai/langchain/issues/22972
 tenacity==8.3.0
