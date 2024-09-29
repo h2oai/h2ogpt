@@ -2903,6 +2903,7 @@ class H2OChatGoogle(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, ChatGoo
     user_prompt_for_fake_system_prompt: Any = None
     prompts: Any = []
     streaming: Any = False
+    tokenizer: Any = None
     count_input_tokens: Any = 0
     count_output_tokens: Any = 0
     prompter: Any = None
