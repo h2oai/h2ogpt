@@ -2841,7 +2841,7 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
             # put messages and system back in
             payload['messages'] = messages_cached
             payload['system'] = system_cached
-        print('payload: %s' % payload, flush=True)
+        # print('payload: %s' % payload, flush=True)
         return payload
 
     def _stream(
