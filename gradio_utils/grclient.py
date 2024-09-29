@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import atexit
 import concurrent
+import copy
 import difflib
 import re
 import threading
@@ -101,426 +103,11 @@ prompt_extraction0 = (
 
 hyde_llm_prompt0 = "Answer this question with vibrant details in order for some NLP embedding model to use that answer as better query than original question: "
 
+client_version = distribution("gradio_client").version
+old_gradio = version.parse(client_version) <= version.parse("0.6.1")
 
-class GradioClient(Client):
-    """
-    Parent class of gradio client
-    To handle automatically refreshing client if detect gradio server changed
-    """
 
-    def reset_session(self) -> None:
-        self.session_hash = str(uuid.uuid4())
-        if hasattr(self, "include_heartbeat") and self.include_heartbeat:
-            self._refresh_heartbeat.set()
-
-    def __init__(
-        self,
-        src: str,
-        hf_token: str | None = None,
-        max_workers: int = 40,
-        serialize: bool | None = None,  # TODO: remove in 1.0
-        output_dir: str
-        | Path = DEFAULT_TEMP_DIR,  # Maybe this can be combined with `download_files` in 1.0
-        verbose: bool = False,
-        auth: tuple[str, str] | None = None,
-        *,
-        headers: dict[str, str] | None = None,
-        upload_files: bool = True,  # TODO: remove and hardcode to False in 1.0
-        download_files: bool = True,  # TODO: consider setting to False in 1.0
-        _skip_components: bool = True,  # internal parameter to skip values certain components (e.g. State) that do not need to be displayed to users.
-        ssl_verify: bool = True,
-        h2ogpt_key: str = None,
-        persist: bool = False,
-        check_hash: bool = True,
-        check_model_name: bool = False,
-        include_heartbeat: bool = False,
-    ):
-        """
-        Parameters:
-            Base Class parameters
-            +
-            h2ogpt_key: h2oGPT key to gain access to the server
-            persist: whether to persist the state, so repeated calls are aware of the prior user session
-                     This allows the scratch MyData to be reused, etc.
-                     This also maintains the chat_conversation history
-            check_hash: whether to check git hash for consistency between server and client to ensure API always up to date
-            check_model_name: whether to check the model name here (adds delays), or just let server fail (faster)
-        """
-        if serialize is None:
-            # else converts inputs arbitrarily and outputs mutate
-            # False keeps as-is and is normal for h2oGPT
-            serialize = False
-        self.args = tuple([src])
-        self.kwargs = dict(
-            hf_token=hf_token,
-            max_workers=max_workers,
-            serialize=serialize,
-            output_dir=output_dir,
-            verbose=verbose,
-            h2ogpt_key=h2ogpt_key,
-            persist=persist,
-            check_hash=check_hash,
-            check_model_name=check_model_name,
-            include_heartbeat=include_heartbeat,
-        )
-        if is_gradio_client_version7plus:
-            # 4.18.0:
-            # self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
-            # 4.17.0:
-            # self.kwargs.update(dict(auth=auth))
-            # 4.24.0:
-            self._skip_components = _skip_components
-            self.ssl_verify = ssl_verify
-            self.kwargs.update(
-                dict(
-                    auth=auth,
-                    upload_files=upload_files,
-                    download_files=download_files,
-                    ssl_verify=ssl_verify,
-                )
-            )
-
-        self.verbose = verbose
-        self.hf_token = hf_token
-        if serialize is not None:
-            warnings.warn(
-                "The `serialize` parameter is deprecated and will be removed. Please use the equivalent `upload_files` parameter instead."
-            )
-            upload_files = serialize
-        self.serialize = serialize
-        self.upload_files = upload_files
-        self.download_files = download_files
-        self.space_id = None
-        self.cookies: dict[str, str] = {}
-        if is_gradio_client_version7plus:
-            self.output_dir = (
-                str(output_dir) if isinstance(output_dir, Path) else output_dir
-            )
-        else:
-            self.output_dir = output_dir
-        self.max_workers = max_workers
-        self.src = src
-        self.auth = auth
-        self.headers = headers
-
-        self.config = None
-        self.h2ogpt_key = h2ogpt_key
-        self.persist = persist
-        self.check_hash = check_hash
-        self.check_model_name = check_model_name
-        self.include_heartbeat = include_heartbeat
-
-        self.chat_conversation = []  # internal for persist=True
-        self.server_hash = None  # internal
-
-    def __repr__(self):
-        if self.config and False:
-            # too slow for guardrails exceptional path
-            return self.view_api(print_info=False, return_format="str")
-        return "Not setup for %s" % self.src
-
-    def __str__(self):
-        if self.config and False:
-            # too slow for guardrails exceptional path
-            return self.view_api(print_info=False, return_format="str")
-        return "Not setup for %s" % self.src
-
-    def setup(self):
-        src = self.src
-
-        headers0 = self.headers
-        self.headers = build_hf_headers(
-            token=self.hf_token,
-            library_name="gradio_client",
-            library_version=utils.__version__,
-        )
-        if headers0:
-            self.headers.update(headers0)
-        if (
-            "authorization" in self.headers
-            and self.headers["authorization"] == "Bearer "
-        ):
-            self.headers["authorization"] = "Bearer hf_xx"
-        if src.startswith("http://") or src.startswith("https://"):
-            _src = src if src.endswith("/") else src + "/"
-        else:
-            _src = self._space_name_to_src(src)
-            if _src is None:
-                raise ValueError(
-                    f"Could not find Space: {src}. If it is a private Space, please provide an hf_token."
-                )
-            self.space_id = src
-        self.src = _src
-        state = self._get_space_state()
-        if state == SpaceStage.BUILDING:
-            if self.verbose:
-                print("Space is still building. Please wait...")
-            while self._get_space_state() == SpaceStage.BUILDING:
-                time.sleep(2)  # so we don't get rate limited by the API
-                pass
-        if state in utils.INVALID_RUNTIME:
-            raise ValueError(
-                f"The current space is in the invalid state: {state}. "
-                "Please contact the owner to fix this."
-            )
-        if self.verbose:
-            print(f"Loaded as API: {self.src} ✔")
-
-        if is_gradio_client_version7plus:
-            if self.auth is not None:
-                self._login(self.auth)
-
-        self.config = self._get_config()
-        self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
-        if is_gradio_client_version7plus:
-            self.protocol: Literal[
-                "ws", "sse", "sse_v1", "sse_v2", "sse_v2.1"
-            ] = self.config.get("protocol", "ws")
-            self.sse_url = urllib.parse.urljoin(
-                self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
-            )
-            if hasattr(utils, "HEARTBEAT_URL") and self.include_heartbeat:
-                self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
-            else:
-                self.heartbeat_url = None
-            self.sse_data_url = urllib.parse.urljoin(
-                self.src,
-                utils.SSE_DATA_URL_V0 if self.protocol == "sse" else utils.SSE_DATA_URL,
-            )
-        self.ws_url = urllib.parse.urljoin(
-            self.src.replace("http", "ws", 1), utils.WS_URL
-        )
-        self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
-        self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
-        if is_gradio_client_version7plus:
-            self.app_version = version.parse(self.config.get("version", "2.0"))
-            self._info = self._get_api_info()
-        self.session_hash = str(uuid.uuid4())
-
-        self.get_endpoints(self)
-
-        # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
-        # threading.Thread(target=self._telemetry_thread, daemon=True).start()
-        if (
-            is_gradio_client_version7plus
-            and hasattr(utils, "HEARTBEAT_URL")
-            and self.include_heartbeat
-        ):
-            self._refresh_heartbeat = threading.Event()
-            self._kill_heartbeat = threading.Event()
-
-            self.heartbeat = threading.Thread(
-                target=self._stream_heartbeat, daemon=True
-            )
-            self.heartbeat.start()
-
-        self.server_hash = self.get_server_hash()
-
-        return self
-
-    @staticmethod
-    def get_endpoints(client, verbose=False):
-        t0 = time.time()
-        # Create a pool of threads to handle the requests
-        client.executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=client.max_workers
-        )
-        if is_gradio_client_version7plus:
-            from gradio_client.client import EndpointV3Compatibility
-
-            endpoint_class = (
-                Endpoint
-                if client.protocol.startswith("sse")
-                else EndpointV3Compatibility
-            )
-        else:
-            endpoint_class = Endpoint
-
-        if is_gradio_client_version7plus:
-            client.endpoints = [
-                endpoint_class(client, fn_index, dependency, client.protocol)
-                for fn_index, dependency in enumerate(client.config["dependencies"])
-            ]
-        else:
-            client.endpoints = [
-                endpoint_class(client, fn_index, dependency)
-                for fn_index, dependency in enumerate(client.config["dependencies"])
-            ]
-        if is_gradio_client_version7plus:
-            client.stream_open = False
-            client.streaming_future = None
-            from gradio_client.utils import Message
-
-            client.pending_messages_per_event = {}
-            client.pending_event_ids = set()
-        if verbose:
-            print("duration endpoints: %s" % (time.time() - t0), flush=True)
-
-    @staticmethod
-    def is_full_git_hash(s):
-        # This regex checks for exactly 40 hexadecimal characters.
-        return bool(re.fullmatch(r"[0-9a-f]{40}", s))
-
-    def get_server_hash(self) -> str:
-        return self._get_server_hash(ttl_hash=self._get_ttl_hash())
-
-    def _get_server_hash(self, ttl_hash=None) -> str:
-        """
-        Get server hash using super without any refresh action triggered
-        Returns: git hash of gradio server
-        """
-        del ttl_hash  # to emphasize we don't use it and to shut pylint up
-        t0 = time.time()
-        if self.config is None:
-            self.setup()
-        t1 = time.time()
-        ret = "GET_GITHASH_UNSET"
-        try:
-            if self.check_hash:
-                ret = super().submit(api_name="/system_hash").result()
-                assert self.is_full_git_hash(ret), f"ret is not a full git hash: {ret}"
-            return ret
-        finally:
-            if self.verbose:
-                print(
-                    "duration server_hash: %s full time: %s system_hash time: %s"
-                    % (ret, time.time() - t0, time.time() - t1),
-                    flush=True,
-                )
-
-    def refresh_client_if_should(self):
-        if self.config is None:
-            self.setup()
-        # get current hash in order to update api_name -> fn_index map in case gradio server changed
-        # FIXME: Could add cli api as hash
-        server_hash = self.get_server_hash()
-        if self.server_hash != server_hash:
-            if self.verbose:
-                print(
-                    "server hash changed: %s %s" % (self.server_hash, server_hash),
-                    flush=True,
-                )
-            if self.server_hash is not None and self.persist:
-                if self.verbose:
-                    print(
-                        "Failed to persist due to server hash change, only kept chat_conversation not user session hash",
-                        flush=True,
-                    )
-            # risky to persist if hash changed
-            self.refresh_client()
-            self.server_hash = server_hash
-
-    def refresh_client(self):
-        """
-        Ensure every client call is independent
-        Also ensure map between api_name and fn_index is updated in case server changed (e.g. restarted with new code)
-        Returns:
-        """
-        if self.config is None:
-            self.setup()
-
-        kwargs = self.kwargs.copy()
-        kwargs.pop("h2ogpt_key", None)
-        kwargs.pop("persist", None)
-        kwargs.pop("check_hash", None)
-        kwargs.pop("check_model_name", None)
-        kwargs.pop("include_heartbeat", None)
-        ntrials = 3
-        client = None
-        for trial in range(0, ntrials):
-            try:
-                client = Client(*self.args, **kwargs)
-                break
-            except ValueError as e:
-                if trial >= ntrials:
-                    raise
-                else:
-                    if self.verbose:
-                        print("Trying refresh %d/%d %s" % (trial, ntrials - 1, str(e)))
-                    trial += 1
-                    time.sleep(10)
-        if client is None:
-            raise RuntimeError("Failed to get new client")
-        session_hash0 = self.session_hash if self.persist else None
-        for k, v in client.__dict__.items():
-            setattr(self, k, v)
-        if session_hash0:
-            # keep same system hash in case server API only changed and not restarted
-            self.session_hash = session_hash0
-        if self.verbose:
-            print("Hit refresh_client(): %s %s" % (self.session_hash, session_hash0))
-        # ensure server hash also updated
-        self.server_hash = self.get_server_hash()
-
-    def clone(self, do_lock=False):
-        if do_lock:
-            with lock:
-                return self._clone()
-        else:
-            return self._clone()
-
-    def _clone(self):
-        if self.config is None:
-            self.setup()
-        client = GradioClient("")
-        for k, v in self.__dict__.items():
-            setattr(client, k, v)
-        client.reset_session()
-
-        self.get_endpoints(client)
-
-        # transfer internals in case used
-        client.server_hash = self.server_hash
-        client.chat_conversation = self.chat_conversation
-        return client
-
-    def submit(
-        self,
-        *args,
-        api_name: str | None = None,
-        fn_index: int | None = None,
-        result_callbacks: Callable | list[Callable] | None = None,
-        exception_handling=True,  # new_stream = True, can make False, doesn't matter.
-    ) -> Job:
-        if self.config is None:
-            self.setup()
-        # Note predict calls submit
-        try:
-            self.refresh_client_if_should()
-            job = super().submit(*args, api_name=api_name, fn_index=fn_index)
-        except Exception as e:
-            ex = traceback.format_exc()
-            print(
-                "Hit e=%s\n\n%s\n\n%s"
-                % (str(ex), traceback.format_exc(), self.__dict__),
-                flush=True,
-            )
-            # force reconfig in case only that
-            self.refresh_client()
-            job = super().submit(*args, api_name=api_name, fn_index=fn_index)
-
-        if exception_handling:  # for debugging if causes issues
-            # see if immediately failed
-            e = check_job(job, timeout=0.01, raise_exception=False)
-            if e is not None:
-                print(
-                    "GR job failed: %s %s"
-                    % (str(e), "".join(traceback.format_tb(e.__traceback__))),
-                    flush=True,
-                )
-                # force reconfig in case only that
-                self.refresh_client()
-                job = super().submit(*args, api_name=api_name, fn_index=fn_index)
-                e2 = check_job(job, timeout=0.1, raise_exception=False)
-                if e2 is not None:
-                    print(
-                        "GR job failed again: %s\n%s"
-                        % (str(e2), "".join(traceback.format_tb(e2.__traceback__))),
-                        flush=True,
-                    )
-
-        return job
-
+class CommonClient:
     def question(self, instruction, *args, **kwargs) -> str:
         """
         Prompt LLM (direct to LLM with instruct prompting required for instruct models) and get response
@@ -534,7 +121,7 @@ class GradioClient(Client):
         return ret
 
     def question_stream(
-        self, instruction, *args, **kwargs
+            self, instruction, *args, **kwargs
     ) -> Generator[ReturnType, None, None]:
         """
         Prompt LLM (direct to LLM with instruct prompting required for instruct models) and get response
@@ -644,7 +231,7 @@ class GradioClient(Client):
             }
             diff = set(eval_func_param_names).difference(fun_kwargs)
             assert len(diff) == 0, (
-                "Add query_or_summarize_or_extract entries: %s" % diff
+                    "Add query_or_summarize_or_extract entries: %s" % diff
             )
 
             extra_query_params = [
@@ -694,128 +281,128 @@ class GradioClient(Client):
             raise ValueError(f"No response from LLM {actual_llm}")
 
     def query_or_summarize_or_extract(
-        self,
-        print_error=print,
-        print_info=print,
-        print_warning=print,
-        bad_error_string=None,
-        sanitize_llm=None,
-        h2ogpt_key: str = None,
-        instruction: str = "",
-        text: list[str] | str | None = None,
-        file: list[str] | str | None = None,
-        url: list[str] | str | None = None,
-        embed: bool = True,
-        chunk: bool = True,
-        chunk_size: int = 512,
-        langchain_mode: str = None,
-        langchain_action: str | None = None,
-        langchain_agents: List[str] = [],
-        top_k_docs: int = 10,
-        document_choice: Union[str, List[str]] = "All",
-        document_subset: str = "Relevant",
-        document_source_substrings: Union[str, List[str]] = [],
-        document_source_substrings_op: str = "and",
-        document_content_substrings: Union[str, List[str]] = [],
-        document_content_substrings_op: str = "and",
-        system_prompt: str | None = "",
-        pre_prompt_query: str | None = pre_prompt_query0,
-        prompt_query: str | None = prompt_query0,
-        pre_prompt_summary: str | None = pre_prompt_summary0,
-        prompt_summary: str | None = prompt_summary0,
-        pre_prompt_extraction: str | None = pre_prompt_extraction0,
-        prompt_extraction: str | None = prompt_extraction0,
-        hyde_llm_prompt: str | None = hyde_llm_prompt0,
-        all_docs_start_prompt: str | None = None,
-        all_docs_finish_prompt: str | None = None,
-        user_prompt_for_fake_system_prompt: str = None,
-        json_object_prompt: str = None,
-        json_object_prompt_simpler: str = None,
-        json_code_prompt: str = None,
-        json_code_prompt_if_no_schema: str = None,
-        json_schema_instruction: str = None,
-        json_preserve_system_prompt: bool = False,
-        json_object_post_prompt_reminder: str = None,
-        json_code_post_prompt_reminder: str = None,
-        json_code2_post_prompt_reminder: str = None,
-        model: str | int | None = None,
-        model_lock: dict | None = None,
-        stream_output: bool = False,
-        enable_caching: bool = False,
-        do_sample: bool = False,
-        seed: int | None = 0,
-        temperature: float = 0.0,
-        top_p: float = 1.0,
-        top_k: int = 40,
-        # 1.07 causes issues still with more repetition
-        repetition_penalty: float = 1.0,
-        penalty_alpha: float = 0.0,
-        max_time: int = 360,
-        max_new_tokens: int = 1024,
-        add_search_to_context: bool = False,
-        chat_conversation: list[tuple[str, str]] | None = None,
-        text_context_list: list[str] | None = None,
-        docs_ordering_type: str | None = None,
-        min_max_new_tokens: int = 512,
-        max_input_tokens: int = -1,
-        max_total_input_tokens: int = -1,
-        docs_token_handling: str = "split_or_merge",
-        docs_joiner: str = "\n\n",
-        hyde_level: int = 0,
-        hyde_template: str = None,
-        hyde_show_only_final: bool = True,
-        doc_json_mode: bool = False,
-        metadata_in_context: list = [],
-        image_file: Union[str, list] = None,
-        image_control: str = None,
-        images_num_max: int = None,
-        image_resolution: tuple = None,
-        image_format: str = None,
-        rotate_align_resize_image: bool = None,
-        video_frame_period: int = None,
-        image_batch_image_prompt: str = None,
-        image_batch_final_prompt: str = None,
-        image_batch_stream: bool = None,
-        visible_vision_models: Union[str, int, list] = None,
-        video_file: Union[str, list] = None,
-        response_format: str = "text",
-        guided_json: Union[str, dict] = "",
-        guided_regex: str = "",
-        guided_choice: List[str] | None = None,
-        guided_grammar: str = "",
-        guided_whitespace_pattern: str = None,
-        prompt_type: Union[int, str] = None,
-        prompt_dict: Dict = None,
-        chat_template: str = None,
-        jq_schema=".[]",
-        llava_prompt: str = "auto",
-        image_audio_loaders: list = None,
-        url_loaders: list = None,
-        pdf_loaders: list = None,
-        extract_frames: int = 10,
-        add_chat_history_to_context: bool = True,
-        chatbot_role: str = "None",  # "Female AI Assistant",
-        speaker: str = "None",  # "SLT (female)",
-        tts_language: str = "autodetect",
-        tts_speed: float = 1.0,
-        visible_image_models: List[str] = [],
-        image_size: str = "1024x1024",
-        image_quality: str = 'standard',
-        image_guidance_scale: float = 3.0,
-        image_num_inference_steps: int = 30,
-        visible_models: Union[str, int, list] = None,
-        # don't use the below (no doc string stuff) block
-        num_return_sequences: int = None,
-        chat: bool = True,
-        min_new_tokens: int = None,
-        early_stopping: Union[bool, str] = None,
-        iinput: str = "",
-        iinput_nochat: str = "",
-        instruction_nochat: str = "",
-        context: str = "",
-        num_beams: int = 1,
-        asserts: bool = False,
-        do_lock: bool = False,
+            self,
+            print_error=print,
+            print_info=print,
+            print_warning=print,
+            bad_error_string=None,
+            sanitize_llm=None,
+            h2ogpt_key: str = None,
+            instruction: str = "",
+            text: list[str] | str | None = None,
+            file: list[str] | str | None = None,
+            url: list[str] | str | None = None,
+            embed: bool = True,
+            chunk: bool = True,
+            chunk_size: int = 512,
+            langchain_mode: str = None,
+            langchain_action: str | None = None,
+            langchain_agents: List[str] = [],
+            top_k_docs: int = 10,
+            document_choice: Union[str, List[str]] = "All",
+            document_subset: str = "Relevant",
+            document_source_substrings: Union[str, List[str]] = [],
+            document_source_substrings_op: str = "and",
+            document_content_substrings: Union[str, List[str]] = [],
+            document_content_substrings_op: str = "and",
+            system_prompt: str | None = "",
+            pre_prompt_query: str | None = pre_prompt_query0,
+            prompt_query: str | None = prompt_query0,
+            pre_prompt_summary: str | None = pre_prompt_summary0,
+            prompt_summary: str | None = prompt_summary0,
+            pre_prompt_extraction: str | None = pre_prompt_extraction0,
+            prompt_extraction: str | None = prompt_extraction0,
+            hyde_llm_prompt: str | None = hyde_llm_prompt0,
+            all_docs_start_prompt: str | None = None,
+            all_docs_finish_prompt: str | None = None,
+            user_prompt_for_fake_system_prompt: str = None,
+            json_object_prompt: str = None,
+            json_object_prompt_simpler: str = None,
+            json_code_prompt: str = None,
+            json_code_prompt_if_no_schema: str = None,
+            json_schema_instruction: str = None,
+            json_preserve_system_prompt: bool = False,
+            json_object_post_prompt_reminder: str = None,
+            json_code_post_prompt_reminder: str = None,
+            json_code2_post_prompt_reminder: str = None,
+            model: str | int | None = None,
+            model_lock: dict | None = None,
+            stream_output: bool = False,
+            enable_caching: bool = False,
+            do_sample: bool = False,
+            seed: int | None = 0,
+            temperature: float = 0.0,
+            top_p: float = 1.0,
+            top_k: int = 40,
+            # 1.07 causes issues still with more repetition
+            repetition_penalty: float = 1.0,
+            penalty_alpha: float = 0.0,
+            max_time: int = 360,
+            max_new_tokens: int = 1024,
+            add_search_to_context: bool = False,
+            chat_conversation: list[tuple[str, str]] | None = None,
+            text_context_list: list[str] | None = None,
+            docs_ordering_type: str | None = None,
+            min_max_new_tokens: int = 512,
+            max_input_tokens: int = -1,
+            max_total_input_tokens: int = -1,
+            docs_token_handling: str = "split_or_merge",
+            docs_joiner: str = "\n\n",
+            hyde_level: int = 0,
+            hyde_template: str = None,
+            hyde_show_only_final: bool = True,
+            doc_json_mode: bool = False,
+            metadata_in_context: list = [],
+            image_file: Union[str, list] = None,
+            image_control: str = None,
+            images_num_max: int = None,
+            image_resolution: tuple = None,
+            image_format: str = None,
+            rotate_align_resize_image: bool = None,
+            video_frame_period: int = None,
+            image_batch_image_prompt: str = None,
+            image_batch_final_prompt: str = None,
+            image_batch_stream: bool = None,
+            visible_vision_models: Union[str, int, list] = None,
+            video_file: Union[str, list] = None,
+            response_format: str = "text",
+            guided_json: Union[str, dict] = "",
+            guided_regex: str = "",
+            guided_choice: List[str] | None = None,
+            guided_grammar: str = "",
+            guided_whitespace_pattern: str = None,
+            prompt_type: Union[int, str] = None,
+            prompt_dict: Dict = None,
+            chat_template: str = None,
+            jq_schema=".[]",
+            llava_prompt: str = "auto",
+            image_audio_loaders: list = None,
+            url_loaders: list = None,
+            pdf_loaders: list = None,
+            extract_frames: int = 10,
+            add_chat_history_to_context: bool = True,
+            chatbot_role: str = "None",  # "Female AI Assistant",
+            speaker: str = "None",  # "SLT (female)",
+            tts_language: str = "autodetect",
+            tts_speed: float = 1.0,
+            visible_image_models: List[str] = [],
+            image_size: str = "1024x1024",
+            image_quality: str = 'standard',
+            image_guidance_scale: float = 3.0,
+            image_num_inference_steps: int = 30,
+            visible_models: Union[str, int, list] = None,
+            # don't use the below (no doc string stuff) block
+            num_return_sequences: int = None,
+            chat: bool = True,
+            min_new_tokens: int = None,
+            early_stopping: Union[bool, str] = None,
+            iinput: str = "",
+            iinput_nochat: str = "",
+            instruction_nochat: str = "",
+            context: str = "",
+            num_beams: int = 1,
+            asserts: bool = False,
+            do_lock: bool = False,
     ) -> Generator[ReturnType, None, None]:
         """
         Query or Summarize or Extract using h2oGPT
@@ -1022,11 +609,11 @@ class GradioClient(Client):
             doc_options = tuple([langchain_mode, chunk, chunk_size, embed])
             asserts |= bool(os.getenv("HARD_ASSERTS", False))
             if (
-                text
-                and isinstance(text, list)
-                and not file
-                and not url
-                and not text_context_list
+                    text
+                    and isinstance(text, list)
+                    and not file
+                    and not url
+                    and not text_context_list
             ):
                 # then can do optimized text-only path
                 text_context_list = text
@@ -1100,7 +687,7 @@ class GradioClient(Client):
                 with lock:
                     self.server_hash = client.server_hash
             else:
-                    self.server_hash = client.server_hash
+                self.server_hash = client.server_hash
 
             # ensure can fill conversation
             if self.persist:
@@ -1219,8 +806,8 @@ class GradioClient(Client):
                                     "prompt_raw", ""
                                 )  # only filled at end
                                 text_chunk = response[
-                                    len(text0) :
-                                ]  # only keep new stuff
+                                             len(text0):
+                                             ]  # only keep new stuff
                                 if not text_chunk:
                                     time.sleep(0.001)
                                     continue
@@ -1242,7 +829,7 @@ class GradioClient(Client):
                             try:
                                 check_job(job, timeout=timeout, raise_exception=True)
                             except (
-                                Exception
+                                    Exception
                             ) as e:  # FIXME - except TimeoutError once h2ogpt raises that.
                                 if "Abrupt termination of communication" in str(e):
                                     t_taken = "%.4f" % (time.time() - t0)
@@ -1280,7 +867,7 @@ class GradioClient(Client):
                                     f"Error from LLM {actual_llm}: {save_dict['error']}"
                                 )
                             assert (
-                                prompt_raw or extra_dict
+                                    prompt_raw or extra_dict
                             ), "LLM response failed to return final metadata."
 
                             try:
@@ -1351,7 +938,7 @@ class GradioClient(Client):
                     break
                 except Exception as e:
                     if "No generations" in str(
-                        e
+                            e
                     ) or """'NoneType' object has no attribute 'generations'""" in str(
                         e
                     ):
@@ -1420,10 +1007,10 @@ class GradioClient(Client):
         if model != 0 and self.check_model_name:
             valid_llms = self.list_models()
             if (
-                isinstance(model, int)
-                and model >= len(valid_llms)
-                or isinstance(model, str)
-                and model not in valid_llms
+                    isinstance(model, int)
+                    and model >= len(valid_llms)
+                    or isinstance(model, str)
+                    and model not in valid_llms
             ):
                 did_you_mean = ""
                 if isinstance(model, str):
@@ -1471,16 +1058,16 @@ class GradioClient(Client):
         return [x["display_name"] for x in self.get_models_full()]
 
     def simple_stream(
-        self,
-        client_kwargs={},
-        api_name="/submit_nochat_api",
-        prompt="",
-        prompter=None,
-        sanitize_bot_response=False,
-        max_time=300,
-        is_public=False,
-        raise_exception=True,
-        verbose=False,
+            self,
+            client_kwargs={},
+            api_name="/submit_nochat_api",
+            prompt="",
+            prompter=None,
+            sanitize_bot_response=False,
+            max_time=300,
+            is_public=False,
+            raise_exception=True,
+            verbose=False,
     ):
         job = self.submit(str(dict(client_kwargs)), api_name=api_name)
         sources = []
@@ -1516,7 +1103,7 @@ class GradioClient(Client):
                     )
                 else:
                     response = text
-                text_chunk = response[len(text0) :]
+                text_chunk = response[len(text0):]
                 if not text_chunk:
                     # just need some sleep for threads to switch
                     time.sleep(0.001)
@@ -1598,16 +1185,16 @@ class GradioClient(Client):
         return res_dict
 
     def stream(
-        self,
-        client_kwargs={},
-        api_name="/submit_nochat_api",
-        prompt="",
-        prompter=None,
-        sanitize_bot_response=False,
-        max_time=None,
-        is_public=False,
-        raise_exception=True,
-        verbose=False,
+            self,
+            client_kwargs={},
+            api_name="/submit_nochat_api",
+            prompt="",
+            prompter=None,
+            sanitize_bot_response=False,
+            max_time=None,
+            is_public=False,
+            raise_exception=True,
+            verbose=False,
     ):
         strex = ""
         e = None
@@ -1646,14 +1233,14 @@ class GradioClient(Client):
         return res_dict
 
     def _stream(
-        self,
-        client_kwargs,
-        api_name="/submit_nochat_api",
-        prompt="",
-        prompter=None,
-        sanitize_bot_response=False,
-        max_time=None,
-        verbose=False,
+            self,
+            client_kwargs,
+            api_name="/submit_nochat_api",
+            prompt="",
+            prompter=None,
+            sanitize_bot_response=False,
+            max_time=None,
+            verbose=False,
     ):
         job = self.submit(str(dict(client_kwargs)), api_name=api_name)
 
@@ -1710,15 +1297,15 @@ class GradioClient(Client):
 
     @staticmethod
     def yield_res(
-        res,
-        res_dict,
-        prompt,
-        prompter,
-        sanitize_bot_response,
-        max_time,
-        text0,
-        tgen0,
-        verbose,
+            res,
+            res_dict,
+            prompt,
+            prompter,
+            sanitize_bot_response,
+            max_time,
+            text0,
+            tgen0,
+            verbose,
     ):
         do_yield = True
         res_dict_server = ast.literal_eval(res)
@@ -1735,7 +1322,7 @@ class GradioClient(Client):
             )
         else:
             response = text
-        text_chunk = response[len(text0) :]
+        text_chunk = response[len(text0):]
         if not text_chunk:
             # just need some sleep for threads to switch
             time.sleep(0.001)
@@ -1773,3 +1360,552 @@ class GradioClient(Client):
             yield res_dict
             time.sleep(0.005)
         return res_dict, text0
+
+
+class H2OGradioClient(CommonClient, Client):
+    """
+    Parent class of gradio client
+    To handle automatically refreshing client if detect gradio server changed
+    """
+
+    def reset_session(self) -> None:
+        self.session_hash = str(uuid.uuid4())
+        if hasattr(self, "include_heartbeat") and self.include_heartbeat:
+            self._refresh_heartbeat.set()
+
+    def __init__(
+            self,
+            src: str,
+            hf_token: str | None = None,
+            max_workers: int = 40,
+            serialize: bool | None = None,  # TODO: remove in 1.0
+            output_dir: str
+                        | Path = DEFAULT_TEMP_DIR,  # Maybe this can be combined with `download_files` in 1.0
+            verbose: bool = False,
+            auth: tuple[str, str] | None = None,
+            *,
+            headers: dict[str, str] | None = None,
+            upload_files: bool = True,  # TODO: remove and hardcode to False in 1.0
+            download_files: bool = True,  # TODO: consider setting to False in 1.0
+            _skip_components: bool = True,
+            # internal parameter to skip values certain components (e.g. State) that do not need to be displayed to users.
+            ssl_verify: bool = True,
+            h2ogpt_key: str = None,
+            persist: bool = False,
+            check_hash: bool = True,
+            check_model_name: bool = False,
+            include_heartbeat: bool = False,
+    ):
+        """
+        Parameters:
+            Base Class parameters
+            +
+            h2ogpt_key: h2oGPT key to gain access to the server
+            persist: whether to persist the state, so repeated calls are aware of the prior user session
+                     This allows the scratch MyData to be reused, etc.
+                     This also maintains the chat_conversation history
+            check_hash: whether to check git hash for consistency between server and client to ensure API always up to date
+            check_model_name: whether to check the model name here (adds delays), or just let server fail (faster)
+        """
+        if serialize is None:
+            # else converts inputs arbitrarily and outputs mutate
+            # False keeps as-is and is normal for h2oGPT
+            serialize = False
+        self.args = tuple([src])
+        self.kwargs = dict(
+            hf_token=hf_token,
+            max_workers=max_workers,
+            serialize=serialize,
+            output_dir=output_dir,
+            verbose=verbose,
+            h2ogpt_key=h2ogpt_key,
+            persist=persist,
+            check_hash=check_hash,
+            check_model_name=check_model_name,
+            include_heartbeat=include_heartbeat,
+        )
+        if is_gradio_client_version7plus:
+            # 4.18.0:
+            # self.kwargs.update(dict(auth=auth, upload_files=upload_files, download_files=download_files))
+            # 4.17.0:
+            # self.kwargs.update(dict(auth=auth))
+            # 4.24.0:
+            self._skip_components = _skip_components
+            self.ssl_verify = ssl_verify
+            self.kwargs.update(
+                dict(
+                    auth=auth,
+                    upload_files=upload_files,
+                    download_files=download_files,
+                    ssl_verify=ssl_verify,
+                )
+            )
+
+        self.verbose = verbose
+        self.hf_token = hf_token
+        if serialize is not None:
+            warnings.warn(
+                "The `serialize` parameter is deprecated and will be removed. Please use the equivalent `upload_files` parameter instead."
+            )
+            upload_files = serialize
+        self.serialize = serialize
+        self.upload_files = upload_files
+        self.download_files = download_files
+        self.space_id = None
+        self.cookies: dict[str, str] = {}
+        if is_gradio_client_version7plus:
+            self.output_dir = (
+                str(output_dir) if isinstance(output_dir, Path) else output_dir
+            )
+        else:
+            self.output_dir = output_dir
+        self.max_workers = max_workers
+        self.src = src
+        self.auth = auth
+        self.headers = headers
+
+        self.config = None
+        self.h2ogpt_key = h2ogpt_key
+        self.persist = persist
+        self.check_hash = check_hash
+        self.check_model_name = check_model_name
+        self.include_heartbeat = include_heartbeat
+
+        self.chat_conversation = []  # internal for persist=True
+        self.server_hash = None  # internal
+
+    def __repr__(self):
+        if self.config and False:
+            # too slow for guardrails exceptional path
+            return self.view_api(print_info=False, return_format="str")
+        return "Not setup for %s" % self.src
+
+    def __str__(self):
+        if self.config and False:
+            # too slow for guardrails exceptional path
+            return self.view_api(print_info=False, return_format="str")
+        return "Not setup for %s" % self.src
+
+    def setup(self):
+        src = self.src
+
+        headers0 = self.headers
+        self.headers = build_hf_headers(
+            token=self.hf_token,
+            library_name="gradio_client",
+            library_version=utils.__version__,
+        )
+        if headers0:
+            self.headers.update(headers0)
+        if (
+                "authorization" in self.headers
+                and self.headers["authorization"] == "Bearer "
+        ):
+            self.headers["authorization"] = "Bearer hf_xx"
+        if src.startswith("http://") or src.startswith("https://"):
+            _src = src if src.endswith("/") else src + "/"
+        else:
+            _src = self._space_name_to_src(src)
+            if _src is None:
+                raise ValueError(
+                    f"Could not find Space: {src}. If it is a private Space, please provide an hf_token."
+                )
+            self.space_id = src
+        self.src = _src
+        state = self._get_space_state()
+        if state == SpaceStage.BUILDING:
+            if self.verbose:
+                print("Space is still building. Please wait...")
+            while self._get_space_state() == SpaceStage.BUILDING:
+                time.sleep(2)  # so we don't get rate limited by the API
+                pass
+        if state in utils.INVALID_RUNTIME:
+            raise ValueError(
+                f"The current space is in the invalid state: {state}. "
+                "Please contact the owner to fix this."
+            )
+        if self.verbose:
+            print(f"Loaded as API: {self.src} ✔")
+
+        if is_gradio_client_version7plus:
+            if self.auth is not None:
+                self._login(self.auth)
+
+        self.config = self._get_config()
+        self.api_url = urllib.parse.urljoin(self.src, utils.API_URL)
+        if is_gradio_client_version7plus:
+            self.protocol: Literal[
+                "ws", "sse", "sse_v1", "sse_v2", "sse_v2.1"
+            ] = self.config.get("protocol", "ws")
+            self.sse_url = urllib.parse.urljoin(
+                self.src, utils.SSE_URL_V0 if self.protocol == "sse" else utils.SSE_URL
+            )
+            if hasattr(utils, "HEARTBEAT_URL") and self.include_heartbeat:
+                self.heartbeat_url = urllib.parse.urljoin(self.src, utils.HEARTBEAT_URL)
+            else:
+                self.heartbeat_url = None
+            self.sse_data_url = urllib.parse.urljoin(
+                self.src,
+                utils.SSE_DATA_URL_V0 if self.protocol == "sse" else utils.SSE_DATA_URL,
+            )
+        self.ws_url = urllib.parse.urljoin(
+            self.src.replace("http", "ws", 1), utils.WS_URL
+        )
+        self.upload_url = urllib.parse.urljoin(self.src, utils.UPLOAD_URL)
+        self.reset_url = urllib.parse.urljoin(self.src, utils.RESET_URL)
+        if is_gradio_client_version7plus:
+            self.app_version = version.parse(self.config.get("version", "2.0"))
+            self._info = self._get_api_info()
+        self.session_hash = str(uuid.uuid4())
+
+        self.get_endpoints(self)
+
+        # Disable telemetry by setting the env variable HF_HUB_DISABLE_TELEMETRY=1
+        # threading.Thread(target=self._telemetry_thread, daemon=True).start()
+        if (
+                is_gradio_client_version7plus
+                and hasattr(utils, "HEARTBEAT_URL")
+                and self.include_heartbeat
+        ):
+            self._refresh_heartbeat = threading.Event()
+            self._kill_heartbeat = threading.Event()
+
+            self.heartbeat = threading.Thread(
+                target=self._stream_heartbeat, daemon=True
+            )
+            self.heartbeat.start()
+
+        self.server_hash = self.get_server_hash()
+
+        return self
+
+    @staticmethod
+    def get_endpoints(client, verbose=False):
+        t0 = time.time()
+        # Create a pool of threads to handle the requests
+        client.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=client.max_workers
+        )
+        if is_gradio_client_version7plus:
+            from gradio_client.client import EndpointV3Compatibility
+
+            endpoint_class = (
+                Endpoint
+                if client.protocol.startswith("sse")
+                else EndpointV3Compatibility
+            )
+        else:
+            endpoint_class = Endpoint
+
+        if is_gradio_client_version7plus:
+            client.endpoints = [
+                endpoint_class(client, fn_index, dependency, client.protocol)
+                for fn_index, dependency in enumerate(client.config["dependencies"])
+            ]
+        else:
+            client.endpoints = [
+                endpoint_class(client, fn_index, dependency)
+                for fn_index, dependency in enumerate(client.config["dependencies"])
+            ]
+        if is_gradio_client_version7plus:
+            client.stream_open = False
+            client.streaming_future = None
+            from gradio_client.utils import Message
+
+            client.pending_messages_per_event = {}
+            client.pending_event_ids = set()
+        if verbose:
+            print("duration endpoints: %s" % (time.time() - t0), flush=True)
+
+    @staticmethod
+    def is_full_git_hash(s):
+        # This regex checks for exactly 40 hexadecimal characters.
+        return bool(re.fullmatch(r"[0-9a-f]{40}", s))
+
+    def get_server_hash(self) -> str:
+        return self._get_server_hash(ttl_hash=self._get_ttl_hash())
+
+    def _get_server_hash(self, ttl_hash=None) -> str:
+        """
+        Get server hash using super without any refresh action triggered
+        Returns: git hash of gradio server
+        """
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
+        t0 = time.time()
+        if self.config is None:
+            self.setup()
+        t1 = time.time()
+        ret = "GET_GITHASH_UNSET"
+        try:
+            if self.check_hash:
+                ret = super().submit(api_name="/system_hash").result()
+                assert self.is_full_git_hash(ret), f"ret is not a full git hash: {ret}"
+            return ret
+        finally:
+            if self.verbose:
+                print(
+                    "duration server_hash: %s full time: %s system_hash time: %s"
+                    % (ret, time.time() - t0, time.time() - t1),
+                    flush=True,
+                )
+
+    def refresh_client_if_should(self):
+        if self.config is None:
+            self.setup()
+        # get current hash in order to update api_name -> fn_index map in case gradio server changed
+        # FIXME: Could add cli api as hash
+        server_hash = self.get_server_hash()
+        if self.server_hash != server_hash:
+            if self.verbose:
+                print(
+                    "server hash changed: %s %s" % (self.server_hash, server_hash),
+                    flush=True,
+                )
+            if self.server_hash is not None and self.persist:
+                if self.verbose:
+                    print(
+                        "Failed to persist due to server hash change, only kept chat_conversation not user session hash",
+                        flush=True,
+                    )
+            # risky to persist if hash changed
+            self.refresh_client()
+            self.server_hash = server_hash
+
+    def refresh_client(self):
+        """
+        Ensure every client call is independent
+        Also ensure map between api_name and fn_index is updated in case server changed (e.g. restarted with new code)
+        Returns:
+        """
+        if self.config is None:
+            self.setup()
+
+        kwargs = self.kwargs.copy()
+        kwargs.pop("h2ogpt_key", None)
+        kwargs.pop("persist", None)
+        kwargs.pop("check_hash", None)
+        kwargs.pop("check_model_name", None)
+        kwargs.pop("include_heartbeat", None)
+        ntrials = 3
+        client = None
+        for trial in range(0, ntrials):
+            try:
+                client = Client(*self.args, **kwargs)
+                break
+            except ValueError as e:
+                if trial >= ntrials:
+                    raise
+                else:
+                    if self.verbose:
+                        print("Trying refresh %d/%d %s" % (trial, ntrials - 1, str(e)))
+                    trial += 1
+                    time.sleep(10)
+        if client is None:
+            raise RuntimeError("Failed to get new client")
+        session_hash0 = self.session_hash if self.persist else None
+        for k, v in client.__dict__.items():
+            setattr(self, k, v)
+        if session_hash0:
+            # keep same system hash in case server API only changed and not restarted
+            self.session_hash = session_hash0
+        if self.verbose:
+            print("Hit refresh_client(): %s %s" % (self.session_hash, session_hash0))
+        # ensure server hash also updated
+        self.server_hash = self.get_server_hash()
+
+    def clone(self, do_lock=False):
+        if do_lock:
+            with lock:
+                return self._clone()
+        else:
+            return self._clone()
+
+    def _clone(self):
+        if self.config is None:
+            self.setup()
+        client = self.__class__("")
+        for k, v in self.__dict__.items():
+            setattr(client, k, v)
+        client.reset_session()
+
+        self.get_endpoints(client)
+
+        # transfer internals in case used
+        client.server_hash = self.server_hash
+        client.chat_conversation = self.chat_conversation
+        return client
+
+    def submit(
+            self,
+            *args,
+            api_name: str | None = None,
+            fn_index: int | None = None,
+            result_callbacks: Callable | list[Callable] | None = None,
+            exception_handling=True,  # new_stream = True, can make False, doesn't matter.
+    ) -> Job:
+        if self.config is None:
+            self.setup()
+        # Note predict calls submit
+        try:
+            self.refresh_client_if_should()
+            job = super().submit(*args, api_name=api_name, fn_index=fn_index)
+        except Exception as e:
+            ex = traceback.format_exc()
+            print(
+                "Hit e=%s\n\n%s\n\n%s"
+                % (str(ex), traceback.format_exc(), self.__dict__),
+                flush=True,
+            )
+            # force reconfig in case only that
+            self.refresh_client()
+            job = super().submit(*args, api_name=api_name, fn_index=fn_index)
+
+        if exception_handling:  # for debugging if causes issues
+            # see if immediately failed
+            e = check_job(job, timeout=0.01, raise_exception=False)
+            if e is not None:
+                print(
+                    "GR job failed: %s %s"
+                    % (str(e), "".join(traceback.format_tb(e.__traceback__))),
+                    flush=True,
+                )
+                # force reconfig in case only that
+                self.refresh_client()
+                job = super().submit(*args, api_name=api_name, fn_index=fn_index)
+                e2 = check_job(job, timeout=0.1, raise_exception=False)
+                if e2 is not None:
+                    print(
+                        "GR job failed again: %s\n%s"
+                        % (str(e2), "".join(traceback.format_tb(e2.__traceback__))),
+                        flush=True,
+                    )
+
+        return job
+
+
+class CloneableGradioClient(CommonClient, Client):
+    def __init__(self, *args, **kwargs):
+        self._original_config = None
+        self._original_info = None
+        self._original_endpoints = None
+        self._original_executor = None
+        self._original_heartbeat = None
+        self._quiet = kwargs.pop('quiet', False)
+        super().__init__(*args, **kwargs)
+        self._initialize_session_specific()
+        self._initialize_shared_info()
+        atexit.register(self.cleanup)
+        self.auth = kwargs.get('auth')
+
+    def _initialize_session_specific(self):
+        """Initialize or reset session-specific attributes."""
+        self.session_hash = str(uuid.uuid4())
+        self._refresh_heartbeat = threading.Event()
+        self._kill_heartbeat = threading.Event()
+        self.stream_open = False
+        self.streaming_future = None
+        self.pending_messages_per_event = {}
+        self.pending_event_ids = set()
+
+    def _initialize_shared_info(self):
+        """Initialize information that can be shared across clones."""
+        if self._original_config is None:
+            self._original_config = super().config
+        if self._original_info is None:
+            self._original_info = super()._info
+        if self._original_endpoints is None:
+            self._original_endpoints = super().endpoints
+        if self._original_executor is None:
+            self._original_executor = super().executor
+        if self._original_heartbeat is None:
+            self._original_heartbeat = super().heartbeat
+
+    @property
+    def config(self):
+        return self._original_config
+
+    @config.setter
+    def config(self, value):
+        self._original_config = value
+
+    @property
+    def _info(self):
+        return self._original_info
+
+    @_info.setter
+    def _info(self, value):
+        self._original_info = value
+
+    @property
+    def endpoints(self):
+        return self._original_endpoints
+
+    @endpoints.setter
+    def endpoints(self, value):
+        self._original_endpoints = value
+
+    @property
+    def executor(self):
+        return self._original_executor
+
+    @executor.setter
+    def executor(self, value):
+        self._original_executor = value
+
+    @property
+    def heartbeat(self):
+        return self._original_heartbeat
+
+    @heartbeat.setter
+    def heartbeat(self, value):
+        self._original_heartbeat = value
+
+    def setup(self):
+        # no-op
+        pass
+
+    @staticmethod
+    def _get_ttl_hash(seconds=60):
+        """Return the same value within `seconds` time period"""
+        return round(time.time() / seconds)
+
+    def get_server_hash(self) -> str:
+        return self._get_server_hash(ttl_hash=self._get_ttl_hash())
+
+    def _get_server_hash(self, ttl_hash=None):
+        del ttl_hash  # to emphasize we don't use it and to shut pylint up
+        return self.predict(api_name="/system_hash")
+
+    def clone(self):
+        """Create a new CloneableGradioClient instance with the same configuration but a new session."""
+        new_client = copy.copy(self)
+        new_client._initialize_session_specific()
+        new_client._quiet = True  # Set the cloned client to quiet mode
+        atexit.register(new_client.cleanup)
+        return new_client
+
+    def __repr__(self):
+        if self._quiet:
+            return f"<CloneableGradioClient (quiet) connected to {self.src}>"
+        return super().__repr__()
+
+    def __str__(self):
+        if self._quiet:
+            return f"CloneableGradioClient (quiet) connected to {self.src}"
+        return super().__str__()
+
+    def cleanup(self):
+        """Clean up resources used by this client."""
+        if self._original_executor:
+            self._original_executor.shutdown(wait=False)
+        if self._kill_heartbeat:
+            self._kill_heartbeat.set()
+        if self._original_heartbeat:
+            self._original_heartbeat.join(timeout=1)
+        atexit.unregister(self.cleanup)
+
+
+if old_gradio:
+    GradioClient = H2OGradioClient
+else:
+    GradioClient = CloneableGradioClient

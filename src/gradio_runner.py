@@ -742,7 +742,8 @@ def go_gradio(**kwargs):
                                        filterable=False,
                                        max_choices=None,
                                        )
-    image_quality_kwargs = dict(choices=image_quality_choices, label="Image Quality", value=image_quality_choices[0], visible=not is_public)
+    image_quality_kwargs = dict(choices=image_quality_choices, label="Image Quality", value=image_quality_choices[0],
+                                visible=not is_public)
     image_size_kwargs = dict(value=image_size_default, label="Image Size", visible=not is_public)
     image_guidance_kwargs = dict(label="Image generation guidance", value=3.0, visible=not is_public)
     image_num_inference_steps_kwargs = dict(label="Image generation inference steps", value=50, visible=not is_public)
@@ -6154,11 +6155,11 @@ def go_gradio(**kwargs):
         stop_event = stop_btn.click(lambda: None, None, None,
                                     cancels=submits1 + submits2 + submits3 + submits4 +
                                             [submit_event_nochat, submit_event_nochat2] +
-                                            [eventdb1, eventdb2, eventdb3] +
-                                            [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a,
-                                             eventdb12] +
-                                            db_events +
-                                            [eventdbloadla, eventdbloadlb] +
+                                            # [eventdb1, eventdb2, eventdb3] +
+                                            # [eventdb7a, eventdb7, eventdb8a, eventdb8, eventdb9a, eventdb9, eventdb12a,
+                                            # eventdb12] +
+                                            # db_events +
+                                            # [eventdbloadla, eventdbloadlb] +
                                             [clear_event] +
                                             [submit_event_nochat_api, submit_event_nochat] +
                                             [load_model_event, load_model_event2] +
