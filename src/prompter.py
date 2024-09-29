@@ -2356,7 +2356,7 @@ def apply_chat_template(instruction, system_prompt, history,
                         image_file=[],
                         user_prompt_for_fake_system_prompt=None,
                         test_only=False, verbose=False):
-    # image_file = []  # NA for tokenizer version of things, usually much more specific non-OpenAI compliant thing
+    image_file = []  # NA for tokenizer version of things, usually much more specific non-OpenAI compliant thing
     history = get_llm_history(history, only_text=True)
     if isinstance(history, list):
         history = copy.deepcopy(history)
