@@ -239,6 +239,24 @@ def get_client(user=None):
     return gradio_client
 
 
+def get_chunk(outputs_list, job_outputs_num, last_response, num, verbose=False):
+    res_str = outputs_list[job_outputs_num + num]
+    res_dict = ast.literal_eval(res_str)
+    if verbose:
+        logger.info('Stream %d: %s\n\n %s\n\n' % (num, res_dict['response'], res_dict))
+        logger.info('Stream %d' % (job_outputs_num + num))
+    if 'error' in res_dict and res_dict['error']:
+        raise RuntimeError(res_dict['error'])
+    elif 'error_ex' in res_dict and res_dict['error_ex']:
+        raise RuntimeError(res_dict['error_ex'])
+    elif 'response' not in res_dict:
+        raise RuntimeError("No response in res: %s" % res_dict)
+    else:
+        response = res_dict['response']
+        chunk = response[len(last_response):]
+    return chunk, response
+
+
 async def get_response(chunk_response=True, **kwargs):
     assert kwargs['query'] is not None, "query must not be None"
     import ast
@@ -265,20 +283,7 @@ async def get_response(chunk_response=True, **kwargs):
             outputs_list = job.outputs().copy()
             job_outputs_num_new = len(outputs_list[job_outputs_num:])
             for num in range(job_outputs_num_new):
-                res_str = outputs_list[job_outputs_num + num]
-                res_dict = ast.literal_eval(res_str)
-                if verbose:
-                    logger.info('Stream %d: %s\n\n %s\n\n' % (num, res_dict['response'], res_dict))
-                    logger.info('Stream %d' % (job_outputs_num + num))
-                if 'error' in res_dict and res_dict['error']:
-                    raise RuntimeError(res_dict['error'])
-                elif 'error_ex' in res_dict and res_dict['error_ex']:
-                    raise RuntimeError(res_dict['error_ex'])
-                elif 'response' not in res_dict:
-                    raise RuntimeError("No response in res: %s" % res_dict)
-                else:
-                    response = res_dict['response']
-                    chunk = response[len(last_response):]
+                chunk, response = get_chunk(outputs_list, job_outputs_num, last_response, num, verbose=verbose)
                 if chunk_response:
                     if chunk:
                         yield chunk
@@ -292,13 +297,7 @@ async def get_response(chunk_response=True, **kwargs):
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
-            res_str = outputs_list[job_outputs_num + num]
-            res_dict = ast.literal_eval(res_str)
-            if verbose:
-                logger.info('Final Stream %d: %s\n\n%s\n\n' % (num, res_dict['response'], res_dict))
-                logger.info('Final Stream %d' % (job_outputs_num + num))
-            response = res_dict.get('response', '')
-            chunk = response[len(last_response):]
+            chunk, response = get_chunk(outputs_list, job_outputs_num, last_response, num, verbose=verbose)
             if chunk_response:
                 if chunk:
                     yield chunk
