@@ -4,14 +4,12 @@ PACKAGE_VERSION              := `cat version.txt | tr -d '\n'`
 BUILD_TAG                    := $(shell git describe --always --dirty)
 DOCKER_H2OGPT_RUNTIME_IMAGE  := gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(BUILD_TAG)
 DOCKER_H2OGPT_VLLM_IMAGE     := gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(BUILD_TAG)
-DOCKER_H2OGPT_LMDEPLOY_IMAGE := gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:$(BUILD_TAG)
 PYTHON_BINARY                ?= `which python`
 DEFAULT_MARKERS              ?= "not need_tokens and not need_gpu"
 
-# h2ogpt base, vllm, and lmdeploy images built elsewhere and referenced here:
+# h2ogpt base and vllm images built elsewhere and referenced here:
 DOCKER_BASE_OS_IMAGE     := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:9
 DOCKER_VLLM_IMAGE        := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.4-69cf4031
-DOCKER_LMDEPLOY_IMAGE    := gcr.io/vorvan/h2oai/h2ogpte-lmdeploy:0.5.1-f88699a
 
 
 .PHONY: venv dist test publish docker_build docker_push build_info.txt
@@ -68,22 +66,13 @@ else
 	docker pull $(DOCKER_VLLM_IMAGE)
 	docker tag $(DOCKER_VLLM_IMAGE) $(DOCKER_H2OGPT_VLLM_IMAGE)
 endif
-ifeq ($(shell curl --connect-timeout 4 --write-out %{http_code} -sS --output /dev/null -X GET https://gcr.io/v2/vorvan/h2oai/h2oai-h2ogpt-lmdeploy/manifests/$(BUILD_TAG)),200)
-	@echo "lmdeploy Image already pushed to GCR: $(DOCKER_H2OGPT_LMDEPLOY_IMAGE)"
-	docker pull $(DOCKER_H2OGPT_LMDEPLOY_IMAGE)
-else
-	docker pull $(DOCKER_LMDEPLOY_IMAGE)
-	docker tag $(DOCKER_LMDEPLOY_IMAGE) $(DOCKER_H2OGPT_LMDEPLOY_IMAGE)
-endif
 
 docker_push:
 	docker tag $(DOCKER_H2OGPT_RUNTIME_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)
 	docker tag $(DOCKER_H2OGPT_VLLM_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)
-	docker tag $(DOCKER_H2OGPT_LMDEPLOY_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:$(PACKAGE_VERSION)
 
 	docker tag $(DOCKER_H2OGPT_RUNTIME_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:latest
 	docker tag $(DOCKER_H2OGPT_VLLM_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:latest
-	docker tag $(DOCKER_H2OGPT_LMDEPLOY_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:latest
 
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(BUILD_TAG)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)
@@ -93,19 +82,12 @@ docker_push:
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:latest
 
-	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:$(BUILD_TAG)
-	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:$(PACKAGE_VERSION)
-	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:latest
-
 ifdef BUILD_ID
 	docker tag $(DOCKER_H2OGPT_RUNTIME_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)-$(BUILD_ID)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:$(PACKAGE_VERSION)-$(BUILD_ID)
 
 	docker tag $(DOCKER_H2OGPT_VLLM_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)-$(BUILD_ID)
 	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm:$(PACKAGE_VERSION)-$(BUILD_ID)
-
-	docker tag $(DOCKER_H2OGPT_LMDEPLOY_IMAGE) gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:$(PACKAGE_VERSION)-$(BUILD_ID)
-	docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy:$(PACKAGE_VERSION)-$(BUILD_ID)
 endif
 
 print-%:
