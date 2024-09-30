@@ -94,7 +94,7 @@ def run_autogen_2agent(query=None,
         print("base_url: %s" % base_url)
         print("max_tokens: %s" % max_new_tokens)
 
-    system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper = \
+    system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper = \
         get_full_system_prompt(agent_code_writer_system_message,
                                agent_system_site_packages, system_prompt,
                                base_url,
@@ -159,7 +159,7 @@ def run_autogen_2agent(query=None,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
-                                             chat_doc_query, image_query_helper, mermaid_renderer_helper,
+                                             chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper,
                                              autogen_code_restrictions_level, autogen_silent_exchange)
 
     return ret_dict
