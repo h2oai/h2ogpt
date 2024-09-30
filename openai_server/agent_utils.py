@@ -190,7 +190,7 @@ def fix_markdown_image_paths(text):
 def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
-                                  chat_doc_query, image_query_helper, mermaid_renderer_helper,
+                                  chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper,
                                   autogen_code_restrictions_level, autogen_silent_exchange):
     # DEBUG
     if agent_verbose:
@@ -275,7 +275,7 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
             extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
             if extracted_summary:
                 chat_result.summary = extracted_summary
-        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('TERMINATE', '')
+        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '')
 
         if '![image](' not in chat_result.summary:
             latest_image_file = image_files[-1] if image_files else None
@@ -296,8 +296,8 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
         ret_dict.update(dict(agent_system_site_packages=agent_system_site_packages))
     if chat_doc_query:
         ret_dict.update(dict(chat_doc_query=chat_doc_query))
-    if image_query_helper:
-        ret_dict.update(dict(image_query_helper=image_query_helper))
+    if ask_question_about_image_helper:
+        ret_dict.update(dict(ask_question_about_image_helper=ask_question_about_image_helper))
     if mermaid_renderer_helper:
         ret_dict.update(dict(mermaid_renderer_helper=mermaid_renderer_helper))
     ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))

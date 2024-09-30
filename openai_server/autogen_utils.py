@@ -386,8 +386,8 @@ os.environ['TERM'] = 'dumb'
 * This is expected if you had code blocks but they were not meant for python or shell execution.
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
-* Otherwise, if no code execution was expected, then do not respond or react to this "no_code_execution" text and instead just directly and immediately summarize the actual answer to the user's original question and then TERMINATE.
-* Do not thank the user for telling you that the code was not executed.
+* If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
+* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -758,11 +758,9 @@ def terminate_message_func(msg):
     # in conversable agent, roles are flipped relative to actual OpenAI, so can't filter by assistant
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
-
     has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
-    has_term = has_message and msg.get('content', '').endswith("TERMINATE") or msg.get('content', '') == ''
+    has_term = has_message and "<FINISHED_ALL_TASKS>" in msg.get('content', '') or msg.get('content', '') == ''
     has_execute = has_message and '# execution: true' in msg.get('content', '')
-
     if has_execute:
         # sometimes model stops without verifying results if it dumped all steps in one turn
         # force it to continue
