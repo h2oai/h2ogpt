@@ -187,7 +187,7 @@ def run_autogen_multi_agent(query=None,
         )
 
     # A little sumamry clean-up
-    summary = summary.replace("ENDOFTURN", " ").replace("TERMINATE", " ")
+    summary = summary.replace("ENDOFTURN", " ").replace("<FINISHED_ALL_TASKS>", " ")
     # Update chat_result with summary
     chat_result.summary = summary
     # Update final usage cost

@@ -103,7 +103,7 @@ def run_autogen_2agent(query=None,
 
     enable_caching = True
     def code_writer_terminate_func(msg):
-        # In case code_writer_agent just passed a chatty answer without TERMINATE mentioned,
+        # In case code_writer_agent just passed a chatty answer without <FINISHED_ALL_TASKS> mentioned,
         # then code_executor will return empty string as response (since there was no code block to execute).
         # So at this point, we need to terminate the chat otherwise code_writer_agent will keep on chatting.
         return isinstance(msg, dict) and msg.get('content', '') == ''
