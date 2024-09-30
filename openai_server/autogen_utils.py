@@ -386,12 +386,8 @@ os.environ['TERM'] = 'dumb'
 * This is expected if you had code blocks but they were not meant for python or shell execution.
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
-* Otherwise, if no code execution was expected: 
-   - Do not respond or react to this "no_code_execution" text. 
-   - Instead just directly and immediately provide the actual answer to the user's original question.
-   - The user will only see your final message, that's why make sure to include the answer that the user is looking for in your final message.
-   - Do not thank the user for telling you that the code was not executed.
-   - If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
+* If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
+* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
