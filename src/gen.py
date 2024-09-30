@@ -2972,7 +2972,8 @@ def evaluate(
             isinstance(model, GradioClient) or isinstance(model, Client))
     h2ogpt_gradio_server = gradio_server and not is_gradio_vision_model(base_model)
 
-    if image_file and hasattr(tokenizer, 'chat_template'):
+    if image_file and hasattr(tokenizer, 'chat_template') and isinstance(tokenizer.chat_template,
+                                                                         str) and tokenizer.chat_template:
         if 'Prompting with images is incompatible with system messages' in tokenizer.chat_template:
             system_prompt_xml = f"""\n<system_prompt>\n{system_prompt}\n</system_prompt>\n""" if system_prompt else ''
             if instruction and system_prompt_xml:
