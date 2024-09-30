@@ -1,5 +1,6 @@
 import os
 import tempfile
+import copy
 
 from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
@@ -155,6 +156,34 @@ def run_autogen_2agent(query=None,
     else:
         chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
 
+    # Final Response #
+    from openai_server.autogen_agents import get_final_response_agent
+    final_response_agent = get_final_response_agent(
+        llm_config={'timeout': autogen_timeout,
+                    'extra_body': dict(enable_caching=enable_caching),
+                    "config_list": [{"model": model,
+                                     "api_key": api_key,
+                                     "base_url": base_url,
+                                     "stream": stream_output,
+                                     'max_tokens': max_new_tokens,
+                                     'cache_seed': autogen_cache_seed,
+                                     }]
+                    }
+    )
+    from openai_server.autogen_utils import prepare_final_response_agent_messages
+    # Prepare messages for final response agent
+    messages = prepare_final_response_agent_messages(
+        chat_history = chat_result.chat_history
+    )
+    # Generate the final response
+    final_response = final_response_agent.generate_reply(messages = messages)
+    # Update summary with final response
+    chat_result.summary = final_response
+    # Update tokens & cost information (becasue there was a new agent interaction)
+    from autogen.agentchat import gather_usage_summary
+    all_agents = [code_writer_agent, code_executor_agent, final_response_agent]
+    chat_result.cost = gather_usage_summary(all_agents)
+    # Prepare return dictionary
     ret_dict = get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,

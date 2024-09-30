@@ -879,3 +879,18 @@ def get_all_conversable_agents(group_chat_manager: GroupChatManager) -> List[Con
         else:
             all_conversable_agents.append(agent)
     return all_conversable_agents
+
+def prepare_final_response_agent_messages(chat_history: list) -> list:
+    # Prepare messages for final response agent
+    messages = copy.deepcopy(chat_history)
+    # drop the last messager if the content == ''
+    if len(messages)>0 and messages[-1]['content'] == '':
+        messages.pop()
+    # Define the roles in the alternating order so that the new message will always be 'user'.
+    roles = ["assistant", "user"]
+    for i in range(len(messages)-1, -1, -1):
+        messages[i]['role'] = roles[(len(messages) - 1 - i) % 2]
+    # Add the final response prompt
+    final_response_prompt = {'content': 'Generate final response to the user who passed the first request in the chat history.', 'role': 'user'}
+    messages.append(final_response_prompt)
+    return messages
