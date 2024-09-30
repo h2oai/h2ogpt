@@ -92,8 +92,7 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
 Query understanding instructions:
 <query_understanding>
 * If the user directs you to do something (e.g. make a plot), then do it via code generation.
-* If the user asks a question requiring math or puzzles, then solve it via code generation.
-* If the user asks a question that requires even simple math operations like addition or counting, always solve it via code generation because you cannot do math by heart.
+* If the user asks a question requiring math operations (e.g. even as simple as addition or counting) or puzzle solving, always solve it via code generation because you cannot do math or solve puzzles by heart.
 * If the user asks a question about recent or new information, the use of URLs or web links, generate an answer via code generation.
 * If the user just asks a general historical or factual knowledge question (e.g. who was the first president), then code generation is optional.
 * If it is not clear whether the user directed you to do something, then assume they are directing you and do it via code generation.
