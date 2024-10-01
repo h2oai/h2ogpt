@@ -425,13 +425,11 @@ os.environ['TERM'] = 'dumb'
             ret.output += """
 \nIf there is no more task left, you should terminate the chat with your final answer.
 <final_answer_guidelines>
-* Identify the first user request in the chat history and start your response by providing a direct answer to that request by only using the information avaiable in the chat history.
-* After the direct answer, you may continue with additional information or explanations of your own.
+* Identify the first user request in the chat history and start your final response by providing an answer to that request first.
 * You should sound like you are talking to the user directly for the first time as if there were no internal chats.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because you don't sound like you are directly talking to the user for the first time.
 * If there is not enough information to provide a direct answer, mention that you couldn't find enough information for the task or for some of the sub-tasks.
-* If there were any crucial internal steps or discoveries in the chat history, mention them briefly as well if they are directly related to the answer.
-* If the user was asking for seeing or having codes directly, make sure to provide the code block in the final answer because the user waiting for it.
+* If the user was asking you to write codes, make sure to provide the code block in the final answer because the user is interested in seeing the code, not just the code execution output.
 * If the user was asking for images or there were images generated in the chat history, you should have them by adding inline markdowns of any key image, chart, or graphic. Just use '![image](filename.png)' without any code block and only use the basename of the file, not the full path. Also, pay attention to placing images in relevant places in the final answer.
 * You can use markdown syntax for formatting the text (e.g. long lists, tables, headers etc.) in the response to make it more readable and easy to follow.
 * Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
