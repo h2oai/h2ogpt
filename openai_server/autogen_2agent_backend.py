@@ -5,7 +5,7 @@ from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
 from openai_server.agent_prompting import get_full_system_prompt
 
-from openai_server.autogen_utils import terminate_message_func, H2OConversableAgent
+from openai_server.autogen_utils import H2OConversableAgent
 
 
 def run_autogen_2agent(query=None,
@@ -94,7 +94,7 @@ def run_autogen_2agent(query=None,
         print("base_url: %s" % base_url)
         print("max_tokens: %s" % max_new_tokens)
 
-    system_message, internal_file_names, chat_doc_query, image_query_helper, mermaid_renderer_helper = \
+    system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper = \
         get_full_system_prompt(agent_code_writer_system_message,
                                agent_system_site_packages, system_prompt,
                                base_url,
@@ -102,6 +102,11 @@ def run_autogen_2agent(query=None,
                                temp_dir, query)
 
     enable_caching = True
+    def code_writer_terminate_func(msg):
+        # In case code_writer_agent just passed a chatty answer without <FINISHED_ALL_TASKS> mentioned,
+        # then code_executor will return empty string as response (since there was no code block to execute).
+        # So at this point, we need to terminate the chat otherwise code_writer_agent will keep on chatting.
+        return isinstance(msg, dict) and msg.get('content', '') == ''
 
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
@@ -118,7 +123,7 @@ def run_autogen_2agent(query=None,
                     },
         code_execution_config=False,  # Turn off code execution for this agent.
         human_input_mode="NEVER",
-        is_termination_msg=terminate_message_func,
+        is_termination_msg=code_writer_terminate_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
 
@@ -154,7 +159,7 @@ def run_autogen_2agent(query=None,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
-                                             chat_doc_query, image_query_helper, mermaid_renderer_helper,
+                                             chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper,
                                              autogen_code_restrictions_level, autogen_silent_exchange)
 
     return ret_dict
