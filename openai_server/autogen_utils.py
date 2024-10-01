@@ -387,7 +387,6 @@ os.environ['TERM'] = 'dumb'
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
 * If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
-* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -408,6 +407,7 @@ os.environ['TERM'] = 'dumb'
                 raise
         ret = self.truncate_output(ret)
         ret = self.executed_code_note(ret)
+        ret = self.final_answer_guidelines(ret)
         return ret
 
     def executed_code_note(self, ret: CommandLineCodeResult) -> CommandLineCodeResult:
@@ -417,6 +417,26 @@ os.environ['TERM'] = 'dumb'
 * You should use these output without thanking the user for them.
 * You should use these outputs without noting that the code was successfully executed.
 </code_executed_notes>
+"""
+        return ret
+
+    def final_answer_guidelines(self, ret: CommandLineCodeResult) -> CommandLineCodeResult:
+        if ret.exit_code == 0:
+            ret.output += """
+\nIf there is no more task left, you should terminate the chat with your final answer.
+<final_answer_guidelines>
+* Identify the first user request in the chat history.
+* Provide a direct answer to that request by only using the information avaiable in the chat history.
+* You should sound like you are talking to the user directly for the first time as if there were no internal chats.
+* Don't mention things like 'user's initial query', 'I'm sharing this again' or 'final request', because you don't sound like you are directly talking to the user for the first time.
+* If there is not enough information to provide a direct answer, mention that you couldn't find enough information for the task or for some of the sub-tasks.
+* If there were any crucial internal steps or discoveries in the chat history, mention them briefly as well if they are directly related to the answer.
+* If the user was asking for seeing codes directly, make sure to provide the code block in the answer.
+* You can only use code blocks as is, you cannot add to them, you cannot subtract from them. Including code comments, you can not change anything. Use them as they are.
+* In your response, you must add an inline markdown of any key image, chart, or graphic (e.g.) ![image](filename.png) without any code block. Only use the basename of the file, not the full path.
+* You can use markdown syntax for formatting the text in the response to make it more readable and easy to follow.
+* Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
+</final_answer_guidelines>
 """
         return ret
 
