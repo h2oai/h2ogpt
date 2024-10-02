@@ -102,6 +102,7 @@ def run_autogen_2agent(query=None,
                                temp_dir, query)
 
     enable_caching = True
+
     def code_writer_terminate_func(msg):
         # In case code_writer_agent just passed a chatty answer without <FINISHED_ALL_TASKS> mentioned,
         # then code_executor will return empty string as response (since there was no code block to execute).

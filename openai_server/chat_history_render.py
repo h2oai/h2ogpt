@@ -6,11 +6,11 @@ markdown_mark = "---"
 
 
 def chat_to_pretty_markdown(
-    chat_history: List[Dict[str, str]],
-    cute=False,
-    assistant_name="Executor Agent",
-    user_name="Coder Agent",
-    dummy_name="Agent",
+        chat_history: List[Dict[str, str]],
+        cute=False,
+        assistant_name="Executor Agent",
+        user_name="Coder Agent",
+        dummy_name="Agent",
 ) -> str:
     markdown = ""
     for i, message in enumerate(chat_history):
@@ -37,18 +37,18 @@ def chat_to_pretty_markdown(
             else "ℹ️"
         )
         real_role = (
-                assistant_name
-                if role.lower() == "assistant"
-                else user_name
-                if role.lower() == "user"
-                else dummy_name
-            )
+            assistant_name
+            if role.lower() == "assistant"
+            else user_name
+            if role.lower() == "user"
+            else dummy_name
+        )
         # If there is agent name mentioned, update the role and the emoji
         if 'name' in message and message['name']:
             # turns 'chat_agent' to 'Chat Agent'
             real_role = message['name']
             real_role = ' '.join(word.capitalize() for word in real_role.split('_'))
-            
+
             if message['name'] == 'chat_agent':
                 # put bubble emoji for chat agent
                 emoji = "💬"
@@ -111,11 +111,11 @@ def wrap_long_lines(line: str, max_width: int = 80) -> str:
 
 
 def chat_to_pretty_markdown_simple(
-    chat_history,
-    cute=False,
-    assistant_name="Executor Agent",
-    user_name="Coder Agent",
-    dummy_name="Agent",
+        chat_history,
+        cute=False,
+        assistant_name="Executor Agent",
+        user_name="Coder Agent",
+        dummy_name="Agent",
 ) -> str:
     # markdown = "# Chat History\n\n"
     markdown = ""
@@ -143,18 +143,18 @@ def chat_to_pretty_markdown_simple(
             else "ℹ️"
         )
         real_role = (
-                assistant_name
-                if role.lower() == "assistant"
-                else user_name
-                if role.lower() == "user"
-                else dummy_name
-            )
+            assistant_name
+            if role.lower() == "assistant"
+            else user_name
+            if role.lower() == "user"
+            else dummy_name
+        )
         # If there is agent name mentioned, update the role and the emoji
         if 'name' in message and message['name']:
             # turns 'chat_agent' to 'Chat Agent'
             real_role = message['name']
             real_role = ' '.join(word.capitalize() for word in real_role.split('_'))
-            
+
             if message['name'] == 'chat_agent':
                 # put bubble emoji for chat agent
                 emoji = "💬"

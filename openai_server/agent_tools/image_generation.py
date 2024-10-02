@@ -12,7 +12,8 @@ def main():
     parser.add_argument("--prompt", type=str, required=True, help="User prompt")
     parser.add_argument("--model", type=str, required=False, help="Model name")
     parser.add_argument("--output", type=str, required=False, default="", help="Name (unique) of the output file")
-    parser.add_argument("--quality", type=str, required=False, choices=['standard', 'hd', 'quick', 'manual'], default='standard',
+    parser.add_argument("--quality", type=str, required=False, choices=['standard', 'hd', 'quick', 'manual'],
+                        default='standard',
                         help="Image quality")
     parser.add_argument("--size", type=str, required=False, default="1024x1024", help="Image size (height x width)")
 

@@ -11,30 +11,29 @@ from openai_server.autogen_utils import merge_group_chat_messages
 from openai_server.autogen_utils import get_all_conversable_agents
 
 
-
 def run_autogen_multi_agent(query=None,
-                       visible_models=None,
-                       stream_output=None,
-                       max_new_tokens=None,
-                       authorization=None,
-                       chat_conversation=None,
-                       text_context_list=None,
-                       system_prompt=None,
-                       image_file=None,
-                       # autogen/agent specific parameters
-                       agent_type=None,
-                       autogen_stop_docker_executor=None,
-                       autogen_run_code_in_docker=None,
-                       autogen_max_consecutive_auto_reply=None,
-                       autogen_max_turns=None,
-                       autogen_timeout=None,
-                       autogen_cache_seed=None,
-                       agent_venv_dir=None,
-                       agent_code_writer_system_message=None,
-                       agent_system_site_packages=None,
-                       autogen_code_restrictions_level=None,
-                       autogen_silent_exchange=None,
-                       agent_verbose=None) -> dict:
+                            visible_models=None,
+                            stream_output=None,
+                            max_new_tokens=None,
+                            authorization=None,
+                            chat_conversation=None,
+                            text_context_list=None,
+                            system_prompt=None,
+                            image_file=None,
+                            # autogen/agent specific parameters
+                            agent_type=None,
+                            autogen_stop_docker_executor=None,
+                            autogen_run_code_in_docker=None,
+                            autogen_max_consecutive_auto_reply=None,
+                            autogen_max_turns=None,
+                            autogen_timeout=None,
+                            autogen_cache_seed=None,
+                            agent_venv_dir=None,
+                            agent_code_writer_system_message=None,
+                            agent_system_site_packages=None,
+                            autogen_code_restrictions_level=None,
+                            autogen_silent_exchange=None,
+                            agent_verbose=None) -> dict:
     assert agent_type in ['autogen_multi_agent'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
@@ -78,7 +77,7 @@ def run_autogen_multi_agent(query=None,
         get_main_group_chat_manager,
         get_chat_agent,
         get_code_group_chat_manager
-        )
+    )
 
     # Create a code executor.
     executor = get_code_executor(
@@ -99,38 +98,38 @@ def run_autogen_multi_agent(query=None,
                                temp_dir, query)
     # Prepare the LLM config for the agents
     extra_body = {
-        "agent_type": agent_type, # autogen_multi_agent
+        "agent_type": agent_type,  # autogen_multi_agent
     }
-    llm_config={"config_list": [{"model": model,
-                                    "api_key": api_key,
-                                    "base_url": base_url,
-                                    "stream": stream_output,
-                                    "cache_seed": autogen_cache_seed,
-                                    'max_tokens': max_new_tokens,
-                                    "extra_body": extra_body, 
-                                    }]}
+    llm_config = {"config_list": [{"model": model,
+                                   "api_key": api_key,
+                                   "base_url": base_url,
+                                   "stream": stream_output,
+                                   "cache_seed": autogen_cache_seed,
+                                   'max_tokens': max_new_tokens,
+                                   "extra_body": extra_body,
+                                   }]}
     human_proxy_agent = get_human_proxy_agent(
-                llm_config=llm_config,
-                autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+        llm_config=llm_config,
+        autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
 
-            )
+    )
     chat_agent = get_chat_agent(
         llm_config=llm_config,
-        autogen_max_consecutive_auto_reply=1, # Always 1 turn for chat agent
+        autogen_max_consecutive_auto_reply=1,  # Always 1 turn for chat agent
     )
     code_group_chat_manager = get_code_group_chat_manager(
-            llm_config=llm_config,
-            code_writer_system_prompt=code_writer_system_prompt,
-            autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-            max_round=40, # TODO: Define variable above
-            executor=executor,
-        )
+        llm_config=llm_config,
+        code_writer_system_prompt=code_writer_system_prompt,
+        autogen_max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+        max_round=40,  # TODO: Define variable above
+        executor=executor,
+    )
     main_group_chat_manager = get_main_group_chat_manager(
-            llm_config=llm_config,
-            prompt=query,
-            agents=[chat_agent, code_group_chat_manager],
-            max_round=40,
-        )
+        llm_config=llm_config,
+        prompt=query,
+        agents=[chat_agent, code_group_chat_manager],
+        max_round=40,
+    )
     # apply chat history to human_proxy_agent and main_group_chat_manager
     # TODO: check if working
     if chat_conversation:
@@ -142,12 +141,12 @@ def run_autogen_multi_agent(query=None,
                 human_proxy_agent.send(message['content'], main_group_chat_manager, request_reply=False)
 
     chat_result = human_proxy_agent.initiate_chat(
-            main_group_chat_manager,
-            message=query,
-            # summary_method="last_msg", # TODO: is summary really working for group chat? Doesnt include code group messages in it, why?
-            # summary_args=dict(summary_role="user"), # System by default, but in chat histort it comes last and drops user message in h2ogpt/convert_messages_to_structure method
-            max_turns=1,
-        )
+        main_group_chat_manager,
+        message=query,
+        # summary_method="last_msg", # TODO: is summary really working for group chat? Doesnt include code group messages in it, why?
+        # summary_args=dict(summary_role="user"), # System by default, but in chat histort it comes last and drops user message in h2ogpt/convert_messages_to_structure method
+        max_turns=1,
+    )
     # It seems chat_result.chat_history doesnt contain code group messages, so I'm manually merging them here. #TODO: research why so?
     merged_group_chat_messages = merge_group_chat_messages(
         code_group_chat_manager.groupchat.messages, main_group_chat_manager.groupchat.messages

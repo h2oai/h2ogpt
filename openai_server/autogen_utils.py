@@ -740,10 +740,10 @@ class H2OConversableAgent(ConversableAgent):
         return valid, output
 
     def __generate_code_execution_reply_using_executor(
-        self,
-        messages: Optional[List[Dict]] = None,
-        sender: Optional[Agent] = None,
-        config: Optional[Union[Dict, typing.Literal[False]]] = None,
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[Union[Dict, typing.Literal[False]]] = None,
     ):
         """Generate a reply using code executor."""
         iostream = IOStream.get_default()
@@ -826,6 +826,7 @@ If there is no more task left, you should terminate the chat with your final ans
 * Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </final_answer_guidelines>
 """
+
 
 class H2OGroupChatManager(GroupChatManager):
     @backoff.on_exception(backoff.expo,

@@ -283,7 +283,8 @@ async def get_response(chunk_response=True, **kwargs):
             outputs_list = job.outputs().copy()
             job_outputs_num_new = len(outputs_list[job_outputs_num:])
             for num in range(job_outputs_num_new):
-                chunk, response, res_dict = get_chunk(outputs_list, job_outputs_num, last_response, num, verbose=verbose)
+                chunk, response, res_dict = get_chunk(outputs_list, job_outputs_num, last_response, num,
+                                                      verbose=verbose)
                 if chunk_response:
                     if chunk:
                         yield chunk
