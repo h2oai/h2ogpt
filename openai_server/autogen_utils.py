@@ -814,7 +814,7 @@ class H2OConversableAgent(ConversableAgent):
     @staticmethod
     def final_answer_guidelines() -> str:
         return """
-If there is no more task left, you should terminate the chat with your final answer.
+If there are no more tasks left, you should terminate the chat with your final answer.
 <final_answer_guidelines>
 * Identify the first user request in the chat history and start your final response by providing an answer to that request first.
 * You should sound like you are talking to the user directly for the first time as if there were no internal chats.
@@ -823,6 +823,7 @@ If there is no more task left, you should terminate the chat with your final ans
 * If the user was asking you to write codes, make sure to provide the code block in the final answer because the user is interested in seeing the code, not just the code execution output.
 * If the user was asking for images or there were images generated in the chat history, you should have them by adding inline markdowns of any key image, chart, or graphic. Just use '![image](filename.png)' without any code block and only use the basename of the file, not the full path. Also, pay attention to placing images in relevant places in the final answer.
 * You can use markdown syntax for formatting the text (e.g. long lists, tables, headers etc.) in the response to make it more readable and easy to follow.
+* If you have given a <constrained_output> response, please repeat that.
 * Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </final_answer_guidelines>
 """
