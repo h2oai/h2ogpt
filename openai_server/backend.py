@@ -274,6 +274,28 @@ async def get_response(chunk_response=True, **kwargs):
     client = get_client(user=kwargs.get('user'))
 
     res_dict = {}
+    def check_if_response_was_from_code_writer_agent() -> bool:
+        # TODO: Need a better way to check if the request is coming from code_writer_agent or not
+        # Maybe new attribute in extra_body called 'agent_name'?
+        # Below method is a hacky way to check if the request is coming from code_wrigter_agent for now.
+        system_prompt = kwargs.get('system_prompt', '')
+        if system_prompt.startswith(
+            'You are a helpful AI assistant.  Solve tasks using your coding and language skills'
+        ):
+            # This is a request coming from code_writer_agent.
+            return True
+        return False
+
+    def check_if_executable_code_block_hit_limit(response: str, num_limit=1) -> bool:
+        if not check_if_response_was_from_code_writer_agent():
+            return False
+        from autogen.code_utils import extract_code
+        # TODO: num_limit might be a parameter in extra_body ?
+        extracted_code_blocks = extract_code(response, pattern=r"```[ \t]*(\w+)?[ \t]*\r?\n(.*?)\r?\n[ \t]*```")
+        code_blocks = [block[1] for block in extracted_code_blocks if block[0] not in ['', 'unknown']]
+        executable_code_blocks = [block for block in code_blocks if '# execution: true' in block]
+        return len(executable_code_blocks) >= num_limit
+
 
     if stream_output:
         job = client.submit(str(dict(kwargs)), api_name='/submit_nochat_api')
@@ -290,10 +312,19 @@ async def get_response(chunk_response=True, **kwargs):
                         yield chunk
                 else:
                     yield response
+                if check_if_executable_code_block_hit_limit(response):
+                    print("Hit executable code_block limit for code_writer_agent, stopping streaming", flush=True)
+                    job.cancel()
+                    break
                 last_response = response
                 await asyncio.sleep(0.005)
             await asyncio.sleep(0.005)
             job_outputs_num += job_outputs_num_new
+
+        if check_if_response_was_from_code_writer_agent():
+            # If the last response was from code_writer_agent, then we always have to return "ENDOFTURN" at the end of the message.
+            print("Finishing code_writer_agent message with 'ENDOFTURN'", flush=True)
+            yield "\n\nENDOFTURN"
 
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
