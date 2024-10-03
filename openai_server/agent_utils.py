@@ -309,7 +309,7 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
     return ret_dict
 
 
-def guardrail_files(file_list, hard_fail=True):
+def guardrail_files(file_list, hard_fail=False):
     from openai_server.autogen_utils import H2OLocalCommandLineCodeExecutor
 
     file_list_new = []

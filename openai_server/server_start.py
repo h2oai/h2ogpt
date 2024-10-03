@@ -98,8 +98,9 @@ def run_server(host: str = '0.0.0.0',
 
     logging.getLogger("uvicorn.error").propagate = False
 
-    # to pass args through so app can run gen setup
-    os.environ['H2OGPT_MAIN_KWARGS'] = main_kwargs
+    if name == 'Function':
+        # to pass args through so app can run gen setup
+        os.environ['H2OGPT_MAIN_KWARGS'] = main_kwargs
 
     if not isinstance(app, str):
         workers = None

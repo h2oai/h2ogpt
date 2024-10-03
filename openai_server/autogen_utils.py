@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import functools
+import json
 import logging
 import os
 import re
@@ -325,7 +326,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     cmd, cwd=self._work_dir, capture_output=True, text=True,
                     timeout=float(self._timeout), env=env,
                     print_func=iostream.print,
-                    guard_func=functools.partial(H2OLocalCommandLineCodeExecutor.text_guardrail, any_fail=True),
+                    guard_func=functools.partial(H2OLocalCommandLineCodeExecutor.text_guardrail, any_fail=False),
                     max_stream_length=4096,
                 )
                 iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
@@ -426,7 +427,7 @@ os.environ['TERM'] = 'dumb'
         return ret
 
     @staticmethod
-    def text_guardrail(text, any_fail=False, max_bad_lines=3):
+    def text_guardrail(text, any_fail=False, max_bad_lines=3, just_filter_out=True):
         # List of API key environment variable names to check
         api_key_names = ['OPENAI_AZURE_KEY', 'OPENAI_AZURE_API_BASE',
                          'TWILIO_AUTH_TOKEN', 'NEWS_API_KEY', 'OPENAI_API_KEY_JON',
@@ -437,7 +438,7 @@ os.environ['TERM'] = 'dumb'
                          'SLACK_API_TOKEN', 'MISTRAL_API_KEY', 'TOGETHERAI_API_TOKEN', 'GITHUB_TOKEN', 'SECRET_KEY',
                          'GOOGLE_API_KEY', 'REPLICATE_API_TOKEN', 'GOOGLE_CLIENT_SECRET', 'GROQ_API_KEY',
                          'AWS_SERVER_SECRET_KEY', 'H2OGPT_OPENAI_BASE_URL', 'H2OGPT_OPENAI_API_KEY',
-                         'H2OGPT_MAIN_KWARGS', 'GRADIO_H2OGPT_H2OGPT_KEY', 'IMAGEGEN_OPENAI_BASE_URL',
+                         'GRADIO_H2OGPT_H2OGPT_KEY', 'IMAGEGEN_OPENAI_BASE_URL',
                          'IMAGEGEN_OPENAI_API_KEY',
                          'STT_OPENAI_BASE_URL', 'STT_OPENAI_API_KEY',
                          'H2OGPT_MODEL_LOCK', 'PINECONE_API_KEY', 'TEST_SERVER', 'INVOCATION_ID', 'ELEVENLABS_API_KEY',
@@ -468,6 +469,8 @@ os.environ['TERM'] = 'dumb'
             'N/A', 'NA', 'None', 'not_set', 'NOT_SET', 'NOT-SET',
             'undefined', 'UNDEFINED', 'foo', 'bar',
             'https://api.openai.com', 'https://api.openai.com/v1',
+            'https://api.gpt.h2o.ai/v1', 'http://0.0.0.0:5000/v1',
+            'https://h2ogpt.openai.azure.com/',
             # Add any other common dummy values you've encountered
         }
         set_allowed = {x.lower() for x in set_allowed}
@@ -476,21 +479,40 @@ os.environ['TERM'] = 'dumb'
         api_key_values = [value.lower() for value in set_api_key_values if value and value.lower() not in set_allowed]
 
         if text:
+            api_key_values = sorted(filter(bool, api_key_values), key=len, reverse=True)
+
+            # Compile a regex pattern outside the loop
+            pattern = '|'.join(map(re.escape, api_key_values))
+            regex = re.compile(pattern)
+
             bad_lines = 0
+            bad_lines_text = []
             # try to remove offending lines first, if only 1-2 lines, then maybe logging and not code itself
             lines = []
             for line in text.split('\n'):
                 if any(api_key_value in line.lower() for api_key_value in api_key_values):
                     bad_lines += 1
-                    print(f"Sensitive information found in output, so removed it: {line}")
-                    # e.g. H2OGPT_OPENAI_BASE_URL can appear from logging events from httpx
-                    continue
+                    bad_lines_text.append(line)
+                    if just_filter_out:
+                        print(f"Sensitive information found in output, so removed text: {line}")
+
+                        # Use the compiled regex to replace all api_key_values at once
+                        line = regex.sub('', line)
+                        #for api_key_value in api_key_values:
+                        #    line = line.replace(api_key_value, '')
+                        lines.append(line)
+                    else:
+                        print(f"Sensitive information found in output, so removed line: {line}")
+                        # e.g. H2OGPT_OPENAI_BASE_URL can appear from logging events from httpx
+                        continue
                 else:
                     lines.append(line)
             text = '\n'.join(lines)
 
             bad_msg = f"{bad_output_mark}.  Attempt to access sensitive information has been detected and reported as a violation."
             if bad_lines >= max_bad_lines or bad_lines > 0 and any_fail:
+                print("\nBad Output:\n", text)
+                print("\nbad_lines_text:\n", bad_lines_text)
                 raise ValueError(bad_msg)
 
             # Check if any API key value is in the output and collect all violations
