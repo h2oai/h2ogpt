@@ -458,7 +458,14 @@ async def achat_completion_action(body: dict, stream_output=False):
                 answer += chunk
                 yield chat_chunk
         else:
-            answer = chunk
+            if isinstance(chunk, dict):
+                usage.update(chunk)
+                if 'response' in chunk:
+                    answer += chunk['response']
+                else:
+                    answer = ''
+            else:
+                answer = chunk
         await asyncio.sleep(0.005)
 
     stop_reason = "stop"

@@ -27,8 +27,8 @@ sentence_transformers_old @ https://h2o-release.s3.amazonaws.com/h2ogpt/sentence
 
 # optional: for OpenAI endpoint or embeddings (requires key)
 replicate>=0.26.0
-anthropic>=0.28.0
-langchain-anthropic>=0.1.15
+anthropic>=0.34.2
+langchain-anthropic>=0.1.20
 together>=1.1.5
 langchain_together==0.1.3
 langchain-openai>=0.1.8
