@@ -5,6 +5,7 @@ import tempfile
 import datetime
 import random
 import string
+import shlex
 
 
 def generate_unique_filename(format):
@@ -13,7 +14,34 @@ def generate_unique_filename(format):
     return f"mermaid_{timestamp}_{random_string}.{format}"
 
 
+def find_chrome_path():
+    home_dir = os.path.expanduser("~")
+    cache_dir = os.path.join(home_dir, ".cache", "puppeteer")
+
+    try:
+        cmd = f"find {shlex.quote(cache_dir)} -name chrome-headless-shell -type f | sort -V | tail -n 1"
+        result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        chrome_path = result.stdout.strip()
+
+        if not chrome_path:
+            print("Chrome headless shell not found in the expected location.")
+            return None
+
+        return chrome_path
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while trying to find Chrome: {e}")
+        return None
+
+
 def render_mermaid(mermaid_code, output_file, format='svg'):
+    # Find Chrome path
+    chrome_path = find_chrome_path()
+    if not chrome_path:
+        raise Exception("Chrome headless shell not found. Unable to render Mermaid diagram.")
+
+    # Set PUPPETEER_EXECUTABLE_PATH environment variable
+    os.environ["PUPPETEER_EXECUTABLE_PATH"] = chrome_path
+
     # Create a temporary file for the Mermaid code
     with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False) as temp:
         temp.write(mermaid_code)
@@ -21,7 +49,9 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
 
     try:
         # Construct the mmdc command
-        cmd = ['mmdc', '-i', temp_path, '-o', output_file, '-f', format]
+        with open('puppeteer-config.json', 'wt') as f:
+            f.write('{"args": ["--no-sandbox"]}')
+        cmd = ['mmdc', '-i', temp_path, '-o', output_file, '-f', format, '-p', 'puppeteer-config.json']
 
         # Run the mmdc command
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -32,9 +62,9 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
         if result.stderr:
             print("mmdc warnings/errors:", result.stderr)
 
-        print("created output file in %s format: %s" % (format, output_file))
+        print(f"Created output file in {format} format: {output_file}")
 
-        # always make PNG version too, hard for other tools to svg -> png
+        # Always make PNG version too, hard for other tools to svg -> png
         if format != 'png':
             # Construct the mmdc command
             base_name = '.'.join(output_file.split('.')[:-1])
@@ -52,10 +82,10 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
                 print("mmdc warnings/errors:", result.stderr)
 
             print(
-                "Created mermaid output file in PNG format: %s that is a conversion of %s. "
-                " Use this for image_query to analyze what SVG looks like, "
-                " because other tools do not retain fonts when making PNG." % (
-                    output_file_png, output_file))
+                f"Created mermaid output file in PNG format: {output_file_png} that is a conversion of {output_file}. "
+                "Use this for image_query to analyze what SVG looks like, "
+                "because other tools do not retain fonts when making PNG."
+            )
 
         # Return the full path of the output file
         return os.path.abspath(output_file)
