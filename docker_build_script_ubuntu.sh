@@ -25,7 +25,31 @@ apt-get update && apt-get install -y \
     libtool \
     docker.io \
     nodejs \
-    npm
+    npm \
+    zip \
+    unzip \
+    htop \
+    tree \
+    tmux \
+    jq \
+    net-tools \
+    nmap \
+    ncdu \
+    mtr \
+    rsync \
+    build-essential \
+    parallel \
+    bc \
+    pv \
+    expect \
+    cron \
+    at \
+    screen \
+    inotify-tools \
+    jq \
+    xmlstarlet \
+    dos2unix \
+    ssh
 
 # Run upgrades
 apt-get upgrade -y
