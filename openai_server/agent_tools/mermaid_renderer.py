@@ -67,7 +67,7 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
 def main():
     parser = argparse.ArgumentParser(description='Render Mermaid diagrams from a file or direct input using mmdc.')
     input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument('-f', '--file', help='Input file containing Mermaid code')
+    input_group.add_argument('-f', '--file', '--input', help='Input file containing Mermaid code')
     input_group.add_argument('-c', '--code', help='Direct Mermaid code input', nargs='+')
     parser.add_argument('-o', '--output', help='Output file name (default: auto-generated unique name)')
 

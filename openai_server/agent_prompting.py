@@ -614,9 +614,9 @@ def get_download_one_web_image_helper():
 ```sh
 # filename: my_image_download.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --file "file_name.jpg"
+python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --output "file_name.jpg"
 ```
-* usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --file "FILE_NAME"
+* usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
 * The download_one_web_image tool uses the Google Search API to download one image at a time from the web based on passed text.
 * The download_one_web_image tool has to be your first option for downloading images from the web.
 
