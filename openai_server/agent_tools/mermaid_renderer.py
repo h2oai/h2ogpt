@@ -6,6 +6,7 @@ import datetime
 import random
 import string
 import shlex
+import uuid
 
 
 def generate_unique_filename(format):
@@ -51,11 +52,12 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
         temp.write(mermaid_code)
         temp_path = temp.name
 
+    config_file = f'puppeteer-config{str(uuid.uuid4())}.json'
     try:
         # Construct the mmdc command
-        with open('puppeteer-config.json', 'wt') as f:
+        with open(config_file, 'wt') as f:
             f.write('{"args": ["--no-sandbox"]}')
-        cmd = ['mmdc', '-i', temp_path, '-o', output_file, '-f', format, '-p', 'puppeteer-config.json']
+        cmd = ['mmdc', '-i', temp_path, '-o', output_file, '-f', format, '-p', config_file]
 
         # Run the mmdc command
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -96,6 +98,11 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
     finally:
         # Clean up the temporary file
         os.unlink(temp_path)
+        if os.path.isfile(config_file):
+            try:
+                os.remove(config_file)
+            except FileNotFoundError:
+                pass
 
 
 def main():
