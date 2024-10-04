@@ -79,7 +79,45 @@ COPY --from=intermediate-stage    /workspace                      /workspace
 RUN chmod a+rwx /workspace  # only for top dir, as docker COPY skips it.
 
 # Install Node.js, npm, and other necessary dependencies
-RUN apk add --no-cache nodejs npm fontconfig
+RUN apk add --no-cache  \
+    nodejs \
+    npm \
+    fontconfig \
+    git \
+    curl \
+    wget \
+    pandoc \
+    vim \
+    poppler-utils \
+    tesseract-ocr \
+    libreoffice \
+    autoconf \
+    libtool \
+    docker \
+    zip \
+    unzip \
+    htop \
+    tree \
+    tmux \
+    jq \
+    net-tools \
+    nmap \
+    ncdu \
+    mtr \
+    rsync \
+    build-base \
+    parallel \
+    bc \
+    pv \
+    expect \
+    cronie \
+    at \
+    screen \
+    inotify-tools \
+    xmlstarlet \
+    dos2unix \
+    openssh \
+    magic
 
 # Install Mermaid CLI globally
 RUN npm install -g @mermaid-js/mermaid-cli
