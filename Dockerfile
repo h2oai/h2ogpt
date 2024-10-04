@@ -24,7 +24,6 @@ RUN apk add --no-cache  \
     pandoc \
     vim \
     poppler-utils \
-    libreoffice \
     autoconf \
     libtool \
     docker \
