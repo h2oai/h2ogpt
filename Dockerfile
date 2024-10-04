@@ -24,7 +24,6 @@ RUN apk add --no-cache  \
     pandoc \
     vim \
     poppler-utils \
-    tesseract-ocr \
     libreoffice \
     autoconf \
     libtool \
@@ -37,22 +36,16 @@ RUN apk add --no-cache  \
     jq \
     net-tools \
     nmap \
-    ncdu \
     mtr \
     rsync \
     build-base \
     parallel \
     bc \
-    pv \
-    expect \
     cronie \
-    at \
     screen \
     inotify-tools \
     xmlstarlet \
-    dos2unix \
-    openssh \
-    magic
+    openssh
 
 # Install Mermaid CLI globally
 RUN npm install -g @mermaid-js/mermaid-cli
