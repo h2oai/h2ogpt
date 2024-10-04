@@ -346,6 +346,18 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         code_file = str(file_names[0]) if len(file_names) > 0 else None
         return CommandLineCodeResult(exit_code=exitcode, output=logs_all, code_file=code_file)
 
+    @staticmethod
+    def is_in_container() -> bool:
+        # Is this Python running in a container (Docker, Kubelet)
+        try:
+            with open("/proc/self/cgroup", "r") as f:
+                for l in f.readlines():
+                    if "docker" in l or "kubepods" in l:
+                        return True
+        except FileNotFoundError:
+            pass
+        return False
+
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         try:
             # skip code blocks with # execution: false
@@ -361,12 +373,14 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 code_blocks_new.append(code_block_new)
             code_blocks = code_blocks_new
             code_blocks_exec = [x for x in code_blocks if x.execute]
+            code_blocks_no_exec = [x for x in code_blocks if not x.execute]
 
             # ensure no plots pop-up if in pycharm mode or outside docker
-            for code_block in code_blocks:
-                lang, code = code_block.language, code_block.code
-                if lang == 'python':
-                    code_block.code = """
+            if not self.is_in_container():
+                for code_block in code_blocks_exec:
+                    lang, code = code_block.language, code_block.code
+                    if lang == 'python':
+                        code_block.code = """
 # BEGIN: user added these matplotlib lines to ensure any plots do not pop-up in their UI
 import matplotlib
 matplotlib.use('Agg')  # Set the backend to non-interactive
@@ -376,6 +390,8 @@ import os
 os.environ['TERM'] = 'dumb'
 # END: user added these matplotlib lines to ensure any plots do not pop-up in their UI
 """ + code_block.code
+                # merge back
+                code_blocks = code_blocks_exec + code_blocks_no_exec
 
             ret = self.__execute_code_dont_check_setup(code_blocks)
 
