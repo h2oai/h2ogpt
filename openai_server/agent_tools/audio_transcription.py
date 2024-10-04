@@ -31,7 +31,7 @@ def main():
     parser.add_argument("--model", type=str, required=False,
                         help="Model name (For Azure deployment name must match actual model name, e.g. whisper-1)")
     # File name
-    parser.add_argument("--output", type=str, default='', required=False,
+    parser.add_argument("--output", "--file", type=str, default='', required=False,
                         help="Path (ensure unique) to output text file")
     args = parser.parse_args()
     ##

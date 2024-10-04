@@ -249,7 +249,7 @@ bash ./docs/run_patches.sh
 
 # NPM based
 npm install -g @mermaid-js/mermaid-cli
-
+npx -y puppeteer browsers install chrome-headless-shell
 
 if [[ -z "${WOLFI_OS}" ]]; then
   #
