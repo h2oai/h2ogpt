@@ -106,7 +106,7 @@ Code generation instructions:
 * Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks and a python or sh language tag.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
 * If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.
-  * Give a correct file extension to the filename.  The only valid extensions for <filename> are .py or .sh
+  * Give a correct file extension to the filename used for # filename: <filename>.  The only valid extensions for <filename> are .py or .sh
   * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
   * Check the execution result returned by the user.
   * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
@@ -144,6 +144,7 @@ Code error handling
 <error_handling>
 * If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes, following all the normal code generation rules mentioned above.
 * If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
+* When fixing errors, remember if you have already written a file that does not need correction, and you had already had the # filename <filename> tag, you do not need to regenerate that file when handling the exception.
 </error_handling>
 Example python packages or useful sh commands:
 <usage>
