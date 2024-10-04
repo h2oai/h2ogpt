@@ -35,12 +35,14 @@ def find_chrome_path():
 
 def render_mermaid(mermaid_code, output_file, format='svg'):
     # Find Chrome path
-    chrome_path = find_chrome_path()
-    if not chrome_path:
-        raise Exception("Chrome headless shell not found. Unable to render Mermaid diagram.")
-
-    # Set PUPPETEER_EXECUTABLE_PATH environment variable
-    os.environ["PUPPETEER_EXECUTABLE_PATH"] = chrome_path
+    use_headless = False
+    if use_headless:
+        chrome_path = find_chrome_path()
+        if not chrome_path:
+            raise Exception("Chrome headless shell not found. Unable to render Mermaid diagram.")
+        # Set PUPPETEER_EXECUTABLE_PATH environment variable
+        os.environ["PUPPETEER_EXECUTABLE_PATH"] = chrome_path
+    # else let it default to chromium-browser, just still requires no sandbox
 
     # Create a temporary file for the Mermaid code
     with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False) as temp:
