@@ -43,6 +43,8 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
         # Set PUPPETEER_EXECUTABLE_PATH environment variable
         os.environ["PUPPETEER_EXECUTABLE_PATH"] = chrome_path
     # else let it default to chromium-browser, just still requires no sandbox
+    elif os.path.isfile('/usr/bin/chromium-browser'):
+        os.environ["PUPPETEER_EXECUTABLE_PATH"] = '/usr/bin/chromium-browser'
 
     # Create a temporary file for the Mermaid code
     with tempfile.NamedTemporaryFile(mode='w', suffix='.mmd', delete=False) as temp:
