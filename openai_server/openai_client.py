@@ -71,13 +71,13 @@ def clean_text_string(input_string):
 
 
 def run_openai_client(
-    client,
-    ReturnType=None,
-    convert_to_pdf=None,
-    use_agent=False,
-    base64_encode_agent_files=True,
-    cute=False,
-    **query_kwargs,
+        client,
+        ReturnType=None,
+        convert_to_pdf=None,
+        use_agent=False,
+        base64_encode_agent_files=True,
+        cute=False,
+        **query_kwargs,
 ):
     """
     Bsed upon test in h2oGPT OSS:
