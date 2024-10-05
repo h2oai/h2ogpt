@@ -214,7 +214,7 @@ spec:
               containerPort: 5000
               protocol: TCP
             - name: function
-              containerPort: 5003
+              containerPort: 5002
               protocol: TCP
             - name: agent
               containerPort: 5004

@@ -24,7 +24,7 @@ spec:
     - name: function
       protocol: TCP
       port: {{ .Values.h2ogpt.service.functionPort }}
-      targetPort: 5003
+      targetPort: 5002
     - name: agent
       protocol: TCP
       port: {{ .Values.h2ogpt.service.agentsPort }}
