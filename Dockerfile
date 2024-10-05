@@ -13,45 +13,6 @@ WORKDIR /workspace
 
 FROM base-stage as intermediate-stage
 
-# Install Node.js, npm, and other necessary dependencies
-RUN apk add --no-cache  \
-    nodejs \
-    npm \
-    fontconfig \
-    git \
-    curl \
-    wget \
-    pandoc \
-    vim \
-    poppler-utils \
-    autoconf \
-    libtool \
-    docker \
-    zip \
-    unzip \
-    htop \
-    tree \
-    tmux \
-    jq \
-    net-tools \
-    nmap \
-    mtr \
-    rsync \
-    build-base \
-    parallel \
-    bc \
-    cronie \
-    screen \
-    inotify-tools \
-    xmlstarlet \
-    openssh
-
-# Install Mermaid CLI globally
-RUN npm install -g @mermaid-js/mermaid-cli
-
-# Verify Mermaid CLI installation
-RUN mmdc --version
-
 ## copy code
 COPY .              /workspace/
 
@@ -116,6 +77,45 @@ COPY --from=intermediate-stage    /docker_cache/triton/           /usr/lib/pytho
 COPY --from=intermediate-stage    /workspace/build_info.txt       /build_info.txt
 COPY --from=intermediate-stage    /workspace                      /workspace
 RUN chmod a+rwx /workspace  # only for top dir, as docker COPY skips it.
+
+# Install Node.js, npm, and other necessary dependencies
+RUN apk add --no-cache  \
+    nodejs \
+    npm \
+    fontconfig \
+    git \
+    curl \
+    wget \
+    pandoc \
+    vim \
+    poppler-utils \
+    autoconf \
+    libtool \
+    docker \
+    zip \
+    unzip \
+    htop \
+    tree \
+    tmux \
+    jq \
+    net-tools \
+    nmap \
+    mtr \
+    rsync \
+    build-base \
+    parallel \
+    bc \
+    cronie \
+    screen \
+    inotify-tools \
+    xmlstarlet \
+    openssh
+
+# Install Mermaid CLI globally
+RUN npm install -g @mermaid-js/mermaid-cli
+
+# Verify Mermaid CLI installation
+RUN mmdc --version
 
 EXPOSE 8888
 EXPOSE 7860
