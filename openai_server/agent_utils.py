@@ -190,7 +190,7 @@ def fix_markdown_image_paths(text):
 def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
-                                  chat_doc_query, system_message_parts,
+                                  system_message_parts,
                                   autogen_code_restrictions_level, autogen_silent_exchange):
     # DEBUG
     if agent_verbose:

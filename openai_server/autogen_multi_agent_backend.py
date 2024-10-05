@@ -90,7 +90,7 @@ def run_autogen_multi_agent(query=None,
     )
 
     # Prepare the system message for the code writer agent.
-    code_writer_system_prompt, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper = \
+    code_writer_system_prompt, internal_file_names, system_message_parts = \
         get_full_system_prompt(agent_code_writer_system_message,
                                agent_system_site_packages, system_prompt,
                                base_url,
@@ -197,7 +197,7 @@ def run_autogen_multi_agent(query=None,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
-                                             chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper,
+                                             system_message_parts,
                                              autogen_code_restrictions_level, autogen_silent_exchange)
 
     return ret_dict

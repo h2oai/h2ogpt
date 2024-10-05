@@ -695,4 +695,4 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
     system_message = ''.join(system_message_parts)
 
-    return system_message, internal_file_names, chat_doc_query, system_message_parts
+    return system_message, internal_file_names, system_message_parts
