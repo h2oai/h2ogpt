@@ -29,8 +29,10 @@ from autogen.coding.func_with_reqs import (
     FunctionWithRequirementsStr,
 )
 from autogen.coding.utils import silence_pip
+from autogen.io import IOStream
 from autogen.runtime_logging import logging_enabled, log_new_agent
 from pydantic import Field
+from termcolor import colored
 
 from typing_extensions import ParamSpec
 
@@ -404,7 +406,6 @@ os.environ['TERM'] = 'dumb'
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
 * If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
-* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -427,12 +428,15 @@ os.environ['TERM'] = 'dumb'
         ret = self.executed_code_note(ret)
         return ret
 
-    def executed_code_note(self, ret: CommandLineCodeResult) -> CommandLineCodeResult:
+    @staticmethod
+    def executed_code_note(ret: CommandLineCodeResult) -> CommandLineCodeResult:
         if ret.exit_code == 0:
             ret.output += """
 <code_executed_notes>
 * You should use these output without thanking the user for them.
 * You should use these outputs without noting that the code was successfully executed.
+* You should use these outputs without referring directly to the output of the script or code.
+
 </code_executed_notes>
 """
         return ret
@@ -768,10 +772,99 @@ class H2OConversableAgent(ConversableAgent):
             sender: Optional[Agent] = None,
             config: Optional[Union[Dict, typing.Literal[False]]] = None,
     ):
-        valid, output = super()._generate_code_execution_reply_using_executor(messages, sender, config)
+        valid, output = self.__generate_code_execution_reply_using_executor(messages, sender, config)
         if output and 'ENDOFTURN' not in output:
             output += '\n\nENDOFTURN\n'
         return valid, output
+
+    def __generate_code_execution_reply_using_executor(
+            self,
+            messages: Optional[List[Dict]] = None,
+            sender: Optional[Agent] = None,
+            config: Optional[Union[Dict, typing.Literal[False]]] = None,
+    ):
+        """Generate a reply using code executor."""
+        iostream = IOStream.get_default()
+
+        if config is not None:
+            raise ValueError("config is not supported for _generate_code_execution_reply_using_executor.")
+        if self._code_execution_config is False:
+            return False, None
+        if messages is None:
+            messages = self._oai_messages[sender]
+        last_n_messages = self._code_execution_config.get("last_n_messages", "auto")
+
+        if not (isinstance(last_n_messages, (int, float)) and last_n_messages >= 0) and last_n_messages != "auto":
+            raise ValueError("last_n_messages must be either a non-negative integer, or the string 'auto'.")
+
+        num_messages_to_scan = last_n_messages
+        if last_n_messages == "auto":
+            # Find when the agent last spoke
+            num_messages_to_scan = 0
+            for message in reversed(messages):
+                if "role" not in message:
+                    break
+                elif message["role"] != "user":
+                    break
+                else:
+                    num_messages_to_scan += 1
+        num_messages_to_scan = min(len(messages), num_messages_to_scan)
+        messages_to_scan = messages[-num_messages_to_scan:]
+
+        assert len(messages_to_scan) == 1, "Only one message should be passed to the code executor."
+        # iterate through the last n messages in reverse
+        # if code blocks are found, execute the code blocks and return the output
+        # if no code blocks are found, continue
+        for message in reversed(messages_to_scan):
+            if not message["content"]:
+                continue
+            code_blocks = self._code_executor.code_extractor.extract_code_blocks(message["content"])
+            if len(code_blocks) == 0:
+                # force immediate termination regardless of what LLM generates
+                self._is_termination_msg = lambda x: True
+                return True, self.final_answer_guidelines()
+
+            num_code_blocks = len(code_blocks)
+            if num_code_blocks == 1:
+                iostream.print(
+                    colored(
+                        f"\n\n**EXECUTING CODE BLOCK (inferred language is {code_blocks[0].language})**\n\n",
+                        "red",
+                    ),
+                    flush=True,
+                )
+            else:
+                iostream.print(
+                    colored(
+                        f"\n\n**EXECUTING {num_code_blocks} CODE BLOCKS (inferred languages are [{', '.join([x.language for x in code_blocks])}])**\n\n",
+                        "red",
+                    ),
+                    flush=True,
+                )
+
+            # found code blocks, execute code.
+            code_result = self._code_executor.execute_code_blocks(code_blocks)
+            exitcode2str = "execution succeeded" if code_result.exit_code == 0 else "execution failed"
+            return True, f"exitcode: {code_result.exit_code} ({exitcode2str})\nCode output: {code_result.output}"
+
+        return False, None
+
+    @staticmethod
+    def final_answer_guidelines() -> str:
+        return """
+You should terminate the chat with your final answer.
+<final_answer_guidelines>
+* You should give a well-structured and complete answer, insights gained, and recommendations suggested.
+* Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
+* If no good answer was found, discuss the failures, give insights, and provide recommendations.
+* If the user was asking you to write codes, make sure to provide the non-executable code block in the final answer.
+* If the user was asking for images and images were made, you must add them as inline markdown using ![image](filename.png).
+* If possible, use well-structured markdown as table of results or lists to make it more readable and easy to follow.
+* If you have given a <constrained_output> response, please repeat that.
+* You must give a very brief natural language title near the end of your response about your final answer and put that title inside <turn_title> </turn_title> XML tags.
+* Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
+</final_answer_guidelines>
+"""
 
 
 class H2OGroupChatManager(GroupChatManager):

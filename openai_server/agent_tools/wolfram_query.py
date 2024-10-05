@@ -69,7 +69,8 @@ def extract_and_save_images(query, app_id, output_dir):
                         print(f"  Error downloading {image_url}: {e}")
         print("</detailed_results>")
     else:
-        print("Script ran, but query was not successful. Please try a simpler input (e.g. instead of 'plot rule 30', just say 'rule 30') and try again.")
+        print(
+            "Script ran, but query was not successful. Please try a simpler input (e.g. instead of 'plot rule 30', just say 'rule 30') and try again.")
         print("Error: ", res['@error'])
 
     return saved_files

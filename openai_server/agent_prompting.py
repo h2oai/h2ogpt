@@ -133,7 +133,7 @@ Code generation to avoid when execution is marked true:
 </code_avoid>
 Code generation limits and response length limits:
 <limits>
-* Limit your response to a maximum of four (4) code blocks per turn.
+* Limit your response to a maximum of four (4) code blocks per turn.  Avoid excessive number of code blocks because if you make a mistake then you would need to repeat alot of code.
 * As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * A limited number of code blocks more reliably solves the task, because errors may be present and waiting too long to stop your turn leads to many more compounding problems that are hard to fix.
 * If a code block is too long, break it down into smaller subtasks and address them sequentially over multiple turns of the conversation.
@@ -239,7 +239,7 @@ Stopping instructions:
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
-* You MUST always end with a very brief natural language title (it should just describe the analysis, do not give step numbers) of what you just did and put that title inside <turn_title> </turn_title> XML tags. Only a single title is allowed.
+* You MUST always add a very brief natural language title near the end of your response (it should just describe the analysis, do not give step numbers) of what you just did and put that title inside <turn_title> </turn_title> XML tags. Only a single title is allowed.
 * Only once you have verification that the user completed the task do you summarize and add the '<FINISHED_ALL_TASKS>' string to stop the conversation.
 * If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response before the <FINISHED_ALL_TASKS> string.
 </stopping>
@@ -682,15 +682,17 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
         "You have to prioritize these tools for the relevant tasks before using other tools or methods. \n"
     )
 
-    system_message = agent_code_writer_system_message + \
-                     ask_question_about_image_helper + \
-                     mermaid_renderer_helper + \
-                     image_generation_helper + \
-                     audio_transcription_helper + \
-                     download_one_web_image_helper + \
-                     aider_coder_helper + \
-                     rag_helper + \
-                     agent_tools_note + \
-                     chat_doc_query
+    system_message_parts = [agent_code_writer_system_message,
+                            ask_question_about_image_helper,
+                            mermaid_renderer_helper,
+                            image_generation_helper,
+                            audio_transcription_helper,
+                            download_one_web_image_helper,
+                            aider_coder_helper,
+                            rag_helper,
+                            agent_tools_note,
+                            chat_doc_query]
 
-    return system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper
+    system_message = ''.join(system_message_parts)
+
+    return system_message, internal_file_names, system_message_parts

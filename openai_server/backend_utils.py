@@ -95,7 +95,7 @@ def convert_messages_to_structure(
         concat_tool=True,
         concat_assistant=False,
         concat_user=False
-        ):
+):
     """
     Convert a list of messages with roles and content into a structured format.
 

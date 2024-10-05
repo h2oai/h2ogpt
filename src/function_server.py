@@ -173,7 +173,7 @@ def execute_function(request: FunctionRequest):
 def do_check(in_finally=False):
     health_result = check_some_conditions()
     if not health_result:
-        print("Health check failed! Terminating without cleanup (to avoid races) %s..."% in_finally)
+        print("Health check failed! Terminating without cleanup (to avoid races) %s..." % in_finally)
         if os.getenv('multiple_workers_gunicorn'):
             os._exit(1)
 
@@ -191,6 +191,7 @@ if state_checks:
                 print("Checking health...")
             await asyncio.sleep(120)  # Wait for 2 minutes between checks
             do_check(in_finally=False)
+
 
     def check_some_conditions():
         # Replace with actual health check logic

@@ -94,7 +94,7 @@ def run_autogen_2agent(query=None,
         print("base_url: %s" % base_url)
         print("max_tokens: %s" % max_new_tokens)
 
-    system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper = \
+    system_message, internal_file_names, system_message_parts = \
         get_full_system_prompt(agent_code_writer_system_message,
                                agent_system_site_packages, system_prompt,
                                base_url,
@@ -102,6 +102,7 @@ def run_autogen_2agent(query=None,
                                temp_dir, query, autogen_timeout)
 
     enable_caching = True
+
     def code_writer_terminate_func(msg):
         # In case code_writer_agent just passed a chatty answer without <FINISHED_ALL_TASKS> mentioned,
         # then code_executor will return empty string as response (since there was no code block to execute).
@@ -159,7 +160,7 @@ def run_autogen_2agent(query=None,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
-                                             chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper,
+                                             system_message_parts,
                                              autogen_code_restrictions_level, autogen_silent_exchange)
 
     return ret_dict
