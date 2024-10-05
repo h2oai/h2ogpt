@@ -102,7 +102,7 @@ h2ogpt:
     type: NodePort
     webPort: 80
     openaiPort: 5000
-    functionPort: 5003
+    functionPort: 5002
     agentsPort: 5004
     gptPort: 8888
     webServiceAnnotations: {}
