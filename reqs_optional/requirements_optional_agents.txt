@@ -72,3 +72,8 @@ tzlocal
 
 # for plots
 seaborn
+
+# Aider tool
+# installs old tokenizers 0.19.1 due to litellm even if don't care
+# So only install in steps in linux_install.sh for now
+# aider-chat>=0.59.0

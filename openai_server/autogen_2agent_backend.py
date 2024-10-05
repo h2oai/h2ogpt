@@ -99,7 +99,7 @@ def run_autogen_2agent(query=None,
                                agent_system_site_packages, system_prompt,
                                base_url,
                                api_key, model, text_context_list, image_file,
-                               temp_dir, query)
+                               temp_dir, query, autogen_timeout)
 
     enable_caching = True
     def code_writer_terminate_func(msg):
