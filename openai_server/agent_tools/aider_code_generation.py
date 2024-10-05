@@ -39,6 +39,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="aider_output", help="Directory for output files")
     parser.add_argument("--prompt", type=str, required=True, help="Prompt for the coding task")
     parser.add_argument("--max_time", type=int, default=default_max_time, help="Maximum time in seconds for API calls")
+    parser.add_argument("--verbose", action="store_true", help="Show verbose output")
     args = parser.parse_args()
 
     # Ensure output directory exists
@@ -96,7 +97,8 @@ def main():
     with open(output_file, "w") as f:
         f.write(output)
 
-    print(f"Task completed. Output saved to {output_file}")
+    if args.verbose:
+        print(f"Task completed. Output saved to {output_file}")
 
 
 if __name__ == "__main__":
