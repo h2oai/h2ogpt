@@ -1,5 +1,7 @@
 import ast
+import json
 import os
+import pickle
 import sys
 import tempfile
 import time
@@ -320,15 +322,21 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
             meta_data_images.append(metadata)
 
     if text_context_list:
+        # setup baseline call for ask_question_about_documents.py
+        with open("text_context_list.txt", "wt") as f:
+            f.write("\n".join(text_context_list))
+        with open("chat_conversation.json", "wt") as f:
+            f.write(json.dumps(chat_conversation or []))
+        with open("system_prompt.txt", "wt") as f:
+            f.write(system_prompt or '')
+        with open("b2imgs.txt", "wt") as f:
+            f.write("\n".join(b2imgs))
+        os.environ['H2OGPT_RAG_TEXT_CONTEXT_LIST'] = os.path.abspath("text_context_list.txt")
+        os.environ['H2OGPT_RAG_CHAT_CONVERSATION'] = os.path.abspath("chat_conversation.json")
+        os.environ['H2OGPT_RAG_SYSTEM_PROMPT'] = os.path.abspath("system_prompt.txt")
+        os.environ['H2OGPT_RAG_IMAGES'] = os.path.abspath("b2imgs.txt")
 
-        standard_answer = get_standard_answer(prompt, text_context_list, image_file=image_file,
-                                              chat_conversation=chat_conversation, model=model,
-                                              system_prompt=system_prompt, max_time=120)
-        if standard_answer:
-            document_context += "\nThe below is an unverified answer, you should not assume it is correct but need to research documents, news, etc. to verify it step-by-step.  Come up with the best answer to the user's question:\n<unverified_answer>\n" + standard_answer + "\n</unverified_answer>\n\n"
-        else:
-            document_context += "\nNo unverified answer was generated.  You should research documents, news, etc. to verify the user's question and come up with the best answer.\n\n"
-
+        # setup general validation part of RAG
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
         meta_results = [generate_unique_filename(x) for x in meta_datas]
         file_names, cleaned_names, pages = zip(*meta_results)
@@ -347,13 +355,13 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         document_context += f"""<task>
 * User has provided you documents in the following files.
 * Please use these files help answer their question.
-* You must verify, refine, clarify, and enhance the unverified answer using the user text files or images.{web_query}
-* You absolutely must read step-by step every single user file and image in order to verify the unverified answer.  Do not skip any text files or images.  Do not read all files or images at once, but read no more than 5 text files each turn.
-* Your job is to critique the unverified answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
+* You must verify, refine, clarify, and enhance the simple_rag_answer answer using the user text files or images.{web_query}
+* You absolutely must read step-by step every single user file and image in order to verify the simple_rag_answer answer.  Do not skip any text files or images.  Do not read all files or images at once, but read no more than 5 text files each turn.
+* Your job is to critique the simple_rag_answer answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
 * Ensure your final response not only answers the question, but also give relevant key insights or details.
 * Ensure to include not just words but also key numerical metrics.
 * Give citations and quotations that ground and validate your responses.
-* REMEMBER: Do not just repeat the unverified answer.  You must verify, refine, clarify, and enhance it.
+* REMEMBER: Do not just repeat the simple_rag_answer answer.  You must verify, refine, clarify, and enhance it.
 </task>
 """
         document_context += f"""\n# Full user text:
@@ -413,49 +421,6 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
 
     return chat_doc_query, internal_file_names
-
-
-def get_standard_answer(prompt, text_context_list, image_file=None, chat_conversation=None, model=None,
-                        system_prompt=None, max_time=120):
-    base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
-    assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
-    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
-
-    from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key=server_api_key, timeout=max_time)
-
-    messages = structure_to_messages(prompt, system_prompt, chat_conversation, image_file)
-
-    temperature = 0
-    max_tokens = 1024
-    stream_output = True
-
-    responses = client.chat.completions.create(
-        messages=messages,
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=stream_output,
-        extra_body=dict(text_context_list=text_context_list),
-    )
-    from autogen.io import IOStream
-    iostream = IOStream.get_default()
-    text = ''
-    tgen0 = time.time()
-    verbose = True
-    iostream.print("#### Pre-Agentic Answer:\n\n")
-    for chunk in responses:
-        delta = chunk.choices[0].delta.content if chunk.choices else None
-        if delta:
-            text += delta
-            iostream.print(delta)
-        if time.time() - tgen0 > max_time:
-            if verbose:
-                print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
-                      flush=True)
-            break
-    iostream.print("\nENDOFTURN\n")
-    return text
 
 
 def get_ask_question_about_image_helper(base_url, api_key, model):
@@ -644,12 +609,42 @@ def get_aider_coder_helper(base_url, api_key, model, autogen_timeout):
 # execution: true
 python {cwd}/openai_server/agent_tools/aider_code_generation.py --prompt "PROMPT" [--files FILES [FILES ...]]
 ```
-* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--files FILES [FILES ...]]
+* usage: {cwd}/openai_server/agent_tools/aider_code_generation.py [-h] --prompt PROMPT [--files FILES [FILES ...]]
 * aider_code_generation outputs code diffs and applies changes to input files.
 * Absolutely only use aider_code_generation if user specifically asks for aider to be used in the original user prompt.
 * Ensure your prompt specifies desired the output file name if creating new files.
 """
     return aider_coder_helper
+
+
+def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
+    model_list = client.models.list()
+    assert model in [x.id for x in model_list], "Model must be in the list of models"
+
+    # e.g. for Aider tool to know which model to use
+    os.environ['H2OGPT_AGENT_OPENAI_MODEL'] = model
+    os.environ['H2OGPT_AGENT_OPENAI_TIMEOUT'] = str(autogen_timeout)
+
+    cwd = os.path.abspath(os.getcwd())
+    rag_helper = f"""\n# Get response to prompt with RAG (Retrieve Augmented Generation) using documents:
+* If you need to to query many (or large) document text-based files, use the following sh code:
+```sh
+# filename: my_question_about_documents.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt "PROMPT" [--files FILES [FILES ...]]
+```
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --prompt PROMPT [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
+* ask_question_about_documents outputs an answer to the prompt for the given files.
+* Files can be text files with possible additional image files.
+* Do not use ask_question_about_documents just to query individual images, use ask_question_about_image for that.
+* Each line in the text file is considered as a separate chunk, and the first chunks should be most important.  Use explicit \\n if new lines required within a chunk.
+"""
+    if text_context_list or image_file:
+        rag_helper += "* Absolutely you should always run ask_question_about_documents once with -b to get a baseline answer if the user has provided documents.\n"
+
+    return rag_helper
 
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
@@ -663,7 +658,9 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     audio_transcription_helper = get_audio_transcription_helper()
     download_one_web_image_helper = get_download_one_web_image_helper()
     # FIXME: allow LLM to decide
-    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout) if 'aider' in query.lower() else ''
+    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model,
+                                                autogen_timeout) if 'aider' in query.lower() else ''
+    rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -694,6 +691,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                      audio_transcription_helper + \
                      download_one_web_image_helper + \
                      aider_coder_helper + \
+                     rag_helper + \
                      agent_tools_note + \
                      chat_doc_query
 
