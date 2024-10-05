@@ -294,8 +294,6 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
         ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
     if agent_system_site_packages is not None:
         ret_dict.update(dict(agent_system_site_packages=agent_system_site_packages))
-    if chat_doc_query:
-        ret_dict.update(dict(chat_doc_query=chat_doc_query))
     if system_message_parts:
         ret_dict.update(dict(helpers=system_message_parts))
     ret_dict.update(dict(autogen_code_restrictions_level=autogen_code_restrictions_level))
