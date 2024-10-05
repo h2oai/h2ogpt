@@ -603,11 +603,12 @@ def get_audio_transcription_helper():
         audio_transcription = ''
     return audio_transcription
 
+
 def get_download_one_web_image_helper():
     # check if SERPAPI_API_KEY env variable is provided if not, return empty string
     if not os.getenv("SERPAPI_API_KEY"):
         return ""
-    
+
     cwd = os.path.abspath(os.getcwd())
     image_download = f"""\n
 * Download One Web Image should be used for downloading images from the web/internet, one at a time.
@@ -624,8 +625,35 @@ python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to
 """
     return image_download
 
+
+def get_aider_coder_helper(base_url, api_key, model, autogen_timeout):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
+    model_list = client.models.list()
+    assert model in [x.id for x in model_list], "Model must be in the list of models"
+
+    # e.g. for Aider tool to know which model to use
+    os.environ['H2OGPT_AGENT_OPENAI_MODEL'] = model
+    os.environ['H2OGPT_AGENT_OPENAI_TIMEOUT'] = str(autogen_timeout)
+
+    cwd = os.path.abspath(os.getcwd())
+    aider_coder_helper = f"""\n# Get coding assistance and apply to input files:
+* If you need to change coding file(s) or create one, use the following sh code:
+```sh
+# filename: my_aider_coder.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/aider_code_generation.py --prompt "PROMPT" [--files FILES [FILES ...]]
+```
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--files FILES [FILES ...]]
+* aider_code_generation outputs code diffs and applies changes to input files.
+* Absolutely only use aider_code_generation if user specifically asks for aider to be used in the original user prompt.
+* Ensure your prompt specifies desired the output file name if creating new files.
+"""
+    return aider_coder_helper
+
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
-                           api_key, model, text_context_list, image_file, temp_dir, query):
+                           api_key, model, text_context_list, image_file, temp_dir, query, autogen_timeout):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
                                                            agent_system_site_packages)
 
@@ -634,6 +662,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
     download_one_web_image_helper = get_download_one_web_image_helper()
+    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout)
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -651,7 +680,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     agent_tools_note = (
         f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir} "
         "You have to prioritize these tools for the relevant tasks before using other tools or methods. \n"
-        )
+    )
 
     system_message = agent_code_writer_system_message + ask_question_about_image_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + download_one_web_image_helper + agent_tools_note + chat_doc_query
     return system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper
