@@ -232,7 +232,9 @@ pip install https://h2o-release.s3.amazonaws.com/h2ogpt/duckdb-0.8.2.dev4025%2Bg
 #
 pip install -r reqs_optional/requirements_optional_agents.txt -c reqs_optional/reqs_constraints.txt
 #  For more info see [SERP Docs](README_SerpAPI.md).
-
+pip install aider-chat
+# now fix
+pip install transformers -U -c reqs_optional/reqs_constraints.txt
 
 # https://github.com/h2oai/h2ogpt/issues/1483
 pip uninstall flash_attn autoawq autoawq-kernels -y
