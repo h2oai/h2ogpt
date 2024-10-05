@@ -133,7 +133,7 @@ Code generation to avoid when execution is marked true:
 </code_avoid>
 Code generation limits and response length limits:
 <limits>
-* Limit your response to a maximum of four (4) code blocks per turn.
+* Limit your response to a maximum of four (4) code blocks per turn.  Avoid excessive number of code blocks because if you make a mistake then you would need to repeat alot of code.
 * As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * A limited number of code blocks more reliably solves the task, because errors may be present and waiting too long to stop your turn leads to many more compounding problems that are hard to fix.
 * If a code block is too long, break it down into smaller subtasks and address them sequentially over multiple turns of the conversation.
