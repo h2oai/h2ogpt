@@ -662,7 +662,8 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
     download_one_web_image_helper = get_download_one_web_image_helper()
-    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout)
+    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model,
+                                                autogen_timeout) if 'aider' in query or 'Aider' in query else ''
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -682,5 +683,14 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
         "You have to prioritize these tools for the relevant tasks before using other tools or methods. \n"
     )
 
-    system_message = agent_code_writer_system_message + ask_question_about_image_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + download_one_web_image_helper + agent_tools_note + chat_doc_query
+    system_message = agent_code_writer_system_message + \
+                     ask_question_about_image_helper + \
+                     mermaid_renderer_helper + \
+                     image_generation_helper + \
+                     audio_transcription_helper + \
+                     download_one_web_image_helper + \
+                     aider_coder_helper + \
+                     agent_tools_note + \
+                     chat_doc_query
+
     return system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper
