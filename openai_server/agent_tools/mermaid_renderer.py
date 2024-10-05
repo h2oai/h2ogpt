@@ -76,7 +76,7 @@ def render_mermaid(mermaid_code, output_file, format='svg'):
             base_name = '.'.join(output_file.split('.')[:-1])
             output_file_png = base_name + '.png'
             # FIXME: Would be best to optimize for aspect ratio in choosing -w or -H
-            cmd = ['mmdc', '-i', temp_path, '-o', output_file_png, '-f', 'png', '-w', '2048']
+            cmd = ['mmdc', '-i', temp_path, '-o', output_file_png, '-f', 'png', '-w', '2048', '-p', config_file]
 
             # Run the mmdc command
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
