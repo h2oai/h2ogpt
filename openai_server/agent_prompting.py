@@ -1,8 +1,8 @@
 import ast
+import json
 import os
 import sys
 import tempfile
-import time
 import uuid
 
 from openai_server.agent_utils import get_have_internet, current_datetime
@@ -106,7 +106,7 @@ Code generation instructions:
 * Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks and a python or sh language tag.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
 * If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.
-  * Give a correct file extension to the filename.  The only valid extensions for <filename> are .py or .sh
+  * Give a correct file extension to the filename used for # filename: <filename>.  The only valid extensions for <filename> are .py or .sh
   * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
   * Check the execution result returned by the user.
   * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
@@ -144,6 +144,7 @@ Code error handling
 <error_handling>
 * If the result indicates there is an error, fix the error and output the code again. Suggest the full code instead of partial code or code changes, following all the normal code generation rules mentioned above.
 * If the error can't be fixed or if the task is not solved even after the code is executed successfully, analyze the problem, revisit your assumption, collect additional info you need, and think of a different approach to try.
+* When fixing errors, remember if you have already written a file that does not need correction, and you had already had the # filename <filename> tag, you do not need to regenerate that file when handling the exception.
 </error_handling>
 Example python packages or useful sh commands:
 <usage>
@@ -238,6 +239,7 @@ Stopping instructions:
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
+* You MUST always end with a very brief natural language title (it should just describe the analysis, do not give step numbers) of what you just did and put that title inside <turn_title> </turn_title> XML tags. Only a single title is allowed.
 * Only once you have verification that the user completed the task do you summarize and add the '<FINISHED_ALL_TASKS>' string to stop the conversation.
 * If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response before the <FINISHED_ALL_TASKS> string.
 </stopping>
@@ -318,15 +320,21 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
             meta_data_images.append(metadata)
 
     if text_context_list:
+        # setup baseline call for ask_question_about_documents.py
+        with open("text_context_list.txt", "wt") as f:
+            f.write("\n".join(text_context_list))
+        with open("chat_conversation.json", "wt") as f:
+            f.write(json.dumps(chat_conversation or []))
+        with open("system_prompt.txt", "wt") as f:
+            f.write(system_prompt or '')
+        with open("b2imgs.txt", "wt") as f:
+            f.write("\n".join(b2imgs))
+        os.environ['H2OGPT_RAG_TEXT_CONTEXT_LIST'] = os.path.abspath("text_context_list.txt")
+        os.environ['H2OGPT_RAG_CHAT_CONVERSATION'] = os.path.abspath("chat_conversation.json")
+        os.environ['H2OGPT_RAG_SYSTEM_PROMPT'] = os.path.abspath("system_prompt.txt")
+        os.environ['H2OGPT_RAG_IMAGES'] = os.path.abspath("b2imgs.txt")
 
-        standard_answer = get_standard_answer(prompt, text_context_list, image_file=image_file,
-                                              chat_conversation=chat_conversation, model=model,
-                                              system_prompt=system_prompt, max_time=120)
-        if standard_answer:
-            document_context += "\nThe below is an unverified answer, you should not assume it is correct but need to research documents, news, etc. to verify it step-by-step.  Come up with the best answer to the user's question:\n<unverified_answer>\n" + standard_answer + "\n</unverified_answer>\n\n"
-        else:
-            document_context += "\nNo unverified answer was generated.  You should research documents, news, etc. to verify the user's question and come up with the best answer.\n\n"
-
+        # setup general validation part of RAG
         meta_datas = [extract_xml_tags(x) for x in text_context_list]
         meta_results = [generate_unique_filename(x) for x in meta_datas]
         file_names, cleaned_names, pages = zip(*meta_results)
@@ -345,13 +353,13 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         document_context += f"""<task>
 * User has provided you documents in the following files.
 * Please use these files help answer their question.
-* You must verify, refine, clarify, and enhance the unverified answer using the user text files or images.{web_query}
-* You absolutely must read step-by step every single user file and image in order to verify the unverified answer.  Do not skip any text files or images.  Do not read all files or images at once, but read no more than 5 text files each turn.
-* Your job is to critique the unverified answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
+* You must verify, refine, clarify, and enhance the simple_rag_answer answer using the user text files or images.{web_query}
+* You absolutely must read step-by step every single user file and image in order to verify the simple_rag_answer answer.  Do not skip any text files or images.  Do not read all files or images at once, but read no more than 5 text files each turn.
+* Your job is to critique the simple_rag_answer answer and step-by-step determine a better response.  Do not assume the unverified answer is correct.
 * Ensure your final response not only answers the question, but also give relevant key insights or details.
 * Ensure to include not just words but also key numerical metrics.
 * Give citations and quotations that ground and validate your responses.
-* REMEMBER: Do not just repeat the unverified answer.  You must verify, refine, clarify, and enhance it.
+* REMEMBER: Do not just repeat the simple_rag_answer answer.  You must verify, refine, clarify, and enhance it.
 </task>
 """
         document_context += f"""\n# Full user text:
@@ -411,49 +419,6 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
 
     return chat_doc_query, internal_file_names
-
-
-def get_standard_answer(prompt, text_context_list, image_file=None, chat_conversation=None, model=None,
-                        system_prompt=None, max_time=120):
-    base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
-    assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
-    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
-
-    from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key=server_api_key, timeout=max_time)
-
-    messages = structure_to_messages(prompt, system_prompt, chat_conversation, image_file)
-
-    temperature = 0
-    max_tokens = 1024
-    stream_output = True
-
-    responses = client.chat.completions.create(
-        messages=messages,
-        model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=stream_output,
-        extra_body=dict(text_context_list=text_context_list),
-    )
-    from autogen.io import IOStream
-    iostream = IOStream.get_default()
-    text = ''
-    tgen0 = time.time()
-    verbose = True
-    iostream.print("#### Pre-Agentic Answer:\n\n")
-    for chunk in responses:
-        delta = chunk.choices[0].delta.content if chunk.choices else None
-        if delta:
-            text += delta
-            iostream.print(delta)
-        if time.time() - tgen0 > max_time:
-            if verbose:
-                print("Took too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
-                      flush=True)
-            break
-    iostream.print("\nENDOFTURN\n")
-    return text
 
 
 def get_ask_question_about_image_helper(base_url, api_key, model):
@@ -614,9 +579,9 @@ def get_download_one_web_image_helper():
 ```sh
 # filename: my_image_download.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --file "file_name.jpg"
+python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --output "file_name.jpg"
 ```
-* usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --file "FILE_NAME"
+* usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
 * The download_one_web_image tool uses the Google Search API to download one image at a time from the web based on passed text.
 * The download_one_web_image tool has to be your first option for downloading images from the web.
 
@@ -624,8 +589,64 @@ python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to
     return image_download
 
 
+def get_aider_coder_helper(base_url, api_key, model, autogen_timeout):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
+    model_list = client.models.list()
+    assert model in [x.id for x in model_list], "Model must be in the list of models"
+
+    # e.g. for Aider tool to know which model to use
+    os.environ['H2OGPT_AGENT_OPENAI_MODEL'] = model
+    os.environ['H2OGPT_AGENT_OPENAI_TIMEOUT'] = str(autogen_timeout)
+
+    cwd = os.path.abspath(os.getcwd())
+    aider_coder_helper = f"""\n# Get coding assistance and apply to input files:
+* If you need to change coding file(s) or create one, use the following sh code:
+```sh
+# filename: my_aider_coder.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/aider_code_generation.py --prompt "PROMPT" [--files FILES [FILES ...]]
+```
+* usage: {cwd}/openai_server/agent_tools/aider_code_generation.py [-h] --prompt PROMPT [--files FILES [FILES ...]]
+* aider_code_generation outputs code diffs and applies changes to input files.
+* Absolutely only use aider_code_generation if user specifically asks for aider to be used in the original user prompt.
+* Ensure your prompt specifies desired the output file name if creating new files.
+"""
+    return aider_coder_helper
+
+
+def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file):
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
+    model_list = client.models.list()
+    assert model in [x.id for x in model_list], "Model must be in the list of models"
+
+    # e.g. for Aider tool to know which model to use
+    os.environ['H2OGPT_AGENT_OPENAI_MODEL'] = model
+    os.environ['H2OGPT_AGENT_OPENAI_TIMEOUT'] = str(autogen_timeout)
+
+    cwd = os.path.abspath(os.getcwd())
+    rag_helper = f"""\n# Get response to prompt with RAG (Retrieve Augmented Generation) using documents:
+* If you need to to query many (or large) document text-based files, use the following sh code:
+```sh
+# filename: my_question_about_documents.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt "PROMPT" [--files FILES [FILES ...]]
+```
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --prompt PROMPT [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
+* ask_question_about_documents outputs an answer to the prompt for the given files.
+* Files can be text files with possible additional image files.
+* Do not use ask_question_about_documents just to query individual images, use ask_question_about_image for that.
+* Each line in the text file is considered as a separate chunk, and the first chunks should be most important.  Use explicit \\n if new lines required within a chunk.
+"""
+    if text_context_list or image_file:
+        rag_helper += "* Absolutely you should always run ask_question_about_documents once with -b to get a baseline answer if the user has provided documents.\n"
+
+    return rag_helper
+
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
-                           api_key, model, text_context_list, image_file, temp_dir, query):
+                           api_key, model, text_context_list, image_file, temp_dir, query, autogen_timeout):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
                                                            agent_system_site_packages)
 
@@ -634,6 +655,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
     download_one_web_image_helper = get_download_one_web_image_helper()
+    # FIXME: allow LLM to decide
+    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model,
+                                                autogen_timeout) if 'aider' in query.lower() else ''
+    rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -647,11 +672,27 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     path_agent_tools = f'{cwd}/openai_server/agent_tools/'
     list_dir = os.listdir('openai_server/agent_tools')
     list_dir = [x for x in list_dir if not x.startswith('__')]
+    list_dir = [x for x in list_dir if not x.endswith('.pyc')]
+    if 'aider' not in query.lower():
+        # FIXME: allow LLM to decide
+        list_dir = [x for x in list_dir if 'aider_code_generation.py' not in x]
 
     agent_tools_note = (
         f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir} "
         "You have to prioritize these tools for the relevant tasks before using other tools or methods. \n"
     )
 
-    system_message = agent_code_writer_system_message + ask_question_about_image_helper + mermaid_renderer_helper + image_generation_helper + audio_transcription_helper + download_one_web_image_helper + agent_tools_note + chat_doc_query
-    return system_message, internal_file_names, chat_doc_query, ask_question_about_image_helper, mermaid_renderer_helper
+    system_message_parts = [agent_code_writer_system_message,
+                            ask_question_about_image_helper,
+                            mermaid_renderer_helper,
+                            image_generation_helper,
+                            audio_transcription_helper,
+                            download_one_web_image_helper,
+                            aider_coder_helper,
+                            rag_helper,
+                            agent_tools_note,
+                            chat_doc_query]
+
+    system_message = ''.join(system_message_parts)
+
+    return system_message, internal_file_names, chat_doc_query, system_message_parts

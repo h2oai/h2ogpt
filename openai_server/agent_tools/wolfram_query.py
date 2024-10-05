@@ -81,7 +81,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Extract and save images and text from Wolfram Alpha based on a query.")
     parser.add_argument("-q", "--query", type=str, required=True, help="The query to send to Wolfram Alpha")
-    parser.add_argument("-o", "--output", default="wolfram_images",
+    parser.add_argument("-o", "--output", "--file", default="wolfram_images",
                         help="Output directory for saved images (default: wolfram_images)")
     parser.add_argument("-a", "--appid", help="Your Wolfram Alpha App ID")
 

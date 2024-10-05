@@ -21,7 +21,7 @@ def setup_argparse():
     parser.add_argument("-a", "--author", type=str, help="Filter by author name")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print full abstracts")
     parser.add_argument("-d", "--download", action="store_true", help="Attempt to download PDFs")
-    parser.add_argument("-o", "--output", type=str, default="papers", help="Output directory for downloaded PDFs")
+    parser.add_argument("-o", "--output", "--file", type=str, default="papers", help="Output directory for downloaded PDFs")
     parser.add_argument("-j", "--json", action="store_true", help="Output results as JSON")
     parser.add_argument("-r", "--references", type=int, default=0,
                         help="Number of references to include (Semantic Scholar only)")

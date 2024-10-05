@@ -3,7 +3,6 @@ import base64
 import os
 import argparse
 import sys
-import tempfile
 import uuid
 
 
@@ -11,7 +10,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generate images from text prompts")
     parser.add_argument("--prompt", type=str, required=True, help="User prompt")
     parser.add_argument("--model", type=str, required=False, help="Model name")
-    parser.add_argument("--output", type=str, required=False, default="", help="Name (unique) of the output file")
+    parser.add_argument("--output", "--file", type=str, required=False, default="",
+                        help="Name (unique) of the output file")
     parser.add_argument("--quality", type=str, required=False, choices=['standard', 'hd', 'quick', 'manual'],
                         default='standard',
                         help="Image quality")

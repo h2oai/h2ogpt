@@ -210,11 +210,14 @@ spec:
             - name: gpt
               containerPort: 8888
               protocol: TCP
-            - name: agent
-              containerPort: 5004
-              protocol: TCP
             - name: openai
               containerPort: 5000
+              protocol: TCP
+            - name: function
+              containerPort: 5002
+              protocol: TCP
+            - name: agent
+              containerPort: 5004
               protocol: TCP
           {{- if .Values.h2ogpt.livenessProbe }}
           livenessProbe:

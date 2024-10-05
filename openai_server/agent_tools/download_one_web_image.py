@@ -69,8 +69,8 @@ def main():
 
     parser = argparse.ArgumentParser(description="Download one image from the web based on a search text")
     parser.add_argument("--text", type=str, required=True, help="The text to search for")
-    # file
-    parser.add_argument("--file", type=str, help="The file name to save the image to")
+    #file
+    parser.add_argument("--output", "--file", type=str, help="The file name to save the image to")
     args = parser.parse_args()
     download_image(text=args.text, file=args.file)
 

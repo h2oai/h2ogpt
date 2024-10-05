@@ -95,7 +95,7 @@ def run_autogen_multi_agent(query=None,
                                agent_system_site_packages, system_prompt,
                                base_url,
                                api_key, model, text_context_list, image_file,
-                               temp_dir, query)
+                               temp_dir, query, autogen_timeout)
     # Prepare the LLM config for the agents
     extra_body = {
         "agent_type": agent_type,  # autogen_multi_agent

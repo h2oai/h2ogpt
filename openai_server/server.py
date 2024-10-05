@@ -601,6 +601,7 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
                 response = resp
             return JSONResponse(response)
         except Exception as e:
+            traceback.print_exc()
             # For non-streaming responses, we'll return a JSON error response
             raise HTTPException(status_code=500, detail={
                 "error": {

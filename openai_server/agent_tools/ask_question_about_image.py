@@ -61,7 +61,7 @@ def main():
     parser.add_argument("-m", "--model", type=str, help="OpenAI or Open Source model to use")
     parser.add_argument("-T", "--temperature", type=float, default=0.0, help="Temperature for the model")
     parser.add_argument("--max_tokens", type=int, default=1024, help="Maximum tokens for the model")
-    parser.add_argument("--stream_output", type=bool, help="Whether to stream output", default=True)
+    parser.add_argument("--stream_output", help="Whether to stream output", default=True, action='store_true')
     parser.add_argument("--max_time", type=float, default=60, help="Maximum time to wait for response")
 
     args = parser.parse_args()
