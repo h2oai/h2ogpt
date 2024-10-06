@@ -762,8 +762,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     list_dir = [x for x in list_dir if not x.startswith('__')]
     list_dir = [x for x in list_dir if not x.endswith('.pyc')]
 
-    agent_tools_note = f""""\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"
-You have to prioritize these tools for the relevant tasks before using other tools or methods.
+    agent_tools_note = f"""\n# Agent tools notes:
+* Do not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"
+* You have to prioritize these tools for the relevant tasks before using other tools or methods.
+* If you use multiple tools or code blocks, stop and ENDOFTURN between code blocks that call tools, instead of hallucinating inputs to other tools.
 """
 
     system_message_parts = [agent_code_writer_system_message,
