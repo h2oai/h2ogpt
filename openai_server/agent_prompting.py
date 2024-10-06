@@ -106,7 +106,7 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
 * Get the current date/time or get the operating system type.
-* Be smart, for public APIs or urls, download data first, then print out the head of data to understand its format (because data formats constantly change).  Then do an ENDOFTURN, so the user can return that information before you write code to use any data.{apis}
+* Be smart, for public APIs or urls, download data first, then print out the head of data to understand its format (because data formats constantly change).  Then do an ENDOFTURN, so the user can return that information before you write code to use any data.
 </usage>
 Task solving instructions:
 <task>
