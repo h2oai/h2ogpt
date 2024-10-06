@@ -652,12 +652,12 @@ def get_download_web_video_helper():
 ```sh
 # filename: my_download_video.py
 # execution: true
-python {cwd}/download_web_video.py.py --video_url "VIDEO_URL" --base_url "https://www.youtube.com"
+python {cwd}/download_web_video.py --video_url "VIDEO_URL" --base_url "https://www.youtube.com"
 ```
-* usage: {cwd}/download_web_video.py.py [-h] --video_url VIDEO_URL --base_url BASE_URL
+* usage: {cwd}/download_web_video.py [-h] --video_url VIDEO_URL --base_url BASE_URL
 * The video_url is the URL of the video you want to download.
 * The base_url is the URL of the website where the video is hosted, defaults to "https://www.youtube.com".
-* download_web_video.py.py downloads a video from the given URL.
+* download_web_video.py downloads a video from the given URL.
 * The tool uses yt-dlp and can download videos from various platforms, not just YouTube.
 * List of other supported sites where videos can be downloaded is here: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
 """
