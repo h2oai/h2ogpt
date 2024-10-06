@@ -389,6 +389,7 @@ python {cwd}/openai_server/agent_tools/ask_question_about_image.py --prompt "PRO
 * ask_question_about_image gives a text response for either a URL or local file
 * ask_question_about_image can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
 * ask_question_about_image accepts most image files allowed by PIL (Pillow) except svg.
+* Important!  Vision APIs will fail for images larger than 1024x1024 because they internally use PNG, so resize images down to this size (regardless of file size) before using this tool.
 * Only use ask_question_about_image on key images or plots (e.g. plots meant to share back to the user or those that may be key in answering the user question).
 * If the user asks for a perfect image, use the ask_question_about_image tool only up to 6 times.  If the user asks for a very rough image, then do not use the ask_question_about_image tool at all.  If the user does not specify the quality of the image, then use the ask_question_about_image tool only up to 3 times.  If user asks for more uses of ask_question_about_image, then do as they ask.
 * Do not use plt.show() or plt.imshow() as the user cannot see that displayed, instead you must use this ask_question_about_image tool to critique or analyze images as a file.
