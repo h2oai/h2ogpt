@@ -645,6 +645,23 @@ python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt 
     return rag_helper
 
 
+def get_youtube_helper():
+    cwd = os.path.abspath(os.getcwd())
+    youtube_helper = f"""\n# Download Videos using the following Python script:
+* To download a video from YouTube or other supported platforms, use the following command:
+```sh
+# filename: my_download_video.py
+# execution: true
+python {cwd}/download_youtube_video.py --url "VIDEO_URL"
+```
+* usage: {cwd}/download_youtube_video.py [-h] --url URL
+* download_youtube_video.py downloads a video from the given URL.
+* The tool uses yt-dlp and can download videos from various platforms, not just YouTube.
+* List of other supported sites where videos can be downloaded is here: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
+"""
+    return youtube_helper
+
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query, autogen_timeout):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
@@ -659,6 +676,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     aider_coder_helper = get_aider_coder_helper(base_url, api_key, model,
                                                 autogen_timeout) if 'aider' in query.lower() else ''
     rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
+    youtube_helper = get_youtube_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -690,6 +708,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                             download_one_web_image_helper,
                             aider_coder_helper,
                             rag_helper,
+                            youtube_helper,
                             agent_tools_note,
                             chat_doc_query]
 
