@@ -514,18 +514,16 @@ def get_download_one_web_image_helper():
         return ""
 
     cwd = os.path.abspath(os.getcwd())
-    image_download = f"""\n
-* Download One Web Image should be used for downloading images from the web/internet, one at a time.
-* For downloading images from the web, you are recommended to use the existing pre-built python code, E.g.:
+    image_download = f"""\n# Google Image download from search query
+* For getting a single image from a search query, you can use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_download.sh
 # execution: true
 python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --output "file_name.jpg"
 ```
 * usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
-* The download_one_web_image tool uses the Google Search API to download one image at a time from the web based on passed text.
-* The download_one_web_image tool has to be your first option for downloading images from the web.
-
+* The download_one_web_image tool uses the Google Search API to download one image at a time from the web.
+* If already have an image URL, do not use this tool, just directly download the image via curl or requests.
 """
     return image_download
 
@@ -689,6 +687,7 @@ def get_bing_search_helper():
 python {cwd}/openai_server/agent_tools/bing_search.py -q "QUERY" -t web -l 5
 ```
 usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {{web,image,news,video}}] [-l LIMIT] [-m MARKET] [-f {{Day,Week,Month}}]
+* This Bing is highly preferred over the Google Image search query
 * Available search types (-t or --type):
   - web: General web search to find web content
   - image: Image search to find images

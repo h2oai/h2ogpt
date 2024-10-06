@@ -67,10 +67,10 @@ def main():
     parser.add_argument("--video_url", type=str, required=True, help="The URL of the actual video to download")
     parser.add_argument("--base_url", type=str, required=False, default="https://www.youtube.com",
                         help="The base website URL that has the video to download, e.g. https://www.youtube.com")
-    parser.add_argument("--output", type=str, default=".", help="The directory to save the downloaded video")
+    parser.add_argument("--output_dir", type=str, default=".", help="The directory to save the downloaded video")
     args = parser.parse_args()
 
-    download_web_video(video_url=args.video_url, base_url=args.base_url, output_dir=args.output)
+    download_web_video(video_url=args.video_url, base_url=args.base_url, output_dir=args.output_dir)
 
 
 if __name__ == "__main__":
