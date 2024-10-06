@@ -77,3 +77,20 @@ seaborn
 # installs old tokenizers 0.19.1 due to litellm even if don't care
 # So only install in steps in linux_install.sh for now
 # aider-chat>=0.59.0
+
+# bing api
+# https://github.com/microsoft/bing-search-sdk-for-python/tree/main
+msrest
+azure-core
+azure-common
+msrestazure
+microsoft-bing-websearch
+microsoft-bing-visualsearch
+microsoft-bing-videosearch
+microsoft-bing-imagesearch
+microsoft-bing-newssearch
+#microsoft-bing-spellcheck
+#microsoft-bing-entitysearch
+#microsoft-bing-autosuggest
+microsoft-bing-customimagesearch
+microsoft-bing-customwebsearch

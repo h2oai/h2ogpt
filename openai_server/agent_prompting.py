@@ -12,7 +12,6 @@ from openai_server.backend_utils import extract_xml_tags, generate_unique_filena
 
 def agent_system_prompt(agent_code_writer_system_message, agent_system_site_packages):
     if agent_code_writer_system_message is None:
-        cwd = os.path.abspath(os.getcwd())
         have_internet = get_have_internet()
         date_str = current_datetime()
 
@@ -28,65 +27,6 @@ def agent_system_prompt(agent_code_writer_system_message, agent_system_site_pack
                 extra_recommended_packages += """\n  * Web scraping: scrapy or lxml or httpx or selenium"""
         else:
             extra_recommended_packages = ""
-        if have_internet and os.getenv('SERPAPI_API_KEY'):
-            serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
-        else:
-            serp = ""
-        if have_internet and os.getenv('S2_API_KEY'):
-            # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
-            # https://github.com/allenai/s2-folks
-            papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find scientific papers (not news or financial information).
-    * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
-    ```sh
-    # execution: true
-    python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
-    ```
-    usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
-    * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDFs.
-    * Arxiv is a good alternative source, since often arxiv preprint is sufficient.
-"""
-        else:
-            papers_search = ""
-        if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
-            # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
-            # https://products.wolframalpha.com/api/documentation
-            wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
-    * In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
-    ```sh
-    # filename: my_wolfram_response.sh
-    # execution: true
-    python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
-    ```
-    * usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
-    * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
-"""
-        else:
-            wolframalpha = ""
-        if have_internet and os.getenv('NEWS_API_KEY'):
-            news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search through articles and blogs published in the last 5 years.
-    * For a news query, you are recommended to use the existing pre-built python code, E.g.:
-    ```sh
-    # filename: my_news_response.sh
-    # execution: true
-    python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY GOES HERE"
-    ```
-    * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
-    * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
-    * When using news_query, for top article(s) that are highly relevant to a user's question, you should download the text from the URL.
-"""
-        else:
-            news_api = ''
-        if have_internet:
-            apis = f"""\nAPIs and external services instructions:
-* You DO have access to the internet.{serp}{papers_search}{wolframalpha}{news_api}
-* Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
-* You may generate code with API code that uses publicly available APIs
-* You may generate code with APIs for API keys that have been mentioned in this overall message.
-* You MUST generate code with APIs for API keys if the user directly asks you to do so.  Do your best effort to figure out (from internet, documents, etc.) how to use the API to solve the user's task.  You are not allowed to refuse to use the API if the user asks you to use it."""
-        else:
-            apis = """\nAPIs and external services instructions:
-* You DO NOT have access to the internet.  You cannot use any APIs that require broad internet access.
-* You may generate code with APIs for API keys given to you directly by the user."""
         agent_code_writer_system_message = f"""You are a helpful AI assistant.  Solve tasks using your coding and language skills.
 * {date_str}
 Query understanding instructions:
@@ -568,8 +508,9 @@ def get_audio_transcription_helper():
 
 
 def get_download_one_web_image_helper():
+    have_internet = get_have_internet()
     # check if SERPAPI_API_KEY env variable is provided if not, return empty string
-    if not os.getenv("SERPAPI_API_KEY"):
+    if not os.getenv("SERPAPI_API_KEY") or not have_internet:
         return ""
 
     cwd = os.path.abspath(os.getcwd())
@@ -646,6 +587,9 @@ python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt 
 
 
 def get_download_web_video_helper():
+    have_internet = get_have_internet()
+    if not have_internet:
+        return ''
     cwd = os.path.abspath(os.getcwd())
     youtube_helper = f"""\n# Download Web-hosted Videos using the following Python script:
 * To download a video from YouTube or other supported platforms, use the following command:
@@ -664,6 +608,120 @@ python {cwd}/download_web_video.py --video_url "VIDEO_URL" --base_url "https://w
     return youtube_helper
 
 
+def get_serp_helper():
+    have_internet = get_have_internet()
+    if have_internet and os.getenv('SERPAPI_API_KEY'):
+        serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
+    else:
+        serp = ""
+    return serp
+
+
+def get_semantic_scholar_helper():
+    cwd = os.path.abspath(os.getcwd())
+    have_internet = get_have_internet()
+    if have_internet and os.getenv('S2_API_KEY'):
+        # https://github.com/allenai/s2-folks/blob/main/examples/python/find_and_recommend_papers/find_papers.py
+        # https://github.com/allenai/s2-folks
+        papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find scientific papers (not news or financial information).
+* In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
+```sh
+# execution: true
+python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
+```
+usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
+* Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDFs.
+* Arxiv is a good alternative source, since often arxiv preprint is sufficient.
+"""
+    else:
+        papers_search = ""
+    return papers_search
+
+
+def get_wolfram_alpha_helper():
+    cwd = os.path.abspath(os.getcwd())
+    have_internet = get_have_internet()
+    if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
+        # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
+        # https://products.wolframalpha.com/api/documentation
+        wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
+* In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
+```sh
+# filename: my_wolfram_response.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
+```
+* usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
+* Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
+"""
+    else:
+        wolframalpha = ""
+    return wolframalpha
+
+
+def get_news_api_helper():
+    cwd = os.path.abspath(os.getcwd())
+    have_internet = get_have_internet()
+    if have_internet and os.getenv('NEWS_API_KEY'):
+        news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search through articles and blogs published in the last 5 years.
+* For a news query, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_news_response.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY"
+```
+* usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+* news_query prints text results with title, author, description, and URL for (by default) 10 articles.
+* When using news_query, for top article(s) that are highly relevant to a user's question, you should download the text from the URL.
+"""
+    else:
+        news_api = ''
+    return news_api
+
+
+def get_bing_search_helper():
+    cwd = os.path.abspath(os.getcwd())
+    have_internet = get_have_internet()
+    if have_internet and os.getenv('BING_API_KEY'):
+        bing_search = f"""\n* Search using Bing API (using azure-core, user has BING_API_KEY already in ENV) for web, image, news, or video search.
+* In most cases, just use the existing general pre-built Python code to query Bing Search, E.g.:
+```sh
+# execution: true
+python {cwd}/openai_server/agent_tools/bing_search.py -q "QUERY" -t web -l 5
+```
+usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {{web,image,news,video}}] [-l LIMIT] [-m MARKET] [-f {{Day,Week,Month}}]
+* Available search types (-t or --type):
+  - web: General web search to find web content
+  - image: Image search to find images
+  - news: News search to find news
+  - video: Video search to find videos
+* Use -l or --limit to specify the number of results (default is 10)
+* Use -m or --market to specify the market (e.g., en-US)
+* Use -f or --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
+"""
+    else:
+        bing_search = ""
+    return bing_search
+
+
+def get_api_helper():
+    have_internet = get_have_internet()
+    if have_internet:
+        apis = f"""\n#APIs and external services instructions:
+* You DO have access to the internet.
+* Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
+* Use existing python tools for various tasks, e.g., Wolfram Alpha, Semantic Scholar, News API, SERP API, Bing API, etc.
+* For complex multi-hop search tasks where other APIs have trouble, try using selenium with its chrome driver (if uncertain, see example code use for video download in openai_server/agent_tools/download_web_video.py).
+* You may generate code with API code that uses publicly available APIs
+* You may generate code with APIs for API keys that have been mentioned in this overall message.
+* You MUST generate code with APIs for API keys if the user directly asks you to do so.  Do your best effort to figure out (from internet, documents, etc.) how to use the API to solve the user's task.  You are not allowed to refuse to use the API if the user asks you to use it."""
+    else:
+        apis = """\n#APIs and external services instructions:
+* You DO NOT have access to the internet.  You cannot use any APIs that require broad internet access.
+* You may generate code with APIs for API keys given to you directly by the user."""
+    return apis
+
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query, autogen_timeout):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
@@ -679,6 +737,16 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                                                 autogen_timeout) if 'aider' in query.lower() else ''
     rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
     youtube_helper = get_download_web_video_helper()
+
+    # search:
+    serp_helper = get_serp_helper()
+    semantic_scholar_helper = get_semantic_scholar_helper()
+    wolfram_alpha_helper = get_wolfram_alpha_helper()
+    news_helper = get_news_api_helper()
+    bing_search_helper = get_bing_search_helper()
+
+    # general API notes:
+    api_helper = get_api_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
                                                                temp_dir,
@@ -711,6 +779,12 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                             aider_coder_helper,
                             rag_helper,
                             youtube_helper,
+                            serp_helper,
+                            semantic_scholar_helper,
+                            wolfram_alpha_helper,
+                            news_helper,
+                            bing_search_helper,
+                            api_helper,
                             agent_tools_note,
                             chat_doc_query]
 
