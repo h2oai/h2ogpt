@@ -696,6 +696,8 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {
 * To download the video returned from this search tool:
   - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
   - For generic free web sites, use can get video via wget, curl -L, or requests.
+* To download an image returned from this search tool:
+   - Use wget, curl -L, or requests to download the image URL.
 * Use -l or --limit to specify the number of results (default is 10)
 * Use -m or --market to specify the market (e.g., en-US)
 * Use -f or --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
