@@ -542,7 +542,7 @@ def get_aider_coder_helper(base_url, api_key, model, autogen_timeout):
 
     cwd = os.path.abspath(os.getcwd())
     aider_coder_helper = f"""\n# Get coding assistance and apply to input files:
-* If you need to change coding file(s) or create one, use the following sh code:
+* If you need to change multiple existing coding files at once with a single query, use the following sh code:
 ```sh
 # filename: my_aider_coder.sh
 # execution: true
@@ -550,8 +550,7 @@ python {cwd}/openai_server/agent_tools/aider_code_generation.py --prompt "PROMPT
 ```
 * usage: {cwd}/openai_server/agent_tools/aider_code_generation.py [-h] --prompt PROMPT [--files FILES [FILES ...]]
 * aider_code_generation outputs code diffs and applies changes to input files.
-* Absolutely only use aider_code_generation if user specifically asks for aider to be used in the original user prompt.
-* Ensure your prompt specifies desired the output file name if creating new files.
+* Absolutely only use aider_code_generation if multiple existing files require changing at once, else do the code changes yoruself.
 """
     return aider_coder_helper
 
@@ -732,9 +731,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
     download_one_web_image_helper = get_download_one_web_image_helper()
-    # FIXME: allow LLM to decide
-    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model,
-                                                autogen_timeout) if 'aider' in query.lower() else ''
+    aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout)
     rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
     youtube_helper = get_download_web_video_helper()
 
@@ -761,14 +758,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     list_dir = os.listdir('openai_server/agent_tools')
     list_dir = [x for x in list_dir if not x.startswith('__')]
     list_dir = [x for x in list_dir if not x.endswith('.pyc')]
-    if 'aider' not in query.lower():
-        # FIXME: allow LLM to decide
-        list_dir = [x for x in list_dir if 'aider_code_generation.py' not in x]
 
-    agent_tools_note = (
-        f"\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir} "
-        "You have to prioritize these tools for the relevant tasks before using other tools or methods. \n"
-    )
+    agent_tools_note = f""""\nDo not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"
+You have to prioritize these tools for the relevant tasks before using other tools or methods.
+"""
 
     system_message_parts = [agent_code_writer_system_message,
                             ask_question_about_image_helper,
