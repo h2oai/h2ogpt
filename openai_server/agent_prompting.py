@@ -508,23 +508,22 @@ def get_audio_transcription_helper():
     return audio_transcription
 
 
-def get_download_one_web_image_helper():
+def get_query_to_web_image_helper():
     have_internet = get_have_internet()
     # check if SERPAPI_API_KEY env variable is provided if not, return empty string
     if not os.getenv("SERPAPI_API_KEY") or not have_internet:
         return ""
 
     cwd = os.path.abspath(os.getcwd())
-    image_download = f"""\n# Google Image download from search query
-* For getting a single image from a search query, you can use the existing pre-built python code, E.g.:
+    image_download = f"""\n# Google Search Image
+* For getting a single image for a text query, you can use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_download.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to search for" --output "file_name.jpg"
+python {cwd}/openai_server/agent_tools/query_to_web_image.py --text "Text to search for" --output "file_name.jpg"
 ```
-* usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
-* The download_one_web_image tool uses the Google Search API to download one image at a time from the web.
-* If already have an image URL, do not use this tool, just directly download the image via wget or curl -L or requests.
+* usage: python {cwd}/openai_server/agent_tools/query_to_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
+* If already have an image URL, you MUST NOT use this tool, instead directly download the image URL via wget or curl -L or requests.
 """
     return image_download
 
@@ -733,7 +732,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
-    download_one_web_image_helper = get_download_one_web_image_helper()
+    query_to_web_image_helper = get_query_to_web_image_helper()
     aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout)
     rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
     youtube_helper = get_download_web_video_helper()
@@ -773,7 +772,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                             mermaid_renderer_helper,
                             image_generation_helper,
                             audio_transcription_helper,
-                            download_one_web_image_helper,
+                            query_to_web_image_helper,
                             aider_coder_helper,
                             rag_helper,
                             youtube_helper,
