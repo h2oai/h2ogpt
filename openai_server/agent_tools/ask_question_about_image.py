@@ -45,6 +45,8 @@ def process_file(file_path):
 
 
 def main():
+    default_max_time = int(os.getenv('H2OGPT_AGENT_OPENAI_TIMEOUT', "120"))
+
     parser = argparse.ArgumentParser(description="OpenAI Vision API Script")
     parser.add_argument("-t", "--timeout", type=int, default=60, help="Timeout for API calls")
     parser.add_argument("-s", "--system_prompt", type=str,
@@ -62,7 +64,7 @@ def main():
     parser.add_argument("-T", "--temperature", type=float, default=0.0, help="Temperature for the model")
     parser.add_argument("--max_tokens", type=int, default=1024, help="Maximum tokens for the model")
     parser.add_argument("--stream_output", help="Whether to stream output", default=True, action='store_true')
-    parser.add_argument("--max_time", type=float, default=60, help="Maximum time to wait for response")
+    parser.add_argument("--max_time", type=float, default=default_max_time, help="Maximum time to wait for response")
 
     args = parser.parse_args()
 
