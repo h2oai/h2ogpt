@@ -523,7 +523,7 @@ python {cwd}/openai_server/agent_tools/download_one_web_image.py --text "Text to
 ```
 * usage: python {cwd}/openai_server/agent_tools/download_one_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
 * The download_one_web_image tool uses the Google Search API to download one image at a time from the web.
-* If already have an image URL, do not use this tool, just directly download the image via curl or requests.
+* If already have an image URL, do not use this tool, just directly download the image via wget or curl -L or requests.
 """
     return image_download
 
@@ -690,9 +690,12 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {
 * This Bing is highly preferred over the Google Image search query
 * Available search types (-t or --type):
   - web: General web search to find web content
-  - image: Image search to find images
+  - image: Image search to find images (once have image URL, can get it via wget, curl -L, or requests)
   - news: News search to find news
   - video: Video search to find videos
+* To download the video returned from this search tool:
+  - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
+  - For generic free web sites, use can get video via wget, curl -L, or requests.
 * Use -l or --limit to specify the number of results (default is 10)
 * Use -m or --market to specify the market (e.g., en-US)
 * Use -f or --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.

@@ -17,6 +17,8 @@ BING_ENDPOINT = "https://api.bing.microsoft.com/v7.0"
 # python openai_server/agent_tools/bing_search.py -q "Mount Fuji" -t image -l 3 -m en-US -s Moderate -v -j
 # Example news query:
 # python openai_server/agent_tools/bing_search.py -q "artificial intelligence" -t news -l 3 -m en-US -f Day -v -j
+# Example video query:
+# python openai_server/agent_tools/bing_search.py -q "SpaceX launch" -t video -l 3
 
 def setup_argparse():
     parser = argparse.ArgumentParser(description="Bing Search Utility")
