@@ -274,26 +274,22 @@ async def get_response(chunk_response=True, **kwargs):
     client = get_client(user=kwargs.get('user'))
 
     res_dict = {}
-    def check_if_response_was_from_code_writer_agent() -> bool:
+
+    def check_if_executable_code_block_hit_limit(response: str, num_limit=1) -> bool:
         # TODO: Need a better way to check if the request is coming from code_writer_agent or not
         # Maybe new attribute in extra_body called 'agent_name'?
         # Below method is a hacky way to check if the request is coming from code_wrigter_agent for now.
         system_prompt = kwargs.get('system_prompt', '')
-        if system_prompt.startswith(
+        if not system_prompt.startswith(
             'You are a helpful AI assistant.  Solve tasks using your coding and language skills'
         ):
             # This is a request coming from code_writer_agent.
-            return True
-        return False
-
-    def check_if_executable_code_block_hit_limit(response: str, num_limit=1) -> bool:
-        if not check_if_response_was_from_code_writer_agent():
             return False
-        from autogen.code_utils import extract_code
+        from autogen.coding import MarkdownCodeExtractor
         # TODO: num_limit might be a parameter in extra_body ?
-        extracted_code_blocks = extract_code(response, pattern=r"```[ \t]*(\w+)?[ \t]*\r?\n(.*?)\r?\n[ \t]*```")
-        code_blocks = [block[1] for block in extracted_code_blocks if block[0] not in ['', 'unknown']]
-        executable_code_blocks = [block for block in code_blocks if '# execution: true' in block]
+        extracted_code_blocks = MarkdownCodeExtractor().extract_code_blocks(response)
+        code_blocks = [block.code for block in extracted_code_blocks if block.language not in ['', 'unknown']]
+        executable_code_blocks = [code for code in code_blocks if '# execution: true' in code]
         return len(executable_code_blocks) >= num_limit
 
 
