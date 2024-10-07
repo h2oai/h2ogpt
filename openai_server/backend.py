@@ -321,11 +321,6 @@ async def get_response(chunk_response=True, **kwargs):
             await asyncio.sleep(0.005)
             job_outputs_num += job_outputs_num_new
 
-        if check_if_response_was_from_code_writer_agent():
-            # If the last response was from code_writer_agent, then we always have to return "ENDOFTURN" at the end of the message.
-            print("Finishing code_writer_agent message with 'ENDOFTURN'", flush=True)
-            yield "\n\nENDOFTURN"
-
         outputs_list = job.outputs().copy()
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
