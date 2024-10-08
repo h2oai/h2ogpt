@@ -1,0 +1,163 @@
+{{- if and (.Values.lmdeploy.enabled) (not .Values.h2ogpt.stack.enabled )}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+  labels:
+    app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+spec:
+  {{- if not .Values.lmdeploy.autoscaling.enabled }}
+  replicas: {{ .Values.lmdeploy.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+  {{- if .Values.lmdeploy.updateStrategy }}
+  strategy: {{- toYaml .Values.lmdeploy.updateStrategy | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.lmdeploy.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+        {{- with .Values.lmdeploy.podLabels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.lmdeploy.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.lmdeploy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.lmdeploy.podSecurityContext | nindent 8 }}
+      affinity:
+        {{- if .Values.lmdeploy.podAffinity }}
+        podAntiAffinity:
+          {{- if .Values.lmdeploy.podAffinity.hostname }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - {{ include "h2ogpt.fullname" . }}
+              topologyKey: kubernetes.io/hostname
+          {{- end }}
+          {{- if .Values.lmdeploy.podAffinity.zone }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+          {{- end }}
+        {{- end }}
+      {{- with .Values.lmdeploy.extraAffinity }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.lmdeploy.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+          securityContext:
+            {{- toYaml .Values.lmdeploy.securityContext | nindent 12 }}
+          image: "{{ .Values.lmdeploy.image.repository }}:{{ .Values.lmdeploy.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.lmdeploy.image.pullPolicy }}
+          command: ["lmdeploy"]
+          args:
+            - "serve"
+            - "api_server"
+{{- range $arg := .Values.lmdeploy.containerArgs }}
+            - "{{ $arg }}"
+{{- end }}
+          ports:
+            - name: http
+              containerPort: 23333
+              protocol: TCP
+          {{- if .Values.lmdeploy.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.lmdeploy.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.lmdeploy.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.lmdeploy.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.lmdeploy.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-config
+          env:
+          - name: NCCL_IGNORE_DISABLED_P2P
+            value: "1"
+          - name: HF_HOME
+            value: "/workspace/.cache"
+          {{- range $key, $value := .Values.lmdeploy.env }}
+          - name: "{{ $key }}"
+            value: "{{ $value }}"
+          {{- end }}
+          volumeMounts:
+            - name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
+              mountPath: /workspace/.cache
+              subPath: cache
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
+          {{- if not .Values.lmdeploy.storage.useEphemeral }}
+          persistentVolumeClaim:
+            claimName: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
+          {{- else }}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: {{ .Values.lmdeploy.storage.size | quote }}
+                storageClassName: {{ .Values.lmdeploy.storage.class }}
+          {{- end }}
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 10.24Gi
+          name: shm
+{{- end }}
+---
+{{- if and (.Values.lmdeploy.enabled) (not .Values.lmdeploy.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: {{ .Values.lmdeploy.storage.class | quote }}
+  storageClassName: {{ .Values.lmdeploy.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.lmdeploy.storage.size | quote }}
+{{- end }}
