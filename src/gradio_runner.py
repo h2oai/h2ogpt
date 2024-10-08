@@ -6467,6 +6467,7 @@ def go_gradio(**kwargs):
             if verbose:
                 print("Starting up Function server")
             if kwargs['function_server_workers'] == 1:
+                os.environ['H2OGPT_MAIN_KWARGS'] = run_kwargs['main_kwargs']
                 from openai_server.function_server import app as function_app
             else:
                 function_app = 'function_server:app'
