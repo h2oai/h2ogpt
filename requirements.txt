@@ -96,6 +96,7 @@ tiktoken>=0.5.2
 
 # optional: for OpenAI endpoint
 openai>=1.40.1
+slowapi>=0.1.9
 
 # for image metadata
 pyexiv2

@@ -25,6 +25,11 @@ from starlette.responses import PlainTextResponse
 
 from openai_server.backend_utils import get_user_dir, run_upload_api, meta_ext
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
 sys.path.append('openai_server')
 
 
@@ -296,6 +301,29 @@ def verify_api_key(authorization: str = Header(None)) -> None:
     raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+# Dependency that extracts the model and stores it in request state
+async def extract_model_from_request(request: Request, request_data: ChatRequest):
+    request.state.model = request_data.model
+    return request_data
+
+
+limiter = Limiter(key_func=get_remote_address)
+global_limiter = Limiter(key_func=lambda: "global")  # Global limiter with constant key
+
+
+def model_rate_limit_key(request: Request):
+    # Extract the model from request data, assuming it's in the JSON body
+    # Since we are in FastAPI, we'll retrieve the model from the request object
+    # FastAPI request's `state` can store request data parsed by dependency injection
+
+    model = request.state.model  # Set by a dependency or manually within the route
+    if not model:
+        raise ValueError("Model not provided in request data")
+
+    # Use the model name as the key for rate limiting
+    return model
+
+
 app = FastAPI()
 check_key = [Depends(verify_api_key)]
 app.add_middleware(
@@ -306,6 +334,17 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Add SlowAPI middleware for rate limiting (without limiter argument)
+app.add_middleware(SlowAPIMiddleware)
+
+# Set limiter in the app state
+app.state.limiter = limiter
+app.state.global_limiter = global_limiter
+
+# Exception handler for rate limit exceeded
+app.add_exception_handler(RateLimitExceeded,
+                          lambda request, exc: JSONResponse({"error": "rate limit exceeded"}, status_code=429))
+
 
 # https://platform.openai.com/docs/models/how-we-use-your-data
 
@@ -314,14 +353,37 @@ class InvalidRequestError(Exception):
     pass
 
 
+status_limiter_global = os.getenv('H2OGPT_STATUS_LIMITER_GLOBAL', '100/second')
+status_limiter_user = os.getenv('H2OGPT_STATUS_LIMITER_USER', '3/second')
+
+completion_limiter_global = os.getenv('H2OGPT_COMPLETION_LIMITER_GLOBAL', '30/second')
+completion_limiter_user = os.getenv('H2OGPT_STATUS_LIMITER_USER', '1/second')
+
+audio_limiter_global = os.getenv('H2OGPT_AUDIO_LIMITER_GLOBAL', '20/second')
+audio_limiter_user = os.getenv('H2OGPT_AUDIO_LIMITER_USER', '5/second')
+
+image_limiter_global = os.getenv('H2OGPT_IMAGE_LIMITER_GLOBAL', '5/second')
+image_limiter_user = os.getenv('H2OGPT_IMAGE_LIMITER_USER', '1/second')
+
+embedding_limiter_global = os.getenv('H2OGPT_EMBEDDING_LIMITER_GLOBAL', '30/second')
+embedding_limiter_user = os.getenv('H2OGPT_EMBEDDING_LIMITER_USER', '1/second')
+
+file_limiter_global = os.getenv('H2OGPT_FILE_LIMITER_GLOBAL', '50/second')
+file_limiter_user = os.getenv('H2OGPT_FILE_LIMITER_USER', '20/second')
+
+
 @app.get("/health")
-async def health() -> Response:
+@limiter.limit(status_limiter_user)
+@global_limiter.limit(status_limiter_global)
+async def health(request: Request) -> Response:
     """Health check."""
     return Response(status_code=200)
 
 
 @app.get("/version")
-async def show_version():
+@limiter.limit(status_limiter_user)
+@global_limiter.limit(status_limiter_global)
+async def show_version(request: Request):
     try:
         from ..src.version import __version__
         githash = __version__
@@ -344,6 +406,8 @@ async def options_route():
 
 
 @app.post('/v1/completions', response_model=TextResponse, dependencies=check_key)
+@limiter.limit(completion_limiter_user, key_func=model_rate_limit_key)
+@global_limiter.limit(completion_limiter_global)
 async def openai_completions(request: Request, request_data: TextRequest, authorization: str = Header(None)):
     try:
         request_data_dict = dict(request_data)
@@ -523,7 +587,11 @@ def tool_to_guided_json(tool):
 
 
 @app.post('/v1/chat/completions', response_model=ChatResponse, dependencies=check_key)
-async def openai_chat_completions(request: Request, request_data: ChatRequest, authorization: str = Header(None)):
+@limiter.limit(completion_limiter_user, key_func=model_rate_limit_key)
+@global_limiter.limit(completion_limiter_global)
+async def openai_chat_completions(request: Request,
+                                  request_data: ChatRequest = Depends(extract_model_from_request),
+                                  authorization: str = Header(None)):
     request_data_dict = dict(request_data)
     request_data_dict['authorization'] = authorization
 
@@ -624,6 +692,8 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
 @app.get("/v1/models", dependencies=check_key)
 @app.get("/v1/models/{model}", dependencies=check_key)
 @app.get("/v1/models/{repo}/{model}", dependencies=check_key)
+@limiter.limit(status_limiter_user)
+@global_limiter.limit(status_limiter_global)
 async def handle_models(request: Request):
     path = request.url.path
     model_name = path[len('/v1/models/'):]
@@ -652,13 +722,17 @@ async def handle_models(request: Request):
 
 
 @app.get("/v1/internal/model/info", response_model=ModelInfoResponse, dependencies=check_key)
-async def handle_model_info():
+@limiter.limit(status_limiter_user)
+@global_limiter.limit(status_limiter_global)
+async def handle_model_info(request: Request):
     from openai_server.backend import get_model_info
     return JSONResponse(content=get_model_info())
 
 
 @app.get("/v1/internal/model/list", response_model=ModelListResponse, dependencies=check_key)
-async def handle_list_models():
+@limiter.limit(status_limiter_user)
+@global_limiter.limit(status_limiter_global)
+async def handle_list_models(request: Request):
     from openai_server.backend import get_model_list
     return JSONResponse(content=[dict(id=x) for x in get_model_list()])
 
@@ -674,6 +748,8 @@ class AudiotoTextRequest(BaseModel):
 
 
 @app.post('/v1/audio/transcriptions', dependencies=check_key)
+@limiter.limit(audio_limiter_user)
+@global_limiter.limit(audio_limiter_global)
 async def handle_audio_transcription(request: Request):
     try:
         form = await request.form()
@@ -775,6 +851,8 @@ def modify_wav_header(wav_bytes):
 
 
 @app.post('/v1/audio/speech', dependencies=check_key)
+@limiter.limit(audio_limiter_user)
+@global_limiter.limit(audio_limiter_global)
 async def handle_audio_to_speech(request: Request):
     try:
         request_data = await request.json()
@@ -842,6 +920,8 @@ class ImageGenerationRequest(BaseModel):
 
 
 @app.post('/v1/images/generations', dependencies=check_key)
+@limiter.limit(image_limiter_user)
+@global_limiter.limit(image_limiter_global)
 async def handle_image_generation(request: Request):
     try:
         body = await request.json()
@@ -907,6 +987,8 @@ class EmbeddingsRequest(BaseModel):
 
 
 @app.post("/v1/embeddings", response_model=EmbeddingsResponse, dependencies=check_key)
+@limiter.limit(embedding_limiter_user)
+@global_limiter.limit(embedding_limiter_global)
 async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
     # https://docs.portkey.ai/docs/api-reference/embeddings
     text = request_data.input
@@ -914,7 +996,8 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
     encoding_format = request_data.encoding_format
 
     str_uuid = str(uuid.uuid4())
-    logging.info(f"Embeddings request {str_uuid}: {len(text)} items, model: {model}, encoding_format: {encoding_format}")
+    logging.info(
+        f"Embeddings request {str_uuid}: {len(text)} items, model: {model}, encoding_format: {encoding_format}")
 
     from openai_server.backend import text_to_embedding
     response = text_to_embedding(model, text, encoding_format)
@@ -926,7 +1009,8 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
         print(str(e))
     finally:
         if response:
-            logging.info(f"Done embeddings response {str_uuid}: {len(response['data'])} items, model: {model}, encoding_format: {encoding_format}")
+            logging.info(
+                f"Done embeddings response {str_uuid}: {len(response['data'])} items, model: {model}, encoding_format: {encoding_format}")
         else:
             logging.error(f"No embeddings response {str_uuid}")
 
@@ -943,7 +1027,10 @@ class UploadFileResponse(BaseModel):
 
 
 @app.post("/v1/files", response_model=UploadFileResponse, dependencies=check_key)
+@limiter.limit(file_limiter_user)
+@global_limiter.limit(file_limiter_global)
 async def upload_file(
+        request: Request,
         file: UploadFile = File(...),
         purpose: str = Form(...),
         authorization: str = Header(None)
@@ -970,7 +1057,9 @@ class ListFilesResponse(BaseModel):
 
 
 @app.get("/v1/files", response_model=ListFilesResponse, dependencies=check_key)
-async def list_files(authorization: str = Header(None)):
+@limiter.limit(file_limiter_user)
+@global_limiter.limit(file_limiter_global)
+async def list_files(request: Request, authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
 
     if not user_dir:
@@ -1020,7 +1109,9 @@ class RetrieveFileResponse(BaseModel):
 
 
 @app.get("/v1/files/{file_id}", response_model=RetrieveFileResponse, dependencies=check_key)
-async def retrieve_file(file_id: str, authorization: str = Header(None)):
+@limiter.limit(file_limiter_user)
+@global_limiter.limit(file_limiter_global)
+async def retrieve_file(request: Request, file_id: str, authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
     file_path = os.path.join(user_dir, file_id)
 
@@ -1047,7 +1138,9 @@ class DeleteFileResponse(BaseModel):
 
 
 @app.delete("/v1/files/{file_id}", response_model=DeleteFileResponse, dependencies=check_key)
-async def delete_file(file_id: str, authorization: str = Header(None)):
+@limiter.limit(file_limiter_user)
+@global_limiter.limit(file_limiter_global)
+async def delete_file(request: Request, file_id: str, authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
     file_path = os.path.join(user_dir, file_id)
 
@@ -1070,7 +1163,10 @@ async def delete_file(file_id: str, authorization: str = Header(None)):
 
 
 @app.get("/v1/files/{file_id}/content", dependencies=check_key)
-async def retrieve_file_content(file_id: str, stream: bool = Query(False), authorization: str = Header(None)):
+@limiter.limit(file_limiter_user)
+@global_limiter.limit(file_limiter_global)
+async def retrieve_file_content(request: Request, file_id: str, stream: bool = Query(False),
+                                authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
     file_path = os.path.join(user_dir, file_id)
 
