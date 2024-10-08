@@ -25,8 +25,8 @@ def check_valid_extension(file):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Get transcription of an audio file")
-    parser.add_argument("--input", type=str, required=True, help="Path to the input audio file")
+    parser = argparse.ArgumentParser(description="Get transcription of an audio (or audio in video) file")
+    parser.add_argument("--input", type=str, required=True, help="Path to the input audio-video file")
     # Model
     parser.add_argument("--model", type=str, required=False,
                         help="Model name (For Azure deployment name must match actual model name, e.g. whisper-1)")

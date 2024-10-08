@@ -493,7 +493,7 @@ def get_audio_transcription_helper():
         if not os.getenv("STT_OPENAI_MODEL"):
             os.environ["STT_OPENAI_MODEL"] = "whisper-1"
         cwd = os.path.abspath(os.getcwd())
-        audio_transcription = f"""\n* Audio transcription using python. Use for transcribing audio files to text.
+        audio_transcription = f"""\n* Audio transcription for transcribing audio files to text.
     * For an audio transcription, you are recommended to use the existing pre-built python code, E.g.:
     ```sh
     # filename: my_audio_transcription.sh
@@ -501,7 +501,7 @@ def get_audio_transcription_helper():
     python {cwd}/openai_server/agent_tools/audio_transcription.py --input "audio.wav"
     ```
     * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --input "AUDIO_FILE_PATH"
-    * Can transcribe audio from mp3, mp4, mpeg, mpga, m4a, wav, webm, and more.
+    * Can transcribe audio audio and some video formats: mp3, mp4, mpeg, mpga, m4a, wav, webm, and more.
     """
     else:
         audio_transcription = ''
