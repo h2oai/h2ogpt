@@ -2915,6 +2915,12 @@ def evaluate(
     if model_lower == 'distilgpt2':
         # always truncate for certain models that totally fail otherwise
         truncation_generation = True
+    if not inference_server:
+        # can listen to truncation_generation
+        pass
+    else:
+        # these don't support allowing going beyond total context
+        truncation_generation = True
     max_max_new_tokens = get_max_max_new_tokens(chosen_model_state,
                                                 memory_restriction_level=memory_restriction_level,
                                                 max_new_tokens=max_new_tokens,
