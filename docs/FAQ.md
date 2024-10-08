@@ -91,7 +91,7 @@ conda activate open-webui-run
 conda install -y python=3.11
 # pip install open-webui  # for Open Web UI's RAG and file ingestion
 # pip install git+https://github.com/h2oai/open-webui.git  # for h2oGPT file ingestion
-pip install https://h2o-release.s3.amazonaws.com/h2ogpt/open_webui-0.3.8-py3-none-any.whl  # for latest release
+pip install https://h2o-release.s3.amazonaws.com/h2ogpt/open_webui-0.3.32-py3-none-any.whl  # for latest release
 pip install alembic uvicorn[standard]
 #
 export H2OGPT_LOADERS=1  # for h2oGPT file ingestion
