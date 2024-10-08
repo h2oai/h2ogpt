@@ -926,7 +926,7 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
         print(str(e))
     finally:
         if response:
-            logging.info(f"Done embeddings response {str_uuid}: {response.index} items, model: {model}, encoding_format: {encoding_format}")
+            logging.info(f"Done embeddings response {str_uuid}: {len(response['data'])} items, model: {model}, encoding_format: {encoding_format}")
         else:
             logging.error(f"No embeddings response {str_uuid}")
 
