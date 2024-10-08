@@ -3,6 +3,7 @@ fullnameOverride: ""
 namespaceOverride: ""
 
 h2ogpt:
+  # -- Enable h2oGPT
   enabled: true
   stack:
     # -- Run h2oGPT and vLLM on same pod.
@@ -18,12 +19,12 @@ h2ogpt:
     tag:
     pullPolicy:
 
-  # extra volumes, for more certs, mount under /etc/ssl/more-certs
+  # -- Extra volumes, for more certs, mount under /etc/ssl/more-certs
   extraVolumes: []
+  # -- Extra volume mounts
   extraVolumeMounts: []
-
-  podAffinity:
   # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+  podAffinity:
   # hostname:
   # zone:
 
@@ -48,9 +49,9 @@ h2ogpt:
       enabled: false
   
   visionModels:
+    # -- Enable vision models
     enabled: false
-    # -- Visible vision models, the vision model itslef needs to be set via modeLock or base_model
-    # -- Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5']
+    # -- Visible vision models, the vision model itslef needs to be set via modeLock or base_model. Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5']
     visibleModels: []
     rotateAlignResizeImage: false
 
@@ -136,6 +137,7 @@ h2ogpt:
   autoscaling: {}
 
 tgi:
+  # -- Enable tgi
   enabled: false
   replicaCount: 1
 
@@ -143,9 +145,8 @@ tgi:
     repository: ghcr.io/huggingface/text-generation-inference
     tag: 0.9.3
     pullPolicy: IfNotPresent
-
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
   podAffinity:
-    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
     # hostname:
     # zone:
 
@@ -179,6 +180,7 @@ tgi:
   autoscaling: {}
 
 vllm:
+  # -- Enable vllm
   enabled: false
   replicaCount: 1
 
@@ -186,9 +188,9 @@ vllm:
     repository: vllm/vllm-openai
     tag: latest
     pullPolicy: IfNotPresent
-
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
   podAffinity:
-    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+
     # hostname:
     # zone:
 
@@ -248,6 +250,7 @@ vllm:
   autoscaling: {}
 
 lmdeploy:
+  # -- Enable lmdeploy
   enabled: false
   replicaCount: 1
 
@@ -255,9 +258,8 @@ lmdeploy:
     repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy
     tag:
     pullPolicy: IfNotPresent
-
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
   podAffinity:
-    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
     # hostname:
     # zone:
 
