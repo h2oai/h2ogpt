@@ -1,5 +1,6 @@
 import copy
 import io
+import logging
 import os
 import sys
 import ast
@@ -526,6 +527,9 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
     request_data_dict = dict(request_data)
     request_data_dict['authorization'] = authorization
 
+    str_uuid = str(uuid.uuid4())
+    logging.info(f"Chat Completions request {str_uuid}: {len(request_data_dict)} items")
+
     # don't allow tool use with guided_json for now
     if request_data_dict['guided_json'] and request_data_dict.get('tools'):
         raise NotImplementedError("Cannot use tools with guided_json, because guided_json used for tool use.")
@@ -584,6 +588,7 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
                         "code": "500"
                     }
                 }
+                print(error_response)
                 yield {"data": json.dumps(error_response)}
                 # After yielding the error, we'll close the connection
                 return
@@ -603,14 +608,16 @@ async def openai_chat_completions(request: Request, request_data: ChatRequest, a
         except Exception as e:
             traceback.print_exc()
             # For non-streaming responses, we'll return a JSON error response
-            raise HTTPException(status_code=500, detail={
+            error_response = {
                 "error": {
                     "message": str(e),
                     "type": "server_error",
                     "param": None,
                     "code": 500
                 }
-            })
+            }
+            print(error_response)
+            raise HTTPException(status_code=500, detail=error_response)
 
 
 # https://platform.openai.com/docs/api-reference/models/list
@@ -906,9 +913,22 @@ async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
     model = request_data.model
     encoding_format = request_data.encoding_format
 
+    str_uuid = str(uuid.uuid4())
+    logging.info(f"Embeddings request {str_uuid}: {len(text)} items, model: {model}, encoding_format: {encoding_format}")
+
     from openai_server.backend import text_to_embedding
     response = text_to_embedding(model, text, encoding_format)
-    return JSONResponse(response)
+
+    try:
+        return JSONResponse(response)
+    except Exception as e:
+        traceback.print_exc()
+        print(str(e))
+    finally:
+        if response:
+            logging.info(f"Done embeddings response {str_uuid}: {response.index} items, model: {model}, encoding_format: {encoding_format}")
+        else:
+            logging.error(f"No embeddings response {str_uuid}")
 
 
 # https://platform.openai.com/docs/api-reference/files
