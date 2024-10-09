@@ -145,7 +145,7 @@ def execute_function(request: FunctionRequest):
         # Call the function with args and kwargs
         result = func(*request.args, **request.kwargs, **func_kwargs)
 
-        if request.use_disk:
+        if request.use_disk or request.use_pickle:
             # Save the result to a file on the shared disk
             base_path = 'function_results'
             if not os.path.isdir(base_path):
@@ -159,7 +159,7 @@ def execute_function(request: FunctionRequest):
                 file_path += '.json'
                 with open(file_path, "w") as f:
                     json.dump(result, f)
-            return {"status": "success", "file_path": file_path}
+            return {"status": "success", "file_path": os.path.abspath(file_path)}
         else:
             # Return the result directly
             return {"status": "success", "result": result}

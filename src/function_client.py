@@ -52,7 +52,7 @@ def call_function_server(host, port, function_name, args, kwargs, use_disk=False
     if "error" in execute_result:
         raise RuntimeError(execute_result['error'])
     else:
-        if use_disk:
+        if use_disk or use_pickle:
             file_path = execute_result["file_path"]
             result_from_disk = read_result_from_disk(file_path, use_pickle, verbose=verbose)
             return result_from_disk

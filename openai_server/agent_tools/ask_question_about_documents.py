@@ -113,15 +113,31 @@ def main():
         with open(args.chat_conversation_file, "rt") as f:
             chat_conversation = json.loads(f.read())
 
+    textual_like_files = {
+        ".txt": "Text file (UTF-8)",
+        ".csv": "CSV",
+        ".toml": "TOML",
+        ".py": "Python",
+        ".rst": "reStructuredText",
+        ".rtf": "Rich Text Format",
+        ".md": "Markdown",
+        ".html": "HTML File",
+        ".mhtml": "MHTML File",
+        ".htm": "HTML File",
+        ".xml": "XML"
+    }
+
     if args.files:
         from src.vision.utils_vision import IMAGE_EXTENSIONS
         text_context_list = []
         for filename in args.files:
-            if filename.endswith('.txt'):
+            if any(filename.endswith(x) for x in textual_like_files.keys()):
                 with open(filename, "rt") as f:
                     text_context_list.append(f.read())
             elif any(filename.endswith(x) for x in IMAGE_EXTENSIONS):
                 image_files.append(filename)
+            else:
+                print(f"Unable to handle file type for {filename}")
 
     rag_kwargs = dict(text_context_list=text_context_list,
                       image_files=image_files,

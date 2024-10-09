@@ -324,6 +324,11 @@ def model_rate_limit_key(request: Request):
     return model
 
 
+def api_key_rate_limit_key(request: Request):
+    # Example: Extract user ID or API key for rate limiting
+    return request.headers.get("X-User-ID", 'unknown')
+
+
 app = FastAPI()
 check_key = [Depends(verify_api_key)]
 app.add_middleware(
@@ -357,7 +362,8 @@ status_limiter_global = os.getenv('H2OGPT_STATUS_LIMITER_GLOBAL', '100/second')
 status_limiter_user = os.getenv('H2OGPT_STATUS_LIMITER_USER', '3/second')
 
 completion_limiter_global = os.getenv('H2OGPT_COMPLETION_LIMITER_GLOBAL', '30/second')
-completion_limiter_user = os.getenv('H2OGPT_STATUS_LIMITER_USER', '1/second')
+completion_limiter_user = os.getenv('H2OGPT_STATUS_LIMITER_USER', '5/second')
+completion_limiter_model = os.getenv('H2OGPT_STATUS_LIMITER_MODEL', '1/second')
 
 audio_limiter_global = os.getenv('H2OGPT_AUDIO_LIMITER_GLOBAL', '20/second')
 audio_limiter_user = os.getenv('H2OGPT_AUDIO_LIMITER_USER', '5/second')
@@ -373,7 +379,7 @@ file_limiter_user = os.getenv('H2OGPT_FILE_LIMITER_USER', '20/second')
 
 
 @app.get("/health")
-@limiter.limit(status_limiter_user)
+@limiter.limit(status_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(status_limiter_global)
 async def health(request: Request) -> Response:
     """Health check."""
@@ -381,7 +387,7 @@ async def health(request: Request) -> Response:
 
 
 @app.get("/version")
-@limiter.limit(status_limiter_user)
+@limiter.limit(status_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(status_limiter_global)
 async def show_version(request: Request):
     try:
@@ -406,8 +412,9 @@ async def options_route():
 
 
 @app.post('/v1/completions', response_model=TextResponse, dependencies=check_key)
-@limiter.limit(completion_limiter_user, key_func=model_rate_limit_key)
 @global_limiter.limit(completion_limiter_global)
+@limiter.limit(completion_limiter_user, key_func=api_key_rate_limit_key)
+@limiter.limit(completion_limiter_model, key_func=model_rate_limit_key)
 async def openai_completions(request: Request, request_data: TextRequest, authorization: str = Header(None)):
     try:
         request_data_dict = dict(request_data)
@@ -587,8 +594,9 @@ def tool_to_guided_json(tool):
 
 
 @app.post('/v1/chat/completions', response_model=ChatResponse, dependencies=check_key)
-@limiter.limit(completion_limiter_user, key_func=model_rate_limit_key)
 @global_limiter.limit(completion_limiter_global)
+@limiter.limit(completion_limiter_user, key_func=api_key_rate_limit_key)
+@limiter.limit(completion_limiter_model, key_func=model_rate_limit_key)
 async def openai_chat_completions(request: Request,
                                   request_data: ChatRequest = Depends(extract_model_from_request),
                                   authorization: str = Header(None)):
@@ -692,7 +700,7 @@ async def openai_chat_completions(request: Request,
 @app.get("/v1/models", dependencies=check_key)
 @app.get("/v1/models/{model}", dependencies=check_key)
 @app.get("/v1/models/{repo}/{model}", dependencies=check_key)
-@limiter.limit(status_limiter_user)
+@limiter.limit(status_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(status_limiter_global)
 async def handle_models(request: Request):
     path = request.url.path
@@ -722,7 +730,7 @@ async def handle_models(request: Request):
 
 
 @app.get("/v1/internal/model/info", response_model=ModelInfoResponse, dependencies=check_key)
-@limiter.limit(status_limiter_user)
+@limiter.limit(status_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(status_limiter_global)
 async def handle_model_info(request: Request):
     from openai_server.backend import get_model_info
@@ -730,7 +738,7 @@ async def handle_model_info(request: Request):
 
 
 @app.get("/v1/internal/model/list", response_model=ModelListResponse, dependencies=check_key)
-@limiter.limit(status_limiter_user)
+@limiter.limit(status_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(status_limiter_global)
 async def handle_list_models(request: Request):
     from openai_server.backend import get_model_list
@@ -748,7 +756,7 @@ class AudiotoTextRequest(BaseModel):
 
 
 @app.post('/v1/audio/transcriptions', dependencies=check_key)
-@limiter.limit(audio_limiter_user)
+@limiter.limit(audio_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(audio_limiter_global)
 async def handle_audio_transcription(request: Request):
     try:
@@ -851,7 +859,7 @@ def modify_wav_header(wav_bytes):
 
 
 @app.post('/v1/audio/speech', dependencies=check_key)
-@limiter.limit(audio_limiter_user)
+@limiter.limit(audio_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(audio_limiter_global)
 async def handle_audio_to_speech(request: Request):
     try:
@@ -920,7 +928,7 @@ class ImageGenerationRequest(BaseModel):
 
 
 @app.post('/v1/images/generations', dependencies=check_key)
-@limiter.limit(image_limiter_user)
+@limiter.limit(image_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(image_limiter_global)
 async def handle_image_generation(request: Request):
     try:
@@ -987,7 +995,7 @@ class EmbeddingsRequest(BaseModel):
 
 
 @app.post("/v1/embeddings", response_model=EmbeddingsResponse, dependencies=check_key)
-@limiter.limit(embedding_limiter_user)
+@limiter.limit(embedding_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(embedding_limiter_global)
 async def handle_embeddings(request: Request, request_data: EmbeddingsRequest):
     # https://docs.portkey.ai/docs/api-reference/embeddings
@@ -1027,7 +1035,7 @@ class UploadFileResponse(BaseModel):
 
 
 @app.post("/v1/files", response_model=UploadFileResponse, dependencies=check_key)
-@limiter.limit(file_limiter_user)
+@limiter.limit(file_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(file_limiter_global)
 async def upload_file(
         request: Request,
@@ -1057,7 +1065,7 @@ class ListFilesResponse(BaseModel):
 
 
 @app.get("/v1/files", response_model=ListFilesResponse, dependencies=check_key)
-@limiter.limit(file_limiter_user)
+@limiter.limit(file_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(file_limiter_global)
 async def list_files(request: Request, authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
@@ -1109,7 +1117,7 @@ class RetrieveFileResponse(BaseModel):
 
 
 @app.get("/v1/files/{file_id}", response_model=RetrieveFileResponse, dependencies=check_key)
-@limiter.limit(file_limiter_user)
+@limiter.limit(file_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(file_limiter_global)
 async def retrieve_file(request: Request, file_id: str, authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
@@ -1138,7 +1146,7 @@ class DeleteFileResponse(BaseModel):
 
 
 @app.delete("/v1/files/{file_id}", response_model=DeleteFileResponse, dependencies=check_key)
-@limiter.limit(file_limiter_user)
+@limiter.limit(file_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(file_limiter_global)
 async def delete_file(request: Request, file_id: str, authorization: str = Header(None)):
     user_dir = get_user_dir(authorization)
@@ -1163,7 +1171,7 @@ async def delete_file(request: Request, file_id: str, authorization: str = Heade
 
 
 @app.get("/v1/files/{file_id}/content", dependencies=check_key)
-@limiter.limit(file_limiter_user)
+@limiter.limit(file_limiter_user, key_func=api_key_rate_limit_key)
 @global_limiter.limit(file_limiter_global)
 async def retrieve_file_content(request: Request, file_id: str, stream: bool = Query(False),
                                 authorization: str = Header(None)):
