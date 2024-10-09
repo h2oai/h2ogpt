@@ -515,15 +515,15 @@ def get_query_to_web_image_helper():
         return ""
 
     cwd = os.path.abspath(os.getcwd())
-    image_download = f"""\n# Google Search Image
-* For getting a single image for a text query, you can use the existing pre-built python code, E.g.:
+    image_download = f"""\n# Web Image Downloader:
+* For getting a single image for a text query from the web, you can use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_download.sh
 # execution: true
 python {cwd}/openai_server/agent_tools/query_to_web_image.py --text "Text to search for" --output "file_name.jpg"
 ```
 * usage: python {cwd}/openai_server/agent_tools/query_to_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
-* If already have an image URL, you MUST NOT use this tool, instead directly download the image URL via wget or curl -L or requests.
+* If already have an image URL (e.g. from google or bing search), you MUST NOT use this tool, instead directly download the image URL via wget or curl -L or requests.
 """
     return image_download
 
