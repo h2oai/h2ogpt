@@ -608,7 +608,27 @@ python {cwd}/download_web_video.py --video_url "VIDEO_URL" --base_url "https://w
 def get_serp_helper():
     have_internet = get_have_internet()
     if have_internet and os.getenv('SERPAPI_API_KEY'):
-        serp = """\n* Search the web (serp API with e.g. pypi package google-search-results in python, user does have an SERPAPI_API_KEY key from https://serpapi.com/ is already in ENV).  Can be used to get relevant short answers from the web."""
+        cwd = os.path.abspath(os.getcwd())
+        serp = f"""# Perform Google Searches using the following Python script:
+* To perform a search using various search engines and Google services, use the following command:
+```sh
+# filename: my_google_search.py
+# execution: true
+python {cwd}/google_search.py --query "SEARCH_QUERY"
+```
+* usage: {cwd}/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}] [--keys KEYS [KEYS ...]]
+* The tool saves full search results to a JSON file in the current directory.
+* You can use the --keys option to display specific information from the results.
+* For complex queries about the search results, it's recommended to pass the entire JSON file to ask_question_about_documents.py.
+* For non-english queries, do python {cwd}/google_search.py -h to see options for other languages and locations.
+* To download the video returned from this google_search.py tool:
+  - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
+  - For generic free web sites, use can get video via wget, curl -L, or requests.
+* To download an page or image returned from this google_search.py tool:
+   - Use wget, curl -L, or requests to download the image URL.
+"""
+        if os.getenv("BING_API_KEY"):
+            serp += f"""# The bing_search.py tool can be used if this google_search.py tool fails or vice versa."""
     else:
         serp = ""
     return serp
@@ -693,15 +713,17 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {
   - image: Image search to find images (once have image URL, can get it via wget, curl -L, or requests)
   - news: News search to find news
   - video: Video search to find videos
-* To download the video returned from this search tool:
+* To download the video returned from this bing_search.py tool:
   - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
   - For generic free web sites, use can get video via wget, curl -L, or requests.
-* To download an image returned from this search tool:
+* To download a page or image returned from this bing_search.py tool:
    - Use wget, curl -L, or requests to download the image URL.
 * Use -l or --limit to specify the number of results (default is 10)
 * Use -m or --market to specify the market (e.g., en-US)
 * Use -f or --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
 """
+        if os.getenv("SERPAPI_API_KEY"):
+            bing_search += f"""# The google_search.py tool can be used if this being_search.py tool fails or vice versa."""
     else:
         bing_search = ""
     return bing_search
