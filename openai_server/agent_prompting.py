@@ -733,10 +733,11 @@ def get_api_helper():
     if have_internet:
         apis = f"""\n#APIs and external services instructions:
 * You DO have access to the internet.
+* Use existing python tools for various tasks, e.g. Wolfram Alpha, Semantic Scholar, News API, Google API, Bing API, etc.
+* Highly recommended to first try using google or bing search tool when searching for something on the web.
+* Avoid generating code with placeholder API keys as that will never work because user will not be able to change the code.
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
-* Use existing python tools for various tasks, e.g., Wolfram Alpha, Semantic Scholar, News API, SERP API, Bing API, etc.
-* For complex multi-hop search tasks where other APIs have trouble, try using selenium with its chrome driver (if uncertain, see example code use for video download in openai_server/agent_tools/download_web_video.py).
-* You may generate code with API code that uses publicly available APIs
+* You may generate code with API code that uses publicly available APIs that do not require any API key.
 * You may generate code with APIs for API keys that have been mentioned in this overall message.
 * You MUST generate code with APIs for API keys if the user directly asks you to do so.  Do your best effort to figure out (from internet, documents, etc.) how to use the API to solve the user's task.  You are not allowed to refuse to use the API if the user asks you to use it."""
     else:
