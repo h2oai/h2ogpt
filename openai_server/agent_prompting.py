@@ -616,9 +616,8 @@ def get_serp_helper():
 # execution: true
 python {cwd}/google_search.py --query "SEARCH_QUERY"
 ```
-* usage: {cwd}/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}] [--keys KEYS [KEYS ...]]
+* usage: {cwd}/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
 * The tool saves full search results to a JSON file in the current directory.
-* You can use the --keys option to display specific information from the results.
 * For complex queries about the search results, it's recommended to pass the entire JSON file to ask_question_about_documents.py.
 * For non-english queries, do python {cwd}/google_search.py -h to see options for other languages and locations.
 * To download the video returned from this google_search.py tool:
@@ -704,11 +703,11 @@ def get_bing_search_helper():
 * In most cases, just use the existing general pre-built Python code to query Bing Search, E.g.:
 ```sh
 # execution: true
-python {cwd}/openai_server/agent_tools/bing_search.py -q "QUERY" -t web -l 5
+python {cwd}/openai_server/agent_tools/bing_search.py --query "QUERY" --type web --limit 5
 ```
-usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {{web,image,news,video}}] [-l LIMIT] [-m MARKET] [-f {{Day,Week,Month}}]
+usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query QUERY [--type {{web,image,news,video}}] [--limit LIMIT] [--market MARKET] [--freshness {{Day,Week,Month}}]
 * This Bing is highly preferred over the Google Image search query
-* Available search types (-t or --type):
+* Available search types (--type):
   - web: General web search to find web content
   - image: Image search to find images (once have image URL, can get it via wget, curl -L, or requests)
   - news: News search to find news
@@ -718,9 +717,9 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] -q QUERY [-t {
   - For generic free web sites, use can get video via wget, curl -L, or requests.
 * To download a page or image returned from this bing_search.py tool:
    - Use wget, curl -L, or requests to download the image URL.
-* Use -l or --limit to specify the number of results (default is 10)
-* Use -m or --market to specify the market (e.g., en-US)
-* Use -f or --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
+* Use --limit to specify the number of results (default is 10)
+* Use --market to specify the market (e.g., en-US)
+* Use --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
 """
         if os.getenv("SERPAPI_API_KEY"):
             bing_search += f"""# The google_search.py tool can be used if this being_search.py tool fails or vice versa."""
