@@ -463,7 +463,7 @@ os.environ['TERM'] = 'dumb'
                          'STT_OPENAI_BASE_URL', 'STT_OPENAI_API_KEY',
                          'H2OGPT_MODEL_LOCK', 'PINECONE_API_KEY', 'TEST_SERVER', 'INVOCATION_ID', 'ELEVENLABS_API_KEY',
                          'HUGGINGFACE_API_TOKEN', 'PINECONE_ENV', 'PINECONE_API_SECRET',
-                         'GROQ_SECRET_ACCESS_KEY',
+                         'GROQ_SECRET_ACCESS_KEY', 'BING_API_KEY',
                          ]
 
         # Get the values of these environment variables
