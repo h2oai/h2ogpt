@@ -668,6 +668,7 @@ def get_wolfram_alpha_helper():
 python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY GOES HERE"
 ```
 * usage: python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY GOES HERE"
+* For wolfram alpha tool, query must be *very* terse and specific, e.g., "integral of x^2" or "mass of the sun" and is not to be used for general web searches.
 * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
 """
     else:
@@ -678,8 +679,9 @@ python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --que
 def get_news_api_helper():
     cwd = os.path.abspath(os.getcwd())
     have_internet = get_have_internet()
-    if have_internet and os.getenv('NEWS_API_KEY'):
-        news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search through articles and blogs published in the last 5 years.
+    # only expose news API if didn't have google or bing, else confuses LLM
+    if have_internet and os.getenv('NEWS_API_KEY') and not (os.environ.get("SERPAPI_API_KEY") or os.environ.get("BING_API_KEY")):
+        news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search topical news articles published in the last 5 years.
 * For a news query, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_news_response.sh
@@ -687,6 +689,7 @@ def get_news_api_helper():
 python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY"
 ```
 * usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+* news_query is not to be used for general web searches, but only for topical news searches.
 * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
 * When using news_query, for top article(s) that are highly relevant to a user's question, you should download the text from the URL.
 """

@@ -1,7 +1,7 @@
 import os
 import argparse
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any
 from serpapi import (
     SerpApiClient, GoogleSearch, BingSearch, BaiduSearch, YandexSearch,
     YahooSearch, EbaySearch, HomeDepotSearch, YoutubeSearch, GoogleScholarSearch,
