@@ -660,14 +660,14 @@ def get_wolfram_alpha_helper():
     if have_internet and os.getenv('WOLFRAM_ALPHA_APPID'):
         # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
         # https://products.wolframalpha.com/api/documentation
-        wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, astronomy, general real-time questions like weather, and more.
+        wolframalpha = f"""\n* Wolfram Alpha (API with wolframalpha pypi package in python, user does have WOLFRAM_ALPHA_APPID key for use with https://api.semanticscholar.org/ already in ENV).  Can be used for advanced symbolic math, physics, chemistry, engineering, and astronomy.
 * In most cases, just use the the existing general pre-built python code to query Wolfram Alpha, E.g.:
 ```sh
 # filename: my_wolfram_response.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
+python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY GOES HERE"
 ```
-* usage: python {cwd}/openai_server/agent_tools/wolfram_query.py --query "QUERY GOES HERE"
+* usage: python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY GOES HERE"
 * Text results get printed, and images are saved under the directory `wolfram_images` that is inside the current directory
 """
     else:
