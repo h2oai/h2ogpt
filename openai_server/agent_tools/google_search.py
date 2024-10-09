@@ -138,7 +138,7 @@ def perform_search(args) -> Dict[str, Any]:
     params = {
         "q": args.query,
         "api_key": SERPAPI_API_KEY,
-        "num": args.num,
+        "num": max(2, args.num),
         "device": args.device,
     }
 
@@ -147,8 +147,6 @@ def perform_search(args) -> Dict[str, Any]:
         tbm = GOOGLE_SERVICES.get(args.google_service.lower(), "")
         if tbm == 'pts':
             params['num'] = args.num = min(max(args.num, 10), 100)
-        print(tbm)
-        print(params)
         params.update({
             "google_domain": args.google_domain,
             "gl": validate_country(args.gl),
@@ -199,7 +197,6 @@ def save_results_to_file(results: Dict[str, Any], filename: str) -> None:
         f"""# Full search results available in this JSON file: {filename}
 * One can write python code to extract the keys one wants from the JSON file.
 * If need broad information or extraction of complex information, it is highly recommend passing entire JSON into ask_question_about_documents.py to get an answer to a question about the search results.
-* If you identify a key you want to extract, you can also just repeat the search with the --keys option to get the key in the output instead of extracting from the JSON file.
 """)
 
 
@@ -216,8 +213,10 @@ def print_results(results: Dict[str, Any], args):
             else:
                 print(f"\n{key}: Not found in results")
     else:
-        print(
-            f"Keys available in the search results for query '{args.query}' using {args.engine} ({args.google_service} service):")
+        print(f"""To extract specific keys, you can repeat the same command and chose the keys you want by using the CLI optional arg: [--keys KEYS [KEYS ...]]
+Keys available in the search results for query '{args.query}' using {args.engine} ({args.google_service} service):
+""")
+
         for key in results.keys():
             print(f"- {key}")
 
@@ -241,6 +240,8 @@ def print_results(results: Dict[str, Any], args):
                         print(f"     Product Link: {result['product_link']}")
                     if 'snippet' in result:
                         print(f"     Snippet: {result['snippet']}")
+                    if 'top_stories' in result:
+                        print(f"     Top Stories: {result['top_stories']}")
                 break  # Only show sample for the first available primary key
 
     if args.json:
