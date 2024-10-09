@@ -719,10 +719,12 @@ def go_gradio(**kwargs):
 
     if kwargs['model_lock']:
         have_vision_models = any(
-            [is_vision_model(x.get('base_model', '')) or x.get('base_model', 'NONE') in kwargs['is_vision_models'] for x
-             in kwargs['model_lock']])
+            [is_vision_model(x.get('base_model', '')) or
+             x.get('display_name', kwargs['base_model']) in kwargs['is_vision_models'] for x in kwargs['model_lock']])
     else:
-        have_vision_models = is_vision_model(kwargs['base_model']) or kwargs['base_model'] in kwargs['is_vision_models']
+        have_vision_models = is_vision_model(kwargs['base_model']) or kwargs.get('display_name',
+                                                                                 kwargs['base_model']) in kwargs[
+                                 'is_vision_models']
 
     is_gradio_h2oai = get_is_gradio_h2oai()
 

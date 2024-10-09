@@ -412,7 +412,8 @@ def get_client_from_inference_server(inference_server, base_model=None,
                 raise
         print("HF Client End: %s %s : %s" % (inference_server, base_model, res))
     if validate_clients and fail_if_invalid_client:
-        assert hf_client is not None or gr_client is not None, "Failed to create Gradio or HF client for %s %s" % (inference_server, base_model)
+        assert hf_client is not None or gr_client is not None, "Failed to create Gradio or HF client for %s %s" % (
+        inference_server, base_model)
     return inference_server, gr_client, hf_client
 
 
@@ -1780,12 +1781,19 @@ def __model_lock_to_state(model_dict1, **kwargs):
     model_state_trial['guided_vllm'] = model_state_trial['json_vllm']
     if model_state_trial['is_actually_vision_model'] is None:
         model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
-    model_visible_vision_models = model_state_trial.get('visible_vision_models', kwargs['visible_vision_models'])
+
+    # get which visible vision model for this base model
+    model_visible_vision_models = model_state_trial.get('visible_vision_models')
     if model_visible_vision_models is None:
-        # '' would mean use no vision model, so don't use CLI in that case
         model_visible_vision_models = kwargs['visible_vision_models']
+        if isinstance(model_visible_vision_models, list):
+            model_visible_vision_models = model_visible_vision_models[0]
+    if model_state_trial['is_actually_vision_model']:
+        model_visible_vision_models = model_state_trial['base_model']
+    # if in UI, 'auto' is default, but CLI has another default, so use that if set
     if isinstance(model_visible_vision_models, str):
         model_visible_vision_models = [model_visible_vision_models]
+
     if kwargs['model_lock']:  # NOTE: Need real model lock here from kwargs
         all_visible_models = [x.get('visible_models') or x.get('base_model') for x in kwargs['model_lock']]
     else:
@@ -1808,13 +1816,7 @@ def __model_lock_to_state(model_dict1, **kwargs):
     if hasattr(tokenizer0, 'max_output_len') and tokenizer0.max_output_len is not None:
         model_state_trial['max_output_seq_len'] = tokenizer0.max_output_len
 
-    auto_visible_vision_models = None
-    if kwargs['visible_vision_models']:
-        # if in UI, 'auto' is default, but CLI has another default, so use that if set
-        auto_visible_vision_models = kwargs['visible_vision_models']
-    if model_state_trial['is_actually_vision_model']:
-        auto_visible_vision_models = model_state_trial['base_model']
-    model_state_trial['auto_visible_vision_models'] = auto_visible_vision_models
+    model_state_trial['auto_visible_vision_models'] = model_visible_vision_models
     if isinstance(model_state_trial['auto_visible_vision_models'], list) and len(
             model_state_trial['auto_visible_vision_models']) >= 1:
         model_state_trial['auto_visible_vision_models'] = model_state_trial['auto_visible_vision_models'][0]
