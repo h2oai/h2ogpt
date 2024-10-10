@@ -104,7 +104,9 @@ def main():
     parser.add_argument("-b", "--baseline", required=False, action='store_true',
                         help="Whether to get baseline from user docs")
     parser.add_argument("--files", nargs="+", required=False,
-                        help="Files of documents as textual files with optionally additional images")
+                        help="Files of documents with optionally additional images to ask question about.")
+    parser.add_argument("--urls", nargs="+", required=False,
+                        help="URLs to ask question about")
     parser.add_argument("-m", "--model", type=str, required=False, help="OpenAI or Open Source model to use")
     parser.add_argument("--max_time", type=float, required=False, default=default_max_time,
                         help="Maximum time to wait for response")
@@ -170,9 +172,11 @@ def main():
         # h2oGPTe defaults to as if no GPU for baseline to be consistent
         have_gpu = False
 
-    if args.files:
+    files = args.files or []
+    urls = args.urls or []
+    if files + urls:
         from src.enums import IMAGE_EXTENSIONS
-        for filename in args.files:
+        for filename in files + urls:
             if any(filename.lower().endswith(x.lower()) for x in textual_like_files.keys()):
                 with open(filename, "rt") as f:
                     text_context_list.append(f.read())
@@ -180,7 +184,9 @@ def main():
                 image_files.append(filename)
             else:
                 from src.function_client import get_data_h2ogpt
-                sources1, known_type = get_data_h2ogpt(filename, verbose=False,
+                sources1, known_type = get_data_h2ogpt(filename,
+                                                       is_url=filename in urls,
+                                                       verbose=False,
                                                        use_unstructured_pdf='off',  # always slow and not better
                                                        enable_pdf_ocr='off',  # always slow
                                                        enable_pdf_doctr='off' if not have_gpu else 'on',
@@ -214,3 +220,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+"""
+Examples:
+
+wget https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf
+H2OGPT_AGENT_OPENAI_MODEL=claude-3-sonnet-20240229 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Extract AI-related data for Singapore, Israel, Qatar, UAE, Denmark, and Finland from the HAI_2024_AI-Index-Report.pdf. Focus on metrics related to AI implementation, investment, and innovation. Provide a summary of the data in a format suitable for creating a plot." --files HAI_2024_AI-Index-Report.pdf
+H2OGPT_AGENT_OPENAI_MODEL=claude-3-sonnet-20240229 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Give bullet list of top 10 stories." --urls www.cnn.com
+H2OGPT_AGENT_OPENAI_MODEL=claude-3-sonnet-20240229 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Extract AI-related data for Singapore, Israel, Qatar, UAE, Denmark, and Finland from the HAI_2024_AI-Index-Report.pdf. Focus on metrics related to AI implementation, investment, and innovation. Provide a summary of the data in a format suitable for creating a plot." --urls https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf
+"""
