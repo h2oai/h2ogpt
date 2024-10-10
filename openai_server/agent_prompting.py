@@ -614,12 +614,12 @@ def get_serp_helper():
 ```sh
 # filename: my_google_search.py
 # execution: true
-python {cwd}/google_search.py --query "SEARCH_QUERY"
+python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
 ```
-* usage: {cwd}/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
+* usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
 * The tool saves full search results to a JSON file in the current directory.
 * For complex queries about the search results, it's recommended to pass the entire JSON file to ask_question_about_documents.py.
-* For non-english queries, do python {cwd}/google_search.py -h to see options for other languages and locations.
+* For non-english queries, do python {cwd}/openai_server/agent_tools/google_search.py -h to see options for other languages and locations.
 * To download the video returned from this google_search.py tool:
   - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
   - For generic free web sites, use can get video via wget, curl -L, or requests.

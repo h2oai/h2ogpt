@@ -124,14 +124,40 @@ def main():
         ".html": "HTML File",
         ".mhtml": "MHTML File",
         ".htm": "HTML File",
-        ".xml": "XML"
+        ".xml": "XML",
+        ".json": "JSON",
+        ".yaml": "YAML",
+        ".yml": "YAML",
+        ".ini": "INI configuration file",
+        ".log": "Log file",
+        ".tex": "LaTeX",
+        ".sql": "SQL file",
+        ".sh": "Shell script",
+        ".bat": "Batch file",
+        ".js": "JavaScript",
+        ".css": "Cascading Style Sheets",
+        ".php": "PHP",
+        ".jsp": "Java Server Pages",
+        ".pl": "Perl script",
+        ".r": "R script",
+        ".lua": "Lua script",
+        ".conf": "Configuration file",
+        ".properties": "Java Properties file",
+        ".tsv": "Tab-Separated Values file",
+        ".xhtml": "XHTML file",
+        ".srt": "Subtitle file (SRT)",
+        ".vtt": "WebVTT file",
+        ".cpp": "C++ Source file",
+        ".c": "C Source file",
+        ".h": "C/C++ Header file",
+        ".go": "Go Source file",
     }
 
     if args.files:
         from src.vision.utils_vision import IMAGE_EXTENSIONS
         text_context_list = []
         for filename in args.files:
-            if any(filename.endswith(x) for x in textual_like_files.keys()):
+            if any(filename.lower().endswith(x.lower()) for x in textual_like_files.keys()):
                 with open(filename, "rt") as f:
                     text_context_list.append(f.read())
             elif any(filename.endswith(x) for x in IMAGE_EXTENSIONS):
