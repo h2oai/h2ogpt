@@ -797,6 +797,7 @@ def get_model(
                         messages=messages,
                         temperature=0.0,
                         max_tokens=10,
+                        timeout=20,
                     )
                     has_response = len(responses.choices[0].message.content) > 0
                 except Exception as e:
@@ -816,6 +817,7 @@ def get_model(
                         prompt="Who are you?",
                         temperature=0.0,
                         max_tokens=10,
+                        timeout=20,
                     )
                     has_response = len(responses.choices[0].text) > 0
                 except Exception as e:
