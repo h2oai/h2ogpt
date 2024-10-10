@@ -572,15 +572,32 @@ def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list,
 python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt "PROMPT" [--files FILES [FILES ...]]
 ```
 * usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --prompt PROMPT [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
-* ask_question_about_documents outputs an answer to the prompt for the given files.
-* Files can be text files with possible additional image files.
-* Do not use ask_question_about_documents just to query individual images, use ask_question_about_image for that.
-* Each line in the text file is considered as a separate chunk, and the first chunks should be most important.  Use explicit \\n if new lines required within a chunk.
+* ask_question_about_documents.py gives a text response
+* ask_question_about_documents.py can input files as local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx).
+* Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
 """
     if text_context_list or image_file:
         rag_helper += "* Absolutely you should always run ask_question_about_documents once with -b to get a baseline answer if the user has provided documents.\n"
 
     return rag_helper
+
+
+def get_convert_to_text_helper():
+    cwd = os.path.abspath(os.getcwd())
+    convert_helper = f"""\n# Convert pdf, docx, doc, epub, pptx, ppt, xls, xlsx into text:
+* If you need to convert pdf, docx, doc, epub, pptx, ppt, xls, xlsx into text, use the following sh code:
+```sh
+# filename: my_convert_to_text.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILES [FILES ...]]
+```
+* usage: {cwd}/openai_server/agent_tools/convert_document_to_text.py [-h] [--files FILES [FILES ...]]
+* Use convert_document_to_text.py in order to get the document in text format for other tools.
+* Use convert_document_to_text.py if just want to directly ask a question about a document.
+* Use ask_question_about_image.py if just want to directly ask a question about an image.
+"""
+
+    return convert_helper
 
 
 def get_download_web_video_helper():
@@ -680,7 +697,8 @@ def get_news_api_helper():
     cwd = os.path.abspath(os.getcwd())
     have_internet = get_have_internet()
     # only expose news API if didn't have google or bing, else confuses LLM
-    if have_internet and os.getenv('NEWS_API_KEY') and not (os.environ.get("SERPAPI_API_KEY") or os.environ.get("BING_API_KEY")):
+    if have_internet and os.getenv('NEWS_API_KEY') and not (
+            os.environ.get("SERPAPI_API_KEY") or os.environ.get("BING_API_KEY")):
         news_api = f"""\n* News API uses NEWS_API_KEY from https://newsapi.org/).  The main use of News API is to search topical news articles published in the last 5 years.
 * For a news query, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
@@ -762,6 +780,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     query_to_web_image_helper = get_query_to_web_image_helper()
     aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout)
     rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
+    convert_helper = get_convert_to_text_helper()
     youtube_helper = get_download_web_video_helper()
 
     # search:
@@ -795,21 +814,28 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 """
 
     system_message_parts = [agent_code_writer_system_message,
-                            ask_question_about_image_helper,
+                            # rendering
                             mermaid_renderer_helper,
                             image_generation_helper,
-                            audio_transcription_helper,
-                            query_to_web_image_helper,
+                            # coding
                             aider_coder_helper,
+                            # docs
                             rag_helper,
+                            ask_question_about_image_helper,
+                            audio_transcription_helper,
                             youtube_helper,
+                            convert_helper,
+                            # search
                             serp_helper,
                             semantic_scholar_helper,
                             wolfram_alpha_helper,
                             news_helper,
                             bing_search_helper,
+                            query_to_web_image_helper,
+                            # overall
                             api_helper,
                             agent_tools_note,
+                            # docs
                             chat_doc_query]
 
     system_message = ''.join(system_message_parts)

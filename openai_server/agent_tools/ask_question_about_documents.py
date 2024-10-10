@@ -8,6 +8,15 @@ if 'src' not in sys.path:
     sys.path.append('src')
 
 
+def has_gpu():
+    import subprocess
+    try:
+        result = subprocess.run(['nvidia-smi'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def get_rag_answer(prompt, text_context_list=None, image_files=None, chat_conversation=None,
                    model=None,
                    system_prompt=None,
@@ -153,9 +162,16 @@ def main():
         ".go": "Go Source file",
     }
 
+    if not args.baseline:
+        # have_gpu = has_gpu()
+        # too slow for now to do DocTR even if have GPU
+        have_gpu = False
+    else:
+        # h2oGPTe defaults to as if no GPU for baseline to be consistent
+        have_gpu = False
+
     if args.files:
-        from src.vision.utils_vision import IMAGE_EXTENSIONS
-        text_context_list = []
+        from src.enums import IMAGE_EXTENSIONS
         for filename in args.files:
             if any(filename.lower().endswith(x.lower()) for x in textual_like_files.keys()):
                 with open(filename, "rt") as f:
@@ -163,7 +179,23 @@ def main():
             elif any(filename.endswith(x) for x in IMAGE_EXTENSIONS):
                 image_files.append(filename)
             else:
-                print(f"Unable to handle file type for {filename}")
+                from src.function_client import get_data_h2ogpt
+                sources1, known_type = get_data_h2ogpt(filename, verbose=False,
+                                                       use_unstructured_pdf='off',  # always slow and not better
+                                                       enable_pdf_ocr='off',  # always slow
+                                                       enable_pdf_doctr='off' if not have_gpu else 'on',
+                                                       # FIXME: requires GPU to be fast
+                                                       enable_captions=have_gpu,  # FIXME: requires GPU to be fast
+                                                       enable_llava=False,  # unused
+                                                       enable_transcriptions=have_gpu,
+                                                       # FIXME: requires GPU to be fast, and have separate STT tool
+                                                       # hf_embedding_model='fake'  # already fake if GPU is off on server
+                                                       )
+
+                if not sources1:
+                    print(f"Unable to handle file type for {filename}")
+                else:
+                    text_context_list.extend([x.page_content for x in sources1])
 
     rag_kwargs = dict(text_context_list=text_context_list,
                       image_files=image_files,
@@ -175,7 +207,7 @@ def main():
     print("<simple_rag_answer>")
     rag_answer = get_rag_answer(args.prompt, **rag_kwargs)
     print("</simple_rag_answer>")
-    if rag_answer:
+    if rag_answer and args.baseline:
         print(
             "The above simple_rag_answer answer may be correct, but the answer probably requires validation via checking the documents for similar text or search and news APIs if involves recent events.  Note that the LLM answering above has no coding capability or internet access so disregard its concerns about that if it mentions it.")
 

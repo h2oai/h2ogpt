@@ -34,7 +34,7 @@ from db_utils import set_userid, get_username_direct, get_userid_direct, fetch_u
 from model_utils import switch_a_roo_llama, get_on_disk_models, get_inf_models, model_lock_to_state
 from src.prompter_utils import get_chat_template, base64_decode_jinja_template
 from tts_utils import combine_audios
-from vision.utils_vision import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
+from src.enums import IMAGE_EXTENSIONS
 
 # This is a hack to prevent Gradio from phoning home when it gets imported
 os.environ['GRADIO_ANALYTICS_ENABLED'] = 'False'

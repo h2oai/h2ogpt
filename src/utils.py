@@ -1537,7 +1537,7 @@ except (PackageNotFoundError, AssertionError):
 have_pymupdf4llm = False
 try:
     assert distribution('pymupdf4llm') is not None
-    have_pymupdf4llm = True
+    have_pymupdf4llm = False  # too slow, avoid for now
 except (PackageNotFoundError, AssertionError):
     pass
 
