@@ -572,10 +572,9 @@ def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list,
 python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt "PROMPT" [--files FILES [FILES ...]]
 ```
 * usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --prompt PROMPT [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
-* ask_question_about_documents outputs an answer to the prompt for the given files.
-* Files can be text files with possible additional image files.
-* Do not use ask_question_about_documents just to query individual images, use ask_question_about_image for that.
-* Each line in the text file is considered as a separate chunk, and the first chunks should be most important.  Use explicit \\n if new lines required within a chunk.
+* ask_question_about_documents.py gives a text response
+* ask_question_about_documents.py can input files as local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx).
+* Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
 """
     if text_context_list or image_file:
         rag_helper += "* Absolutely you should always run ask_question_about_documents once with -b to get a baseline answer if the user has provided documents.\n"
