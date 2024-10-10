@@ -573,7 +573,7 @@ python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt 
 ```
 * usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --prompt PROMPT [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
 * ask_question_about_documents.py --files can be any local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx)
-* ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, etc.).
+* ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.).
 * Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
 """
     if text_context_list or image_file:
@@ -593,7 +593,7 @@ python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILE
 ```
 * usage: {cwd}/openai_server/agent_tools/convert_document_to_text.py [-h] [--files FILES [FILES ...]]
 * Use convert_document_to_text.py with --files with a document (pdf, docx, doc, epub, pptx, ppt, xls, xlsx) to convert to text for other tools.
-* Use convert_document_to_text.py with --urls for some URL(s) to convert to text for other tools.
+* Use convert_document_to_text.py can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.) to convert to text for other tools.
 * However, use convert_document_to_text.py if just want to directly ask a question about a document or URL.
 * However, use ask_question_about_image.py if just want to directly ask a question about an image.
 """

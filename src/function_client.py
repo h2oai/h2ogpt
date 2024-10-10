@@ -60,7 +60,7 @@ def call_function_server(host, port, function_name, args, kwargs, use_disk=False
             return execute_result["result"]
 
 
-def get_data_h2ogpt(file_path, verbose=False, **kwargs):
+def get_data_h2ogpt(file_path, verbose=False, is_url=False, **kwargs):
     """
     Simple function for Open Web UI
     """
@@ -71,14 +71,16 @@ def get_data_h2ogpt(file_path, verbose=False, **kwargs):
     # could set other things:
     # https://github.com/h2oai/h2ogpt/blob/d2fa3d7ce507e8fb141c78ff92a83a8e27cf8b31/src/gpt_langchain.py#L9498
     simple_kwargs = kwargs
+    if is_url:
+        simple_kwargs.update(dict(filei=None, url=file_path, text=None))
+        file_path = None
     function_name = 'path_to_docs'
     use_disk = False
     use_pickle = True
-    filei = None
     sources = call_function_server(function_server_host,
                                    function_server_port,
                                    function_name,
-                                   (file_path, filei, file_path, file_path),
+                                   (file_path,),
                                    simple_kwargs,
                                    use_disk=use_disk, use_pickle=use_pickle,
                                    function_api_key=function_api_key,
