@@ -104,7 +104,9 @@ def main():
     parser.add_argument("-b", "--baseline", required=False, action='store_true',
                         help="Whether to get baseline from user docs")
     parser.add_argument("--files", nargs="+", required=False,
-                        help="Files of documents as textual files with optionally additional images")
+                        help="Files of documents with optionally additional images to ask question about.")
+    parser.add_argument("--urls", nargs="+", required=False,
+                        help="URLs to ask question about")
     parser.add_argument("-m", "--model", type=str, required=False, help="OpenAI or Open Source model to use")
     parser.add_argument("--max_time", type=float, required=False, default=default_max_time,
                         help="Maximum time to wait for response")
@@ -170,9 +172,12 @@ def main():
         # h2oGPTe defaults to as if no GPU for baseline to be consistent
         have_gpu = False
 
-    if args.files:
+    files = args.files or []
+    urls = args.urls or []
+    files = files + urls
+    if files:
         from src.enums import IMAGE_EXTENSIONS
-        for filename in args.files:
+        for filename in files:
             if any(filename.lower().endswith(x.lower()) for x in textual_like_files.keys()):
                 with open(filename, "rt") as f:
                     text_context_list.append(f.read())

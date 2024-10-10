@@ -32,8 +32,7 @@ def process_files(files):
         if filename.lower().endswith(textual_types):
             with open(filename, "rt") as f:
                 text_context_list.append(f.read())
-        elif filename.lower().endswith(doc_types):
-        # else:
+        else:
             # have_gpu = has_gpu()
             have_gpu = False  # too slow for now
 
@@ -51,22 +50,24 @@ def process_files(files):
                 print(f"Unable to handle file type for {filename}")
             else:
                 text_context_list.extend([x.page_content for x in sources1])
-        else:
-            print(f"Unable to handle file type for {filename}")
 
     return text_context_list
 
 
 def main():
     parser = argparse.ArgumentParser(description="Converts document to text")
-    parser.add_argument("--files", nargs="+", required=True, help="Files to convert to text")
+    parser.add_argument("--files", nargs="+", required=False, help="Files to convert to text")
+    parser.add_argument("--urls", nargs="+", required=False, help="URLs to convert to text")
     parser.add_argument("--output", type=str, required=False, help="Output filename")
     args = parser.parse_args()
 
     if not args.output:
         args.output = f"conversion_to_text_{str(uuid.uuid4())[:6]}.txt"
 
-    text_context_list = process_files(args.files)
+    files = args.files or []
+    urls = args.urls or []
+    files = files or urls
+    text_context_list = process_files(files)
 
     # Join the text_context_list into a single string
     output_text = "\n\n".join(text_context_list)
@@ -75,7 +76,7 @@ def main():
     with open(args.output, "w") as f:
         f.write(output_text)
 
-    print(f"{args.files} has been converted to text and written to {args.output}")
+    print(f"{files} has been converted to text and written to {args.output}")
 
 
 if __name__ == "__main__":

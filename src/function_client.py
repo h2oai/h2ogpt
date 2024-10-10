@@ -74,10 +74,11 @@ def get_data_h2ogpt(file_path, verbose=False, **kwargs):
     function_name = 'path_to_docs'
     use_disk = False
     use_pickle = True
+    filei = None
     sources = call_function_server(function_server_host,
                                    function_server_port,
                                    function_name,
-                                   (file_path,),
+                                   (file_path, filei, file_path, file_path),
                                    simple_kwargs,
                                    use_disk=use_disk, use_pickle=use_pickle,
                                    function_api_key=function_api_key,
