@@ -596,6 +596,7 @@ python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILE
 * Use convert_document_to_text.py can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.) to convert to text for other tools.
 * However, use convert_document_to_text.py if just want to directly ask a question about a document or URL.
 * However, use ask_question_about_image.py if just want to directly ask a question about an image.
+* If want to do structured analysis on xlsx or xls files, better to use pandas to directly read via pd.read_excel().
 """
 
     return convert_helper
