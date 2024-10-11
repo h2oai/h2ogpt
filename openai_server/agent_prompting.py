@@ -584,17 +584,18 @@ python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt 
 
 def get_convert_to_text_helper():
     cwd = os.path.abspath(os.getcwd())
-    convert_helper = f"""\n# Convert pdf, docx, doc, epub, pptx, ppt, xls, xlsx, or URLs into text:
-* If you need to convert pdf, docx, doc, epub, pptx, ppt, xls, xlsx, or URLs into text, use the following sh code:
+    convert_helper = f"""\n# Convert non-image text-based documents or URLs into text:
+* If you need to convert non-image text-based pdf, docx, doc, epub, pptx, ppt, xls, xlsx, or URLs into text, use the following sh code:
 ```sh
-# filename: my_convert_to_text.sh
+# filename: my_convert_document_or_url_to_text.sh
 # execution: true
 python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
 ```
 * usage: {cwd}/openai_server/agent_tools/convert_document_to_text.py [-h] [--files FILES [FILES ...]]
 * Use convert_document_to_text.py with --files with a document (pdf, docx, doc, epub, pptx, ppt, xls, xlsx) to convert to text for other tools.
 * Use convert_document_to_text.py can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.) to convert to text for other tools.
-* However, use convert_document_to_text.py if just want to directly ask a question about a document or URL.
+* The convert_document_to_text.py tool is not to be used for images.
+* However, use convert_document_to_text.py if just want to directly ask a question about a non-image document or URL.
 * However, use ask_question_about_image.py if just want to directly ask a question about an image.
 * If want to do structured analysis on xlsx or xls files, better to use pandas to directly read via pd.read_excel().
 """
@@ -843,3 +844,19 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     system_message = ''.join(system_message_parts)
 
     return system_message, internal_file_names, system_message_parts
+
+
+def planning_prompt(query):
+    return f"""
+<user_question>
+{query}
+</user_question>
+# Planning Phase:
+* First, for each tool in agent_tools directory, consider how the tool might be useful.
+* Second, come up with a possible plan to solve the problem using these tools or other coding approaches.
+# Rules:
+* You must not respond to the user question directly.
+* Do not write any code.  You must NOT execute any code.  Keep execution: false
+* Once you have finished the plan, you must end your response with <FINISHED_ALL_TASKS> immediately.
+* Finally, end your turn of the conersation without any additional discussion or code.
+"""
