@@ -3,7 +3,7 @@ import tempfile
 
 from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
-from openai_server.agent_prompting import get_full_system_prompt, planning_prompt
+from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt
 
 from openai_server.autogen_utils import H2OConversableAgent
 
@@ -130,6 +130,7 @@ def run_autogen_2agent(query=None,
     code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
 
     planning_messages = []
+    chat_result_planning = None
     if autogen_use_planning_prompt:
         # setup planning agents
         code_writer_kwargs_planning = code_writer_kwargs.copy()
@@ -146,13 +147,19 @@ def run_autogen_2agent(query=None,
                            silent=autogen_silent_exchange,
                            clear_history=False,
                            )
-        chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
+        chat_result_planning = code_executor_agent.initiate_chat(**chat_kwargs)
 
         # get fresh agents
         code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
         code_executor_agent = get_code_execution_agent(executor, autogen_max_consecutive_auto_reply)
-        if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
-            planning_messages = chat_result.chat_history
+        if hasattr(chat_result_planning, 'chat_history') and chat_result_planning.chat_history:
+            planning_messages = chat_result_planning.chat_history
+            for message in planning_messages:
+                if 'content' in message:
+                    message['content'] = message['content'].replace('<FINISHED_ALL_TASKS>', '').replace('ENDOFTURN', '')
+                if 'role' in message and message['role'] == 'assistant':
+                    # replace prompt
+                    message['content'] = planning_final_prompt(query)
 
     # apply chat history
     if chat_conversation or planning_messages:
@@ -183,7 +190,10 @@ def run_autogen_2agent(query=None,
     else:
         chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
 
-    ret_dict = get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
+    ret_dict = get_ret_dict_and_handle_files(chat_result,
+                                             chat_result_planning,
+                                             model,
+                                             temp_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,

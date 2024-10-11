@@ -853,10 +853,19 @@ def planning_prompt(query):
 </user_question>
 # Planning Phase:
 * First, for each tool in agent_tools directory, consider how the tool might be useful.
-* Second, come up with a possible plan to solve the problem using these tools or other coding approaches.
+* Second, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
 # Rules:
 * You must not respond to the user question directly.
 * Do not write any code.  You must NOT execute any code.  Keep execution: false
 * Once you have finished the plan, you must end your response with <FINISHED_ALL_TASKS> immediately.
-* Finally, end your turn of the conersation without any additional discussion or code.
+* Finally, end your turn of the conversation without any additional discussion or code.
+"""
+
+
+def planning_final_prompt(query):
+    return f"""
+<user_query>
+{query}
+</user_query>
+Come up with a possible plan for the user's query.
 """

@@ -187,13 +187,16 @@ def fix_markdown_image_paths(text):
     return text
 
 
-def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
+def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
+                                  model,
+                                  temp_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
                                   system_message_parts,
                                   autogen_code_restrictions_level, autogen_silent_exchange):
     # DEBUG
     if agent_verbose:
+        print("chat_result:", chat_result_planning)
         print("chat_result:", chat_result)
         print("list_dir:", os.listdir(temp_dir))
 
@@ -253,6 +256,12 @@ def get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal
     if chat_result and hasattr(chat_result, 'chat_history'):
         ret_dict.update(dict(chat_history=chat_result.chat_history))
     if chat_result and hasattr(chat_result, 'cost'):
+        if hasattr(chat_result_planning, 'cost'):
+            usage_no_caching = chat_result.cost["usage_excluding_cached_inference"]
+            usage_no_caching_planning = chat_result_planning.cost["usage_excluding_cached_inference"]
+            usage_no_caching[model]["prompt_tokens"] += usage_no_caching_planning[model]["prompt_tokens"]
+            usage_no_caching[model]["completion_tokens"] += usage_no_caching_planning[model]["completion_tokens"]
+
         ret_dict.update(dict(cost=chat_result.cost))
     if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
         print("Existing summary: %s" % chat_result.summary, file=sys.stderr)

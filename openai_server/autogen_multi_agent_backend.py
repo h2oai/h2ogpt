@@ -193,7 +193,10 @@ def run_autogen_multi_agent(query=None,
     all_conversable_agents = [human_proxy_agent] + get_all_conversable_agents(main_group_chat_manager)
     chat_result.cost = gather_usage_summary(all_conversable_agents)
     #### end
-    ret_dict = get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
+    ret_dict = get_ret_dict_and_handle_files(chat_result,
+                                             None,
+                                             model,
+                                             temp_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
