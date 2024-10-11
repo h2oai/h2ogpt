@@ -66,8 +66,13 @@ def run_autogen_2agent(query=None,
     if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
     if autogen_use_planning_prompt is None:
-        if os.getenv('H2OGPT_DISABLE_PLANNING_STEP') is None:
-            autogen_use_planning_prompt = True
+        planning_models = ['claude-3-opus', 'claude-3-5-sonnet', 'gpt-4o', 'o1-preview', 'o1-mini']
+        # any pattern matching
+        if any(x in model for x in planning_models):
+            # sonnet35 doesn't seem to benefit
+            autogen_use_planning_prompt = False
+        else:
+            autogen_use_planning_prompt = True if os.getenv('H2OGPT_DISABLE_PLANNING_STEP') is None else False
 
     # Create a temporary directory to store the code files.
     # temp_dir = tempfile.TemporaryDirectory().name
