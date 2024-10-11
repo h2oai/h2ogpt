@@ -3,6 +3,9 @@ import argparse
 import tempfile
 import logging
 import time
+from urllib.parse import urlparse
+
+import requests
 
 # Set up logging
 logging.basicConfig(level=logging.WARNING)
@@ -44,6 +47,21 @@ def process_file(file_path):
         return [file_path]
 
 
+def is_url_valid_and_alive(url, timeout=5):
+    try:
+        # Check if the URL is valid
+        result = urlparse(url)
+        if all([result.scheme, result.netloc]):
+            # Try to send a GET request to the URL
+            response = requests.get(url, timeout=timeout)
+            # If the status code is less than 400, consider it alive
+            return response.status_code < 400
+        else:
+            return False
+    except requests.exceptions.RequestException:
+        return False
+
+
 def main():
     default_max_time = int(os.getenv('H2OGPT_AGENT_OPENAI_TIMEOUT', "120"))
 
@@ -82,6 +100,12 @@ def main():
 
     assert args.url or args.file, "Either --url or --file must be provided"
     assert not (args.url and args.file), "--url and --file cannot be used together"
+
+    # if the file is a URL, use it as the URL
+    if args.file and (args.file.startswith('http://') or args.file.startswith('https://') or args.file.startswith('www.')):
+        if is_url_valid_and_alive(args.file):
+            args.url = args.file
+            args.file = None
 
     if args.file:
         from openai_server.openai_client import file_to_base64
