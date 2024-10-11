@@ -19,7 +19,7 @@ def run_autogen_2agent(query=None,
                        image_file=None,
                        # autogen/agent specific parameters
                        agent_type=None,
-                       autogen_use_planning_prompt=True,
+                       autogen_use_planning_prompt=None,
                        autogen_stop_docker_executor=None,
                        autogen_run_code_in_docker=None,
                        autogen_max_consecutive_auto_reply=None,
@@ -65,6 +65,9 @@ def run_autogen_2agent(query=None,
         agent_verbose = False
     if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
+    if autogen_use_planning_prompt is None:
+        if os.getenv('H2OGPT_DISABLE_PLANNING_STEP') is None:
+            autogen_use_planning_prompt = True
 
     # Create a temporary directory to store the code files.
     # temp_dir = tempfile.TemporaryDirectory().name
