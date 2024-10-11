@@ -528,11 +528,12 @@ python {cwd}/openai_server/agent_tools/query_to_web_image.py --text "Text to sea
     return image_download
 
 
-def get_aider_coder_helper(base_url, api_key, model, autogen_timeout):
-    from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
-    model_list = client.models.list()
-    assert model in [x.id for x in model_list], "Model must be in the list of models"
+def get_aider_coder_helper(base_url, api_key, model, autogen_timeout, debug=False):
+    if debug:
+        from openai import OpenAI
+        client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
+        model_list = client.models.list()
+        assert model in [x.id for x in model_list], "Model must be in the list of models"
 
     # e.g. for Aider tool to know which model to use
     os.environ['H2OGPT_AGENT_OPENAI_MODEL'] = model
@@ -553,11 +554,12 @@ python {cwd}/openai_server/agent_tools/aider_code_generation.py --prompt "PROMPT
     return aider_coder_helper
 
 
-def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file):
-    from openai import OpenAI
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
-    model_list = client.models.list()
-    assert model in [x.id for x in model_list], "Model must be in the list of models"
+def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file, debug=False):
+    if debug:
+        from openai import OpenAI
+        client = OpenAI(base_url=base_url, api_key=api_key, timeout=autogen_timeout)
+        model_list = client.models.list()
+        assert model in [x.id for x in model_list], "Model must be in the list of models"
 
     # e.g. for Aider tool to know which model to use
     os.environ['H2OGPT_AGENT_OPENAI_MODEL'] = model
