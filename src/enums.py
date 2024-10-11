@@ -803,7 +803,8 @@ json_object_post_prompt_reminder0 = 'Ensure your response is strictly valid JSON
 json_code_post_prompt_reminder0 = 'Ensure your response satisfies the schema mentioned above and place the response inside JSON code block.  Do not just repeat the JSON schema, ensure your response uses that schema to respond by choosing particular values for each type.'
 json_code2_post_prompt_reminder0 = 'Ensure your response is inside a JSON code block.'
 
-image_batch_image_prompt0 = """<response_instructions>
+image_batch_image_prompt0 = """
+<response_instructions>
 - Act as a keen observer with a sharp eye for detail.
 - Analyze the content within the images.
 - Provide insights based on your observations.
