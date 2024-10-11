@@ -3,7 +3,7 @@ import tempfile
 
 from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
-from openai_server.agent_prompting import get_full_system_prompt
+from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt
 
 from openai_server.autogen_utils import H2OConversableAgent
 
@@ -19,6 +19,7 @@ def run_autogen_2agent(query=None,
                        image_file=None,
                        # autogen/agent specific parameters
                        agent_type=None,
+                       autogen_use_planning_prompt=True,
                        autogen_stop_docker_executor=None,
                        autogen_run_code_in_docker=None,
                        autogen_max_consecutive_auto_reply=None,
@@ -109,32 +110,65 @@ def run_autogen_2agent(query=None,
         # So at this point, we need to terminate the chat otherwise code_writer_agent will keep on chatting.
         return isinstance(msg, dict) and msg.get('content', '') == ''
 
-    code_writer_agent = H2OConversableAgent(
-        "code_writer_agent",
-        system_message=system_message,
-        llm_config={'timeout': autogen_timeout,
-                    'extra_body': dict(enable_caching=enable_caching),
-                    "config_list": [{"model": model,
-                                     "api_key": api_key,
-                                     "base_url": base_url,
-                                     "stream": stream_output,
-                                     'max_tokens': max_new_tokens,
-                                     'cache_seed': autogen_cache_seed,
-                                     }]
-                    },
-        code_execution_config=False,  # Turn off code execution for this agent.
-        human_input_mode="NEVER",
-        is_termination_msg=code_writer_terminate_func,
-        max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-    )
+    code_writer_kwargs = dict(system_message=system_message,
+                              llm_config={'timeout': autogen_timeout,
+                                          'extra_body': dict(enable_caching=enable_caching),
+                                          "config_list": [{"model": model,
+                                                           "api_key": api_key,
+                                                           "base_url": base_url,
+                                                           "stream": stream_output,
+                                                           'max_tokens': max_new_tokens,
+                                                           'cache_seed': autogen_cache_seed,
+                                                           }]
+                                          },
+                              code_execution_config=False,  # Turn off code execution for this agent.
+                              human_input_mode="NEVER",
+                              is_termination_msg=code_writer_terminate_func,
+                              max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+                              )
+
+    code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
+
+    planning_messages = []
+    chat_result_planning = None
+    if autogen_use_planning_prompt:
+        # setup planning agents
+        code_writer_kwargs_planning = code_writer_kwargs.copy()
+        # terminate immediately
+        update_dict = dict(max_consecutive_auto_reply=1)
+        # is_termination_msg=lambda x: True
+        code_writer_kwargs_planning.update(update_dict)
+        code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs_planning)
+
+        chat_kwargs = dict(recipient=code_writer_agent,
+                           max_turns=1,
+                           message=planning_prompt(query),
+                           cache=None,
+                           silent=autogen_silent_exchange,
+                           clear_history=False,
+                           )
+        chat_result_planning = code_executor_agent.initiate_chat(**chat_kwargs)
+
+        # get fresh agents
+        code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
+        code_executor_agent = get_code_execution_agent(executor, autogen_max_consecutive_auto_reply)
+        if hasattr(chat_result_planning, 'chat_history') and chat_result_planning.chat_history:
+            planning_messages = chat_result_planning.chat_history
+            for message in planning_messages:
+                if 'content' in message:
+                    message['content'] = message['content'].replace('<FINISHED_ALL_TASKS>', '').replace('ENDOFTURN', '')
+                if 'role' in message and message['role'] == 'assistant':
+                    # replace prompt
+                    message['content'] = planning_final_prompt(query)
 
     # apply chat history
-    if chat_conversation:
+    if chat_conversation or planning_messages:
         chat_messages = structure_to_messages(None, None, chat_conversation, None)
+        chat_messages.extend(planning_messages)
         for message in chat_messages:
-            if message['role'] == 'assistant':
-                code_writer_agent.send(message['content'], code_executor_agent, request_reply=False, silent=True)
             if message['role'] == 'user':
+                code_writer_agent.send(message['content'], code_executor_agent, request_reply=False, silent=True)
+            if message['role'] == 'assistant':
                 code_executor_agent.send(message['content'], code_writer_agent, request_reply=False, silent=True)
 
     chat_kwargs = dict(recipient=code_writer_agent,
@@ -156,7 +190,10 @@ def run_autogen_2agent(query=None,
     else:
         chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
 
-    ret_dict = get_ret_dict_and_handle_files(chat_result, temp_dir, agent_verbose, internal_file_names, authorization,
+    ret_dict = get_ret_dict_and_handle_files(chat_result,
+                                             chat_result_planning,
+                                             model,
+                                             temp_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
