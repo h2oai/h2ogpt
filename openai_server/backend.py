@@ -462,10 +462,12 @@ async def achat_completion_action(body: dict, stream_output=False):
             if isinstance(chunk, dict):
                 usage.update(chunk)
                 if 'response' in chunk:
-                    answer += chunk['response']
+                    # wil use this if exists
+                    answer = chunk['response']
                 else:
                     answer = ''
             else:
+                # will use this first if exists
                 answer = chunk
         await asyncio.sleep(0.005)
 
