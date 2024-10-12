@@ -19,6 +19,19 @@ def has_gpu():
         return False
 
 
+def pdf_has_images(pdf_path):
+    import fitz
+    doc = fitz.open(pdf_path)
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        image_list = page.get_images()
+        if image_list:
+            # print(f"Page {page_num + 1} contains {len(image_list)} image(s)")
+            return True
+    # print("No images found in the PDF")
+    return False
+
+
 def get_num_pages(file):
     try:
         import fitz
@@ -38,12 +51,12 @@ def process_files(files, urls):
     doc_types = ('.pdf', '.docx', '.doc', '.epub', '.pptx', '.ppt', '.xls', '.xlsx')
 
     for filename in files + urls:
-        have_gpu = has_gpu()
+        # have_gpu = has_gpu()
 
         if filename.lower().endswith('.pdf'):
             num_pages = get_num_pages(filename)
-            if num_pages and num_pages < 10:
-                if have_gpu:
+            if num_pages and num_pages < 20:
+                if pdf_has_images(filename):
                     enable_pdf_doctr = 'on'
                     use_pypdf = 'off'
                 else:
@@ -55,6 +68,7 @@ def process_files(files, urls):
                 use_pymupdf = 'on'
                 use_pypdf = 'off'
         else:
+            # pymypdf faster for many pages
             enable_pdf_doctr = 'off'
             use_pymupdf = 'on'
             use_pypdf = 'off'
@@ -68,7 +82,7 @@ def process_files(files, urls):
                                                enable_pdf_ocr='off',
                                                enable_pdf_doctr=enable_pdf_doctr,
                                                try_pdf_as_html='off',
-                                               enable_captions=False, # have_gpu,
+                                               enable_captions=False,
                                                enable_llava=False,
                                                chunk=False,
                                                enable_transcriptions=have_gpu)
