@@ -66,7 +66,7 @@ def process_files(files, urls):
     for filename in files + urls:
         if filename.lower().endswith('.pdf'):
             if filename in urls:
-                from src.utils import download_simple
+                from openai_server.agent_tools.common.utils import download_simple
                 newfile = download_simple(filename)
                 num_pages = get_num_pages(newfile)
                 has_images = pdf_has_images(newfile)
@@ -86,7 +86,7 @@ def process_files(files, urls):
                 use_pymupdf = 'on'
                 use_pypdf = 'off'
         else:
-            # pymypdf faster for many pages
+            # pymupdf faster for many pages
             enable_pdf_doctr = 'off'
             use_pymupdf = 'on'
             use_pypdf = 'off'
@@ -176,6 +176,15 @@ def main():
     print(f"{files + urls} have been converted to text and written to {args.output}")
     print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
     print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
+
+    max_tokens = 1024
+    max_chars = max_tokens * 4
+    if len(output_text) > max_chars:
+        print("Head of the output:")
+        print(output_text[:max_chars])
+    else:
+        print(output_text)
+
     return output_text
 
 
