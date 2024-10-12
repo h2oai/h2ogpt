@@ -1,7 +1,5 @@
 import argparse
-import os
 import sys
-import json
 import uuid
 
 if 'src' not in sys.path:
@@ -50,13 +48,33 @@ def process_files(files, urls):
 
     doc_types = ('.pdf', '.docx', '.doc', '.epub', '.pptx', '.ppt', '.xls', '.xlsx')
 
+    from openai_server.agent_tools.common.utils import filename_is_url
+    files_new = []
+    urls_new = []
     for filename in files + urls:
-        # have_gpu = has_gpu()
+        if filename in files:
+            if filename_is_url(filename):
+                urls_new.append(filename)
+            else:
+                files_new.append(filename)
+        else:
+            urls_new.append(filename)
 
+    files = files_new
+    urls = urls_new
+
+    for filename in files + urls:
         if filename.lower().endswith('.pdf'):
-            num_pages = get_num_pages(filename)
+            if filename in urls:
+                from src.utils import download_simple
+                newfile = download_simple(filename)
+                num_pages = get_num_pages(newfile)
+                has_images = pdf_has_images(newfile)
+            else:
+                num_pages = get_num_pages(filename)
+                has_images = pdf_has_images(filename)
             if num_pages and num_pages < 20:
-                if pdf_has_images(filename):
+                if has_images:
                     enable_pdf_doctr = 'on'
                     use_pypdf = 'off'
                 else:
@@ -85,7 +103,39 @@ def process_files(files, urls):
                                                enable_captions=False,
                                                enable_llava=False,
                                                chunk=False,
-                                               enable_transcriptions=have_gpu)
+                                               enable_transcriptions=False,
+                                               )
+        pages1 = [x.page_content for x in sources1]
+        all_content1 = "\n\n".join(pages1)
+
+        if filename.lower().endswith('.pdf') and enable_pdf_doctr == 'off':
+            if use_pymupdf == 'on':
+                use_pymupdf = 'off'
+                use_pypdf = 'on'
+            else:
+                use_pymupdf = 'on'
+                use_pypdf = 'off'
+            sources2, known_type = get_data_h2ogpt(filename,
+                                               is_url=filename in urls,
+                                               verbose=False,
+                                               use_pymupdf=use_pymupdf,
+                                               use_pypdf=use_pypdf,
+                                               use_unstructured_pdf='off',
+                                               enable_pdf_ocr='off',
+                                               enable_pdf_doctr=enable_pdf_doctr,
+                                               try_pdf_as_html='off',
+                                               enable_captions=False,
+                                               enable_llava=False,
+                                               chunk=False,
+                                               enable_transcriptions=False,
+                                               )
+
+            pages2 = [x.page_content for x in sources1]
+            all_content2 = "\n\n".join(pages2)
+
+            # choose one with more content in case pymupdf fails to find info
+            if len(all_content2) > len(all_content1):
+                sources1 = sources2
 
         if not sources1:
             print(f"Unable to handle file type for {filename}")
@@ -93,6 +143,15 @@ def process_files(files, urls):
             text_context_list.extend([x.page_content for x in sources1])
 
     return text_context_list
+
+
+def get_text(files, urls):
+    text_context_list = process_files(files, urls)
+
+    # Join the text_context_list into a single string
+    output_text = "\n\n".join(text_context_list)
+
+    return output_text
 
 
 def main():
@@ -107,10 +166,8 @@ def main():
 
     files = args.files or []
     urls = args.urls or []
-    text_context_list = process_files(files, urls)
 
-    # Join the text_context_list into a single string
-    output_text = "\n\n".join(text_context_list)
+    output_text = get_text(files, urls)
 
     # Write the output to the specified file
     with open(args.output, "w") as f:
@@ -119,6 +176,7 @@ def main():
     print(f"{files + urls} have been converted to text and written to {args.output}")
     print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
     print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
+    return output_text
 
 
 if __name__ == "__main__":
