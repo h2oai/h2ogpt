@@ -19,6 +19,15 @@ def has_gpu():
         return False
 
 
+def get_num_pages(file):
+    try:
+        import fitz
+        src = fitz.open(file)
+        return len(src)
+    except:
+        return None
+
+
 def process_files(files, urls):
     text_context_list = []
 
@@ -29,15 +38,37 @@ def process_files(files, urls):
     doc_types = ('.pdf', '.docx', '.doc', '.epub', '.pptx', '.ppt', '.xls', '.xlsx')
 
     for filename in files + urls:
-        # have_gpu = has_gpu()
-        have_gpu = False  # too slow for now
+        have_gpu = has_gpu()
+
+        if filename.lower().endswith('.pdf'):
+            num_pages = get_num_pages(filename)
+            if num_pages and num_pages < 10:
+                if have_gpu:
+                    enable_pdf_doctr = 'on'
+                    use_pypdf = 'off'
+                else:
+                    enable_pdf_doctr = 'off'
+                    use_pypdf = 'on'
+                use_pymupdf = 'off'
+            else:
+                enable_pdf_doctr = 'off'
+                use_pymupdf = 'on'
+                use_pypdf = 'off'
+        else:
+            enable_pdf_doctr = 'off'
+            use_pymupdf = 'on'
+            use_pypdf = 'off'
+
         sources1, known_type = get_data_h2ogpt(filename,
                                                is_url=filename in urls,
                                                verbose=False,
+                                               use_pymupdf=use_pymupdf,
+                                               use_pypdf=use_pypdf,
                                                use_unstructured_pdf='off',
                                                enable_pdf_ocr='off',
-                                               enable_pdf_doctr='off' if not have_gpu else 'on',
-                                               enable_captions=have_gpu,
+                                               enable_pdf_doctr=enable_pdf_doctr,
+                                               try_pdf_as_html='off',
+                                               enable_captions=False, # have_gpu,
                                                enable_llava=False,
                                                chunk=False,
                                                enable_transcriptions=have_gpu)
@@ -72,6 +103,8 @@ def main():
         f.write(output_text)
 
     print(f"{files + urls} have been converted to text and written to {args.output}")
+    print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
+    print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
 
 
 if __name__ == "__main__":
