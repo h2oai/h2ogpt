@@ -344,7 +344,7 @@ def _chunk_sources(sources, chunk=True, chunk_size=512, language=None, db_type=N
         # currently in order, but when pull from db won't be, so mark order and document by hash
         [x.metadata.update(dict(chunk_id=chunk_id)) for chunk_id, x in enumerate(source_chunks)]
 
-    if db_type in ['chroma', 'chroma_old']:
+    if chunk and db_type in ['chroma', 'chroma_old']:
         # also keep original source for summarization and other tasks
 
         # assign chunk_id=-1 for original content

@@ -718,7 +718,8 @@ def download_simple(url, dest=None, overwrite=False, verbose=False):
 
     if os.path.isfile(dest):
         if not overwrite:
-            print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
+            if verbose:
+                print("Already have %s from url %s, delete file if invalid" % (dest, str(url)), flush=True)
             return dest
         else:
             remove(dest)

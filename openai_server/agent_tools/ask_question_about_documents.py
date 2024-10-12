@@ -164,14 +164,6 @@ def main():
         ".go": "Go Source file",
     }
 
-    if not args.baseline:
-        # have_gpu = has_gpu()
-        # too slow for now to do DocTR even if have GPU
-        have_gpu = False
-    else:
-        # h2oGPTe defaults to as if no GPU for baseline to be consistent
-        have_gpu = False
-
     files = args.files or []
     urls = args.urls or []
     if files + urls:
@@ -183,25 +175,10 @@ def main():
             elif any(filename.endswith(x) for x in IMAGE_EXTENSIONS):
                 image_files.append(filename)
             else:
-                from src.function_client import get_data_h2ogpt
-                sources1, known_type = get_data_h2ogpt(filename,
-                                                       is_url=filename in urls,
-                                                       verbose=False,
-                                                       use_unstructured_pdf='off',  # always slow and not better
-                                                       enable_pdf_ocr='off',  # always slow
-                                                       enable_pdf_doctr='off' if not have_gpu else 'on',
-                                                       # FIXME: requires GPU to be fast
-                                                       enable_captions=have_gpu,  # FIXME: requires GPU to be fast
-                                                       enable_llava=False,  # unused
-                                                       enable_transcriptions=have_gpu,
-                                                       # FIXME: requires GPU to be fast, and have separate STT tool
-                                                       # hf_embedding_model='fake'  # already fake if GPU is off on server
-                                                       )
-
-                if not sources1:
-                    print(f"Unable to handle file type for {filename}")
-                else:
-                    text_context_list.extend([x.page_content for x in sources1])
+                from openai_server.agent_tools.convert_document_to_text import get_text
+                files1 = [filename] if filename in files else []
+                urls1 = [filename] if filename in urls else []
+                text_context_list = [get_text(files1, urls1)]
 
     rag_kwargs = dict(text_context_list=text_context_list,
                       image_files=image_files,
