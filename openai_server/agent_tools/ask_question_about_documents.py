@@ -66,7 +66,7 @@ def get_rag_answer(prompt, text_context_list=None, image_files=None, chat_conver
     return text
 
 
-def main():
+def ask_question_about_documents():
     default_max_time = int(os.getenv('H2OGPT_AGENT_OPENAI_TIMEOUT', "120"))
     text_context_list_file = os.getenv('H2OGPT_RAG_TEXT_CONTEXT_LIST')
     chat_conversation_file = os.getenv('H2OGPT_RAG_CHAT_CONVERSATION')
@@ -196,7 +196,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    ask_question_about_documents()
 
 
 """

@@ -249,7 +249,7 @@ Keys available in the search results for query '{args.query}' using {args.engine
         print(json.dumps(results, indent=2))
 
 
-def main():
+def google_search():
     args = setup_argparse()
 
     if not SERPAPI_API_KEY:
@@ -265,7 +265,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    google_search()
 
 """
 # Test different search engines

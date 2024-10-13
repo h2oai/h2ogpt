@@ -131,7 +131,7 @@ def print_info(info, args):
         print("-" * 50)
 
 
-def main():
+def bing_search():
     args = setup_argparse()
 
     if not BING_API_KEY:
@@ -167,4 +167,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    bing_search()
