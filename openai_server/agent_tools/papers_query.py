@@ -21,7 +21,8 @@ def setup_argparse():
     parser.add_argument("-a", "--author", type=str, help="Filter by author name")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print full abstracts")
     parser.add_argument("-d", "--download", action="store_true", help="Attempt to download PDFs")
-    parser.add_argument("-o", "--output", "--file", type=str, default="papers", help="Output directory for downloaded PDFs")
+    parser.add_argument("-o", "--output_dir", type=str, default="papers", help="Output directory for downloaded PDFs")
+    parser.add_argument("--output", type=str, default="papers", help="Output file name for JSON file")
     parser.add_argument("-j", "--json", action="store_true", help="Output results as JSON")
     parser.add_argument("-r", "--references", type=int, default=0,
                         help="Number of references to include (Semantic Scholar only)")
@@ -98,6 +99,9 @@ def print_paper_info_arxiv(paper, index, args):
 def print_info(info, args):
     if args.json:
         print(json.dumps(info, indent=2))
+        if args.output:
+            with open(args.output, 'w') as f:
+                json.dump(info, f, indent=2)
     else:
         for key, value in info.items():
             if key == "open_access_pdf":
@@ -158,12 +162,12 @@ def main():
         print("-" * 50)
 
     if args.download:
-        os.makedirs(args.output, exist_ok=True)
+        os.makedirs(args.output_dir, exist_ok=True)
 
     for i, paper in enumerate(papers, 1):
         print_func(paper, i, args)
         if args.download:
-            download_func(paper, args.output)
+            download_func(paper, args.output_dir)
         if i == args.limit:
             break
 
