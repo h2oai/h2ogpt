@@ -3,8 +3,8 @@ import argparse
 import requests
 import json
 from semanticscholar import SemanticScholar
-from agent_utils import SearchHistoryManager
-from agent_utils import get_result_description
+from openai_server.agent_utils import SearchHistoryManager
+from openai_server.agent_utils import get_result_description
 import arxiv
 
 
@@ -69,8 +69,7 @@ def print_paper_info_semanticscholar(paper, index, args):
         "externalIds": paper.externalIds,
     }
     if paper.abstract:
-        info["abstract"] = paper.abstract if args.verbose else (
-            paper.abstract[:200] + "..." if len(paper.abstract) > 200 else paper.abstract)
+        info["abstract"] = get_result_description(snippet=paper.abstract, verbose=args.verbose)
     if paper.openAccessPdf:
         info["open_access_pdf"] = {
             "url": paper.openAccessPdf['url'],
@@ -90,8 +89,7 @@ def print_paper_info_arxiv(paper, index, args):
         "title": paper.title,
         "authors": ', '.join(author.name for author in paper.authors),
         "year": paper.published.year,
-        "abstract": paper.summary if args.verbose else (
-            paper.summary[:200] + "..." if len(paper.summary) > 200 else paper.summary),
+        "abstract": get_result_description(snippet=paper.summary, verbose=args.verbose),
         "arxiv_url": paper.entry_id,
         "pdf_url": paper.pdf_url,
     }
@@ -147,12 +145,10 @@ def save_results_to_search_history_manager(results, args):
     history_manager = SearchHistoryManager()
 
     search_params = {
-        'type': args.type,
         'limit': args.limit,
         'fields': args.fields,
         'sort': args.sort,
         'year': args.year,
-        'safe': args.safe,
         'author': args.author,
         'references': args.references,
         'source': args.source,
@@ -161,14 +157,15 @@ def save_results_to_search_history_manager(results, args):
     }
 
     history_results = []
-    for result in results:
-
+    for i, result in enumerate(results):
+        snippet = result.summary if args.source == 'arxiv' else result.abstract
         history_results.append(
             history_manager.get_history_result_entry(
                 name=result.title,
-                url=result.arxiv_url if args.source == 'arxiv' else None,
+                snippet=get_result_description(snippet=snippet, verbose=args.verbose) if snippet is not None else None,
+                url=result.entry_id if args.source == 'arxiv' else None,
                 paper_year=result.published.year if args.source == 'arxiv' else result.year,
-                paper_index=result.index,
+                paper_index=i,
                 paper_authors=', '.join([author.name for author in result.authors]) if result.authors else 'N/A',
             )
         )

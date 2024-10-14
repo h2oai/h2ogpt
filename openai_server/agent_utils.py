@@ -364,11 +364,9 @@ def is_binary_file(file_path, sample_size=1024):
 
 class SearchHistoryManager:
 
-    def __init__(
-        self,
-        history_file: str = "browser_history.json"
-    ):
-        self.history_file = history_file
+    def __init__(self):
+        dir_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.history_file = os.path.join(dir_path, "offline_folder/search_history.json")
         self.history = self._load_history()
 
     def _load_history(self):
@@ -435,7 +433,8 @@ class SearchHistoryManager:
     def _save_to_file(self):
         """Save the current history to the JSON file."""
         with open(self.history_file, 'w') as f:
-            json.dump(self.history, f, indent=4)
+            f.write(json.dumps(self.history, indent=4))
+            print(f"SAVED SEARCH HISTORY TO: {self.history_file}")
 
     def get_history(self):
         """Return the loaded history."""
