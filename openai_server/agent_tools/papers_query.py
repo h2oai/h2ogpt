@@ -3,6 +3,8 @@ import argparse
 import requests
 import json
 from semanticscholar import SemanticScholar
+from agent_utils import SearchHistoryManager
+from agent_utils import get_result_description
 import arxiv
 
 
@@ -141,6 +143,44 @@ def download_pdf(pdf_url, filename):
         print(f"   Failed to download PDF: {e}")
 
 
+def save_results_to_search_history_manager(results, args):
+    history_manager = SearchHistoryManager()
+
+    search_params = {
+        'type': args.type,
+        'limit': args.limit,
+        'fields': args.fields,
+        'sort': args.sort,
+        'year': args.year,
+        'safe': args.safe,
+        'author': args.author,
+        'references': args.references,
+        'source': args.source,
+        'output': args.output,
+        'output_dir': args.output_dir
+    }
+
+    history_results = []
+    for result in results:
+
+        history_results.append(
+            history_manager.get_history_result_entry(
+                name=result.title,
+                url=result.arxiv_url if args.source == 'arxiv' else None,
+                paper_year=result.published.year if args.source == 'arxiv' else result.year,
+                paper_index=result.index,
+                paper_authors=', '.join([author.name for author in result.authors]) if result.authors else 'N/A',
+            )
+        )
+
+    history_manager.save_history(
+        query=args.query,
+        used_agent_tool="papers_query",
+        params=search_params,
+        results=history_results
+    )
+
+
 def main():
     args = setup_argparse()
 
@@ -170,6 +210,8 @@ def main():
             download_func(paper, args.output_dir)
         if i == args.limit:
             break
+
+    save_results_to_search_history_manager(results=papers, args=args)
 
 
 if __name__ == "__main__":

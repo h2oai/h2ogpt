@@ -6,6 +6,7 @@ from web_search_client import WebSearchClient
 from image_search_client import ImageSearchClient
 from news_search_client import NewsSearchClient
 from video_search_client import VideoSearchClient
+from agent_utils import SearchHistoryManager, get_result_description
 
 BING_API_KEY = os.environ.get("BING_API_KEY")
 BING_ENDPOINT = "https://api.bing.microsoft.com/v7.0"
@@ -79,12 +80,19 @@ def search_videos(client, args):
     return video_result.value if video_result else []
 
 
+def get_video_creator(result):
+    return result.creator.name if getattr(result, 'creator', None) else "Unknown"
+
+
+def get_news_provider(result):
+    return result.provider[0].name if result.provider else "Unknown"
+
+
 def print_web_result(result, args):
     info = {
         "name": result.name,
         "url": result.url,
-        "snippet": result.snippet if args.verbose else (
-            result.snippet[:200] + "..." if len(result.snippet) > 200 else result.snippet)
+        "snippet": get_result_description(snippet=result.snippet, verbose=args.verbose)
     }
     print_info(info, args)
 
@@ -103,10 +111,9 @@ def print_news_result(result, args):
     info = {
         "name": result.name,
         "url": result.url,
-        "description": result.description if args.verbose else (
-            result.description[:200] + "..." if len(result.description) > 200 else result.description),
+        "description": get_result_description(snippet=result.description, verbose=args.verbose),
         "date_published": result.date_published,
-        "provider": result.provider[0].name if result.provider else "Unknown"
+        "provider": get_news_provider(result)
     }
     print_info(info, args)
 
@@ -117,7 +124,7 @@ def print_video_result(result, args):
         "content_url": result.content_url,
         "thumbnail_url": getattr(result, 'thumbnail_url', 'N/A'),
         "duration": getattr(result, 'duration', 'N/A'),
-        "creator": result.creator.name if getattr(result, 'creator', None) else "Unknown"
+        "creator": get_video_creator(result)
     }
     print_info(info, args)
 
@@ -129,6 +136,45 @@ def print_info(info, args):
         for key, value in info.items():
             print(f"   {key.capitalize()}: {value}")
         print("-" * 50)
+
+
+def save_results_to_search_history_manager(results, args):
+    history_manager = SearchHistoryManager()
+    search_params = {
+        'type': args.type,
+        'limit': args.limit,
+        'market': args.market,
+        'freshness': args.freshness,
+        'safe': args.safe
+    }
+
+    history_results = []
+
+    for result in results:
+        if args.type == "web":
+            snippet = result.snippet
+        elif args.type == "news":
+            snippet = result.description
+        else:
+            snippet = None
+
+        history_results.append(
+            history_manager.get_history_result_entry(
+                name=result.name,
+                url=result.url,
+                snippet=snippet,
+                content_url=result.content_url if args.type == "image" or args.type == "video" else None,
+                thumbnail_url=result.thumbnail_url if args.type == "image" or args.type == "video" else None,
+                date_published=result.date_published if args.type == "news" else None,
+            )
+        )
+
+    history_manager.save_history(
+        query=args.query,
+        used_agent_tool="bing_search",
+        params=search_params,
+        results=history_results
+    )
 
 
 def bing_search():
@@ -157,6 +203,8 @@ def bing_search():
         print_func = print_video_result
     else:
         raise ValueError(f"Invalid search type: {args.type}")
+
+    save_results_to_search_history_manager(results=results, args=args)
 
     if not args.json:
         print(f"Top {args.limit} {args.type} results for query '{args.query}':")

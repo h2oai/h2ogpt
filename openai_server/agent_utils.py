@@ -5,9 +5,11 @@ import re
 import shutil
 import sys
 import time
-
+import json
 import requests
+
 from PIL import Image
+from datetime import datetime
 
 from openai_server.backend_utils import get_user_dir, run_upload_api, extract_xml_tags
 
@@ -358,3 +360,92 @@ def is_binary_file(file_path, sample_size=1024):
 
     text_characters = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
     return bool(sample.translate(None, text_characters))
+
+
+class SearchHistoryManager:
+
+    def __init__(
+        self,
+        history_file: str = "browser_history.json"
+    ):
+        self.history_file = history_file
+        self.history = self._load_history()
+
+    def _load_history(self):
+        """Load the browser history from a JSON file."""
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, "r") as file:
+                    return json.load(file)
+            except json.JSONDecodeError:
+                print("Warning: History file is corrupted. Loading an empty history.")
+                return []
+        else:
+            return []
+
+    def save_history(
+        self,
+        query: str,
+        used_agent_tool: str,
+        params: dict,
+        timestamp: str | None = None,
+        results: list | None = None
+    ):
+        """Save the search query and results to history."""
+        if timestamp is None:
+            timestamp = datetime.now().isoformat()
+        if results is None:
+            results = []
+
+        entry = {
+            'query': query,
+            'used_agent_tool': used_agent_tool,
+            'params': params,
+            'timestamp': timestamp,
+            'results': results,
+        }
+
+        self.history.append(entry)
+        self._save_to_file()
+
+    def get_history_result_entry(
+        self,
+        name: str,
+        url: str | None = None,
+        snippet: str | None = None,
+        content_url: str | None = None,
+        thumbnail_url: str | None = None,
+        date_published: str | None = None,
+        paper_year: int | None = None,
+        paper_index: int | None = None,
+        paper_authors: str | None = None
+    ):
+        return {
+            "name": name,
+            "url": url,
+            "snippet": snippet,
+            "content_url": content_url,
+            "thumbnail_url": thumbnail_url,
+            "date_published": date_published,
+            "paper_year": paper_year,
+            "paper_index": paper_index,
+            "paper_authors": paper_authors
+        }
+
+    def _save_to_file(self):
+        """Save the current history to the JSON file."""
+        with open(self.history_file, 'w') as f:
+            json.dump(self.history, f, indent=4)
+
+    def get_history(self):
+        """Return the loaded history."""
+        return self.history
+
+    def clear_history(self):
+        """Clear the search history."""
+        self.history = []
+        self._save_to_file()
+
+
+def get_result_description(snippet, verbose: bool):
+    return snippet if verbose else (snippet[:200] + "..." if len(snippet) > 200 else snippet)
