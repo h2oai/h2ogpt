@@ -374,6 +374,7 @@ class SearchHistoryManager:
         if os.path.exists(self.history_file):
             try:
                 with open(self.history_file, "r") as file:
+                    print(f"Successfully loaded Search History from {self.history_file}")
                     return json.load(file)
             except json.JSONDecodeError:
                 print("Warning: History file is corrupted. Loading an empty history.")
@@ -438,6 +439,7 @@ class SearchHistoryManager:
 
     def get_history(self):
         """Return the loaded history."""
+        self.history = self._load_history()
         return self.history
 
     def clear_history(self):

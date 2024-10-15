@@ -7,6 +7,7 @@ from serpapi import (
     YahooSearch, EbaySearch, HomeDepotSearch, YoutubeSearch, GoogleScholarSearch,
     WalmartSearch, AppleAppStoreSearch, NaverSearch
 )
+from openai_server.agent_utils import SearchHistoryManager
 
 SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY")
 
@@ -249,6 +250,52 @@ Keys available in the search results for query '{args.query}' using {args.engine
         print(json.dumps(results, indent=2))
 
 
+def save_results_to_search_history_manager(results, args):
+    history_manager = SearchHistoryManager()
+    search_params = {
+        "engine": args.engine,
+        "num": args.num,
+        "google_domain": args.google_domain,
+        "gl": args.gl,
+        "hl": args.hl,
+        "location": args.location,
+        "google_service": args.google_service,
+        "tbs": args.tbs,
+        "safe": args.safe,
+        "start": args.start,
+        "device": args.device,
+        "keys": args.keys
+    }
+
+    history_results = []
+
+    for result in results:
+        if args.type == "web":
+            snippet = result.snippet
+        elif args.type == "news":
+            snippet = result.description
+        else:
+            snippet = None
+
+        history_results.append(
+            history_manager.get_history_result_entry(
+                name=result.name,
+                url=result.url,
+                snippet=snippet,
+                content_url=result.content_url if args.type == "image" or args.type == "video" else None,
+                thumbnail_url=result.thumbnail_url if args.type == "image" or args.type == "video" else None,
+                date_published=result.date_published if args.type == "news" else None,
+            )
+        )
+
+    history_manager.save_history(
+        query=args.query,
+        used_agent_tool="google_search",
+        params=search_params,
+        results=history_results
+    )
+
+
 def google_search():
     args = setup_argparse()
 
@@ -262,6 +309,9 @@ def google_search():
 
     # Print results
     print_results(results, args)
+
+    # Save results to Search History
+    save_results_to_search_history_manager(results=results, args=args)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@ from openai_server.agent_utils import get_ret_dict_and_handle_files
 from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt
 
 from openai_server.autogen_utils import H2OConversableAgent
-from openai_server.agent_utils import SearchHistoryManager
 
 
 def run_autogen_2agent(query=None,
@@ -78,9 +77,6 @@ def run_autogen_2agent(query=None,
     # Create a temporary directory to store the code files.
     # temp_dir = tempfile.TemporaryDirectory().name
     temp_dir = tempfile.mkdtemp()
-
-    history_manager = SearchHistoryManager()
-    history_manager.clear_history()
 
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")

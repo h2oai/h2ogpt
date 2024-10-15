@@ -6,7 +6,7 @@ from web_search_client import WebSearchClient
 from image_search_client import ImageSearchClient
 from news_search_client import NewsSearchClient
 from video_search_client import VideoSearchClient
-from agent_utils import SearchHistoryManager, get_result_description
+from openai_server.agent_utils import SearchHistoryManager, get_result_description
 
 BING_API_KEY = os.environ.get("BING_API_KEY")
 BING_ENDPOINT = "https://api.bing.microsoft.com/v7.0"

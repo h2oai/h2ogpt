@@ -8,7 +8,7 @@ import uuid
 from openai_server.agent_utils import get_have_internet, current_datetime
 from openai_server.backend_utils import extract_xml_tags, generate_unique_filename, deduplicate_filenames, \
     structure_to_messages
-from agent_utils import SearchHistoryManager
+from openai_server.agent_utils import SearchHistoryManager
 
 
 def agent_system_prompt(agent_code_writer_system_message, agent_system_site_packages):
@@ -778,15 +778,17 @@ def get_api_helper():
 def get_search_history_helper():
     history_manager = SearchHistoryManager()
     history = history_manager.get_history()
+    print(f"LOADED SEARCH HISTORY: {history}")
     have_internet = get_have_internet()
-    if history and have_internet:
+    if history:
         history_instruction = f"""#Search history
-        You DO have access to the internet. 
         You have already used a search engine using an agent tool. Take into account your previous results:
         f{history}
         """
+        print("OBTAINED HISTORY INSTRUCTION")
         return history_instruction
     else:
+        print("NO HISTORY INSTRUCTION FOUND")
         return ""
 
 
@@ -811,7 +813,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     wolfram_alpha_helper = get_wolfram_alpha_helper()
     news_helper = get_news_api_helper()
     bing_search_helper = get_bing_search_helper()
-    search_history = get_search_history_helper()
+    search_history_helper = get_search_history_helper()
 
     # general API notes:
     api_helper = get_api_helper()
@@ -849,6 +851,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                             youtube_helper,
                             convert_helper,
                             # search
+                            search_history_helper,
                             serp_helper,
                             semantic_scholar_helper,
                             wolfram_alpha_helper,
