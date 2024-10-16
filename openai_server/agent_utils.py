@@ -265,7 +265,18 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         ret_dict.update(dict(cost=chat_result.cost))
     if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
         print("Existing summary: %s" % chat_result.summary, file=sys.stderr)
-    else:
+
+        if '<constrained_output>' in chat_result.summary and '</constrained_output>' in chat_result.summary:
+            extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
+            if extracted_summary:
+                chat_result.summary = extracted_summary
+        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '').strip()
+        # above may lead to no summary, we'll fix that below
+    elif chat_result:
+        chat_result.summary = ''
+
+    if chat_result and not chat_result.summary:
+        # construct alternative summary if none found or no-op one
         if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
             summary = chat_result.chat_history[-1]['content']
             if not summary and len(chat_result.chat_history) >= 2:
@@ -279,13 +290,8 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         else:
             print("Did NOT make any summary", file=sys.stderr)
             chat_result.summary = 'No summary available'
-    if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
-        if '<constrained_output>' in chat_result.summary and '</constrained_output>' in chat_result.summary:
-            extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
-            if extracted_summary:
-                chat_result.summary = extracted_summary
-        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '')
 
+    if chat_result:
         if '![image](' not in chat_result.summary:
             latest_image_file = image_files[-1] if image_files else None
             if latest_image_file:
@@ -295,7 +301,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                 chat_result.summary = fix_markdown_image_paths(chat_result.summary)
             except:
                 print("Failed to fix markdown image paths", file=sys.stderr)
-
+    if chat_result:
         ret_dict.update(dict(summary=chat_result.summary))
     if agent_venv_dir is not None:
         ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
