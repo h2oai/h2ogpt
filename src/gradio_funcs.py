@@ -397,7 +397,7 @@ def evaluate_nochat(*args1, default_kwargs1=None, str_api=False, plain_api=False
         db1s = my_db_state1
         clear_embeddings(user_kwargs['langchain_mode'], kwargs['db_type'], db1s, kwargs['dbs'])
         for image_file1 in image_files_to_delete:
-            if os.path.isfile(image_file1):
+            if image_file1 and os.path.isfile(image_file1):
                 remove(image_file1)
     save_dict['save_dir'] = kwargs['save_dir']
     save_generate_output(**save_dict)
