@@ -409,7 +409,7 @@ class SearchHistoryManager:
 
     def get_history_result_entry(
         self,
-        name: str,
+        name: str | None = None,
         url: str | None = None,
         snippet: str | None = None,
         content_url: str | None = None,
@@ -417,8 +417,10 @@ class SearchHistoryManager:
         date_published: str | None = None,
         paper_year: int | None = None,
         paper_index: int | None = None,
-        paper_authors: str | None = None
+        authors: str | None = None,
+        top_stories: str | None = None
     ):
+
         return {
             "name": name,
             "url": url,
@@ -428,7 +430,8 @@ class SearchHistoryManager:
             "date_published": date_published,
             "paper_year": paper_year,
             "paper_index": paper_index,
-            "paper_authors": paper_authors
+            "authors": authors,
+            "top_stories": top_stories,
         }
 
     def _save_to_file(self):

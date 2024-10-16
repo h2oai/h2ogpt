@@ -2,6 +2,7 @@ import requests
 import os
 import argparse
 from datetime import datetime, timedelta
+from openai_server.agent_utils import SearchHistoryManager
 
 
 def fetch_everything(api_key, query, sources, from_date, to_date, sort_by, language, page_size):
@@ -52,6 +53,42 @@ def display_articles(articles):
         print(f"Published: {article['publishedAt']}")
         print(f"Description: {article.get('description', 'Not available')}")
         print(f"URL: {article['url']}")
+
+
+def save_results_to_search_history_manager(results, args):
+
+    history_manager = SearchHistoryManager()
+    search_params = {
+        'sources': args.sources,
+        'num_articles': args.num_articles,
+        'from_date': args.from_date,
+        'to_date': args.to_date,
+        'sort_by': args.sort_by,
+        'language': args.language,
+        'country': args.country,
+        'category': args.category
+    }
+
+    history_results = []
+
+    for result in results:
+
+        history_results.append(
+            history_manager.get_history_result_entry(
+                name=result['title'],
+                url=result['url'],
+                snippet=result.get('description', None),
+                date_published=result['publishedAt'],
+                authors=result.get('author', None)
+            )
+        )
+
+    history_manager.save_history(
+        query=args.query,
+        used_agent_tool="news_query",
+        params=search_params,
+        results=history_results
+    )
 
 
 def main():
@@ -134,6 +171,11 @@ def main():
             display_articles(result['articles'])
         else:
             print("No articles found.")
+
+        # Save results to Search History
+        results = result['articles'] if 'article' in result else []
+        save_results_to_search_history_manager(results=results, args=args)
+
     except requests.RequestException as e:
         print(f"An error occurred while fetching news: {e}")
 

@@ -166,7 +166,7 @@ def save_results_to_search_history_manager(results, args):
                 url=result.entry_id if args.source == 'arxiv' else None,
                 paper_year=result.published.year if args.source == 'arxiv' else result.year,
                 paper_index=i,
-                paper_authors=', '.join([author.name for author in result.authors]) if result.authors else 'N/A',
+                authors=', '.join([author.name for author in result.authors]) if result.authors else 'N/A',
             )
         )
 

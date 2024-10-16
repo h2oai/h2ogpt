@@ -251,6 +251,9 @@ Keys available in the search results for query '{args.query}' using {args.engine
 
 
 def save_results_to_search_history_manager(results, args):
+    primary_keys = ["organic_results", "news_results", "jobs_results", "shopping_results", "images_results",
+                    "video_results", "books_results", "finance_results", "local_results", "patents"]
+
     history_manager = SearchHistoryManager()
     search_params = {
         "engine": args.engine,
@@ -268,25 +271,18 @@ def save_results_to_search_history_manager(results, args):
     }
 
     history_results = []
+    for key in primary_keys:
+        if key in results and isinstance(results[key], list) and len(results[key]) > 0:
+            for i, result in enumerate(results[key][:args.num], 1):
 
-    for result in results:
-        if args.type == "web":
-            snippet = result.snippet
-        elif args.type == "news":
-            snippet = result.description
-        else:
-            snippet = None
-
-        history_results.append(
-            history_manager.get_history_result_entry(
-                name=result.name,
-                url=result.url,
-                snippet=snippet,
-                content_url=result.content_url if args.type == "image" or args.type == "video" else None,
-                thumbnail_url=result.thumbnail_url if args.type == "image" or args.type == "video" else None,
-                date_published=result.date_published if args.type == "news" else None,
-            )
-        )
+                history_results.append(
+                    history_manager.get_history_result_entry(
+                        name=result.get('title', '') if "title" in result else None,
+                        url=result.get('link', '') if "link" in result else None,
+                        snippet=result['snippet'] if "snippet" in result else None,
+                        top_stories=result['top_stories'] if "top_stories" in result else None
+                    )
+                )
 
     history_manager.save_history(
         query=args.query,
