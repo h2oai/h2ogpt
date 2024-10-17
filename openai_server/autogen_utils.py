@@ -361,6 +361,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         return False
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
+        multiple_executable_code_detected = False
         try:
             # skip code blocks with # execution: false
             code_blocks_len0 = len(code_blocks)
@@ -375,6 +376,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 code_blocks_new.append(code_block_new)
             code_blocks = code_blocks_new
             code_blocks_exec = [x for x in code_blocks if x.execute]
+            # Executable code block limitation
+            if len(code_blocks_exec) > 1:
+                multiple_executable_code_detected = True
+                code_blocks_exec = code_blocks_exec[:1]
+
             code_blocks_no_exec = [x for x in code_blocks if not x.execute]
 
             # ensure no plots pop-up if in pycharm mode or outside docker
@@ -425,14 +431,22 @@ os.environ['TERM'] = 'dumb'
             else:
                 raise
         ret = self.truncate_output(ret)
-        ret = self.executed_code_note(ret)
+        ret = self.executed_code_note(ret, multiple_executable_code_detected)
         return ret
 
     @staticmethod
-    def executed_code_note(ret: CommandLineCodeResult) -> CommandLineCodeResult:
+    def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
         if ret.exit_code == 0:
-            ret.output += """
+            if multiple_executable_code_detected:
+                executable_code_limitation_warning = """
+* Code execution is limited to running one code block at a time, that's why only the first code block was executed.
+* You must have only one executable code block at a time in your message.
+"""
+            else:
+                executable_code_limitation_warning = ""
+            ret.output += f"""
 <code_executed_notes>
+{executable_code_limitation_warning}
 * You should use these output without thanking the user for them.
 * You should use these outputs without noting that the code was successfully executed.
 * You should use these outputs without referring directly to the output of the script or code.
