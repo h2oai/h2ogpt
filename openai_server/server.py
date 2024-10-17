@@ -1097,8 +1097,8 @@ async def list_files(request: Request, authorization: str = Header(None)):
                 FileData(
                     id=file_id,
                     object="file",
-                    bytes=file_stat.st_size,
-                    created_at=int(file_stat.st_ctime),
+                    bytes=meta.get('bytes', file_stat.st_size),
+                    created_at=meta.get('created_at', int(file_stat.st_ctime)),
                     filename=meta.get('filename', file_id),
                     purpose=meta.get('purpose', "unknown"),
                 )
@@ -1126,14 +1126,21 @@ async def retrieve_file(request: Request, file_id: str, authorization: str = Hea
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
 
+    file_path_meta = os.path.join(user_dir, file_id + meta_ext)
+    if os.path.isfile(file_path_meta):
+        with open(file_path_meta, "rt") as f:
+            meta = json.loads(f.read())
+    else:
+        meta = {}
+
     file_stat = os.stat(file_path)
     response = RetrieveFileResponse(
         id=file_id,
         object="file",
-        bytes=file_stat.st_size,
-        created_at=int(file_stat.st_ctime),
-        filename=file_id,  # Assuming the file_id is the filename, adjust if necessary
-        purpose="unknown"  # Adjust if you have the actual purpose stored somewhere
+        bytes=meta.get('bytes', file_stat.st_size),
+        created_at=meta.get('created_at', int(file_stat.st_ctime)),
+        filename=meta.get('filename', file_id),
+        purpose=meta.get('purpose', "unknown"),
     )
 
     return response
