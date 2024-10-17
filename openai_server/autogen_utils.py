@@ -361,6 +361,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         return False
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
+        multiple_executable_code_detected = False
         try:
             # skip code blocks with # execution: false
             code_blocks_len0 = len(code_blocks)
@@ -375,6 +376,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 code_blocks_new.append(code_block_new)
             code_blocks = code_blocks_new
             code_blocks_exec = [x for x in code_blocks if x.execute]
+            # Executable code block limitation
+            if len(code_blocks_exec) > 1:
+                multiple_executable_code_detected = True
+                code_blocks_exec = code_blocks_exec[:1]
+
             code_blocks_no_exec = [x for x in code_blocks if not x.execute]
 
             # ensure no plots pop-up if in pycharm mode or outside docker
@@ -406,6 +412,7 @@ os.environ['TERM'] = 'dumb'
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
 * If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
+* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -425,17 +432,26 @@ os.environ['TERM'] = 'dumb'
             else:
                 raise
         ret = self.truncate_output(ret)
-        ret = self.executed_code_note(ret)
+        ret = self.executed_code_note(ret, multiple_executable_code_detected)
         return ret
 
     @staticmethod
-    def executed_code_note(ret: CommandLineCodeResult) -> CommandLineCodeResult:
+    def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
         if ret.exit_code == 0:
-            ret.output += """
+            if multiple_executable_code_detected:
+                executable_code_limitation_warning = """
+* Code execution is limited to running one code block at a time, that's why only the first code block was executed.
+* You must have only one executable code block at a time in your message.
+"""
+            else:
+                executable_code_limitation_warning = ""
+            ret.output += f"""
 <code_executed_notes>
+{executable_code_limitation_warning}
 * You should use these output without thanking the user for them.
 * You should use these outputs without noting that the code was successfully executed.
 * You should use these outputs without referring directly to the output of the script or code.
+* If you are stuck using the same tool repeatedly and can't find something or make something work, then think outside the box and try some other tool or approach that can lead you to the answer before giving up.
 
 </code_executed_notes>
 """
@@ -819,7 +835,10 @@ class H2OConversableAgent(ConversableAgent):
             if not message["content"]:
                 continue
             code_blocks = self._code_executor.code_extractor.extract_code_blocks(message["content"])
-            if len(code_blocks) == 0:
+            if (
+                len(code_blocks) == 0 or
+                "<FINISHED_ALL_TASKS>" in message["content"]
+                ):
                 # force immediate termination regardless of what LLM generates
                 self._is_termination_msg = lambda x: True
                 return True, self.final_answer_guidelines()
@@ -854,6 +873,7 @@ class H2OConversableAgent(ConversableAgent):
         return """
 You should terminate the chat with your final answer.
 <final_answer_guidelines>
+* Your answer should start by answering the user's first request.
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
 * If no good answer was found, discuss the failures, give insights, and provide recommendations.
