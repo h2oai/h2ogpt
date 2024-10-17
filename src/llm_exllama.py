@@ -308,7 +308,7 @@ class Exllama(LLM):
         ####    text_callback(prompt)
         text = ""
         while (generator.gen_num_tokens() <= (
-                self.max_seq_len - 4)):  # Slight extra padding space as we seem to occassionally get a few more than 1-2 tokens
+                self.max_seq_len - 4)):  # Slight extra padding space as we seem to occasionally get a few more than 1-2 tokens
             # Fetch a token
             token = token_getter()
 
