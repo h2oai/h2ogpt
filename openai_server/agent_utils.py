@@ -232,12 +232,15 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         os.makedirs(user_dir, exist_ok=True)
     file_ids = []
     for file in file_list:
+        file_stat = os.stat(file)
+        created_at_orig = int(file_stat.st_ctime)
+
         new_path = os.path.join(user_dir, os.path.basename(file))
         shutil.copy(file, new_path)
         with open(new_path, "rb") as f:
             content = f.read()
         purpose = 'assistants'
-        response_dict = run_upload_api(content, new_path, purpose, authorization)
+        response_dict = run_upload_api(content, new_path, purpose, authorization, created_at_orig=created_at_orig)
         file_id = response_dict['id']
         file_ids.append(file_id)
 
