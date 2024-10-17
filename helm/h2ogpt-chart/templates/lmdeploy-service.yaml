@@ -1,0 +1,15 @@
+{{- if and (.Values.lmdeploy.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
+  ports:
+    - protocol: TCP
+      port: {{ .Values.lmdeploy.service.port }}
+      targetPort: 23333
+  type: {{ .Values.lmdeploy.service.type }}
+{{- end }}
