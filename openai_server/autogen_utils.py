@@ -412,6 +412,7 @@ os.environ['TERM'] = 'dumb'
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
 * If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
+* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -833,7 +834,10 @@ class H2OConversableAgent(ConversableAgent):
             if not message["content"]:
                 continue
             code_blocks = self._code_executor.code_extractor.extract_code_blocks(message["content"])
-            if len(code_blocks) == 0:
+            if (
+                len(code_blocks) == 0 or
+                "<FINISHED_ALL_TASKS>" in message["content"]
+                ):
                 # force immediate termination regardless of what LLM generates
                 self._is_termination_msg = lambda x: True
                 return True, self.final_answer_guidelines()
@@ -868,6 +872,7 @@ class H2OConversableAgent(ConversableAgent):
         return """
 You should terminate the chat with your final answer.
 <final_answer_guidelines>
+* Your answer should start by answering the user's first request.
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
 * If no good answer was found, discuss the failures, give insights, and provide recommendations.

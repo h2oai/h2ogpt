@@ -13,7 +13,7 @@ def get_code_execution_agent(
         llm_config=False,  # Turn off LLM for this agent.
         code_execution_config={"executor": executor},  # Use the local command line code executor.
         human_input_mode="NEVER",  # Always take human input for this agent for safety.
-        is_termination_msg=terminate_message_func,
+        # is_termination_msg=terminate_message_func,
         max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
     )
     return code_executor_agent
