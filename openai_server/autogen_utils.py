@@ -451,6 +451,7 @@ os.environ['TERM'] = 'dumb'
 * You should use these output without thanking the user for them.
 * You should use these outputs without noting that the code was successfully executed.
 * You should use these outputs without referring directly to the output of the script or code.
+* If you are stuck using the same tool repeatedly and can't find something or make something work, then think outside the box and try some other tool or approach that can lead you to the answer before giving up.
 
 </code_executed_notes>
 """
