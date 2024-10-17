@@ -858,6 +858,7 @@ class H2OConversableAgent(ConversableAgent):
         return """
 You should terminate the chat with your final answer.
 <final_answer_guidelines>
+* Your answer should start by answering the user's first request.
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
 * If no good answer was found, discuss the failures, give insights, and provide recommendations.
