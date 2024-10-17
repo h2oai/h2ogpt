@@ -251,6 +251,9 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         if agent_verbose:
             print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
+    def cleanup_response(x):
+        return x.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '').strip()
+
     ret_dict = {}
     if file_list:
         ret_dict.update(dict(files=file_list))
@@ -273,7 +276,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
             extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
             if extracted_summary:
                 chat_result.summary = extracted_summary
-        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '').strip()
+        chat_result.summary = cleanup_response(chat_result.summary)
         # above may lead to no summary, we'll fix that below
     elif chat_result:
         chat_result.summary = ''
@@ -281,9 +284,9 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     if chat_result and not chat_result.summary:
         # construct alternative summary if none found or no-op one
         if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
-            summary = chat_result.chat_history[-1]['content']
-            if not summary and len(chat_result.chat_history) >= 2:
-                summary = chat_result.chat_history[-2]['content']
+            summary = cleanup_response(chat_result.chat_history[-1]['content'])
+            if not summary and len(chat_result.chat_history) >= 3:
+                summary = cleanup_response(chat_result.chat_history[-3]['content'])
             if summary:
                 print("Made summary from chat history: %s" % summary, file=sys.stderr)
                 chat_result.summary = summary
