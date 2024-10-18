@@ -210,6 +210,12 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     # ensure files are sorted by creation time so newest are last in list
     file_list.sort(key=lambda x: os.path.getctime(x), reverse=True)
 
+    # 10MB limit to avoid long conversions
+    file_size_bytes_limit = int(os.getenv('H2OGPT_AGENT_FILE_SIZE_LIMIT', 10 * 1024 * 1024))
+    file_list = [
+        f for f in file_list if os.path.getsize(f) <= file_size_bytes_limit
+    ]
+
     # Filter the list to include only files
     file_list = [f for f in file_list if os.path.isfile(f)]
     internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
