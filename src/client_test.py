@@ -219,6 +219,7 @@ def get_args(prompt, prompt_type=None, chat=False,
                          guided_whitespace_pattern=None,
 
                          model_lock=None,
+                         client_metadata=None,
                          )
     diff = 0
     from evaluate_params import eval_func_param_names

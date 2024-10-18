@@ -31,7 +31,10 @@ def run_autogen_2agent(query=None,
                        agent_system_site_packages=None,
                        autogen_code_restrictions_level=None,
                        autogen_silent_exchange=None,
+                       client_metadata=None,
                        agent_verbose=None) -> dict:
+    if client_metadata:
+        print("BEGIN 2AGENT: client_metadata: %s" % client_metadata, flush=True)
     assert agent_type in ['autogen_2agent', 'auto'], "Invalid agent_type: %s" % agent_type
     # raise openai.BadRequestError("Testing Error Handling")
     # raise ValueError("Testing Error Handling")
@@ -120,7 +123,9 @@ def run_autogen_2agent(query=None,
 
     code_writer_kwargs = dict(system_message=system_message,
                               llm_config={'timeout': autogen_timeout,
-                                          'extra_body': dict(enable_caching=enable_caching),
+                                          'extra_body': dict(enable_caching=enable_caching,
+                                                             client_metadata=client_metadata,
+                                                             ),
                                           "config_list": [{"model": model,
                                                            "api_key": api_key,
                                                            "base_url": base_url,
@@ -198,6 +203,8 @@ def run_autogen_2agent(query=None,
     else:
         chat_result = code_executor_agent.initiate_chat(**chat_kwargs)
 
+    if client_metadata:
+        print("END 2AGENT: client_metadata: %s" % client_metadata, flush=True)
     ret_dict = get_ret_dict_and_handle_files(chat_result,
                                              chat_result_planning,
                                              model,
@@ -206,6 +213,9 @@ def run_autogen_2agent(query=None,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
                                              system_message_parts,
-                                             autogen_code_restrictions_level, autogen_silent_exchange)
+                                             autogen_code_restrictions_level, autogen_silent_exchange,
+                                             client_metadata=client_metadata)
+    if client_metadata:
+        print("END FILES FOR 2AGENT: client_metadata: %s" % client_metadata, flush=True)
 
     return ret_dict

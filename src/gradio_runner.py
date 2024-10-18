@@ -1565,6 +1565,7 @@ def go_gradio(**kwargs):
                                                                          info="prompt to remind LLM to use json code when no schema",
                                                                          value=kwargs[
                                                                              'json_code2_post_prompt_reminder'])
+                            client_metadata = gr.Textbox(value='', visible=False)
 
                             def show_llava(x):
                                 return x

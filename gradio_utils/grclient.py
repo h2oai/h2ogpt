@@ -391,6 +391,7 @@ class CommonClient:
             image_guidance_scale: float = 3.0,
             image_num_inference_steps: int = 30,
             visible_models: Union[str, int, list] = None,
+            client_metadata: str = '',
             # don't use the below (no doc string stuff) block
             num_return_sequences: int = None,
             chat: bool = True,
@@ -582,7 +583,7 @@ class CommonClient:
                    Note that unlike h2ogpt_key, this visible_models only applies to this running h2oGPT server,
                       and the value is not used to access the inference server.
                       If need a visible_models for an inference server, then use --model_lock and group together.
-
+            :param client_metadata:
             :param asserts: whether to do asserts to ensure handling is correct
 
         Returns: summary/answer: str or extraction List[str]

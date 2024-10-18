@@ -133,6 +133,7 @@ def run_eval(  # for local function:
         guided_choice=None,
         guided_grammar=None,
         guided_whitespace_pattern=None,
+        client_metadata=None,
 
         # for evaluate kwargs:
         captions_model=None,

@@ -115,6 +115,8 @@ def run_cli(  # for local function:
         guided_grammar=None,
         guided_whitespace_pattern=None,
 
+        client_metadata=None,
+
         # for evaluate kwargs
         captions_model=None,
         caption_loader=None,

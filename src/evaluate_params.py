@@ -127,6 +127,7 @@ eval_func_param_names = (
             "guided_whitespace_pattern",
 
             "model_lock",
+            "client_metadata",
         ]
 )
 
