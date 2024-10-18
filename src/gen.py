@@ -541,6 +541,7 @@ def main(
 
         enable_heap_analytics: bool = True,
         heap_app_id: str = "1680123994",
+        client_metadata: str = '',
 
         cert_lookup_directory: str = "/etc/ssl/more-certs",
 ):
@@ -2019,6 +2020,7 @@ def main(
                             guided_choice,
                             guided_grammar,
                             guided_whitespace_pattern,
+                            client_metadata,
 
                             verbose,
                             )
@@ -2573,6 +2575,7 @@ def evaluate(
         guided_whitespace_pattern,
 
         model_lock,  # not really used by evaluate, just pure API
+        client_metadata,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2675,6 +2678,8 @@ def evaluate(
 
         stream_map=None,
 ):
+    if client_metadata:
+        print(f"evaluate start client_metadata: {client_metadata}", flush=True)
     # ensure passed these
     assert concurrency_count is not None
     assert memory_restriction_level is not None
@@ -2778,6 +2783,8 @@ def evaluate(
         yield dict(response=response, sources=[], save_dict=save_dict, llm_answers=dict(response_raw=''),
                    response_no_refs="Generated image for %s" % instruction,
                    sources_str="", prompt_raw=instruction)
+        if client_metadata:
+            print(f"evaluate finish image client_metadata: {client_metadata}", flush=True)
         return
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\n" \
@@ -3416,6 +3423,7 @@ def evaluate(
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
                 guided_whitespace_pattern=guided_whitespace_pattern,
+                client_metadata=client_metadata,
 
                 json_vllm=json_vllm,
 
@@ -3459,8 +3467,12 @@ def evaluate(
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
+            if client_metadata:
+                print(f"evaluate finish run_qa_db client_metadata: {client_metadata}", flush=True)
             return
 
+    if client_metadata:
+        print(f"evaluate middle non-langchain client_metadata: {client_metadata}", flush=True)
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
     prompt, \
@@ -3929,6 +3941,7 @@ def evaluate(
                                          guided_whitespace_pattern=guided_whitespace_pattern,
 
                                          model_lock=None,  # already set
+                                         client_metadata=client_metadata,
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -4058,6 +4071,8 @@ def evaluate(
         # if not streaming, only place yield should be done
         yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=dict(response_raw=response_raw),
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
+        if client_metadata:
+            print(f"evaluate finish inference server client_metadata: {client_metadata}", flush=True)
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -4294,6 +4309,8 @@ def evaluate(
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+    if client_metadata:
+        print(f"evaluate HF finish client_metadata: {client_metadata}", flush=True)
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
@@ -4514,6 +4531,7 @@ def get_generate_params(model_lower,
                         guided_choice,
                         guided_grammar,
                         guided_whitespace_pattern,
+                        client_metadata,
 
                         verbose,
                         ):
@@ -4764,8 +4782,8 @@ y = np.random.randint(0, 1, 100)
                     guided_choice,
                     guided_grammar,
                     guided_whitespace_pattern,
-
                     None,  # model_lock, only client, don't need default value
+                    client_metadata,
                     ]
         # adjust examples if non-chat mode
         if not chat:

@@ -980,6 +980,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     guided_choice: Any = None
     guided_grammar: Any = None
     guided_whitespace_pattern: Any = None
+    client_metadata: Any = ''
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1146,6 +1147,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              guided_choice=self.guided_choice,
                              guided_grammar=self.guided_grammar,
                              guided_whitespace_pattern=self.guided_whitespace_pattern,
+                             client_metadata=self.client_metadata,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         # let inner gradio count input tokens
@@ -7013,6 +7015,7 @@ def _run_qa_db(query=None,
                guided_choice=None,
                guided_grammar=None,
                guided_whitespace_pattern=None,
+               client_metadata=None,
 
                json_vllm=False,
 
@@ -7044,6 +7047,8 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    if client_metadata:
+        print("RUNQADB START client_metadata: %s" % client_metadata, flush=True)
     t_run = time.time()
     if LangChainAgent.SMART.value in langchain_agents:
         # FIXME: support whatever model/user supports
@@ -7480,6 +7485,8 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
             print('response: %s' % ret)
         yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
                    llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
+    if client_metadata:
+        print("RUNQADB FINISH client_metadata: %s" % client_metadata, flush=True)
     return
 
 

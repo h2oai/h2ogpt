@@ -193,7 +193,8 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
                                   system_message_parts,
-                                  autogen_code_restrictions_level, autogen_silent_exchange):
+                                  autogen_code_restrictions_level, autogen_silent_exchange,
+                                  client_metadata=''):
     # DEBUG
     if agent_verbose:
         print("chat_result:", chat_result_planning)
@@ -210,13 +211,19 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     # ensure files are sorted by creation time so newest are last in list
     file_list.sort(key=lambda x: os.path.getctime(x), reverse=True)
 
+    # 10MB limit to avoid long conversions
+    file_size_bytes_limit = int(os.getenv('H2OGPT_AGENT_FILE_SIZE_LIMIT', 10 * 1024 * 1024))
+    file_list = [
+        f for f in file_list if os.path.getsize(f) <= file_size_bytes_limit
+    ]
+
     # Filter the list to include only files
     file_list = [f for f in file_list if os.path.isfile(f)]
     internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
     # filter out internal files for RAG case
     file_list = [f for f in file_list if os.path.normpath(f) not in internal_file_names_norm_paths]
-    if agent_verbose:
-        print("file_list:", file_list)
+    if agent_verbose or client_metadata:
+        print(f"client_metadata: {client_metadata} file_list: {file_list}", flush=True)
 
     image_files, non_image_files = identify_image_files(file_list)
     # keep no more than 10 image files among latest files created
@@ -260,6 +267,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     if file_ids:
         ret_dict.update(dict(file_ids=file_ids))
     if chat_result and hasattr(chat_result, 'chat_history'):
+        print(f"client_metadata: {client_metadata}: chat history: {len(chat_result.chat_history)}", file=sys.stderr)
         ret_dict.update(dict(chat_history=chat_result.chat_history))
     if chat_result and hasattr(chat_result, 'cost'):
         if hasattr(chat_result_planning, 'cost'):
@@ -288,13 +296,13 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
             if not summary and len(chat_result.chat_history) >= 3:
                 summary = cleanup_response(chat_result.chat_history[-3]['content'])
             if summary:
-                print("Made summary from chat history: %s" % summary, file=sys.stderr)
+                print(f"Made summary from chat history: {summary} : {client_metadata}", file=sys.stderr)
                 chat_result.summary = summary
             else:
-                print("Did NOT make and could not make summary", file=sys.stderr)
+                print(f"Did NOT make and could not make summary {client_metadata}", file=sys.stderr)
                 chat_result.summary = 'No summary or chat history available'
         else:
-            print("Did NOT make any summary", file=sys.stderr)
+            print(f"Did NOT make any summary {client_metadata}", file=sys.stderr)
             chat_result.summary = 'No summary available'
 
     if chat_result:
