@@ -1,10 +1,9 @@
 import ast
 import asyncio
-import base64
+import selectors
 import contextlib
 import functools
 import gc
-import getpass
 import hashlib
 import inspect
 import io
@@ -2077,67 +2076,74 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
         popen_kwargs = {
             'cwd': cwd,
             'env': env,
+            'bufsize': 1,  # Line-buffered
+            'stdout': subprocess.PIPE,
+            'stderr': subprocess.PIPE,
+            'universal_newlines': text,
         }
 
-        if capture_output:
-            popen_kwargs['stdout'] = subprocess.PIPE
-            popen_kwargs['stderr'] = subprocess.PIPE
-
-        if text:
-            popen_kwargs['text'] = True
-            popen_kwargs['encoding'] = 'utf-8'
-        else:
-            popen_kwargs['text'] = False
-
         with subprocess.Popen(cmd, **popen_kwargs) as p:
-            start_time = time.time()
+            sel = selectors.DefaultSelector()
+            sel.register(p.stdout, selectors.EVENT_READ)
+            sel.register(p.stderr, selectors.EVENT_READ)
+
             stdout_data = []
             stderr_data = []
 
-            if capture_output:
-                for out_line, err_line in read_popen_pipes(p):
-                    if out_line:
-                        # line-by-line code output check since streaming
-                        out_line = guard_func(out_line) if guard_func else out_line
-                        stdout_data.append(out_line)
-                        if length + len(out_line) <= max_stream_length:
-                            if print_tags:
-                                if out_line.strip():  # Only print if there's non-whitespace content
-                                    print_func(f"STDOUT: {out_line.strip()}")
-                            elif print_literal:
-                                print_func(out_line, end='')
-                            else:
-                                print_func(out_line)
-                        length += len(out_line)
-                    if err_line:
-                        # line-by-line code output check since streaming
-                        err_line = guard_func(err_line) if guard_func else err_line
-                        stderr_data.append(err_line)
-                        if length + len(err_line) <= max_stream_length:
-                            if print_tags:
-                                if err_line.strip():  # Only print if there's non-whitespace content
-                                    print_func(f"STDERR: {err_line.strip()}")
-                            elif print_literal:
-                                print_func(err_line, end='')
-                            else:
-                                print_func(err_line)
-                        length += len(err_line)
+            start_time = time.time()
 
-                    # Check for timeout
-                    if timeout and time.time() - start_time > timeout:
-                        p.terminate()
-                        raise subprocess.TimeoutExpired(cmd, timeout)
-            else:
-                p.wait(timeout=timeout)
+            while True:
+                if timeout and time.time() - start_time > timeout:
+                    p.terminate()
+                    raise subprocess.TimeoutExpired(cmd, timeout)
 
-            p.poll()
+                events = sel.select(timeout=1)
+                if not events and p.poll() is not None:
+                    break  # No more events and the process has exited
+
+                for key, _ in events:
+                    data = key.fileobj.readline()
+                    if not data:  # EOF
+                        sel.unregister(key.fileobj)
+                        continue
+
+                    if guard_func:
+                        data = guard_func(data)
+
+                    if key.fileobj is p.stdout:
+                        stdout_data.append(data)
+                        if length + len(data) <= max_stream_length:
+                            if print_tags:
+                                if data.strip():
+                                    print_func(f"STDOUT: {data.strip()}")
+                            elif print_literal:
+                                print_func(data, end='')
+                            else:
+                                print_func(data)
+                        length += len(data)
+                    elif key.fileobj is p.stderr:
+                        stderr_data.append(data)
+                        if length + len(data) <= max_stream_length:
+                            if print_tags:
+                                if data.strip():
+                                    print_func(f"STDERR: {data.strip()}")
+                            elif print_literal:
+                                print_func(data, end='')
+                            else:
+                                print_func(data)
+                        length += len(data)
+
+                if p.poll() is not None and not sel.get_map():
+                    break  # Process has exited and no more data to read
+
+            p.wait(timeout=timeout)
 
         # Prepare return object similar to subprocess.CompletedProcess
         return subprocess.CompletedProcess(
             args=cmd,
             returncode=p.returncode,
-            stdout=''.join(stdout_data) if text else b''.join(stdout_data) if capture_output else None,
-            stderr=''.join(stderr_data) if text else b''.join(stderr_data) if capture_output else None
+            stdout=''.join(stdout_data) if capture_output else None,
+            stderr=''.join(stderr_data) if capture_output else None
         )
 
     finally:
