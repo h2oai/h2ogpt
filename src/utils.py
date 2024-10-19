@@ -13,6 +13,7 @@ import os
 import pathlib
 import pickle
 import platform
+import queue
 import random
 import shutil
 import subprocess
@@ -2014,35 +2015,65 @@ def lg_to_gr(
 
 
 def enqueue_output(file, queue):
-    # for line in iter(file.readline, ''):
     for line in iter(file.readline, b'' if isinstance(file, io.BufferedReader) else ''):
         queue.put(line)
+    queue.put(None)  # Signal that the stream has ended
     file.close()
 
 
-def read_popen_pipes(p):
+def read_popen_pipes(p, timeout=120):
+    if timeout is None:
+        timeout = 120
     with ThreadPoolExecutor(2) as pool:
-        q_stdout, q_stderr = Queue(), Queue()
+        q_stdout, q_stderr = queue.Queue(), queue.Queue()
 
-        pool.submit(enqueue_output, p.stdout, q_stdout)
-        pool.submit(enqueue_output, p.stderr, q_stderr)
+        future_stdout = pool.submit(enqueue_output, p.stdout, q_stdout)
+        future_stderr = pool.submit(enqueue_output, p.stderr, q_stderr)
+
+        start_time = time.time()
 
         while True:
             if p.poll() is not None and q_stdout.empty() and q_stderr.empty():
                 break
 
+            if time.time() - start_time > timeout:
+                p.kill()  # Force kill if timeout is reached
+                raise subprocess.TimeoutExpired(p.args, timeout)
+
             out_line = err_line = ''
 
             try:
-                out_line = q_stdout.get_nowait()
-            except Empty:
+                out_line = q_stdout.get(timeout=0.1)
+                if out_line is None:
+                    future_stdout.result(timeout=1)  # Ensure thread is finished
+            except queue.Empty:
                 pass
+            except TimeoutError:
+                p.kill()
+                raise RuntimeError("Stdout reading thread did not finish properly")
+
             try:
-                err_line = q_stderr.get_nowait()
-            except Empty:
+                err_line = q_stderr.get(timeout=0.1)
+                if err_line is None:
+                    future_stderr.result(timeout=1)  # Ensure thread is finished
+            except queue.Empty:
                 pass
+            except TimeoutError:
+                p.kill()
+                raise RuntimeError("Stderr reading thread did not finish properly")
 
             yield out_line, err_line
+
+        # Ensure all queues are emptied
+        while not q_stdout.empty():
+            yield q_stdout.get(), ''
+        while not q_stderr.empty():
+            yield '', q_stderr.get()
+
+    # Ensure the process is terminated
+    if p.poll() is None:
+        p.kill()
+        p.wait(timeout=5)
 
 
 def start_process(cmd):
@@ -2095,7 +2126,7 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
             stderr_data = []
 
             if capture_output:
-                for out_line, err_line in read_popen_pipes(p):
+                for out_line, err_line in read_popen_pipes(p, timeout=timeout):
                     if out_line:
                         # line-by-line code output check since streaming
                         out_line = guard_func(out_line) if guard_func else out_line
