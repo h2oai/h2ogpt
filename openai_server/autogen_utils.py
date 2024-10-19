@@ -779,7 +779,11 @@ class H2OConversableAgent(ConversableAgent):
     ) -> typing.Tuple[bool, Union[str, Dict, None]]:
         valid, extracted_response = super().generate_oai_reply(messages, sender, config)
         if isinstance(extracted_response, str) and 'ENDOFTURN' not in extracted_response:
-            extracted_response += '\n\nENDOFTURN\n'
+            delta = '\n\nENDOFTURN\n'
+            from autogen.io import IOStream
+            iostream = IOStream.get_default()
+            iostream.print(delta)
+            extracted_response += delta
         return (False, None) if extracted_response is None else (True, extracted_response)
 
     def _generate_code_execution_reply_using_executor(
@@ -790,7 +794,11 @@ class H2OConversableAgent(ConversableAgent):
     ):
         valid, output = self.__generate_code_execution_reply_using_executor(messages, sender, config)
         if output and 'ENDOFTURN' not in output:
-            output += '\n\nENDOFTURN\n'
+            delta = '\n\nENDOFTURN\n'
+            from autogen.io import IOStream
+            iostream = IOStream.get_default()
+            iostream.print(delta)
+            output += delta
         return valid, output
 
     def __generate_code_execution_reply_using_executor(
