@@ -2090,6 +2090,8 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
                        text=True, print_tags=False, print_literal=True, print_func=print,
                        guard_func=None,
                        max_stream_length=4096):
+    if timeout is None:
+        timeout = 120
     if script_content is None and cmd is None:
         raise ValueError("Either script_content or cmd must be provided")
 
@@ -2126,42 +2128,54 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
             stderr_data = []
 
             if capture_output:
-                for out_line, err_line in read_popen_pipes(p, timeout=timeout):
-                    if out_line:
-                        # line-by-line code output check since streaming
-                        out_line = guard_func(out_line) if guard_func else out_line
-                        stdout_data.append(out_line)
-                        if length + len(out_line) <= max_stream_length:
-                            if print_tags:
-                                if out_line.strip():  # Only print if there's non-whitespace content
-                                    print_func(f"STDOUT: {out_line.strip()}")
-                            elif print_literal:
-                                print_func(out_line, end='')
-                            else:
-                                print_func(out_line)
-                        length += len(out_line)
-                    if err_line:
-                        # line-by-line code output check since streaming
-                        err_line = guard_func(err_line) if guard_func else err_line
-                        stderr_data.append(err_line)
-                        if length + len(err_line) <= max_stream_length:
-                            if print_tags:
-                                if err_line.strip():  # Only print if there's non-whitespace content
-                                    print_func(f"STDERR: {err_line.strip()}")
-                            elif print_literal:
-                                print_func(err_line, end='')
-                            else:
-                                print_func(err_line)
-                        length += len(err_line)
-
-                    # Check for timeout
-                    if timeout and time.time() - start_time > timeout:
-                        p.terminate()
-                        raise subprocess.TimeoutExpired(cmd, timeout)
+                try:
+                    for out_line, err_line in read_popen_pipes(p, timeout=timeout):
+                        if out_line:
+                            out_line = guard_func(out_line) if guard_func else out_line
+                            stdout_data.append(out_line)
+                            if length + len(out_line) <= max_stream_length:
+                                if print_tags:
+                                    if out_line.strip():
+                                        print_func(f"STDOUT: {out_line.strip()}")
+                                elif print_literal:
+                                    print_func(out_line, end='')
+                                else:
+                                    print_func(out_line)
+                            length += len(out_line)
+                        if err_line:
+                            err_line = guard_func(err_line) if guard_func else err_line
+                            stderr_data.append(err_line)
+                            if length + len(err_line) <= max_stream_length:
+                                if print_tags:
+                                    if err_line.strip():
+                                        print_func(f"STDERR: {err_line.strip()}")
+                                elif print_literal:
+                                    print_func(err_line, end='')
+                                else:
+                                    print_func(err_line)
+                            length += len(err_line)
+                except subprocess.TimeoutExpired:
+                    print_func(f"Process timed out after {timeout} seconds")
+                    p.kill()  # Use kill instead of terminate
+                    stdout, stderr = p.communicate(timeout=5)  # Give it 5 seconds to finish
+                    stdout_data.append(stdout)
+                    stderr_data.append(stderr)
+                    raise
             else:
-                p.wait(timeout=timeout)
+                try:
+                    p.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    print_func(f"Process timed out after {timeout} seconds")
+                    p.kill()  # Use kill instead of terminate
+                    raise
 
-            p.poll()
+            # Ensure the process is fully terminated
+            if p.poll() is None:
+                p.kill()
+                try:
+                    p.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    print_func("Failed to terminate the process")
 
         # Prepare return object similar to subprocess.CompletedProcess
         return subprocess.CompletedProcess(
