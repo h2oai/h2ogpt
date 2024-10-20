@@ -31,7 +31,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 sys.path.append('openai_server')
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')
 
 # https://github.com/h2oai/h2ogpt/issues/1132
 # https://github.com/jquesnelle/transformers-openai-api

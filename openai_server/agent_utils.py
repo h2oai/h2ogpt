@@ -267,7 +267,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     if file_ids:
         ret_dict.update(dict(file_ids=file_ids))
     if chat_result and hasattr(chat_result, 'chat_history'):
-        print(f"CHAT HISTORY: client_metadata: {client_metadata}: chat history: {len(chat_result.chat_history)}", file=sys.stderr)
+        print(f"CHAT HISTORY: client_metadata: {client_metadata}: chat history: {len(chat_result.chat_history)}", flush=True)
         ret_dict.update(dict(chat_history=chat_result.chat_history))
     if chat_result and hasattr(chat_result, 'cost'):
         if hasattr(chat_result_planning, 'cost'):
