@@ -2515,9 +2515,11 @@ class GenerateStream:
             have_tool = True
         kwargs.pop('stream', None)
         kwargs.pop('streaming', None)
+        # gemini specific:
         if hasattr(self, 'safety_settings'):
             # google
             kwargs['safety_settings'] = self.safety_settings
+        # gemini specific:
         if hasattr(self, 'response_format') and self.response_format == 'json_object':
             kwargs['generation_config'] = dict(response_mime_type='application/json')
             if self.guided_json and isinstance(self.guided_json, dict) and self.model == 'models/gemini-1.5-pro-latest':
@@ -3294,7 +3296,10 @@ def get_llm(use_openai_model=False,
             tools_openai = []
         openai_model_supports_tools = model_name in openai_supports_functiontools + openai_supports_parallel_functiontools
         openai_model_supports_json = is_json_model(model_name, inference_server)
-        openai_supports_json_or_tools = response_format == 'json_object' and openai_model_supports_json or openai_model_supports_tools and guided_json
+        if not json_vllm:
+            openai_supports_json_or_tools = response_format == 'json_object' and openai_model_supports_json or openai_model_supports_tools and guided_json
+        else:
+            openai_supports_json_or_tools = False
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt,
                                      chat_conversation=chat_conversation,
@@ -3305,7 +3310,11 @@ def get_llm(use_openai_model=False,
                 if is_json_model(model_name, inference_server,
                                  json_vllm=json_vllm) and response_format == 'json_object':
                     # vllm without guided_json can't make json directly
-                    kwargs_extra.update(dict(response_format=dict(type=response_format if guided_json else 'text')))
+                    if not json_vllm:
+                        kwargs_extra.update(dict(response_format=dict(type=response_format if guided_json else 'text')))
+                    else:
+                        # for vllm 0.6.3+
+                        kwargs_extra.update(dict(response_format=dict(type='text')))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(openai_api_key=api_key,
@@ -3324,7 +3333,10 @@ def get_llm(use_openai_model=False,
                         kwargs_extra.update(dict(response_format=dict(type='text'), parallel_tool_calls=False))
                     else:
                         # Not vllm, guided_json not required
-                        kwargs_extra.update(dict(response_format=dict(type=response_format)))
+                        if not json_vllm:
+                            kwargs_extra.update(dict(response_format=dict(type=response_format)))
+                        else:
+                            kwargs_extra.update(dict(response_format=dict(type='text')))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             if 'response_format' not in azure_kwargs and openai_supports_json_or_tools:
