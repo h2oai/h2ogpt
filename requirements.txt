@@ -108,3 +108,4 @@ packaging>=23.1
 
 jsonschema>=4.23.0
 spacy==3.7.5
+starlette>=0.40.0 # not directly required, pinned by Snyk to avoid a vulnerability
