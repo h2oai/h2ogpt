@@ -849,7 +849,8 @@ class H2OConversableAgent(ConversableAgent):
                 ):
                 # force immediate termination regardless of what LLM generates
                 self._is_termination_msg = lambda x: True
-                return True, self.final_answer_guidelines()
+                constrained_output_exists = "<constrained_output>" in message["content"] and "</constrained_output>" in message["content"]
+                return True, self.final_answer_guidelines(constrained_output_exists)
 
             num_code_blocks = len(code_blocks)
             if num_code_blocks == 1:
@@ -877,18 +878,24 @@ class H2OConversableAgent(ConversableAgent):
         return False, None
 
     @staticmethod
-    def final_answer_guidelines() -> str:
-        return """
+    def final_answer_guidelines(constrained_output_exists: bool = False) -> str:
+        constrained_output_instructions = ""
+        if constrained_output_exists:
+            constrained_output_instructions = """
+                * You have to follow all the instructions given in the user's first request. If asked to provide the answer in certain formats, then do so.
+                * Main answer to the user's request have to be inside the <constrained_output> and </constrained_output> tags.
+"""
+        return f"""
 You should terminate the chat with your final answer.
 <final_answer_guidelines>
 * Your answer should start by answering the user's first request.
+{constrained_output_instructions}
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
 * If no good answer was found, discuss the failures, give insights, and provide recommendations.
 * If the user was asking you to write codes, make sure to provide the non-executable code block in the final answer.
 * If the user was asking for images and images were made, you must add them as inline markdown using ![image](filename.png).
 * If possible, use well-structured markdown as table of results or lists to make it more readable and easy to follow.
-* If you have given a <constrained_output> response, please repeat that.
 * You must give a very brief natural language title near the end of your response about your final answer and put that title inside <turn_title> </turn_title> XML tags.
 * Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </final_answer_guidelines>
