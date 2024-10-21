@@ -8,3 +8,4 @@ yt-dlp>=2024.8.6
 
 # for fiftyone with patches
 pytubefix==6.15.4
+starlette>=0.40.0 # not directly required, pinned by Snyk to avoid a vulnerability
