@@ -788,6 +788,7 @@ def get_model(
                                      )
             if base_model in ['o1-mini', 'o1-preview']:
                 gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+                gen_server_kwargs.pop('temperature', None)
 
             if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:
                 model_name = get_model_name(base_model, client)
@@ -971,7 +972,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
-                    base_model, inference_server)
+                        base_model, inference_server)
                 print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
                     base_model, inference_server))
             if base_model in model_token_mapping_outputs:
@@ -994,7 +995,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
-                    base_model, inference_server)
+                        base_model, inference_server)
                 if max_seq_len is None:
                     print("Estimating max_seq_len=200000")
                     max_seq_len = 200000
@@ -1018,7 +1019,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
-                    base_model, inference_server)
+                        base_model, inference_server)
                 if max_seq_len is None:
                     print("Estimating max_seq_len=1000000")
                     max_seq_len = 1000000
@@ -1048,7 +1049,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
-                    base_model, inference_server)
+                        base_model, inference_server)
                 if max_seq_len is None:
                     print("Estimating max_seq_len=1000000")
                     max_seq_len = 32768

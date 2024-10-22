@@ -3548,6 +3548,11 @@ def evaluate(
                                      )
             if base_model in ['o1-mini', 'o1-preview']:
                 gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+                gen_server_kwargs.pop('temperature', None)
+                gen_server_kwargs.pop('presence_penalty', None)
+                gen_server_kwargs.pop('n', None)
+                gen_server_kwargs.pop('frequency_penalty', None)
+                gen_server_kwargs.pop('top_p', None)
             try:
                 if inf_type in ['vllm', 'vllm_chat'] and chosen_model_state['json_vllm']:
                     response_format_real = response_format if not (guided_json or guided_regex or guided_choice or guided_grammar) else 'text'
