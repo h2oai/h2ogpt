@@ -2463,6 +2463,14 @@ class ExtraChat:
 
 
 class GenerateStream:
+    def get_count_output_tokens(self, ret):
+        if hasattr(ret, 'llm_output') and 'model_name' in ret.llm_output and ret.llm_output['model_name'] in ['o1-mini', 'o1-preview']:
+            usage_dict = ret.llm_output['token_usage']
+            if 'completion_tokens' in usage_dict:
+                self.count_output_tokens += usage_dict['completion_tokens']
+            if 'completion_tokens_details' in usage_dict and 'reasoning_tokens' in usage_dict['completion_tokens_details']:
+                print("reasoning tokens for %s: %s" % (ret.llm_output['model_name'], usage_dict['completion_tokens_details']['reasoning_tokens']))
+
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -2476,7 +2484,9 @@ class GenerateStream:
             kwargs['streaming'] = self.streaming
         # prompt_messages = [p.to_messages() for p in prompts]
         try:
-            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            ret = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            self.get_count_output_tokens(ret)
+            return ret
         except Exception as e:
             if 'Internal server error' in str(e):
                 print("Internal server error, retrying", flush=True)
@@ -2497,9 +2507,11 @@ class GenerateStream:
         # prompt_messages = [p.to_messages() for p in prompts]
         if 'streaming' not in kwargs:
             kwargs['streaming'] = self.streaming
-        return await self.agenerate(
+        ret = await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+        self.get_count_output_tokens(ret)
+        return ret
 
     def _generate(
             self,
@@ -2595,6 +2607,14 @@ class GenerateStream:
 
 
 class GenerateNormal:
+    def get_count_output_tokens(self, ret):
+        if hasattr(ret, 'llm_output') and 'model_name' in ret.llm_output and ret.llm_output['model_name'] in ['o1-mini', 'o1-preview']:
+            usage_dict = ret.llm_output['token_usage']
+            if 'completion_tokens' in usage_dict:
+                self.count_output_tokens += usage_dict['completion_tokens']
+            if 'completion_tokens_details' in usage_dict and 'reasoning_tokens' in usage_dict['completion_tokens_details']:
+                print("reasoning tokens for %s: %s" % (ret.llm_output['model_name'], usage_dict['completion_tokens_details']['reasoning_tokens']))
+
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -2605,7 +2625,9 @@ class GenerateNormal:
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        ret = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        self.get_count_output_tokens(ret)
+        return ret
 
     async def agenerate_prompt(
             self,
@@ -2617,9 +2639,11 @@ class GenerateNormal:
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
-        return await self.agenerate(
+        ret = await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+        self.get_count_output_tokens(ret)
+        return ret
 
 
 class GenerateStream2:
@@ -3412,6 +3436,8 @@ def get_llm(use_openai_model=False,
 
         if model_name in ['o1-mini', 'o1-preview']:
             gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+            max_reasoning_tokens = int(os.getenv("MAX_REASONING_TOKENS", 25000))
+            gen_server_kwargs['max_completion_tokens'] = max_reasoning_tokens + max(100, gen_server_kwargs['max_completion_tokens'])
             gen_server_kwargs['temperature'] = 1.0
             model_kwargs.pop('presence_penalty', None)
             model_kwargs.pop('n', None)
@@ -7487,6 +7513,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         num_prompt_tokens = llm.count_input_tokens
     else:
         num_prompt_tokens = get_token_count(prompt, tokenizer)
+    if hasattr(llm, 'count_output_tokens') and llm.count_output_tokens != 0:
+        ntokens = llm.count_output_tokens
+    else:
+        ntokens = None
 
     # ensure to close client
     # https://github.com/langchain-ai/langchain/issues/13509
@@ -7504,14 +7534,15 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         if verbose:
             print('response: %s' % ret)
         yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
-                   llm_answers=llm_answers, response_no_refs=ret, sources_str='')
+                   llm_answers=llm_answers, response_no_refs=ret, sources_str='', ntokens=ntokens)
     elif answer is not None:
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         llm_answers['llm_answer_final'] = ret
         if verbose:
             print('response: %s' % ret)
         yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
-                   llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
+                   llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str,
+                   ntokens=ntokens)
     if client_metadata:
         print("RUNQADB FINISH client_metadata: %s" % client_metadata, flush=True)
     return

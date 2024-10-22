@@ -788,7 +788,8 @@ def get_model(
                                      )
             if base_model in ['o1-mini', 'o1-preview']:
                 gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
-                gen_server_kwargs['max_completion_tokens'] = max(1000, gen_server_kwargs['max_completion_tokens'])
+                max_reasoning_tokens = int(os.getenv("MAX_REASONING_TOKENS", 25000))
+                gen_server_kwargs['max_completion_tokens'] = max_reasoning_tokens + max(100, gen_server_kwargs['max_completion_tokens'])
                 gen_server_kwargs['temperature'] = 1.0
 
             if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:

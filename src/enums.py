@@ -193,6 +193,9 @@ gpt_token_mapping = {
     "gpt-4o-2024-05-13": 128000,  # 4096 output
     "gpt-4o-2024-08-06": 128000,  # 4096 output
     "gpt-4o-mini": 128000,  # 16384 output
+    # leave room for reasoning tokens
+    "o1-preview": 128000,  # 4096 output
+    "o1-mini": 128000,  # 4096 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -398,6 +401,9 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
                                     "gpt-4o-2024-08-06": 4096,
                                     "gpt-4o-mini": 16384,
                                     "gpt-4o-mini-2024-07-18": 16384,
+                                    # deduces expected reasoning tokens
+                                    "o1-preview": 32768 - 25000,
+                                    "o1-mini": 65536 - 25000,
                                     }
                                    )
 
