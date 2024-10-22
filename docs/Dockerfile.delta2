@@ -1,9 +1,12 @@
 FROM gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1245
 USER root
+#
 COPY enums.py /workspace/src/enums.py
-COPY model_utils.py /workspace/src/model_utils.py
-COPY gpt_langchain.py /workspace/src/gpt_langchain.py
 COPY gen.py /workspace/src/gen.py
+COPY gpt_langchain.py /workspace/src/gpt_langchain.py
+COPY model_utils.py /workspace/src/model_utils.py
 COPY prompter.py /workspace/src/prmopter.py
-RUN chmod a+rwx /workspace/src/enums.py /workspace/src/model_utils.py /workspace/src/gen.py /workspace/src/gpt_langchain.py /workspace/src/prmopter.py
+COPY utils.py /workspace/src/utils.py
+#
+RUN chmod a+rwx /workspace/src/enums.py /workspace/src/model_utils.py /workspace/src/gen.py /workspace/src/gpt_langchain.py /workspace/src/prmopter.py /workspace/src/utils.py
 USER h2ogpt
