@@ -3618,7 +3618,7 @@ def evaluate(
                         openai_system_prompt = system_prompt
                     messages0 = []
                     if openai_system_prompt:
-                        if prompter.can_handle_system_prompt:
+                        if prompter.can_handle_system_prompt and base_model not in ['o1-mini', 'o1-preview']:
                             messages0.append({"role": "system", "content": openai_system_prompt})
                         else:
                             messages0.append({"role": "user",
