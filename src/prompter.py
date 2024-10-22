@@ -1680,6 +1680,9 @@ class Prompter(object):
         self.pre_response = self.PreResponse
         self.verbose = verbose
 
+        if base_model and base_model in ['o1-mini', 'o1-preview']:
+            self.can_handle_system_prompt = False
+
         if self.use_chat_template:
             # see if chat template handles system prompt
             system_prompt = '1234####*****@@!(#%@#%@#%'
