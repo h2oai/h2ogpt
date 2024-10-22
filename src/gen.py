@@ -3282,6 +3282,7 @@ def evaluate(
         prompt_basic = prompter.generate_prompt(data_point, context_from_history=False, image_file=image_file)
         prompt = prompt_basic
         num_prompt_tokens = 0
+        ntokens = None
         llm_answers = {}
         for r in run_qa_db(
                 inference_server=inference_server,
@@ -3445,6 +3446,7 @@ def evaluate(
                 response = get_json(response, json_schema_type=json_schema_type)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
+            ntokens = r.get('ntokens')
             llm_answers = r['llm_answers']
             llm_answers['response_raw'] = response_raw
             response_no_refs = r['response_no_refs']
@@ -3458,6 +3460,7 @@ def evaluate(
                                # tokens_persecond computed in save_generate_output
                                sources_str=sources_str,
                                sources=sources,
+                               ntokens=ntokens,
                                ))
         save_dict.update(dict(prompt=prompt, output=response, where_from="run_qa_db", extra_dict=extra_dict))
         yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
@@ -4076,10 +4079,11 @@ def evaluate(
 
         # only return yield with save_dict and prompt_raw here to keep streaming light
         extra_dict.update(gen_server_kwargs)
+        ntokens = extra_dict.get('ntokens', None)
         extra_dict.update(dict(inference_server=inference_server,  # changes in some cases
                                num_prompt_tokens=num_prompt_tokens,
                                t_generate=time.time() - t_generate,
-                               ntokens=None,
+                               ntokens=ntokens,
                                prompt_type=prompt_type,
                                tokens_persecond=None,
                                ))
