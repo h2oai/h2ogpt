@@ -3409,6 +3409,11 @@ def get_llm(use_openai_model=False,
 
         if model_name in ['o1-mini', 'o1-preview']:
             gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+            model_kwargs.pop('temperature', None)
+            model_kwargs.pop('presence_penalty', None)
+            model_kwargs.pop('n', None)
+            model_kwargs.pop('frequency_penalty', None)
+            model_kwargs.pop('top_p', None)
 
         llm = cls(model_name=model_name,
                   model_kwargs=model_kwargs,
