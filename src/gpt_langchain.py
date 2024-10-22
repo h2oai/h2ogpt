@@ -2262,6 +2262,7 @@ class H2OTextGenOpenAI:
 
 
 class H2OOpenAI(H2OTextGenOpenAI, OpenAI):
+    temperature: float = 0.0
     """
     New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
     Handles prompting that OpenAI doesn't need, stopping as well
@@ -2705,6 +2706,7 @@ class GenerateStream2:
 
 
 class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, H2OBaseChatOpenAI, ChatOpenAI):
+    temperature: float = 0.0
     tokenizer: Any = None
     system_prompt: Any = None
     chat_conversation: Any = []
@@ -2725,6 +2727,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, H2OBase
 
 
 class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, H2OBaseAzureChatOpenAI):
+    temperature: float = 0.0
     system_prompt: Any = None
     chat_conversation: Any = []
     user_prompt_for_fake_system_prompt: Any = None
@@ -3409,7 +3412,7 @@ def get_llm(use_openai_model=False,
 
         if model_name in ['o1-mini', 'o1-preview']:
             gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
-            gen_server_kwargs.pop('temperature', None)
+            gen_server_kwargs['temperature'] = 1.0
             model_kwargs.pop('presence_penalty', None)
             model_kwargs.pop('n', None)
             model_kwargs.pop('frequency_penalty', None)
