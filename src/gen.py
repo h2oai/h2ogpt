@@ -2980,6 +2980,10 @@ def evaluate(
     if force_streaming_on_to_handle_timeouts:
         stream_output = gradio and num_beams == 1
 
+    # https://platform.openai.com/docs/guides/reasoning/beta-limitations
+    if base_model in ['o1-mini', 'o1-preview'] and os.getenv('O1STREAM', '0') == '0':
+        stream_output = False
+
     from gradio_utils.grclient import GradioClient
     from gradio_client import Client
     gradio_server = inference_server.startswith('http') and (
