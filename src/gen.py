@@ -2915,8 +2915,6 @@ def evaluate(
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
-    if base_model in ['o1-mini', 'o1-preview']:
-        temperature = 1.0
 
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
