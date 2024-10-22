@@ -413,7 +413,7 @@ def get_client_from_inference_server(inference_server, base_model=None,
         print("HF Client End: %s %s : %s" % (inference_server, base_model, res))
     if validate_clients and fail_if_invalid_client:
         assert hf_client is not None or gr_client is not None, "Failed to create Gradio or HF client for %s %s" % (
-        inference_server, base_model)
+            inference_server, base_model)
     return inference_server, gr_client, hf_client
 
 
@@ -783,6 +783,12 @@ def get_model(
             model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
                          base_url=base_url, api_version=api_version, api_key=api_key)
         if validate_clients:
+            gen_server_kwargs = dict(temperature=0.0,
+                                     max_tokens=10
+                                     )
+            if base_model in ['o1-mini', 'o1-preview']:
+                gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+
             if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:
                 model_name = get_model_name(base_model, client)
                 messages = [
@@ -791,12 +797,12 @@ def get_model(
                         "content": "Who are you?"
                     }
                 ]
+
                 try:
                     responses = client.chat.completions.create(
                         model=model_name,
                         messages=messages,
-                        temperature=0.0,
-                        max_tokens=10,
+                        **gen_server_kwargs,
                         timeout=20,
                     )
                     has_response = len(responses.choices[0].message.content) > 0
@@ -815,8 +821,7 @@ def get_model(
                     responses = client.completions.create(
                         model=model_name,
                         prompt="Who are you?",
-                        temperature=0.0,
-                        max_tokens=10,
+                        **gen_server_kwargs,
                         timeout=20,
                     )
                     has_response = len(responses.choices[0].text) > 0
@@ -965,7 +970,8 @@ def get_model(
                     max_seq_len = model_token_mapping[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
-                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (base_model, inference_server)
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                    base_model, inference_server)
                 print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
                     base_model, inference_server))
             if base_model in model_token_mapping_outputs:
@@ -987,7 +993,8 @@ def get_model(
                     max_seq_len = anthropic_mapping[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
-                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (base_model, inference_server)
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                    base_model, inference_server)
                 if max_seq_len is None:
                     print("Estimating max_seq_len=200000")
                     max_seq_len = 200000
@@ -1010,7 +1017,8 @@ def get_model(
                     max_seq_len = google_mapping[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
-                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (base_model, inference_server)
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                    base_model, inference_server)
                 if max_seq_len is None:
                     print("Estimating max_seq_len=1000000")
                     max_seq_len = 1000000
@@ -1039,7 +1047,8 @@ def get_model(
                     max_seq_len = mistralai_mapping[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
-                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (base_model, inference_server)
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                    base_model, inference_server)
                 if max_seq_len is None:
                     print("Estimating max_seq_len=1000000")
                     max_seq_len = 32768

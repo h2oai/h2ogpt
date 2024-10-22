@@ -3264,7 +3264,8 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
 
         if json_vllm:
-            response_format_real = response_format if not (guided_json or guided_regex or guided_choice or guided_grammar) else 'text'
+            response_format_real = response_format if not (
+                        guided_json or guided_regex or guided_choice or guided_grammar) else 'text'
             vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                                   stop_sequences=prompter.stop_sequences if prompter else [],
                                                   # repetition_penalty=repetition_penalty,  # could pass
@@ -3401,10 +3402,15 @@ def get_llm(use_openai_model=False,
         if inf_type == 'vllm_chat':
             model_name = get_model_name(model_name, openai_client)
 
+        gen_server_kwargs = dict(temperature=temperature if do_sample else 0.0,
+                                 # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
+                                 max_tokens=max_new_tokens,
+                                 )
+
+        if model_name in ['o1-mini', 'o1-preview']:
+            gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+
         llm = cls(model_name=model_name,
-                  temperature=temperature if do_sample else 0.0,
-                  # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
-                  max_tokens=max_new_tokens,
                   model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
                   max_retries=6,
@@ -3413,7 +3419,8 @@ def get_llm(use_openai_model=False,
                   request_timeout=max_time,
                   prompter=prompter,
                   tokenizer=tokenizer,
-                  **kwargs_extra
+                  **gen_server_kwargs,
+                  **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
         if inf_type in ['openai', 'openai_chat', 'openai_azure', 'openai_azure_chat']:
