@@ -1797,7 +1797,7 @@ def get_model_name(model_name, openai_client):
             print("Too few or too many models in list so do not know which to chose: given: %s list: %s" % (
                 model_name, model_names))
     except Exception as e:
-        print("Failed to get model name from OpenAI client, using default", e)
+        print(f"Failed to get model name from OpenAI client, using default {model_name}: {str(e)}")
     return model_name
 
 

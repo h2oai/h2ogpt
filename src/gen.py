@@ -2915,6 +2915,9 @@ def evaluate(
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
+    if base_model in ['o1-mini', 'o1-preview']:
+        temperature = 1.0
+
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
@@ -3548,6 +3551,7 @@ def evaluate(
                                      )
             if base_model in ['o1-mini', 'o1-preview']:
                 gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+                gen_server_kwargs['max_completion_tokens'] = max(1000, gen_server_kwargs['max_completion_tokens'])
                 gen_server_kwargs.pop('temperature', None)
                 gen_server_kwargs.pop('presence_penalty', None)
                 gen_server_kwargs.pop('n', None)
@@ -3585,6 +3589,8 @@ def evaluate(
                     response_raw = ''
                     if not stream_output:
                         text = responses.choices[0].text
+                        if hasattr(responses, 'usage'):
+                            print(f"Usage by {base_model}: {responses.usage}")
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
@@ -3618,7 +3624,7 @@ def evaluate(
                         openai_system_prompt = system_prompt
                     messages0 = []
                     if openai_system_prompt:
-                        if prompter.can_handle_system_prompt and base_model not in ['o1-mini', 'o1-preview']:
+                        if prompter.can_handle_system_prompt:
                             messages0.append({"role": "system", "content": openai_system_prompt})
                         else:
                             messages0.append({"role": "user",

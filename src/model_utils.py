@@ -788,6 +788,7 @@ def get_model(
                                      )
             if base_model in ['o1-mini', 'o1-preview']:
                 gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+                gen_server_kwargs['max_completion_tokens'] = max(1000, gen_server_kwargs['max_completion_tokens'])
                 gen_server_kwargs.pop('temperature', None)
 
             if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:
@@ -806,6 +807,8 @@ def get_model(
                         **gen_server_kwargs,
                         timeout=20,
                     )
+                    if hasattr(responses, 'usage'):
+                        print(f"Usage by {model_name}: {responses.usage}")
                     has_response = len(responses.choices[0].message.content) > 0
                 except Exception as e:
                     print("Failed to get %s response: %s" % (model_name, str(e)))
