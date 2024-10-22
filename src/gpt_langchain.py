@@ -3412,6 +3412,8 @@ def get_llm(use_openai_model=False,
 
         if model_name in ['o1-mini', 'o1-preview']:
             gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+            max_reasoning_tokens = int(os.getenv("MAX_REASONING_TOKENS", 25000))
+            gen_server_kwargs['max_completion_tokens'] = max_reasoning_tokens + max(100, gen_server_kwargs['max_completion_tokens'])
             gen_server_kwargs['temperature'] = 1.0
             model_kwargs.pop('presence_penalty', None)
             model_kwargs.pop('n', None)
