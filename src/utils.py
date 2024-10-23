@@ -892,7 +892,7 @@ def get_url(x, from_str=False, short_name=False, font_size=2):
         return """<font size="%s"><a href="%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
             font_size, source, source_name)
     elif '<a href=' not in source:
-        return """<font size="%s"><a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
+        return """<font size="%s"><a href="file:///%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
             font_size, source, source_name)
     else:
         # already filled
