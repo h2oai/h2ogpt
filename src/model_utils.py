@@ -1812,6 +1812,12 @@ def __model_lock_to_state(model_dict1, **kwargs):
     if model_state_trial['is_actually_vision_model'] is None:
         model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
 
+    if 'Pixtral' in model_state_trial['base_model']:
+        # https://github.com/vllm-project/vllm/issues/8429
+        model_state_trial['guided_vllm'] = False
+        model_state_trial['strict_json_schema'] = False
+        model_state_trial['json_vllm'] = False
+
     # get which visible vision model for this base model
     model_visible_vision_models = model_state_trial.get('visible_vision_models')
     if model_visible_vision_models is None:

@@ -5842,11 +5842,6 @@ def go_gradio(**kwargs):
                 json_vllm = model_state3.get('json_vllm', False)
                 model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model,
                                                                          json_vllm=json_vllm, just_test=True)
-                if 'Pixtral' in base_model:
-                    # https://github.com/vllm-project/vllm/issues/8429
-                    model_state3['guided_vllm'] = False
-                    model_state3['strict_json_schema'] = False
-                    model_state3['json_vllm'] = False
             key_list = ['display_name', 'base_model', 'inference_server_type',
                         'strict_json_schema',
                         'prompt_type', 'prompt_dict', 'chat_template'] + list(
