@@ -40,7 +40,7 @@ A = ParamSpec("A")
 
 from openai_server.autogen_streaming import iostream_generator
 from openai_server.backend_utils import convert_gen_kwargs
-from openai_server.agent_utils import in_pycharm, set_python_path
+from openai_server.agent_utils import in_pycharm, set_python_path, extract_agent_tool
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
@@ -70,6 +70,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
         self.stream_output = stream_output
+        self.agent_tools_usage = {}
 
         self.filename_patterns: List[re.Pattern] = [
             re.compile(r"^<!--\s*filename:\s*([\w.-/]+)\s*-->$"),
@@ -430,9 +431,23 @@ os.environ['TERM'] = 'dumb'
                 ret = CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise
+        
+        # Update agent tool usage if there is any
+        self.update_agent_tool_usages(code_blocks)
+        # Truncate output if it is too long
         ret = self.truncate_output(ret)
+        # Add executed code note if needed
         ret = self.executed_code_note(ret, multiple_executable_code_detected)
         return ret
+
+    def update_agent_tool_usages(self, code_blocks: List[CodeBlock]) -> None:
+        for code_block in code_blocks:
+            agent_tool = extract_agent_tool(code_block.code)
+            if agent_tool:
+                if agent_tool not in self.agent_tools_usage:
+                    self.agent_tools_usage[agent_tool] = 1
+                else:
+                    self.agent_tools_usage[agent_tool] += 1
 
     @staticmethod
     def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
