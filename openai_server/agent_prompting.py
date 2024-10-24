@@ -47,7 +47,7 @@ Code generation instructions:
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
 * In order to save the code into a file before executing it, ensure the code is within its own isolated code block with the first line having a comment: # filename: <filename>
   * A <filename> ending in .py means the code block contains valid python code that the user will run inside python interpreter.
-  * A <filename> ending in .sh means the code block contains valid shell code that the user will run in a shell like bash, e.g. like an shell based agent tool.
+  * A <filename> ending in .sh means the code block contains valid shell code that the user will run in a shell like bash.
   * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
   * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
   * After the user has a chance to execute the code, check the execution result returned by the user.
@@ -168,7 +168,7 @@ Data science or machine learning modeling and predicting best practices:
 Web scraping or web search best practices:
 <web_search>
 * For web search, prioritize using agent_tools provided
-* Single-hop web search is insufficient, do not just use the search snippets to answer questions.  Search snippets are only starting point for finding relevant URLs, documents, or online content.
+* Do not just use the search snippets to answer questions.  Search snippets are only starting point for finding relevant URLs, documents, or online content.
 * Multi-hop web search is expected, i.e. iterative web search over many turns of a conversation is expected
 * For web search, use ask_question_about_documents.py on promising URLs to answer questions and find new relevant URLs and new relevant documents
 * For web search, use results ask_question_about_documents.py to find new search terms

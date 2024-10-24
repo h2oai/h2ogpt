@@ -444,14 +444,10 @@ os.environ['TERM'] = 'dumb'
 """
             else:
                 executable_code_limitation_warning = ""
-            ret.output += f"""
+            if executable_code_limitation_warning:
+                ret.output += f"""
 <code_executed_notes>
 {executable_code_limitation_warning}
-* You should use these output without thanking the user for them.
-* You should use these outputs without noting that the code was successfully executed.
-* You should use these outputs without referring directly to the output of the script or code.
-* If you are stuck using the same tool repeatedly and can't find something or make something work, then think outside the box and try some other tool or approach that can lead you to the answer before giving up.
-
 </code_executed_notes>
 """
         return ret
@@ -656,6 +652,7 @@ class H2OConversableAgent(ConversableAgent):
             if is_termination_msg is not None
             else (lambda x: content_str(x.get("content")) == "TERMINATE")
         )
+        self._confidence_level = 0
         # Take a copy to avoid modifying the given dict
         if isinstance(llm_config, dict):
             try:
@@ -847,9 +844,13 @@ class H2OConversableAgent(ConversableAgent):
                 len(code_blocks) == 0 or
                     (stop_on_termination and "<FINISHED_ALL_TASKS>" in message["content"])
                 ):
-                # force immediate termination regardless of what LLM generates
-                self._is_termination_msg = lambda x: True
-                return True, self.final_answer_guidelines()
+                if self._confidence_level == 0:
+                    self._confidence_level = 1
+                    return True, self.confidence_level_guidelines()
+                else:
+                    # force immediate termination regardless of what LLM generates
+                    self._is_termination_msg = lambda x: True
+                    return True, self.final_answer_guidelines()
 
             num_code_blocks = len(code_blocks)
             if num_code_blocks == 1:
@@ -877,11 +878,26 @@ class H2OConversableAgent(ConversableAgent):
         return False, None
 
     @staticmethod
+    def confidence_level_guidelines() -> str:
+        return """
+<confidence_guidelines>
+
+* Give a step-by-step critique your entire response given the user's original query and any formatting constraints for constrained output.
+* If you have a very high confidence in the response and constrained output, then say so and stop the conversation.
+* However, if you do not have a very high confidence in the constrained output but do have high confidence in your response otherwise, fix the constrained output and stop the conversation.
+* However, if you do not hae a very high confidence in the response to the user's original query, then continue making executable code to improve until you have very high confidence.
+
+</confidence_guidelines>
+
+"""
+
+    @staticmethod
     def final_answer_guidelines() -> str:
         return """
 You should terminate the chat with your final answer.
 
 <final_answer_guidelines>
+
 * Your answer should start by answering the user's first request.
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
@@ -891,6 +907,7 @@ You should terminate the chat with your final answer.
 * If possible, use well-structured markdown as table of results or lists to make it more readable and easy to follow.
 * If you have given a <constrained_output> response, please repeat that.
 * You must give a very brief natural language title near the end of your response about your final answer and put that title inside <turn_title> </turn_title> XML tags.
+
 </final_answer_guidelines>
 
 """

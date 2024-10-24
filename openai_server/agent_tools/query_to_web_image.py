@@ -7,19 +7,12 @@ plt.ioff()
 import os
 
 os.environ['TERM'] = 'dumb'
-# filename: image_downloader.py
-# execution: true
-import os
 import requests
 from serpapi import GoogleSearch
 from PIL import Image
 from io import BytesIO
-import ast
-import base64
 import os
 import argparse
-import tempfile
-import uuid
 
 
 def download_image(text, file, save_dir='.'):
