@@ -363,6 +363,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         multiple_executable_code_detected = False
+        code_blocks_exec = code_blocks
         try:
             # skip code blocks with # execution: false
             code_blocks_len0 = len(code_blocks)
@@ -433,7 +434,7 @@ os.environ['TERM'] = 'dumb'
                 raise
         
         # Update agent tool usage if there is any
-        self.update_agent_tool_usages(code_blocks)
+        self.update_agent_tool_usages(code_blocks_exec)
         # Truncate output if it is too long
         ret = self.truncate_output(ret)
         # Add executed code note if needed
