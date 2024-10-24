@@ -66,10 +66,14 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             execution_policies: Optional[Dict[str, bool]] = None,
             autogen_code_restrictions_level: int = 2,
             stream_output: bool = True,
+            agent_tools_usage_hard_limits: Dict[str, int] = {},
+            agent_tools_usage_soft_limits: Dict[str, int] = {},
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
         self.stream_output = stream_output
+        self.agent_tools_usage_hard_limits = agent_tools_usage_hard_limits
+        self.agent_tools_usage_soft_limits = agent_tools_usage_soft_limits
         self.agent_tools_usage = {}
 
         self.filename_patterns: List[re.Pattern] = [
@@ -363,7 +367,6 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
         multiple_executable_code_detected = False
-        code_blocks_exec = code_blocks
         try:
             # skip code blocks with # execution: false
             code_blocks_len0 = len(code_blocks)
@@ -403,6 +406,8 @@ os.environ['TERM'] = 'dumb'
                 # merge back
                 code_blocks = code_blocks_exec + code_blocks_no_exec
 
+            # Update agent tool usage if there is any
+            self.update_agent_tool_usages(code_blocks_exec)
             ret = self.__execute_code_dont_check_setup(code_blocks)
 
             if ret.exit_code == -2 or len(code_blocks_exec) == 0 and code_blocks_len0 > 0:
@@ -433,18 +438,18 @@ os.environ['TERM'] = 'dumb'
             else:
                 raise
         
-        # Update agent tool usage if there is any
-        self.update_agent_tool_usages(code_blocks_exec)
         # Truncate output if it is too long
         ret = self.truncate_output(ret)
         # Add executed code note if needed
         ret = self.executed_code_note(ret, multiple_executable_code_detected)
+        ret = self.agent_tool_usage_note(ret)
         return ret
 
     def update_agent_tool_usages(self, code_blocks: List[CodeBlock]) -> None:
         for code_block in code_blocks:
             agent_tool = extract_agent_tool(code_block.code)
             if agent_tool:
+                agent_tool = os.path.basename(agent_tool).replace('.py', '')
                 if agent_tool not in self.agent_tools_usage:
                     self.agent_tools_usage[agent_tool] = 1
                 else:
@@ -465,6 +470,21 @@ os.environ['TERM'] = 'dumb'
 <code_executed_notes>
 {executable_code_limitation_warning}
 </code_executed_notes>
+"""
+        return ret
+
+    def agent_tool_usage_note(self, ret) -> CommandLineCodeResult:
+        for k, v in self.agent_tools_usage.items():
+            # could make hard limit strictly hard, but this should help for now
+            if k in self.agent_tools_usage_hard_limits and self.agent_tools_usage_hard_limits[k] < v:
+                ret.output += f"""\n<agent_tool_usage_note>
+Error: You have used the agent tool "{k}" more than {v} times in this conversation.  You MUST stop using it.
+</agent_tool_usage_note>
+"""
+            elif k in self.agent_tools_usage_soft_limits and self.agent_tools_usage_soft_limits[k] < v:
+                ret.output += f"""\n<agent_tool_usage_note>
+Warning: You have used the agent tool "{k}" more than {v} times in this conversation. Please use it judiciously.
+</agent_tool_usage_note>
 """
         return ret
 
@@ -985,7 +1005,9 @@ def get_code_executor(
         agent_system_site_packages,
         autogen_code_restrictions_level,
         agent_venv_dir,
-        temp_dir
+        temp_dir,
+        agent_tools_usage_hard_limits={},
+        agent_tools_usage_soft_limits={},
 ):
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
@@ -1018,6 +1040,8 @@ def get_code_executor(
             virtual_env_context=virtual_env_context,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
             autogen_code_restrictions_level=autogen_code_restrictions_level,
+            agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
+            agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
         )
     return executor
 

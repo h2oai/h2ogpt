@@ -3,7 +3,8 @@ import tempfile
 
 from openai_server.backend_utils import structure_to_messages
 from openai_server.agent_utils import get_ret_dict_and_handle_files
-from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt
+from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt, \
+    get_agent_tools
 
 from openai_server.autogen_utils import H2OConversableAgent
 
@@ -19,6 +20,7 @@ def run_autogen_2agent(query=None,
                        image_file=None,
                        # autogen/agent specific parameters
                        agent_type=None,
+                       agent_accuracy=None,
                        autogen_use_planning_prompt=None,
                        autogen_stop_docker_executor=None,
                        autogen_run_code_in_docker=None,
@@ -84,6 +86,31 @@ def run_autogen_2agent(query=None,
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")
 
+    path_agent_tools, list_dir = get_agent_tools()
+
+    if agent_accuracy is None:
+        agent_accuracy = 'standard'
+    if agent_accuracy == 'quick':
+        agent_tools_usage_hard_limits = {k: 1 for k in list_dir}
+        agent_tools_usage_soft_limits = {k: 1 for k in list_dir}
+        extra_user_prompt = """Do not verify your response, do not check generated plots or images using the ask_question_about_image tool."""
+    elif agent_accuracy == 'basic':
+        agent_tools_usage_hard_limits = {k: 3 for k in list_dir}
+        agent_tools_usage_soft_limits = {k: 2 for k in list_dir}
+        extra_user_prompt = """Perform only basic level of verification and basic quality checks on your response.  Files you make and your response can be basic."""
+    elif agent_accuracy == 'standard':
+        agent_tools_usage_hard_limits = dict(ask_question_about_image=5)
+        agent_tools_usage_soft_limits = {k: 5 for k in list_dir}
+        extra_user_prompt = ""
+    elif agent_accuracy == 'maximum':
+        agent_tools_usage_hard_limits = dict(ask_question_about_image=10)
+        agent_tools_usage_soft_limits = {}
+        extra_user_prompt = ""
+    else:
+        raise ValueError("Invalid agent_accuracy: %s" % agent_accuracy)
+
+    query = extra_user_prompt + query
+
     from openai_server.autogen_agents import get_code_execution_agent
     from openai_server.autogen_utils import get_code_executor
     executor = get_code_executor(
@@ -92,7 +119,9 @@ def run_autogen_2agent(query=None,
         agent_system_site_packages,
         autogen_code_restrictions_level,
         agent_venv_dir,
-        temp_dir
+        temp_dir,
+        agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
+        agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
     )
     code_executor_agent = get_code_execution_agent(executor, autogen_max_consecutive_auto_reply)
 
