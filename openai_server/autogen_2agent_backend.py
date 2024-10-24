@@ -120,7 +120,6 @@ def run_autogen_2agent(query=None,
         autogen_code_restrictions_level,
         agent_venv_dir,
         temp_dir,
-        max_turns=autogen_max_turns,
         agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
         agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
     )
