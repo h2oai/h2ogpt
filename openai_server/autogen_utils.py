@@ -670,9 +670,12 @@ class H2OConversableAgent(ConversableAgent):
             description: Optional[str] = None,
             chat_messages: Optional[Dict[Agent, List[Dict]]] = None,
             max_turns: Optional[int] = None,
+            initial_confidence_level: Optional[int] = 0,
     ):
         self.max_turns = max_turns
         self.turns = 0
+        self.initial_confidence_level = initial_confidence_level
+
         code_execution_config = (
             code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
         )

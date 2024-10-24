@@ -94,18 +94,22 @@ def run_autogen_2agent(query=None,
         agent_tools_usage_hard_limits = {k: 1 for k in list_dir}
         agent_tools_usage_soft_limits = {k: 1 for k in list_dir}
         extra_user_prompt = """Do not verify your response, do not check generated plots or images using the ask_question_about_image tool."""
+        initial_confidence_level = 1
     elif agent_accuracy == 'basic':
         agent_tools_usage_hard_limits = {k: 3 for k in list_dir}
         agent_tools_usage_soft_limits = {k: 2 for k in list_dir}
         extra_user_prompt = """Perform only basic level of verification and basic quality checks on your response.  Files you make and your response can be basic."""
+        initial_confidence_level = 1
     elif agent_accuracy == 'standard':
         agent_tools_usage_hard_limits = dict(ask_question_about_image=5)
         agent_tools_usage_soft_limits = {k: 5 for k in list_dir}
         extra_user_prompt = ""
+        initial_confidence_level = 0
     elif agent_accuracy == 'maximum':
         agent_tools_usage_hard_limits = dict(ask_question_about_image=10)
         agent_tools_usage_soft_limits = {}
         extra_user_prompt = ""
+        initial_confidence_level = 0
     else:
         raise ValueError("Invalid agent_accuracy: %s" % agent_accuracy)
 
@@ -168,6 +172,7 @@ def run_autogen_2agent(query=None,
                               is_termination_msg=code_writer_terminate_func,
                               max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
                               max_turns=autogen_max_turns,
+                              initial_confidence_level=initial_confidence_level,
                               )
 
     code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
@@ -178,7 +183,9 @@ def run_autogen_2agent(query=None,
         # setup planning agents
         code_writer_kwargs_planning = code_writer_kwargs.copy()
         # terminate immediately
-        update_dict = dict(max_consecutive_auto_reply=1, max_turns=None)
+        update_dict = dict(max_consecutive_auto_reply=1,
+        max_turns=None,
+        initial_confidence_level=1)
         # is_termination_msg=lambda x: True
         code_writer_kwargs_planning.update(update_dict)
         code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs_planning)
