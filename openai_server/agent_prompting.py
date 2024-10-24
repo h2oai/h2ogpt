@@ -45,19 +45,20 @@ Code generation instructions:
 * When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify.
 * Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks and a python or sh language tag.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
-* If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.
-  * Give a correct file extension to the filename used for # filename: <filename>.  The only valid extensions for <filename> are .py or .sh
-  * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
-  * Check the execution result returned by the user.
+* In order to save the code into a file before executing it, ensure the code is within its own isolated code block with the first line having a comment: # filename: <filename>
+  * A <filename> ending in .py means the code block contains valid python code that the user will run inside python interpreter.
+  * A <filename> ending in .sh means the code block contains valid shell code that the user will run in a shell like bash, e.g. like an shell based agent tool.
   * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
+  * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
+  * After the user has a chance to execute the code, check the execution result returned by the user.
 * Every python or shell code block MUST be marked whether it is for execution with a comment that shows if execution is true or false, e.g. # execution: true
 * If a python code is marked for execution, do not generate a shell script to execute that python code file, because that would execute the python code twice.
-* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
+* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required.
 * When you need to collect info, generate code to output the info you need.
 * Ensure you provide well-commented code, so the user can understand what the code does.
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 * Each code block meant for execution should be complete and executable on its own.
-* You must wait for an executable code block to actually be executed before guessing or summarizing its output.
+* You MUST wait for an executable code block to actually be executed before guessing or summarizing its output.  Do not hallucinate outputs of tools.
 </code_generation>
 Code generation to avoid when execution is marked true:
 <code_avoid>
@@ -164,6 +165,17 @@ Data science or machine learning modeling and predicting best practices:
 * Depending upon accuracy level user desires, for more accuracy try more iterations, trees, and search over hyperparameters for the best model according to the validation score.
 * Generate plots of the target distribution for regression model as well as insightful plots of the predictions and analyze the plots.
 </data_science>
+Web scraping or web search best practices:
+<web_search>
+* For web search, prioritize using agent_tools provided
+* Single-hop web search is insufficient, do not just use the search snippets to answer questions.  Search snippets are only starting point for finding relevant URLs, documents, or online content.
+* Multi-hop web search is expected, i.e. iterative web search over many turns of a conversation is expected
+* For web search, use ask_question_about_documents.py on promising URLs to answer questions and find new relevant URLs and new relevant documents
+* For web search, use results ask_question_about_documents.py to find new search terms
+* For web search, iterate as many times as required on URLs and documents using web search, ask_question_about_documents.py, and other agent tools
+* For web search multi-hop search, only stop when reaching am answer with information verified and key claims traced to authoritative sources
+* For web search, try to verify your answer with alternative sources to get a reliable answer, especially when user expects a constrained output
+</web_search>
 <inline_images>
 Inline image files in response:
 * In your final summary, you must add an inline markdown of any key image, chart, or graphic (e.g.) ![image](filename.png) without any code block.  Only use the basename of the file, not the full path.
@@ -643,14 +655,14 @@ python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
 * usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
 * This tool should be used instead of generic searches using packages googlesearch, requests, and bs4.
 * The tool saves full search results to a JSON file in the current directory.
-* For complex queries about the search results, it's recommended to pass the entire JSON file to ask_question_about_documents.py.
 * For non-english queries, do python {cwd}/openai_server/agent_tools/google_search.py -h to see options for other languages and locations.
 * To download the video returned from this google_search.py tool:
   - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
   - For generic free web sites, use can get video via wget, curl -L, or requests.
 * To download a web page via its URL or image returned from this google_search.py tool:
    - Use wget, curl -L, or requests to download the image URL.
-* If the single-hop search with snippets does not provide clear information, continue your multi-hop search by downloading relevant URLs in the search results or perform other searches.
+* Multi-hop search is highly recommended, so the single-hop search with snippets and URLs should be followed up by passing URLs to using ask_question_about_documents.py for asking questions.
+* Multi-hop search is highly recommended, so for queries about the search results, pass the entire JSON file to ask_question_about_documents.py for asking questions about the search results, e.g. to ask which URL is most relevant to ask further questions about using ask_question_about_documents.py again.
 """
         if os.getenv("BING_API_KEY"):
             serp += f"""# The bing_search.py tool can be used if this google_search.py tool fails or vice versa."""
@@ -729,7 +741,7 @@ def get_bing_search_helper():
     cwd = os.path.abspath(os.getcwd())
     have_internet = get_have_internet()
     if have_internet and os.getenv('BING_API_KEY'):
-        bing_search = f"""\n* Search using Bing API (using azure-core, user has BING_API_KEY already in ENV) for web, image, news, or video search.
+        bing_search = f"""\n* Search web using Bing API (using azure-core, user has BING_API_KEY already in ENV) for web, image, news, or video search.
 * In most cases, just use the existing general pre-built Python code to query Bing Search, E.g.:
 ```sh
 # execution: true
@@ -750,7 +762,8 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query QUERY 
 * Use --limit to specify the number of results (default is 10)
 * Use --market to specify the market (e.g., en-US)
 * Use --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
-* If the single-hop search with snippets does not provide clear information, continue your multi-hop search by downloading relevant URLs in the search results or perform other searches.
+* Multi-hop search is highly recommended, so the single-hop search with snippets and URLs should be followed up by passing URLs to using ask_question_about_documents.py for asking questions.
+* Multi-hop search is highly recommended, so for queries about the search results, pass the entire JSON file to ask_question_about_documents.py for asking questions about the search results, e.g. to ask which URL is most relevant to ask further questions about using ask_question_about_documents.py again.
 """
         if os.getenv("SERPAPI_API_KEY"):
             bing_search += f"""# The google_search.py tool can be used if this bing_search.py tool fails or vice versa."""
@@ -772,6 +785,8 @@ def get_api_helper():
 {search_web_api_message}
 * Use existing python tools for various tasks, e.g. Wolfram Alpha, Semantic Scholar, News API, etc.
 * Avoid generating code with placeholder API keys as that will never work because user will not be able to change the code.
+* You MUST wait for an executable code block to actually be executed before guessing or summarizing its output.
+* Do not hallucinate outputs of tools, you must wait for user to execute each executable code block.
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * You may generate code with API code that uses publicly available APIs that do not require any API key.
 * You may generate code with APIs for API keys that have been mentioned in this overall message.
