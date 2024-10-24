@@ -22,7 +22,7 @@ jobs:
           python-version: '3.10'
       
       - name: Check changed Deps files
-        uses: tj-actions/changed-files@v35
+        uses: tj-actions/changed-files@v41
         id: changed-files
         with:
           files: | # This will match all the files with below patterns
