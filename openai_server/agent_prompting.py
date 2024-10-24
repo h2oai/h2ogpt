@@ -825,7 +825,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     agent_tools_note = f"""\n# Agent tools notes:
 * Do not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"
 * You have to prioritize these tools for the relevant tasks before using other tools or methods.
-* If you use multiple tools or code blocks, stop and ENDOFTURN between code blocks that call tools, instead of hallucinating inputs to other tools.
+* If you plan to use multiple tools or execute multiple code blocks, you must end your turn after each single executable code block and print ENDOFTURN to give chance for user to execute the code blocks and prevent you from hallucinating outputs and inputs further steps.
 """
 
     system_message_parts = [agent_code_writer_system_message,
