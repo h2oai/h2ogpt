@@ -98,7 +98,7 @@ Example python packages or useful sh commands:
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
 * Browse files (e.g. sh with ls).
-* Search for urls to use (e.g. pypi package googlesearch-python in python).
+* Search for urls to use
 * Search wikipedia for topics, persons, places, or events (e.g. wikipedia package in python).
 * Be smart about saving vs. printing content for any URL. First check if a URL extension to see if binary or text.  Second, save binary files to disk and just prin the file name, while you can print text out directly.
 * Download a file (requests in python or wget with sh).
@@ -127,7 +127,7 @@ Constraints on output or response:
 * Searching for the constrained response is allowed, including iterating the response with the response changing to match user constraints, but you must avoid infinite loops and try generalized approaches instead of simplistic word or character replacement.
 * Have common sense and be smart, repeating characters or words just to match a constraint about your response is not likely useful.
 * E.g., simple solutions about your response are allowed, such as for "How many words are in your response" can just be a function that generates a sentence that includes the numeric count of the words in that sentence.
-* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags, before giving a <FINISHED_ALL_TASKS>.
+* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags.
 /constraints>
 PDF Generation:
 <pdf>
@@ -179,8 +179,9 @@ Stopping instructions:
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
 * You MUST always add a very brief natural language title near the end of your response (it should just describe the analysis, do not give step numbers) of what you just did and put that title inside <turn_title> </turn_title> XML tags. Only a single title is allowed.
-* Only once you have verification that the user completed the task do you summarize and add the '<FINISHED_ALL_TASKS>' string to stop the conversation.
-* If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response before the <FINISHED_ALL_TASKS> string.
+* Only once you have verification that the user completed the task do you summarize.
+* To stop the conversation, do not include any executable code blocks. 
+* If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response.
 </stopping>
 """
     return agent_code_writer_system_message
@@ -640,14 +641,16 @@ def get_serp_helper():
 python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
 ```
 * usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
+* This tool should be used instead of generic searches using packages googlesearch, requests, and bs4.
 * The tool saves full search results to a JSON file in the current directory.
 * For complex queries about the search results, it's recommended to pass the entire JSON file to ask_question_about_documents.py.
 * For non-english queries, do python {cwd}/openai_server/agent_tools/google_search.py -h to see options for other languages and locations.
 * To download the video returned from this google_search.py tool:
   - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
   - For generic free web sites, use can get video via wget, curl -L, or requests.
-* To download an page or image returned from this google_search.py tool:
+* To download a web page via its URL or image returned from this google_search.py tool:
    - Use wget, curl -L, or requests to download the image URL.
+* If the single-hop search with snippets does not provide clear information, continue your multi-hop search by downloading relevant URLs in the search results or perform other searches.
 """
         if os.getenv("BING_API_KEY"):
             serp += f"""# The bing_search.py tool can be used if this google_search.py tool fails or vice versa."""
@@ -747,21 +750,27 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query QUERY 
 * Use --limit to specify the number of results (default is 10)
 * Use --market to specify the market (e.g., en-US)
 * Use --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
+* If the single-hop search with snippets does not provide clear information, continue your multi-hop search by downloading relevant URLs in the search results or perform other searches.
 """
         if os.getenv("SERPAPI_API_KEY"):
-            bing_search += f"""# The google_search.py tool can be used if this being_search.py tool fails or vice versa."""
+            bing_search += f"""# The google_search.py tool can be used if this bing_search.py tool fails or vice versa."""
     else:
         bing_search = ""
     return bing_search
 
 
 def get_api_helper():
+    if os.getenv('SERPAPI_API_KEY') or os.getenv('BING_API_KEY'):
+        search_web_api_message = """* Highly recommended to first try using google or bing search tool when searching for something on the web.
+* i.e. avoid packages googlesearch package for web searches."""
+    else:
+        search_web_api_message = ""
     have_internet = get_have_internet()
     if have_internet:
         apis = f"""\n#APIs and external services instructions:
 * You DO have access to the internet.
-* Use existing python tools for various tasks, e.g. Wolfram Alpha, Semantic Scholar, News API, Google API, Bing API, etc.
-* Highly recommended to first try using google or bing search tool when searching for something on the web.
+{search_web_api_message}
+* Use existing python tools for various tasks, e.g. Wolfram Alpha, Semantic Scholar, News API, etc.
 * Avoid generating code with placeholder API keys as that will never work because user will not be able to change the code.
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * You may generate code with API code that uses publicly available APIs that do not require any API key.
@@ -860,7 +869,7 @@ def planning_prompt(query):
 # Rules:
 * You must not respond to the user question directly.
 * Do not write any code.  You must NOT execute any code.  Keep execution: false
-* Once you have finished the plan, you must end your response with <FINISHED_ALL_TASKS> immediately.
+* Once you have finished the plan, you must end your response immediately.
 * Finally, end your turn of the conversation without any additional discussion or code.
 """
 

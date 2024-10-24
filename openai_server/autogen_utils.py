@@ -412,7 +412,6 @@ os.environ['TERM'] = 'dumb'
 * For example, you may have shown code for demonstration purposes.
 * If you intended to execute code, be sure to add the comment: # execution: true and try again.
 * If no code execution was expected, do not respond or react to this "no_code_execution" text and instead directly and immediately provide the actual answer to the user's original question. You can repeat your non-executable code mentioned in your previous message if that's what the user is looking for.
-* If there is no more task left, terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </no_code_executed_notes>
 """)
         except Exception as e:
@@ -843,9 +842,10 @@ class H2OConversableAgent(ConversableAgent):
             if not message["content"]:
                 continue
             code_blocks = self._code_executor.code_extractor.extract_code_blocks(message["content"])
+            stop_on_termination = False
             if (
                 len(code_blocks) == 0 or
-                "<FINISHED_ALL_TASKS>" in message["content"]
+                    (stop_on_termination and "<FINISHED_ALL_TASKS>" in message["content"])
                 ):
                 # force immediate termination regardless of what LLM generates
                 self._is_termination_msg = lambda x: True
@@ -880,6 +880,7 @@ class H2OConversableAgent(ConversableAgent):
     def final_answer_guidelines() -> str:
         return """
 You should terminate the chat with your final answer.
+
 <final_answer_guidelines>
 * Your answer should start by answering the user's first request.
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
@@ -890,8 +891,8 @@ You should terminate the chat with your final answer.
 * If possible, use well-structured markdown as table of results or lists to make it more readable and easy to follow.
 * If you have given a <constrained_output> response, please repeat that.
 * You must give a very brief natural language title near the end of your response about your final answer and put that title inside <turn_title> </turn_title> XML tags.
-* Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
 </final_answer_guidelines>
+
 """
 
 
@@ -918,15 +919,12 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
     has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
-    has_term = has_message and "<FINISHED_ALL_TASKS>" in msg.get('content', '') or msg.get('content', '') == ''
     has_execute = has_message and '# execution: true' in msg.get('content', '')
     if has_execute:
         # sometimes model stops without verifying results if it dumped all steps in one turn
         # force it to continue
         return False
 
-    if has_term:
-        return True
     return False
 
 
