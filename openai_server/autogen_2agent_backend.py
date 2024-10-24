@@ -120,6 +120,7 @@ def run_autogen_2agent(query=None,
         autogen_code_restrictions_level,
         agent_venv_dir,
         temp_dir,
+        max_turns=autogen_max_turns,
         agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
         agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
     )
@@ -167,6 +168,7 @@ def run_autogen_2agent(query=None,
                               human_input_mode="NEVER",
                               is_termination_msg=code_writer_terminate_func,
                               max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+                              max_turns=autogen_max_turns,
                               )
 
     code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
@@ -177,7 +179,7 @@ def run_autogen_2agent(query=None,
         # setup planning agents
         code_writer_kwargs_planning = code_writer_kwargs.copy()
         # terminate immediately
-        update_dict = dict(max_consecutive_auto_reply=1)
+        update_dict = dict(max_consecutive_auto_reply=1, max_turns=None)
         # is_termination_msg=lambda x: True
         code_writer_kwargs_planning.update(update_dict)
         code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs_planning)

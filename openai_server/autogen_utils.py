@@ -669,7 +669,10 @@ class H2OConversableAgent(ConversableAgent):
             default_auto_reply: Union[str, Dict] = "",
             description: Optional[str] = None,
             chat_messages: Optional[Dict[Agent, List[Dict]]] = None,
+            max_turns: Optional[int] = None,
     ):
+        self.max_turns = max_turns
+        self.turns = 0
         code_execution_config = (
             code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
         )
@@ -831,6 +834,7 @@ class H2OConversableAgent(ConversableAgent):
             iostream = IOStream.get_default()
             iostream.print(delta)
             output += delta
+        self.turns += 1
         return valid, output
 
     def __generate_code_execution_reply_using_executor(
@@ -887,6 +891,10 @@ class H2OConversableAgent(ConversableAgent):
                     # force immediate termination regardless of what LLM generates
                     self._is_termination_msg = lambda x: True
                     return True, self.final_answer_guidelines()
+            if self.max_turns is not None and self.turns >= self.max_turns - 1:
+                # one before final allowed turn, force LLM to stop
+                self._is_termination_msg = lambda x: True
+                return True, self.final_answer_guidelines()
 
             num_code_blocks = len(code_blocks)
             if num_code_blocks == 1:
