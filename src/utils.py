@@ -2122,6 +2122,7 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
                             print(f"Error killing process: {e}")
                         error = f"Process and its children used memory {mem_info} that exceeded memory limit of {max_memory_usage} bytes detected in {time.time() - measure_t0}."
                         stderr_data.append(error)
+                        print(f"OOM on cmd:\n\n{cmd}\n\n", flush=True, file=sys.stderr)
 
                 events = sel.select(timeout=1)
                 if not events and p.poll() is not None:
