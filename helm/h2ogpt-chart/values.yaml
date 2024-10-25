@@ -134,6 +134,10 @@ h2ogpt:
       type: RuntimeDefault
 
   resources:
+    requests:
+      memory: 32Gi
+    limits:
+      memory: 64Gi
   nodeSelector:
   tolerations:
 
@@ -233,6 +237,10 @@ agents:
       type: RuntimeDefault
 
   resources:
+    requests:
+      memory: 32Gi
+    limits:
+      memory: 64Gi
   nodeSelector:
   tolerations:
 
