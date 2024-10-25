@@ -1122,3 +1122,17 @@ def get_all_conversable_agents(group_chat_manager: GroupChatManager) -> List[Con
         else:
             all_conversable_agents.append(agent)
     return all_conversable_agents
+
+def get_autogen_use_planning_prompt(model: str) -> bool:
+    """
+    Based on the model and H2OGPT_DISABLE_PLANNING_STEP environment variable, decide if autogen should use planning prompt/step.
+    """
+    import os
+    planning_models = ['claude-3-opus', 'claude-3-5-sonnet', 'gpt-4o', 'o1-preview', 'o1-mini']
+    # any pattern matching
+    if any(x in model for x in planning_models):
+        # sonnet35 doesn't seem to benefit
+        autogen_use_planning_prompt = False
+    else:
+        autogen_use_planning_prompt = True if os.getenv('H2OGPT_DISABLE_PLANNING_STEP') is None else False
+    return autogen_use_planning_prompt
