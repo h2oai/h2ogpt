@@ -143,9 +143,6 @@ h2ogpt:
 agents:
   # -- Enable agents, this must be `false` if `h2ogpt.agents.enabled` is `true`
   enabled: false
-  stack:
-    # -- Run agents and vLLM on same pod.
-    enabled: false
   replicaCount: 1
   imagePullSecrets:
   image:

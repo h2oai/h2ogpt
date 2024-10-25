@@ -70,122 +70,15 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        {{- if .Values.agents.stack.enabled }}
-        - name: {{ include "h2ogpt.fullname" . }}-vllm-inference
-          securityContext:
-            {{- toYaml .Values.vllm.securityContext | nindent 12 }}
-          image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
-          command: ["python3"]
-          args:
-            - "-m"
-            - "vllm.entrypoints.openai.api_server"
-            - "--port"
-            - "5000"
-            - "--host"
-            - "0.0.0.0"
-            - "--download-dir"
-            - "/workspace/.cache/huggingface/hub"
-{{- range $arg := .Values.vllm.containerArgs }}
-            - "{{ $arg }}"
-{{- end }}
-          ports:
-            - name: http
-              containerPort: 5000
-              protocol: TCP
-          {{- if .Values.vllm.livenessProbe }}
-          livenessProbe:
-            httpGet:
-              path:  /
-              scheme: HTTP
-              port: http
-            {{- toYaml .Values.vllm.livenessProbe | nindent 12 }}
-          {{- end }}
-          {{- if .Values.vllm.readinessProbe }}
-          readinessProbe:
-            httpGet:
-              path:  /
-              scheme: HTTP
-              port: http
-            {{- toYaml .Values.vllm.readinessProbe | nindent 12 }}
-          {{- end }}
-          resources:
-            {{- toYaml .Values.vllm.resources | nindent 12 }}
-          envFrom:
-            - configMapRef:
-                name: {{ include "h2ogpt.fullname" . }}-vllm-inference-config
-          env:
-            - name: NCCL_IGNORE_DISABLED_P2P
-              value: "1"
-          {{- range $key, $value := .Values.vllm.env }}
-            - name: "{{ $key }}"
-              value: "{{ $value }}"
-          {{- end }}
-          volumeMounts:
-            - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-              mountPath: /workspace/.cache
-              subPath: cache
-            - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-              mountPath: /dev/shm
-              subPath: shm
-          {{- end }}
         - name: {{ include "h2ogpt.fullname" . }}-agents
           securityContext:
             {{- toYaml .Values.agents.securityContext | nindent 12 }}
           image: "{{ .Values.agents.image.repository }}:{{ .Values.agents.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.agents.image.pullPolicy }}
           command: ["/bin/bash", "-c"]
-          {{- if .Values.agents.stack.enabled }}
-          args:
-            - >
-              while [[ "$(curl --insecure -s -o /dev/null -w ''%{http_code}''
-              http://localhost:5000/v1/models)" != "200" ]]; do
-                echo "Waiting for inference service to become ready... (2sec)"
-                sleep 2
-              done
-
-              python3 /workspace/generate.py
-          {{- end }}
-          {{- if not .Values.agents.stack.enabled }}
-          {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.modelLock) }}
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}/v1/models >/dev/null 2>&1;
-                do
-                  echo "Waiting for inference service to become ready...";
-                  sleep 5;
-                done
-
-              python3 /workspace/generate.py
-          {{- end }}
-          {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.modelLock) }}
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}/ >/dev/null 2>&1;
-                do
-                  echo "Waiting for inference service to become ready...";
-                  sleep 5;
-                done
-
-              python3 /workspace/generate.py
-          {{- end }}
-          {{- if and .Values.lmdeploy.enabled (not .Values.global.externalLLM.modelLock) }}
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}/ >/dev/null 2>&1;
-                do
-                  echo "Waiting for inference service to become ready...";
-                  sleep 5;
-                done
-
-              python3 /workspace/generate.py
-          {{- end }}
-          {{- if and .Values.agents.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled .Values.lmdeploy.enabled)) }}
           args:
             - >
               python3 /workspace/generate.py
-          {{- end }}
-          {{- end }}
           ports:
             - name: agent
               containerPort: 5004
@@ -212,22 +105,6 @@ spec:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-agents-config
           env:
-          {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.enabled) (not .Values.agents.stack.enabled ) }}
-            - name: h2ogpt_inference_server
-              value: "http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}"
-          {{- end }}
-          {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.enabled) (not .Values.agents.stack.enabled ) }}
-            - name: h2ogpt_inference_server
-              value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
-          {{- end }}
-          {{- if and .Values.lmdeploy.enabled (not .Values.global.externalLLM.enabled) (not .Values.agents.stack.enabled ) }}
-            - name: h2ogpt_inference_server
-              value: "http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}"
-          {{- end }}
-          {{- if and .Values.agents.stack.enabled (not .Values.global.externalLLM.enabled)  }}
-            - name: h2ogpt_inference_server
-              value: "vllm:localhost:5000"
-          {{- end }}
           {{- range $key, $value := .Values.agents.env }}
             - name: "{{ $key }}"
               value: "{{ $value }}"
@@ -301,23 +178,6 @@ spec:
                     storage: {{ .Values.agents.storage.size | quote }}
                 storageClassName: {{ .Values.agents.storage.class }}
           {{- end }}
-        {{- if .Values.agents.stack.enabled }}
-        - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-          {{- if not .Values.vllm.storage.useEphemeral }}
-          persistentVolumeClaim:
-            claimName: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-          {{- else }}
-          ephemeral:
-            volumeClaimTemplate:
-              spec:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: {{ .Values.vllm.storage.size | quote }}
-                storageClassName: {{ .Values.vllm.storage.class }}
-          {{- end }}
-        {{- end }}
         {{- if .Values.caCertificates }}
         - name: ca-certificates
           configMap:
