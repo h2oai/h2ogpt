@@ -453,15 +453,19 @@ os.environ['TERM'] = 'dumb'
         return ret
 
     def update_agent_tool_usages(self, code_blocks: List[CodeBlock]) -> None:
+        any_update = False
         for code_block in code_blocks:
             agent_tool = extract_agent_tool(code_block.code)
             if agent_tool:
                 agent_tool = os.path.basename(agent_tool).replace('.py', '')
                 if agent_tool not in self.agent_tools_usage:
+                    any_update = True
                     self.agent_tools_usage[agent_tool] = 1
                 else:
+                    any_update = True
                     self.agent_tools_usage[agent_tool] += 1
-        print(f"Step {self.turns} has agent tool usage: {self.agent_tools_usage}")
+        if any_update:
+            print(f"Step {self.turns} has agent tool usage: {self.agent_tools_usage}")
 
     @staticmethod
     def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
