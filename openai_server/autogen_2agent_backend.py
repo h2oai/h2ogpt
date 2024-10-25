@@ -6,7 +6,7 @@ from openai_server.agent_utils import get_ret_dict_and_handle_files
 from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt, \
     get_agent_tools
 
-from openai_server.autogen_utils import H2OConversableAgent
+from openai_server.autogen_utils import get_autogen_use_planning_prompt
 
 
 def run_autogen_2agent(query=None,
@@ -77,14 +77,6 @@ def run_autogen_2agent(query=None,
         agent_verbose = False
     if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
-    if autogen_use_planning_prompt is None:
-        planning_models = ['claude-3-opus', 'claude-3-5-sonnet', 'gpt-4o', 'o1-preview', 'o1-mini']
-        # any pattern matching
-        if any(x in model for x in planning_models):
-            # sonnet35 doesn't seem to benefit
-            autogen_use_planning_prompt = False
-        else:
-            autogen_use_planning_prompt = True if os.getenv('H2OGPT_DISABLE_PLANNING_STEP') is None else False
 
     # Create a temporary directory to store the code files.
     # temp_dir = tempfile.TemporaryDirectory().name
@@ -102,21 +94,29 @@ def run_autogen_2agent(query=None,
         agent_tools_usage_soft_limits = {k: 1 for k in list_dir}
         extra_user_prompt = """Do not verify your response, do not check generated plots or images using the ask_question_about_image tool."""
         initial_confidence_level = 1
+        if autogen_use_planning_prompt is None:
+            autogen_use_planning_prompt = False
     elif agent_accuracy == 'basic':
         agent_tools_usage_hard_limits = {k: 3 for k in list_dir}
         agent_tools_usage_soft_limits = {k: 2 for k in list_dir}
         extra_user_prompt = """Perform only basic level of verification and basic quality checks on your response.  Files you make and your response can be basic."""
         initial_confidence_level = 1
+        if autogen_use_planning_prompt is None:
+            autogen_use_planning_prompt = False
     elif agent_accuracy == 'standard':
         agent_tools_usage_hard_limits = dict(ask_question_about_image=5)
         agent_tools_usage_soft_limits = {k: 5 for k in list_dir}
         extra_user_prompt = ""
         initial_confidence_level = 0
+        if autogen_use_planning_prompt is None:
+            autogen_use_planning_prompt = get_autogen_use_planning_prompt(model)
     elif agent_accuracy == 'maximum':
         agent_tools_usage_hard_limits = dict(ask_question_about_image=10)
         agent_tools_usage_soft_limits = {}
         extra_user_prompt = ""
         initial_confidence_level = 0
+        if autogen_use_planning_prompt is None:
+            autogen_use_planning_prompt = get_autogen_use_planning_prompt(model)
     else:
         raise ValueError("Invalid agent_accuracy: %s" % agent_accuracy)
 
