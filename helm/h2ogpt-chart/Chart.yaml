@@ -1,6 +1,6 @@
 apiVersion: v2
 name: h2ogpt
-description: A Helm chart for h2ogpt
+description: A Helm chart for h2oGPT
 
 # A chart can be either an 'application' or a 'library' chart.
 #
