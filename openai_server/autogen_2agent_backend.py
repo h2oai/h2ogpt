@@ -120,7 +120,8 @@ def run_autogen_2agent(query=None,
     else:
         raise ValueError("Invalid agent_accuracy: %s" % agent_accuracy)
 
-    query = extra_user_prompt + query
+    if extra_user_prompt:
+        query = f"""<extra_query_conditions>\n{extra_user_prompt}\n</extra_query_conditions>\n\n""" + query
 
     from openai_server.autogen_utils import get_code_executor
     executor = get_code_executor(
