@@ -1,0 +1,33 @@
+{{- if .Values.agents.autoscaling.enabled | default false }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-agents
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+  labels:
+    {{- include "h2ogpt.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "h2ogpt.fullname" . }}-agents
+  minReplicas: {{ .Values.agents.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.agents.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.agents.autoscaling.targetCPU }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.agents.autoscaling.targetCPU }}
+    {{- end }}
+    {{- if .Values.agents.autoscaling.targetMemory }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.agents.autoscaling.targetMemory }}
+    {{- end }}
+{{- end }}

@@ -36,7 +36,7 @@ h2ogpt:
   # -- Enable agents
   agents:
     # -- Run agents with h2oGPT container
-    enabled: true
+    enabled: false
     agent_workers: 5
   replicaCount: 1
   imagePullSecrets:
@@ -145,6 +145,13 @@ h2ogpt:
 agents:
   # -- Enable agents, this must be `false` if `h2ogpt.agents.enabled` is `true`
   enabled: false
+  autoscaling:
+    # Enable autoscaling for agents
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetMemory: 32Gi
+    targetCPU: 80
   replicaCount: 1
   imagePullSecrets:
   image:
