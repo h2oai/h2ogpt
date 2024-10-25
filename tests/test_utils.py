@@ -149,6 +149,14 @@ print()
     print("All tests passed successfully!")
 
 
+@wrap_test_forked
+def test_memory_limit():
+    result = execute_cmd_stream(cmd=['python', './tests/memory_hog_script.py'], max_memory_usage=500_000_000)
+    assert result.returncode == -15
+    print(result.stdout, file=sys.stderr, flush=True)
+    print(result.stderr, file=sys.stderr, flush=True)
+
+
 @pytest.mark.parametrize("text_context_list",
                          ['text_context_list1', 'text_context_list2', 'text_context_list3', 'text_context_list4',
                           'text_context_list5', 'text_context_list6'])

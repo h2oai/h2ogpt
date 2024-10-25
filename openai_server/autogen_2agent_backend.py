@@ -21,6 +21,8 @@ def run_autogen_2agent(query=None,
                        # autogen/agent specific parameters
                        agent_type=None,
                        agent_accuracy=None,
+                       max_stream_length=None,
+                       max_memory_usage=None,
                        autogen_use_planning_prompt=None,
                        autogen_stop_docker_executor=None,
                        autogen_run_code_in_docker=None,
@@ -66,6 +68,11 @@ def run_autogen_2agent(query=None,
         autogen_code_restrictions_level = 2
     if autogen_silent_exchange is None:
         autogen_silent_exchange = True
+    if max_stream_length is None:
+        max_stream_length = 4096
+    if max_memory_usage is None:
+        # per-execution process maximum memory usage
+        max_memory_usage = 16 * 1024**3  # 16 GB
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
@@ -125,6 +132,8 @@ def run_autogen_2agent(query=None,
         temp_dir,
         agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
         agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
+        max_stream_length=max_stream_length,
+        max_memory_usage=max_memory_usage,
     )
 
     code_executor_kwargs = dict(

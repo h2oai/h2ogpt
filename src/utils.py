@@ -34,6 +34,7 @@ import filelock
 import fire
 import numpy as np
 import pandas as pd
+import psutil
 import requests
 import uuid
 import re
@@ -2056,8 +2057,8 @@ def start_process(cmd):
 
 def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeout=None, capture_output=True,
                        text=True, print_tags=False, print_literal=True, print_func=print,
-                       guard_func=None,
-                       max_stream_length=4096):
+                       guard_func=None, sleep=0.05,
+                       max_stream_length=4096, max_memory_usage=16*1024**3):
     if script_content is None and cmd is None:
         raise ValueError("Either script_content or cmd must be provided")
 
@@ -2083,6 +2084,9 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
         }
 
         with subprocess.Popen(cmd, **popen_kwargs) as p:
+            # Start psutil process to monitor memory usage
+            psutil_process = psutil.Process(p.pid)
+
             sel = selectors.DefaultSelector()
             sel.register(p.stdout, selectors.EVENT_READ)
             sel.register(p.stderr, selectors.EVENT_READ)
@@ -2096,6 +2100,28 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
                 if timeout and time.time() - start_time > timeout:
                     p.terminate()
                     raise subprocess.TimeoutExpired(cmd, timeout)
+
+                # Monitor memory usage for the main process and all its children
+                if max_memory_usage:
+                    measure_t0 = time.time()
+                    # Get memory usage of the main process and its children
+                    mem_info = psutil_process.memory_info().rss
+                    children = psutil_process.children(recursive=True)
+                    for child in children:
+                        mem_info += child.memory_info().rss
+
+                    # Check if the total memory usage exceeds the limit
+                    if mem_info > max_memory_usage:
+                        try:
+                            p.terminate()
+                        except Exception as e:
+                            print(f"Error terminating process: {e}")
+                        try:
+                            p.kill()
+                        except Exception as e:
+                            print(f"Error killing process: {e}")
+                        error = f"Process and its children used memory {mem_info} that exceeded memory limit of {max_memory_usage} bytes detected in {time.time() - measure_t0}."
+                        stderr_data.append(error)
 
                 events = sel.select(timeout=1)
                 if not events and p.poll() is not None:
@@ -2135,6 +2161,10 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
 
                 if p.poll() is not None and not sel.get_map():
                     break  # Process has exited and no more data to read
+
+                # sleep shouldn't be too long or else will get chunky streaming and not detect memory usage rapidly enough
+                # sleep shouldn't be too short or else will constantly be doing psutil stuff
+                time.sleep(sleep)
 
             p.wait(timeout=timeout)
 

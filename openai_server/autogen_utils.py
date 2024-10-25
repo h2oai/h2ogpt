@@ -68,6 +68,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             stream_output: bool = True,
             agent_tools_usage_hard_limits: Dict[str, int] = {},
             agent_tools_usage_soft_limits: Dict[str, int] = {},
+            max_stream_length: int = 4096,
+            max_memory_usage: Optional[int] = 16*1024**3,  # 16GB
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
@@ -75,6 +77,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         self.agent_tools_usage_hard_limits = agent_tools_usage_hard_limits
         self.agent_tools_usage_soft_limits = agent_tools_usage_soft_limits
         self.agent_tools_usage = {}
+        self.max_stream_length = max_stream_length
+        self.max_memory_usage = max_memory_usage
 
         self.filename_patterns: List[re.Pattern] = [
             re.compile(r"^<!--\s*filename:\s*([\w.-/]+)\s*-->$"),
@@ -334,7 +338,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     timeout=float(self._timeout), env=env,
                     print_func=iostream.print,
                     guard_func=functools.partial(H2OLocalCommandLineCodeExecutor.text_guardrail, any_fail=False),
-                    max_stream_length=4096,
+                    max_stream_length=self.max_stream_length,
+                    max_memory_usage=self.max_memory_usage,
                 )
                 iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
             except subprocess.TimeoutExpired:
@@ -1019,6 +1024,9 @@ def get_code_executor(
         temp_dir,
         agent_tools_usage_hard_limits={},
         agent_tools_usage_soft_limits={},
+        max_stream_length=4096,
+        # max memory per code execution process
+        max_memory_usage=16*1024**3,  # 16GB
 ):
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
@@ -1053,6 +1061,8 @@ def get_code_executor(
             autogen_code_restrictions_level=autogen_code_restrictions_level,
             agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
             agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
+            max_stream_length=max_stream_length,
+            max_memory_usage=max_memory_usage,
         )
     return executor
 
