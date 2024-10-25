@@ -190,18 +190,19 @@ spec:
             - name: http
               containerPort: 7860
               protocol: TCP
-            - name: gpt
-              containerPort: 8888
-              protocol: TCP
+          {{- if .Values.global.externalLLM.openAI.enabled }}
             - name: openai
               containerPort: 5000
               protocol: TCP
+          {{- end }}
             - name: function
               containerPort: 5002
               protocol: TCP
+          {{- if .Values.h2ogpt.agents.enabled }}
             - name: agent
               containerPort: 5004
               protocol: TCP
+          {{- end }}
           {{- if .Values.h2ogpt.livenessProbe }}
           livenessProbe:
             httpGet:

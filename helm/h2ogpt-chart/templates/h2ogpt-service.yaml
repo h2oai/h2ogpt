@@ -17,17 +17,21 @@ spec:
       protocol: TCP
       port: {{ .Values.h2ogpt.service.webPort }}
       targetPort: 7860
+  {{- if .Values.global.externalLLM.openAI.enabled }}
     - name: openai
       protocol: TCP
       port: {{ .Values.h2ogpt.service.openaiPort }}
       targetPort: 5000
+  {{- end }}
     - name: function
       protocol: TCP
       port: {{ .Values.h2ogpt.service.functionPort }}
       targetPort: 5002
+  {{- if .Values.h2ogpt.agents.enabled }}
     - name: agent
       protocol: TCP
       port: {{ .Values.h2ogpt.service.agentsPort }}
       targetPort: 5004
+  {{- end }}
   type: {{ .Values.h2ogpt.service.type }}
 {{- end }}
