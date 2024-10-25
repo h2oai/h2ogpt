@@ -7,9 +7,7 @@ metadata:
   labels:
     app: {{ include "h2ogpt.fullname" . }}-tgi-inference
 spec:
-  {{- if not .Values.tgi.autoscaling.enabled }}
   replicas: {{ .Values.tgi.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-tgi-inference
@@ -157,19 +155,4 @@ spec:
                     storage: {{ .Values.tgi.storage.size | quote }}
                 storageClassName: {{ .Values.tgi.storage.class }}
           {{- end }}
-{{- end }}
----
-{{- if and (.Values.tgi.enabled) (not .Values.tgi.storage.useEphemeral)}}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
-  namespace: {{ include "h2ogpt.namespace" . | quote }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ .Values.tgi.storage.class }}
-  resources:
-    requests:
-      storage: {{ .Values.tgi.storage.size | quote }}
 {{- end }}

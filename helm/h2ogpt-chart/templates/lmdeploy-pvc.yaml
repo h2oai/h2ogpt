@@ -1,0 +1,15 @@
+{{- if and (.Values.lmdeploy.enabled) (not .Values.lmdeploy.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # storageClassName: {{ .Values.lmdeploy.storage.class | quote }}
+  storageClassName: {{ .Values.lmdeploy.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.lmdeploy.storage.size | quote }}
+{{- end }}

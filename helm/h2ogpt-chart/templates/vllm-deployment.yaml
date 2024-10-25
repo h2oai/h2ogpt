@@ -7,9 +7,7 @@ metadata:
   labels:
     app: {{ include "h2ogpt.fullname" . }}-vllm-inference
 spec:
-  {{- if not .Values.vllm.autoscaling.enabled }}
   replicas: {{ .Values.vllm.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-vllm-inference
@@ -148,20 +146,4 @@ spec:
             medium: Memory
             sizeLimit: 10.24Gi
           name: shm
-{{- end }}
----
-{{- if and (.Values.vllm.enabled) (not .Values.vllm.storage.useEphemeral) }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-  namespace: {{ include "h2ogpt.namespace" . | quote }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  # storageClassName: {{ .Values.vllm.storage.class | quote }}
-  storageClassName: {{ .Values.vllm.storage.class }}
-  resources:
-    requests:
-      storage: {{ .Values.vllm.storage.size | quote }}
 {{- end }}

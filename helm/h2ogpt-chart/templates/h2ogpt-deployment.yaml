@@ -7,9 +7,7 @@ metadata:
   labels:
     app: {{ include "h2ogpt.fullname" . }}
 spec:
-  {{- if not .Values.h2ogpt.autoscaling.enabled }}
   replicas: {{ .Values.h2ogpt.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}

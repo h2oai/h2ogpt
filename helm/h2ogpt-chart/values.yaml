@@ -139,7 +139,6 @@ h2ogpt:
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
 agents:
   # -- Enable agents, this must be `false` if `h2ogpt.agents.enabled` is `true`
@@ -235,7 +234,6 @@ agents:
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
 tgi:
   # -- Enable tgi
@@ -278,7 +276,6 @@ tgi:
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
 vllm:
   # -- Enable vllm
@@ -348,7 +345,7 @@ vllm:
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
+
 
 lmdeploy:
   # -- Enable lmdeploy
@@ -392,7 +389,6 @@ lmdeploy:
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
 # -- CA certs
 caCertificates: ""

@@ -7,9 +7,7 @@ metadata:
   labels:
     app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
 spec:
-  {{- if not .Values.lmdeploy.autoscaling.enabled }}
   replicas: {{ .Values.lmdeploy.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       app: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference
@@ -144,20 +142,4 @@ spec:
             medium: Memory
             sizeLimit: 10.24Gi
           name: shm
-{{- end }}
----
-{{- if and (.Values.lmdeploy.enabled) (not .Values.lmdeploy.storage.useEphemeral) }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "h2ogpt.fullname" . }}-lmdeploy-inference-volume
-  namespace: {{ include "h2ogpt.namespace" . | quote }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  # storageClassName: {{ .Values.lmdeploy.storage.class | quote }}
-  storageClassName: {{ .Values.lmdeploy.storage.class }}
-  resources:
-    requests:
-      storage: {{ .Values.lmdeploy.storage.size | quote }}
 {{- end }}
