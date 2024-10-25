@@ -2104,11 +2104,14 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
                 # Monitor memory usage for the main process and all its children
                 if max_memory_usage:
                     measure_t0 = time.time()
-                    # Get memory usage of the main process and its children
-                    mem_info = psutil_process.memory_info().rss
-                    children = psutil_process.children(recursive=True)
-                    for child in children:
-                        mem_info += child.memory_info().rss
+                    try:
+                        # Get memory usage of the main process and its children
+                        mem_info = psutil_process.memory_info().rss
+                        children = psutil_process.children(recursive=True)
+                        for child in children:
+                            mem_info += child.memory_info().rss
+                    except psutil.NoSuchProcess:
+                        mem_info = 0
 
                     # Check if the total memory usage exceeds the limit
                     if mem_info > max_memory_usage:
