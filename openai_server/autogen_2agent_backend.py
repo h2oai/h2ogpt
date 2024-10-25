@@ -115,7 +115,6 @@ def run_autogen_2agent(query=None,
 
     query = extra_user_prompt + query
 
-    from openai_server.autogen_agents import get_code_execution_agent
     from openai_server.autogen_utils import get_code_executor
     executor = get_code_executor(
         autogen_run_code_in_docker,
@@ -127,7 +126,21 @@ def run_autogen_2agent(query=None,
         agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
         agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
     )
-    code_executor_agent = get_code_execution_agent(executor, autogen_max_consecutive_auto_reply)
+
+    code_executor_kwargs = dict(
+        llm_config=False,  # Turn off LLM for this agent.
+        code_execution_config={"executor": executor},  # Use the local command line code executor.
+        human_input_mode="NEVER",  # Always take human input for this agent for safety.
+        # NOTE: no termination message, just triggered by executable code blocks present or not
+        # is_termination_msg=terminate_message_func,
+        max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
+        # max_turns is max times allowed executed some code, should be autogen_max_turns in general
+        max_turns=autogen_max_turns,
+        initial_confidence_level=initial_confidence_level,
+    )
+
+    from openai_server.autogen_utils import H2OConversableAgent
+    code_executor_agent = H2OConversableAgent("code_executor_agent", **code_executor_kwargs)
 
     # FIXME:
     # Auto-pip install
@@ -171,8 +184,6 @@ def run_autogen_2agent(query=None,
                               human_input_mode="NEVER",
                               is_termination_msg=code_writer_terminate_func,
                               max_consecutive_auto_reply=autogen_max_consecutive_auto_reply,
-                              max_turns=autogen_max_turns,
-                              initial_confidence_level=initial_confidence_level,
                               )
 
     code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
@@ -183,25 +194,29 @@ def run_autogen_2agent(query=None,
         # setup planning agents
         code_writer_kwargs_planning = code_writer_kwargs.copy()
         # terminate immediately
-        update_dict = dict(max_consecutive_auto_reply=1,
-        max_turns=None,
-        initial_confidence_level=1)
+        # Note: max_turns and initial_confidence_level not relevant except for code execution agent
+        code_writer_kwargs_update = dict(max_consecutive_auto_reply=1)
         # is_termination_msg=lambda x: True
-        code_writer_kwargs_planning.update(update_dict)
-        code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs_planning)
+        code_writer_kwargs_planning.update(code_writer_kwargs_update)
+        code_writer_agent_planning = H2OConversableAgent("code_writer_agent", **code_writer_kwargs_planning)
 
-        chat_kwargs = dict(recipient=code_writer_agent,
+        chat_kwargs = dict(recipient=code_writer_agent_planning,
                            max_turns=1,
                            message=planning_prompt(query),
                            cache=None,
                            silent=autogen_silent_exchange,
                            clear_history=False,
                            )
-        chat_result_planning = code_executor_agent.initiate_chat(**chat_kwargs)
+        code_executor_kwargs_planning = code_executor_kwargs.copy()
+        code_executor_kwargs_planning.update(dict(
+            max_turns=2,
+            initial_confidence_level=1,
+        ))
+        code_executor_agent_planning = H2OConversableAgent("code_executor_agent", **code_executor_kwargs_planning)
 
-        # get fresh agents
-        code_writer_agent = H2OConversableAgent("code_writer_agent", **code_writer_kwargs)
-        code_executor_agent = get_code_execution_agent(executor, autogen_max_consecutive_auto_reply)
+        chat_result_planning = code_executor_agent_planning.initiate_chat(**chat_kwargs)
+
+        # transfer planning result to main agents
         if hasattr(chat_result_planning, 'chat_history') and chat_result_planning.chat_history:
             planning_messages = chat_result_planning.chat_history
             for message in planning_messages:
