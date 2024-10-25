@@ -194,6 +194,7 @@ class AgentParams(BaseModel):
     autogen_code_restrictions_level: int = 2
     autogen_silent_exchange: bool = True
     agent_type: str | None = 'auto'
+    agent_accuracy: str | None = 'normal'
 
 
 class Params(H2oGPTParams, AgentParams):

@@ -6,6 +6,7 @@ def get_code_execution_agent(
         executor,
         autogen_max_consecutive_auto_reply,
 ):
+    # NOTE: Only used for multi-agent
     # Create an agent with code executor configuration.
     from openai_server.autogen_utils import H2OConversableAgent
     code_executor_agent = H2OConversableAgent(
@@ -24,6 +25,7 @@ def get_code_writer_agent(
         code_writer_system_prompt: str | None = None,
         autogen_max_consecutive_auto_reply: int = 1,
 ):
+    # NOTE: Only used for multi-agent
     from openai_server.autogen_utils import H2OConversableAgent
     code_writer_agent = H2OConversableAgent(
         "code_writer_agent",
@@ -85,7 +87,8 @@ def get_human_proxy_agent(
         llm_config: dict,
         autogen_max_consecutive_auto_reply: int = 1,
 ):
-    # Human Proxy 
+    # NOTE: Only used for multi-agent
+    # Human Proxy
     from openai_server.autogen_utils import H2OConversableAgent
     human_proxy_agent = H2OConversableAgent(
         name="human_proxy_agent",
