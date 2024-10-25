@@ -18,7 +18,7 @@ global:
       enabled: false
 
     openAI:
-      enabled: False
+      enabled: false
 
     replicate:
       enabled: false
@@ -33,9 +33,6 @@ global:
 h2ogpt:
   # -- Enable h2oGPT
   enabled: true
-  stack:
-    # -- Run h2oGPT and vLLM on same pod.
-    enabled: false
   # -- Enable agents
   agents:
     # -- Run agents with h2oGPT container
