@@ -1,4 +1,4 @@
-{{- if and (.Values.lmdeploy.enabled) (not .Values.h2ogpt.stack.enabled )}}
+{{- if and .Values.lmdeploy.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

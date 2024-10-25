@@ -1,4 +1,4 @@
-{{- if and (.Values.tgi.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+{{- if .Values.tgi.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -123,23 +123,6 @@ spec:
               mountPath: /dev/shm
               subPath: shm
       volumes:
-        {{- if .Values.h2ogpt.stack.enabled }}
-        - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-          {{- if not .Values.vllm.storage.useEphemeral }}
-          persistentVolumeClaim:
-            claimName: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
-          {{- else }}
-          ephemeral:
-            volumeClaimTemplate:
-              spec:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: {{ .Values.vllm.storage.size | quote }}
-                storageClassName: {{ .Values.vllm.storage.class }}
-          {{- end }}
-        {{- end }}
         - name: {{ include "h2ogpt.fullname" . }}-tgi-inference-volume
         {{- if not .Values.tgi.storage.useEphemeral}}
           persistentVolumeClaim:

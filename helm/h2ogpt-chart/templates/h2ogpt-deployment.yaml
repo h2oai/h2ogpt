@@ -169,7 +169,6 @@ spec:
             - name: h2ogpt_inference_server
               value: "http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}"
           {{- end }}
-          {{- end }}
           {{- range $key, $value := .Values.h2ogpt.env }}
             - name: "{{ $key }}"
               value: "{{ $value }}"

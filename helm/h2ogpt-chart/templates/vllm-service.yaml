@@ -1,4 +1,4 @@
-{{- if and (.Values.vllm.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+{{- if .Values.vllm.enabled }}
 apiVersion: v1
 kind: Service
 metadata:

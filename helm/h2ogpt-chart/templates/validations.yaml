@@ -7,11 +7,6 @@
 {{- if and .Values.lmdeploy.enabled .Values.tgi.enabled }}
   {{- fail "Both TGI and lmdeploy cannot be enabled at the same time. Enable only one and try again" }}
 {{- end }}
-{{- if .Values.h2ogpt.stack.enabled }}
-  {{- if not (and .Values.vllm.enabled .Values.h2ogpt.enabled) }}
-    {{- fail "If h2oGPT stack is enabled, both vLLM and h2oGPT should be enabled" }}
-  {{- end }}
-{{- end }}
 {{- if and ( and .Values.h2ogpt.enabled .Values.h2ogpt.agents.enabled) .Values.agents.enabled }}
-  {{- fail "Agents in both h2oGPT and agents cannot be enabled." }}
+  {{- fail " Both agents in both h2ogpt.agents cannot be enabled. Enably only one and try again" }}
 {{- end }}
