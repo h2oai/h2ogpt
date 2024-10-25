@@ -223,6 +223,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "h2ogpt.fullname" . }}-config
+          {{- if .Values.global.externalLLM.enabled }}
+            - secretRef:
+                name: {{ include "h2ogpt.fullname" . }}-external-llm-secret
+          {{- end }}
           env:
           {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.enabled) (not .Values.h2ogpt.stack.enabled ) }}
             - name: h2ogpt_inference_server
@@ -243,32 +247,6 @@ spec:
           {{- range $key, $value := .Values.h2ogpt.env }}
             - name: "{{ $key }}"
               value: "{{ $value }}"
-          {{- end }}
-          {{- if and .Values.global.externalLLM.openAIAzure.enabled .Values.global.externalLLM.enabled }}
-            - name: OPENAI_AZURE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.global.externalLLM.secret }}
-                  key: OPENAI_AZURE_KEY
-            - name: OPENAI_AZURE_API_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.global.externalLLM.secret }}
-                  key: OPENAI_AZURE_API_BASE
-          {{- end }}
-          {{- if and .Values.global.externalLLM.openAI.enabled .Values.global.externalLLM.enabled }}
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.global.externalLLM.secret }}
-                  key: OPENAI_API_KEY
-          {{- end }}
-          {{- if and .Values.global.externalLLM.replicate.enabled .Values.global.externalLLM.enabled }}
-            - name: REPLICATE_API_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.global.externalLLM.secret }}
-                  key: REPLICATE_API_TOKEN
           {{- end }}
           {{- if .Values.global.externalLLM.enabled }}
             - name: H2OGPT_MODEL_LOCK
