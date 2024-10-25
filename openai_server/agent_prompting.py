@@ -798,6 +798,15 @@ def get_api_helper():
     return apis
 
 
+def get_agent_tools():
+    cwd = os.path.abspath(os.getcwd())
+    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+    list_dir = os.listdir('openai_server/agent_tools')
+    list_dir = [x for x in list_dir if not x.startswith('__')]
+    list_dir = [x for x in list_dir if not x.endswith('.pyc')]
+    return path_agent_tools, list_dir
+
+
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
                            api_key, model, text_context_list, image_file, temp_dir, query, autogen_timeout):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
@@ -831,11 +840,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                                                                prompt=query,
                                                                model=model)
 
-    cwd = os.path.abspath(os.getcwd())
-    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
-    list_dir = os.listdir('openai_server/agent_tools')
-    list_dir = [x for x in list_dir if not x.startswith('__')]
-    list_dir = [x for x in list_dir if not x.endswith('.pyc')]
+    path_agent_tools, list_dir = get_agent_tools()
 
     agent_tools_note = f"""\n# Agent tools notes:
 * Do not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"

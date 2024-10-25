@@ -378,3 +378,23 @@ def is_binary_file(file_path, sample_size=1024):
 
     text_characters = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
     return bool(sample.translate(None, text_characters))
+
+
+def extract_agent_tool(input_string):
+    """
+    Extracts and returns the agent_tool filename from the input string.
+    Can be used to detect the agent_tool usages in chat history.
+    """
+    # FIXME: This missing if agent_tool is imported into python code, but usually that fails to work by LLM
+    # Regular expression pattern to match Python file paths
+    pattern = r'openai_server/agent_tools/([a-zA-Z_]+\.py)'
+
+    # Search for the pattern in the input string
+    match = re.search(pattern, input_string)
+
+    if match:
+        # Return the filename if found
+        return match.group(1)
+    else:
+        # Return None if no match is found
+        return None

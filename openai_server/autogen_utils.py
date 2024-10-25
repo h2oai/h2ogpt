@@ -40,7 +40,7 @@ A = ParamSpec("A")
 
 from openai_server.autogen_streaming import iostream_generator
 from openai_server.backend_utils import convert_gen_kwargs
-from openai_server.agent_utils import in_pycharm, set_python_path
+from openai_server.agent_utils import in_pycharm, set_python_path, extract_agent_tool
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
@@ -66,10 +66,20 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             execution_policies: Optional[Dict[str, bool]] = None,
             autogen_code_restrictions_level: int = 2,
             stream_output: bool = True,
+            agent_tools_usage_hard_limits: Dict[str, int] = {},
+            agent_tools_usage_soft_limits: Dict[str, int] = {},
+            max_stream_length: int = 4096,
+            max_memory_usage: Optional[int] = 16*1024**3,  # 16GB
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
         self.stream_output = stream_output
+        self.agent_tools_usage_hard_limits = agent_tools_usage_hard_limits
+        self.agent_tools_usage_soft_limits = agent_tools_usage_soft_limits
+        self.agent_tools_usage = {}
+        self.max_stream_length = max_stream_length
+        self.max_memory_usage = max_memory_usage
+        self.turns = 0  # for tracking
 
         self.filename_patterns: List[re.Pattern] = [
             re.compile(r"^<!--\s*filename:\s*([\w.-/]+)\s*-->$"),
@@ -329,7 +339,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     timeout=float(self._timeout), env=env,
                     print_func=iostream.print,
                     guard_func=functools.partial(H2OLocalCommandLineCodeExecutor.text_guardrail, any_fail=False),
-                    max_stream_length=4096,
+                    max_stream_length=self.max_stream_length,
+                    max_memory_usage=self.max_memory_usage,
                 )
                 iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
             except subprocess.TimeoutExpired:
@@ -346,6 +357,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 break
 
         code_file = str(file_names[0]) if len(file_names) > 0 else None
+        self.turns += 1
         return CommandLineCodeResult(exit_code=exitcode, output=logs_all, code_file=code_file)
 
     @staticmethod
@@ -401,6 +413,8 @@ os.environ['TERM'] = 'dumb'
                 # merge back
                 code_blocks = code_blocks_exec + code_blocks_no_exec
 
+            # Update agent tool usage if there is any
+            self.update_agent_tool_usages(code_blocks_exec)
             ret = self.__execute_code_dont_check_setup(code_blocks)
 
             if ret.exit_code == -2 or len(code_blocks_exec) == 0 and code_blocks_len0 > 0:
@@ -430,9 +444,28 @@ os.environ['TERM'] = 'dumb'
                 ret = CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise
+        
+        # Truncate output if it is too long
         ret = self.truncate_output(ret)
+        # Add executed code note if needed
         ret = self.executed_code_note(ret, multiple_executable_code_detected)
+        ret = self.agent_tool_usage_note(ret)
         return ret
+
+    def update_agent_tool_usages(self, code_blocks: List[CodeBlock]) -> None:
+        any_update = False
+        for code_block in code_blocks:
+            agent_tool = extract_agent_tool(code_block.code)
+            if agent_tool:
+                agent_tool = os.path.basename(agent_tool).replace('.py', '')
+                if agent_tool not in self.agent_tools_usage:
+                    any_update = True
+                    self.agent_tools_usage[agent_tool] = 1
+                else:
+                    any_update = True
+                    self.agent_tools_usage[agent_tool] += 1
+        if any_update:
+            print(f"Step {self.turns} has agent tool usage: {self.agent_tools_usage}")
 
     @staticmethod
     def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
@@ -449,6 +482,21 @@ os.environ['TERM'] = 'dumb'
 <code_executed_notes>
 {executable_code_limitation_warning}
 </code_executed_notes>
+"""
+        return ret
+
+    def agent_tool_usage_note(self, ret) -> CommandLineCodeResult:
+        for k, v in self.agent_tools_usage.items():
+            # could make hard limit strictly hard, but this should help for now
+            if k in self.agent_tools_usage_hard_limits and self.agent_tools_usage_hard_limits[k] < v:
+                ret.output += f"""\n<agent_tool_usage_note>
+Error: You have used the agent tool "{k}" more than {v} times in this conversation.  You MUST stop using it.
+</agent_tool_usage_note>
+"""
+            elif k in self.agent_tools_usage_soft_limits and self.agent_tools_usage_soft_limits[k] < v:
+                ret.output += f"""\n<agent_tool_usage_note>
+Warning: You have used the agent tool "{k}" more than {v} times in this conversation. Please use it judiciously.
+</agent_tool_usage_note>
 """
         return ret
 
@@ -633,7 +681,14 @@ class H2OConversableAgent(ConversableAgent):
             default_auto_reply: Union[str, Dict] = "",
             description: Optional[str] = None,
             chat_messages: Optional[Dict[Agent, List[Dict]]] = None,
+            # below only matter if code_execution_config is set
+            max_turns: Optional[int] = None,
+            initial_confidence_level: Optional[int] = 0,
     ):
+        self.max_turns = max_turns
+        self.turns = 0
+        self._confidence_level = initial_confidence_level
+
         code_execution_config = (
             code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
         )
@@ -652,7 +707,6 @@ class H2OConversableAgent(ConversableAgent):
             if is_termination_msg is not None
             else (lambda x: content_str(x.get("content")) == "TERMINATE")
         )
-        self._confidence_level = 0
         # Take a copy to avoid modifying the given dict
         if isinstance(llm_config, dict):
             try:
@@ -795,6 +849,7 @@ class H2OConversableAgent(ConversableAgent):
             iostream = IOStream.get_default()
             iostream.print(delta)
             output += delta
+        self.turns += 1
         return valid, output
 
     def __generate_code_execution_reply_using_executor(
@@ -851,6 +906,10 @@ class H2OConversableAgent(ConversableAgent):
                     # force immediate termination regardless of what LLM generates
                     self._is_termination_msg = lambda x: True
                     return True, self.final_answer_guidelines()
+            if self.max_turns is not None and self.turns >= self.max_turns - 1:
+                # one before final allowed turn, force LLM to stop
+                self._is_termination_msg = lambda x: True
+                return True, self.final_answer_guidelines()
 
             num_code_blocks = len(code_blocks)
             if num_code_blocks == 1:
@@ -969,7 +1028,12 @@ def get_code_executor(
         agent_system_site_packages,
         autogen_code_restrictions_level,
         agent_venv_dir,
-        temp_dir
+        temp_dir,
+        agent_tools_usage_hard_limits={},
+        agent_tools_usage_soft_limits={},
+        max_stream_length=4096,
+        # max memory per code execution process
+        max_memory_usage=16*1024**3,  # 16GB
 ):
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
@@ -1002,6 +1066,10 @@ def get_code_executor(
             virtual_env_context=virtual_env_context,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
             autogen_code_restrictions_level=autogen_code_restrictions_level,
+            agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
+            agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
+            max_stream_length=max_stream_length,
+            max_memory_usage=max_memory_usage,
         )
     return executor
 

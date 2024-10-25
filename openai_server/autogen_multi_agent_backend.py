@@ -22,6 +22,7 @@ def run_autogen_multi_agent(query=None,
                             image_file=None,
                             # autogen/agent specific parameters
                             agent_type=None,
+                            agent_accuracy=None,
                             autogen_stop_docker_executor=None,
                             autogen_run_code_in_docker=None,
                             autogen_max_consecutive_auto_reply=None,
