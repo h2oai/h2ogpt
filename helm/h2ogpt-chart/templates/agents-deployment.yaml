@@ -329,18 +329,3 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
 {{- end }}
----
-{{- if and (.Values.agents.enabled) (not .Values.agents.storage.useEphemeral) }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "h2ogpt.fullname" . }}-agents-volume
-  namespace: {{ include "h2ogpt.namespace" . | quote }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ .Values.agents.storage.class }}
-  resources:
-    requests:
-      storage: {{ .Values.agents.storage.size | quote }}
-{{- end }}

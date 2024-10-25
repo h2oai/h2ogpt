@@ -31,19 +31,3 @@ spec:
       targetPort: 5004
   type: {{ .Values.h2ogpt.service.type }}
 {{- end }}
----
-{{- if .Values.h2ogpt.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "h2ogpt.fullname" . }}
-  namespace: {{ include "h2ogpt.namespace" . | quote }}
-spec:
-  selector:
-    app: {{ include "h2ogpt.fullname" . }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.h2ogpt.service.gptPort }}
-      targetPort: 8888
-  type: {{ .Values.h2ogpt.service.type }}
-{{- end }}
