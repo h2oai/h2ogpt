@@ -338,7 +338,7 @@ def get_user_dir(authorization):
 meta_ext = ".____meta______"
 
 
-def run_upload_api(content, filename, purpose, authorization):
+def run_upload_api(content, filename, purpose, authorization, created_at_orig=None):
     user_dir = get_user_dir(authorization)
 
     if not os.path.exists(user_dir):
@@ -356,7 +356,7 @@ def run_upload_api(content, filename, purpose, authorization):
         id=file_id,
         object="file",
         bytes=file_stat.st_size,
-        created_at=int(file_stat.st_ctime),
+        created_at=int(file_stat.st_ctime) if not created_at_orig else created_at_orig,
         filename=filename,
         purpose=purpose,
     )

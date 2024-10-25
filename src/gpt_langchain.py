@@ -980,6 +980,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
     guided_choice: Any = None
     guided_grammar: Any = None
     guided_whitespace_pattern: Any = None
+    client_metadata: Any = ''
 
     async_sem: Any = None
     count_input_tokens: Any = 0
@@ -1146,6 +1147,7 @@ class GradioInference(AGenerateStreamFirst, H2Oagenerate, LLM):
                              guided_choice=self.guided_choice,
                              guided_grammar=self.guided_grammar,
                              guided_whitespace_pattern=self.guided_whitespace_pattern,
+                             client_metadata=self.client_metadata,
                              )
         api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
         # let inner gradio count input tokens
@@ -2260,6 +2262,7 @@ class H2OTextGenOpenAI:
 
 
 class H2OOpenAI(H2OTextGenOpenAI, OpenAI):
+    temperature: float = 0.0
     """
     New class to handle vLLM's use of OpenAI, no vllm_chat supported, so only need here
     Handles prompting that OpenAI doesn't need, stopping as well
@@ -2460,6 +2463,14 @@ class ExtraChat:
 
 
 class GenerateStream:
+    def get_count_output_tokens(self, ret):
+        if hasattr(ret, 'llm_output') and 'model_name' in ret.llm_output and ret.llm_output['model_name'] in ['o1-mini', 'o1-preview']:
+            usage_dict = ret.llm_output['token_usage']
+            if 'completion_tokens' in usage_dict:
+                self.count_output_tokens += usage_dict['completion_tokens']
+            if 'completion_tokens_details' in usage_dict and 'reasoning_tokens' in usage_dict['completion_tokens_details']:
+                print("reasoning tokens for %s: %s" % (ret.llm_output['model_name'], usage_dict['completion_tokens_details']['reasoning_tokens']))
+
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -2473,7 +2484,9 @@ class GenerateStream:
             kwargs['streaming'] = self.streaming
         # prompt_messages = [p.to_messages() for p in prompts]
         try:
-            return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            ret = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+            self.get_count_output_tokens(ret)
+            return ret
         except Exception as e:
             if 'Internal server error' in str(e):
                 print("Internal server error, retrying", flush=True)
@@ -2494,9 +2507,11 @@ class GenerateStream:
         # prompt_messages = [p.to_messages() for p in prompts]
         if 'streaming' not in kwargs:
             kwargs['streaming'] = self.streaming
-        return await self.agenerate(
+        ret = await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+        self.get_count_output_tokens(ret)
+        return ret
 
     def _generate(
             self,
@@ -2513,9 +2528,11 @@ class GenerateStream:
             have_tool = True
         kwargs.pop('stream', None)
         kwargs.pop('streaming', None)
+        # gemini specific:
         if hasattr(self, 'safety_settings'):
             # google
             kwargs['safety_settings'] = self.safety_settings
+        # gemini specific:
         if hasattr(self, 'response_format') and self.response_format == 'json_object':
             kwargs['generation_config'] = dict(response_mime_type='application/json')
             if self.guided_json and isinstance(self.guided_json, dict) and self.model == 'models/gemini-1.5-pro-latest':
@@ -2590,6 +2607,14 @@ class GenerateStream:
 
 
 class GenerateNormal:
+    def get_count_output_tokens(self, ret):
+        if hasattr(ret, 'llm_output') and 'model_name' in ret.llm_output and ret.llm_output['model_name'] in ['o1-mini', 'o1-preview']:
+            usage_dict = ret.llm_output['token_usage']
+            if 'completion_tokens' in usage_dict:
+                self.count_output_tokens += usage_dict['completion_tokens']
+            if 'completion_tokens_details' in usage_dict and 'reasoning_tokens' in usage_dict['completion_tokens_details']:
+                print("reasoning tokens for %s: %s" % (ret.llm_output['model_name'], usage_dict['completion_tokens_details']['reasoning_tokens']))
+
     def generate_prompt(
             self,
             prompts: List[PromptValue],
@@ -2600,7 +2625,9 @@ class GenerateNormal:
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
-        return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        ret = self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+        self.get_count_output_tokens(ret)
+        return ret
 
     async def agenerate_prompt(
             self,
@@ -2612,9 +2639,11 @@ class GenerateNormal:
         self.prompts.extend(prompts)
         prompt_messages = self.get_messages(prompts)
         # prompt_messages = [p.to_messages() for p in prompts]
-        return await self.agenerate(
+        ret = await self.agenerate(
             prompt_messages, stop=stop, callbacks=callbacks, **kwargs
         )
+        self.get_count_output_tokens(ret)
+        return ret
 
 
 class GenerateStream2:
@@ -2701,6 +2730,7 @@ class GenerateStream2:
 
 
 class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, H2OBaseChatOpenAI, ChatOpenAI):
+    temperature: float = 0.0
     tokenizer: Any = None
     system_prompt: Any = None
     chat_conversation: Any = []
@@ -2721,6 +2751,7 @@ class H2OChatOpenAI(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, H2OBase
 
 
 class H2OAzureChatOpenAI(ChatAGenerateStreamFirst, GenerateNormal, ExtraChat, H2OBaseAzureChatOpenAI):
+    temperature: float = 0.0
     system_prompt: Any = None
     chat_conversation: Any = []
     user_prompt_for_fake_system_prompt: Any = None
@@ -3260,7 +3291,8 @@ def get_llm(use_openai_model=False,
         kwargs_extra = {}
 
         if json_vllm:
-            response_format_real = response_format if guided_json and response_format == 'json_object' else 'text'
+            response_format_real = response_format if not (
+                        guided_json or guided_regex or guided_choice or guided_grammar) else 'text'
             vllm_extra_dict = get_vllm_extra_dict(tokenizer,
                                                   stop_sequences=prompter.stop_sequences if prompter else [],
                                                   # repetition_penalty=repetition_penalty,  # could pass
@@ -3292,7 +3324,10 @@ def get_llm(use_openai_model=False,
             tools_openai = []
         openai_model_supports_tools = model_name in openai_supports_functiontools + openai_supports_parallel_functiontools
         openai_model_supports_json = is_json_model(model_name, inference_server)
-        openai_supports_json_or_tools = response_format == 'json_object' and openai_model_supports_json or openai_model_supports_tools and guided_json
+        if not json_vllm:
+            openai_supports_json_or_tools = response_format == 'json_object' and openai_model_supports_json or openai_model_supports_tools and guided_json
+        else:
+            openai_supports_json_or_tools = False
         if inf_type == 'openai_chat' or inf_type == 'vllm_chat':
             kwargs_extra.update(dict(system_prompt=system_prompt,
                                      chat_conversation=chat_conversation,
@@ -3303,7 +3338,11 @@ def get_llm(use_openai_model=False,
                 if is_json_model(model_name, inference_server,
                                  json_vllm=json_vllm) and response_format == 'json_object':
                     # vllm without guided_json can't make json directly
-                    kwargs_extra.update(dict(response_format=dict(type=response_format if guided_json else 'text')))
+                    if not json_vllm:
+                        kwargs_extra.update(dict(response_format=dict(type=response_format if guided_json else 'text')))
+                    else:
+                        # for vllm 0.6.3+
+                        kwargs_extra.update(dict(response_format=dict(type='text')))
                 async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(openai_api_key=api_key,
@@ -3322,7 +3361,10 @@ def get_llm(use_openai_model=False,
                         kwargs_extra.update(dict(response_format=dict(type='text'), parallel_tool_calls=False))
                     else:
                         # Not vllm, guided_json not required
-                        kwargs_extra.update(dict(response_format=dict(type=response_format)))
+                        if not json_vllm:
+                            kwargs_extra.update(dict(response_format=dict(type=response_format)))
+                        else:
+                            kwargs_extra.update(dict(response_format=dict(type='text')))
         elif inf_type == 'openai_azure_chat':
             cls = H2OAzureChatOpenAI
             if 'response_format' not in azure_kwargs and openai_supports_json_or_tools:
@@ -3387,10 +3429,22 @@ def get_llm(use_openai_model=False,
         if inf_type == 'vllm_chat':
             model_name = get_model_name(model_name, openai_client)
 
+        gen_server_kwargs = dict(temperature=temperature if do_sample else 0.0,
+                                 # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
+                                 max_tokens=max_new_tokens,
+                                 )
+
+        if model_name in ['o1-mini', 'o1-preview']:
+            gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+            max_reasoning_tokens = int(os.getenv("MAX_REASONING_TOKENS", 25000))
+            gen_server_kwargs['max_completion_tokens'] = max_reasoning_tokens + max(100, gen_server_kwargs['max_completion_tokens'])
+            gen_server_kwargs['temperature'] = 1.0
+            model_kwargs.pop('presence_penalty', None)
+            model_kwargs.pop('n', None)
+            model_kwargs.pop('frequency_penalty', None)
+            model_kwargs.pop('top_p', None)
+
         llm = cls(model_name=model_name,
-                  temperature=temperature if do_sample else 0.0,
-                  # FIXME: Need to count tokens and reduce max_new_tokens to fit like in generate.py
-                  max_tokens=max_new_tokens,
                   model_kwargs=model_kwargs,
                   callbacks=callbacks if stream_output else None,
                   max_retries=6,
@@ -3399,7 +3453,8 @@ def get_llm(use_openai_model=False,
                   request_timeout=max_time,
                   prompter=prompter,
                   tokenizer=tokenizer,
-                  **kwargs_extra
+                  **gen_server_kwargs,
+                  **kwargs_extra,
                   )
         streamer = callbacks[0] if stream_output else None
         if inf_type in ['openai', 'openai_chat', 'openai_azure', 'openai_azure_chat']:
@@ -7013,6 +7068,7 @@ def _run_qa_db(query=None,
                guided_choice=None,
                guided_grammar=None,
                guided_whitespace_pattern=None,
+               client_metadata=None,
 
                json_vllm=False,
 
@@ -7044,6 +7100,8 @@ def _run_qa_db(query=None,
     :param answer_with_sources
     :return:
     """
+    if client_metadata:
+        print("RUNQADB START client_metadata: %s" % client_metadata, flush=True)
     t_run = time.time()
     if LangChainAgent.SMART.value in langchain_agents:
         # FIXME: support whatever model/user supports
@@ -7455,6 +7513,10 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         num_prompt_tokens = llm.count_input_tokens
     else:
         num_prompt_tokens = get_token_count(prompt, tokenizer)
+    if hasattr(llm, 'count_output_tokens') and llm.count_output_tokens != 0:
+        ntokens = llm.count_output_tokens
+    else:
+        ntokens = None
 
     # ensure to close client
     # https://github.com/langchain-ai/langchain/issues/13509
@@ -7472,14 +7534,17 @@ Respond to prompt of Final Answer with your final well-structured%s answer to th
         if verbose:
             print('response: %s' % ret)
         yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
-                   llm_answers=llm_answers, response_no_refs=ret, sources_str='')
+                   llm_answers=llm_answers, response_no_refs=ret, sources_str='', ntokens=ntokens)
     elif answer is not None:
         ret, sources, ret_no_refs, sources_str = get_sources_answer(*get_answer_args, **get_answer_kwargs)
         llm_answers['llm_answer_final'] = ret
         if verbose:
             print('response: %s' % ret)
         yield dict(prompt_raw=prompt, response=ret, sources=sources, num_prompt_tokens=num_prompt_tokens,
-                   llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str)
+                   llm_answers=llm_answers, response_no_refs=ret_no_refs, sources_str=sources_str,
+                   ntokens=ntokens)
+    if client_metadata:
+        print("RUNQADB FINISH client_metadata: %s" % client_metadata, flush=True)
     return
 
 

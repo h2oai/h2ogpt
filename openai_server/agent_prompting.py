@@ -45,19 +45,20 @@ Code generation instructions:
 * When using code, you must indicate the script type in the code block. The user cannot provide any other feedback or perform any other action beyond executing the code you suggest. The user can't modify your code. So do not suggest incomplete code which requires users to modify.
 * Every code you want to be separately run should be placed in a separate isolated code block with 3 backticks and a python or sh language tag.
 * Ensure to save your work as files (e.g. images or svg for plots, csv for data, etc.) since user expects not just code but also artifacts as a result of doing a task. E.g. for matplotlib, use plt.savefig instead of plt.show.
-* If you want the user to save the code into a separate file before executing it, then ensure the code is within its own isolated code block and put # filename: <filename> inside the code block as the first line.
-  * Give a correct file extension to the filename used for # filename: <filename>.  The only valid extensions for <filename> are .py or .sh
-  * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
-  * Check the execution result returned by the user.
+* In order to save the code into a file before executing it, ensure the code is within its own isolated code block with the first line having a comment: # filename: <filename>
+  * A <filename> ending in .py means the code block contains valid python code that the user will run inside python interpreter.
+  * A <filename> ending in .sh means the code block contains valid shell code that the user will run in a shell like bash.
   * Ensure python code blocks contain valid python code, and shell code blocks contain valid shell code.
+  * Do not ask users to copy and paste the result.  Instead, use 'print' function for the output when relevant.
+  * After the user has a chance to execute the code, check the execution result returned by the user.
 * Every python or shell code block MUST be marked whether it is for execution with a comment that shows if execution is true or false, e.g. # execution: true
 * If a python code is marked for execution, do not generate a shell script to execute that python code file, because that would execute the python code twice.
-* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required (e.g. a python code of some name can be run with a short sh code).
+* You can assume that any files (python scripts, shell scripts, images, csv files, etc.) created by prior code generation (with name <filename> above) can be used in subsequent code generation, so repeating code generation for the same file is not necessary unless changes are required.
 * When you need to collect info, generate code to output the info you need.
 * Ensure you provide well-commented code, so the user can understand what the code does.
 * Ensure any code prints are very descriptive, so the output can be easily understood without looking back at the code.
 * Each code block meant for execution should be complete and executable on its own.
-* You must wait for an executable code block to actually be executed before guessing or summarizing its output.
+* You MUST wait for an executable code block to actually be executed before guessing or summarizing its output.  Do not hallucinate outputs of tools.
 </code_generation>
 Code generation to avoid when execution is marked true:
 <code_avoid>
@@ -98,7 +99,7 @@ Example python packages or useful sh commands:
 Example cases of when to generate code for auxiliary tasks maybe not directly specified by the user:
 * Pip install packages (e.g. sh with pip) if needed or missing.  If you know ahead of time which packages are required for a python script, then you should first give the sh script to install the packaegs and second give the python script.
 * Browse files (e.g. sh with ls).
-* Search for urls to use (e.g. pypi package googlesearch-python in python).
+* Search for urls to use
 * Search wikipedia for topics, persons, places, or events (e.g. wikipedia package in python).
 * Be smart about saving vs. printing content for any URL. First check if a URL extension to see if binary or text.  Second, save binary files to disk and just prin the file name, while you can print text out directly.
 * Download a file (requests in python or wget with sh).
@@ -127,7 +128,7 @@ Constraints on output or response:
 * Searching for the constrained response is allowed, including iterating the response with the response changing to match user constraints, but you must avoid infinite loops and try generalized approaches instead of simplistic word or character replacement.
 * Have common sense and be smart, repeating characters or words just to match a constraint about your response is not likely useful.
 * E.g., simple solutions about your response are allowed, such as for "How many words are in your response" can just be a function that generates a sentence that includes the numeric count of the words in that sentence.
-* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags, before giving a <FINISHED_ALL_TASKS>.
+* For a response constrained by the user, the self-consistent constrained textual response (without any additional context or explanation) must appear inside <constrained_output> </constrained_output> XML tags.
 /constraints>
 PDF Generation:
 <pdf>
@@ -164,6 +165,17 @@ Data science or machine learning modeling and predicting best practices:
 * Depending upon accuracy level user desires, for more accuracy try more iterations, trees, and search over hyperparameters for the best model according to the validation score.
 * Generate plots of the target distribution for regression model as well as insightful plots of the predictions and analyze the plots.
 </data_science>
+Web scraping or web search best practices:
+<web_search>
+* For web search, prioritize using agent_tools provided
+* Do not just use the search snippets to answer questions.  Search snippets are only starting point for finding relevant URLs, documents, or online content.
+* Multi-hop web search is expected, i.e. iterative web search over many turns of a conversation is expected
+* For web search, use ask_question_about_documents.py on promising URLs to answer questions and find new relevant URLs and new relevant documents
+* For web search, use results ask_question_about_documents.py to find new search terms
+* For web search, iterate as many times as required on URLs and documents using web search, ask_question_about_documents.py, and other agent tools
+* For web search multi-hop search, only stop when reaching am answer with information verified and key claims traced to authoritative sources
+* For web search, try to verify your answer with alternative sources to get a reliable answer, especially when user expects a constrained output
+</web_search>
 <inline_images>
 Inline image files in response:
 * In your final summary, you must add an inline markdown of any key image, chart, or graphic (e.g.) ![image](filename.png) without any code block.  Only use the basename of the file, not the full path.
@@ -179,8 +191,9 @@ Stopping instructions:
 * As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
 * If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
 * You MUST always add a very brief natural language title near the end of your response (it should just describe the analysis, do not give step numbers) of what you just did and put that title inside <turn_title> </turn_title> XML tags. Only a single title is allowed.
-* Only once you have verification that the user completed the task do you summarize and add the '<FINISHED_ALL_TASKS>' string to stop the conversation.
-* If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response before the <FINISHED_ALL_TASKS> string.
+* Only once you have verification that the user completed the task do you summarize.
+* To stop the conversation, do not include any executable code blocks. 
+* If it is ever critical to have a constrained response (i.e. referencing your own output) to the user in the final summary, use <constrained_output> </constrained_output> XML tags to encapsulate the final response.
 </stopping>
 """
     return agent_code_writer_system_message
@@ -640,14 +653,16 @@ def get_serp_helper():
 python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
 ```
 * usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
+* This tool should be used instead of generic searches using packages googlesearch, requests, and bs4.
 * The tool saves full search results to a JSON file in the current directory.
-* For complex queries about the search results, it's recommended to pass the entire JSON file to ask_question_about_documents.py.
 * For non-english queries, do python {cwd}/openai_server/agent_tools/google_search.py -h to see options for other languages and locations.
 * To download the video returned from this google_search.py tool:
   - For a youtube url or other urls on certain sites, use download_web_video.py agent tool.
   - For generic free web sites, use can get video via wget, curl -L, or requests.
-* To download an page or image returned from this google_search.py tool:
+* To download a web page via its URL or image returned from this google_search.py tool:
    - Use wget, curl -L, or requests to download the image URL.
+* Multi-hop search is highly recommended, so the single-hop search with snippets and URLs should be followed up by passing URLs to using ask_question_about_documents.py for asking questions.
+* Multi-hop search is highly recommended, so for queries about the search results, pass the entire JSON file to ask_question_about_documents.py for asking questions about the search results, e.g. to ask which URL is most relevant to ask further questions about using ask_question_about_documents.py again.
 """
         if os.getenv("BING_API_KEY"):
             serp += f"""# The bing_search.py tool can be used if this google_search.py tool fails or vice versa."""
@@ -726,7 +741,7 @@ def get_bing_search_helper():
     cwd = os.path.abspath(os.getcwd())
     have_internet = get_have_internet()
     if have_internet and os.getenv('BING_API_KEY'):
-        bing_search = f"""\n* Search using Bing API (using azure-core, user has BING_API_KEY already in ENV) for web, image, news, or video search.
+        bing_search = f"""\n* Search web using Bing API (using azure-core, user has BING_API_KEY already in ENV) for web, image, news, or video search.
 * In most cases, just use the existing general pre-built Python code to query Bing Search, E.g.:
 ```sh
 # execution: true
@@ -747,22 +762,31 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query QUERY 
 * Use --limit to specify the number of results (default is 10)
 * Use --market to specify the market (e.g., en-US)
 * Use --freshness to filter results by age (Day, Week, Month).  Default is no filter to get older results.
+* Multi-hop search is highly recommended, so the single-hop search with snippets and URLs should be followed up by passing URLs to using ask_question_about_documents.py for asking questions.
+* Multi-hop search is highly recommended, so for queries about the search results, pass the entire JSON file to ask_question_about_documents.py for asking questions about the search results, e.g. to ask which URL is most relevant to ask further questions about using ask_question_about_documents.py again.
 """
         if os.getenv("SERPAPI_API_KEY"):
-            bing_search += f"""# The google_search.py tool can be used if this being_search.py tool fails or vice versa."""
+            bing_search += f"""# The google_search.py tool can be used if this bing_search.py tool fails or vice versa."""
     else:
         bing_search = ""
     return bing_search
 
 
 def get_api_helper():
+    if os.getenv('SERPAPI_API_KEY') or os.getenv('BING_API_KEY'):
+        search_web_api_message = """* Highly recommended to first try using google or bing search tool when searching for something on the web.
+* i.e. avoid packages googlesearch package for web searches."""
+    else:
+        search_web_api_message = ""
     have_internet = get_have_internet()
     if have_internet:
         apis = f"""\n#APIs and external services instructions:
 * You DO have access to the internet.
-* Use existing python tools for various tasks, e.g. Wolfram Alpha, Semantic Scholar, News API, Google API, Bing API, etc.
-* Highly recommended to first try using google or bing search tool when searching for something on the web.
+{search_web_api_message}
+* Use existing python tools for various tasks, e.g. Wolfram Alpha, Semantic Scholar, News API, etc.
 * Avoid generating code with placeholder API keys as that will never work because user will not be able to change the code.
+* You MUST wait for an executable code block to actually be executed before guessing or summarizing its output.
+* Do not hallucinate outputs of tools, you must wait for user to execute each executable code block.
 * Example Public APIs (not limited to these): wttr.in (weather) or research papers (arxiv).
 * You may generate code with API code that uses publicly available APIs that do not require any API key.
 * You may generate code with APIs for API keys that have been mentioned in this overall message.
@@ -772,6 +796,15 @@ def get_api_helper():
 * You DO NOT have access to the internet.  You cannot use any APIs that require broad internet access.
 * You may generate code with APIs for API keys given to you directly by the user."""
     return apis
+
+
+def get_agent_tools():
+    cwd = os.path.abspath(os.getcwd())
+    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
+    list_dir = os.listdir('openai_server/agent_tools')
+    list_dir = [x for x in list_dir if not x.startswith('__')]
+    list_dir = [x for x in list_dir if not x.endswith('.pyc')]
+    return path_agent_tools, list_dir
 
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
@@ -807,16 +840,12 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                                                                prompt=query,
                                                                model=model)
 
-    cwd = os.path.abspath(os.getcwd())
-    path_agent_tools = f'{cwd}/openai_server/agent_tools/'
-    list_dir = os.listdir('openai_server/agent_tools')
-    list_dir = [x for x in list_dir if not x.startswith('__')]
-    list_dir = [x for x in list_dir if not x.endswith('.pyc')]
+    path_agent_tools, list_dir = get_agent_tools()
 
     agent_tools_note = f"""\n# Agent tools notes:
 * Do not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"
 * You have to prioritize these tools for the relevant tasks before using other tools or methods.
-* If you use multiple tools or code blocks, stop and ENDOFTURN between code blocks that call tools, instead of hallucinating inputs to other tools.
+* If you plan to use multiple tools or execute multiple code blocks, you must end your turn after each single executable code block and print ENDOFTURN to give chance for user to execute the code blocks and prevent you from hallucinating outputs and inputs further steps.
 """
 
     system_message_parts = [agent_code_writer_system_message,
@@ -860,7 +889,7 @@ def planning_prompt(query):
 # Rules:
 * You must not respond to the user question directly.
 * Do not write any code.  You must NOT execute any code.  Keep execution: false
-* Once you have finished the plan, you must end your response with <FINISHED_ALL_TASKS> immediately.
+* Once you have finished the plan, you must end your response immediately.
 * Finally, end your turn of the conversation without any additional discussion or code.
 """
 

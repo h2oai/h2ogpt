@@ -40,7 +40,7 @@ A = ParamSpec("A")
 
 from openai_server.autogen_streaming import iostream_generator
 from openai_server.backend_utils import convert_gen_kwargs
-from openai_server.agent_utils import in_pycharm, set_python_path
+from openai_server.agent_utils import in_pycharm, set_python_path, extract_agent_tool
 
 verbose = os.getenv('VERBOSE', '0').lower() == '1'
 
@@ -66,10 +66,20 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             execution_policies: Optional[Dict[str, bool]] = None,
             autogen_code_restrictions_level: int = 2,
             stream_output: bool = True,
+            agent_tools_usage_hard_limits: Dict[str, int] = {},
+            agent_tools_usage_soft_limits: Dict[str, int] = {},
+            max_stream_length: int = 4096,
+            max_memory_usage: Optional[int] = 16*1024**3,  # 16GB
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
         self.stream_output = stream_output
+        self.agent_tools_usage_hard_limits = agent_tools_usage_hard_limits
+        self.agent_tools_usage_soft_limits = agent_tools_usage_soft_limits
+        self.agent_tools_usage = {}
+        self.max_stream_length = max_stream_length
+        self.max_memory_usage = max_memory_usage
+        self.turns = 0  # for tracking
 
         self.filename_patterns: List[re.Pattern] = [
             re.compile(r"^<!--\s*filename:\s*([\w.-/]+)\s*-->$"),
@@ -329,7 +339,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     timeout=float(self._timeout), env=env,
                     print_func=iostream.print,
                     guard_func=functools.partial(H2OLocalCommandLineCodeExecutor.text_guardrail, any_fail=False),
-                    max_stream_length=4096,
+                    max_stream_length=self.max_stream_length,
+                    max_memory_usage=self.max_memory_usage,
                 )
                 iostream.print("\n\n**Completed execution of code block.**\n\nENDOFTURN\n")
             except subprocess.TimeoutExpired:
@@ -346,6 +357,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 break
 
         code_file = str(file_names[0]) if len(file_names) > 0 else None
+        self.turns += 1
         return CommandLineCodeResult(exit_code=exitcode, output=logs_all, code_file=code_file)
 
     @staticmethod
@@ -361,6 +373,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         return False
 
     def _execute_code_dont_check_setup(self, code_blocks: List[CodeBlock]) -> CommandLineCodeResult:
+        multiple_executable_code_detected = False
         try:
             # skip code blocks with # execution: false
             code_blocks_len0 = len(code_blocks)
@@ -375,6 +388,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 code_blocks_new.append(code_block_new)
             code_blocks = code_blocks_new
             code_blocks_exec = [x for x in code_blocks if x.execute]
+            # Executable code block limitation
+            if len(code_blocks_exec) > 1:
+                multiple_executable_code_detected = True
+                code_blocks_exec = code_blocks_exec[:1]
+
             code_blocks_no_exec = [x for x in code_blocks if not x.execute]
 
             # ensure no plots pop-up if in pycharm mode or outside docker
@@ -395,6 +413,8 @@ os.environ['TERM'] = 'dumb'
                 # merge back
                 code_blocks = code_blocks_exec + code_blocks_no_exec
 
+            # Update agent tool usage if there is any
+            self.update_agent_tool_usages(code_blocks_exec)
             ret = self.__execute_code_dont_check_setup(code_blocks)
 
             if ret.exit_code == -2 or len(code_blocks_exec) == 0 and code_blocks_len0 > 0:
@@ -424,20 +444,59 @@ os.environ['TERM'] = 'dumb'
                 ret = CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise
+        
+        # Truncate output if it is too long
         ret = self.truncate_output(ret)
-        ret = self.executed_code_note(ret)
+        # Add executed code note if needed
+        ret = self.executed_code_note(ret, multiple_executable_code_detected)
+        ret = self.agent_tool_usage_note(ret)
         return ret
 
-    @staticmethod
-    def executed_code_note(ret: CommandLineCodeResult) -> CommandLineCodeResult:
-        if ret.exit_code == 0:
-            ret.output += """
-<code_executed_notes>
-* You should use these output without thanking the user for them.
-* You should use these outputs without noting that the code was successfully executed.
-* You should use these outputs without referring directly to the output of the script or code.
+    def update_agent_tool_usages(self, code_blocks: List[CodeBlock]) -> None:
+        any_update = False
+        for code_block in code_blocks:
+            agent_tool = extract_agent_tool(code_block.code)
+            if agent_tool:
+                agent_tool = os.path.basename(agent_tool).replace('.py', '')
+                if agent_tool not in self.agent_tools_usage:
+                    any_update = True
+                    self.agent_tools_usage[agent_tool] = 1
+                else:
+                    any_update = True
+                    self.agent_tools_usage[agent_tool] += 1
+        if any_update:
+            print(f"Step {self.turns} has agent tool usage: {self.agent_tools_usage}")
 
+    @staticmethod
+    def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
+        if ret.exit_code == 0:
+            if multiple_executable_code_detected:
+                executable_code_limitation_warning = """
+* Code execution is limited to running one code block at a time, that's why only the first code block was executed.
+* You must have only one executable code block at a time in your message.
+"""
+            else:
+                executable_code_limitation_warning = ""
+            if executable_code_limitation_warning:
+                ret.output += f"""
+<code_executed_notes>
+{executable_code_limitation_warning}
 </code_executed_notes>
+"""
+        return ret
+
+    def agent_tool_usage_note(self, ret) -> CommandLineCodeResult:
+        for k, v in self.agent_tools_usage.items():
+            # could make hard limit strictly hard, but this should help for now
+            if k in self.agent_tools_usage_hard_limits and self.agent_tools_usage_hard_limits[k] < v:
+                ret.output += f"""\n<agent_tool_usage_note>
+Error: You have used the agent tool "{k}" more than {v} times in this conversation.  You MUST stop using it.
+</agent_tool_usage_note>
+"""
+            elif k in self.agent_tools_usage_soft_limits and self.agent_tools_usage_soft_limits[k] < v:
+                ret.output += f"""\n<agent_tool_usage_note>
+Warning: You have used the agent tool "{k}" more than {v} times in this conversation. Please use it judiciously.
+</agent_tool_usage_note>
 """
         return ret
 
@@ -622,7 +681,14 @@ class H2OConversableAgent(ConversableAgent):
             default_auto_reply: Union[str, Dict] = "",
             description: Optional[str] = None,
             chat_messages: Optional[Dict[Agent, List[Dict]]] = None,
+            # below only matter if code_execution_config is set
+            max_turns: Optional[int] = None,
+            initial_confidence_level: Optional[int] = 0,
     ):
+        self.max_turns = max_turns
+        self.turns = 0
+        self._confidence_level = initial_confidence_level
+
         code_execution_config = (
             code_execution_config.copy() if hasattr(code_execution_config, "copy") else code_execution_config
         )
@@ -763,7 +829,11 @@ class H2OConversableAgent(ConversableAgent):
     ) -> typing.Tuple[bool, Union[str, Dict, None]]:
         valid, extracted_response = super().generate_oai_reply(messages, sender, config)
         if isinstance(extracted_response, str) and 'ENDOFTURN' not in extracted_response:
-            extracted_response += '\n\nENDOFTURN\n'
+            delta = '\n\nENDOFTURN\n'
+            from autogen.io import IOStream
+            iostream = IOStream.get_default()
+            iostream.print(delta)
+            extracted_response += delta
         return (False, None) if extracted_response is None else (True, extracted_response)
 
     def _generate_code_execution_reply_using_executor(
@@ -774,7 +844,12 @@ class H2OConversableAgent(ConversableAgent):
     ):
         valid, output = self.__generate_code_execution_reply_using_executor(messages, sender, config)
         if output and 'ENDOFTURN' not in output:
-            output += '\n\nENDOFTURN\n'
+            delta = '\n\nENDOFTURN\n'
+            from autogen.io import IOStream
+            iostream = IOStream.get_default()
+            iostream.print(delta)
+            output += delta
+        self.turns += 1
         return valid, output
 
     def __generate_code_execution_reply_using_executor(
@@ -819,8 +894,20 @@ class H2OConversableAgent(ConversableAgent):
             if not message["content"]:
                 continue
             code_blocks = self._code_executor.code_extractor.extract_code_blocks(message["content"])
-            if len(code_blocks) == 0:
-                # force immediate termination regardless of what LLM generates
+            stop_on_termination = False
+            if (
+                len(code_blocks) == 0 or
+                    (stop_on_termination and "<FINISHED_ALL_TASKS>" in message["content"])
+                ):
+                if self._confidence_level == 0:
+                    self._confidence_level = 1
+                    return True, self.confidence_level_guidelines()
+                else:
+                    # force immediate termination regardless of what LLM generates
+                    self._is_termination_msg = lambda x: True
+                    return True, self.final_answer_guidelines()
+            if self.max_turns is not None and self.turns >= self.max_turns - 1:
+                # one before final allowed turn, force LLM to stop
                 self._is_termination_msg = lambda x: True
                 return True, self.final_answer_guidelines()
 
@@ -850,10 +937,28 @@ class H2OConversableAgent(ConversableAgent):
         return False, None
 
     @staticmethod
+    def confidence_level_guidelines() -> str:
+        return """
+<confidence_guidelines>
+
+* Give a step-by-step critique your entire response given the user's original query and any formatting constraints for constrained output.
+* If you have a very high confidence in the response and constrained output, then say so and stop the conversation.
+* However, if you do not have a very high confidence in the constrained output but do have high confidence in your response otherwise, fix the constrained output and stop the conversation.
+* However, if you do not have a very high confidence in the response to the user's original query, then you must provide an executable code that would help improve your response until you have very high confidence.
+* Place a final confidence level brief summary inside <confidence> </confidence> XML tags.
+
+</confidence_guidelines>
+
+"""
+
+    @staticmethod
     def final_answer_guidelines() -> str:
         return """
 You should terminate the chat with your final answer.
+
 <final_answer_guidelines>
+
+* Your answer should start by answering the user's first request.
 * You should give a well-structured and complete answer, insights gained, and recommendations suggested.
 * Don't mention things like 'user's initial query', 'I'm sharing this again', 'final request' or 'Thank you for running the code' etc., because that wouldn't sound like you are directly talking to the user about their query.
 * If no good answer was found, discuss the failures, give insights, and provide recommendations.
@@ -862,8 +967,9 @@ You should terminate the chat with your final answer.
 * If possible, use well-structured markdown as table of results or lists to make it more readable and easy to follow.
 * If you have given a <constrained_output> response, please repeat that.
 * You must give a very brief natural language title near the end of your response about your final answer and put that title inside <turn_title> </turn_title> XML tags.
-* Terminate the chat by having <FINISHED_ALL_TASKS> string in your final answer.
+
 </final_answer_guidelines>
+
 """
 
 
@@ -890,15 +996,12 @@ def terminate_message_func(msg):
     #        isinstance(msg.get('role'), str) and
     #        msg.get('role') == 'assistant' and
     has_message = isinstance(msg, dict) and isinstance(msg.get('content', ''), str)
-    has_term = has_message and "<FINISHED_ALL_TASKS>" in msg.get('content', '') or msg.get('content', '') == ''
     has_execute = has_message and '# execution: true' in msg.get('content', '')
     if has_execute:
         # sometimes model stops without verifying results if it dumped all steps in one turn
         # force it to continue
         return False
 
-    if has_term:
-        return True
     return False
 
 
@@ -926,7 +1029,12 @@ def get_code_executor(
         agent_system_site_packages,
         autogen_code_restrictions_level,
         agent_venv_dir,
-        temp_dir
+        temp_dir,
+        agent_tools_usage_hard_limits={},
+        agent_tools_usage_soft_limits={},
+        max_stream_length=4096,
+        # max memory per code execution process
+        max_memory_usage=16*1024**3,  # 16GB
 ):
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
@@ -959,6 +1067,10 @@ def get_code_executor(
             virtual_env_context=virtual_env_context,
             work_dir=temp_dir,  # Use the temporary directory to store the code files.
             autogen_code_restrictions_level=autogen_code_restrictions_level,
+            agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
+            agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
+            max_stream_length=max_stream_length,
+            max_memory_usage=max_memory_usage,
         )
     return executor
 

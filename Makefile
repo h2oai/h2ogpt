@@ -9,7 +9,7 @@ DEFAULT_MARKERS              ?= "not need_tokens and not need_gpu"
 
 # h2ogpt base and vllm images built elsewhere and referenced here:
 DOCKER_BASE_OS_IMAGE     := gcr.io/vorvan/h2oai/h2ogpt-oss-wolfi-base:9
-DOCKER_VLLM_IMAGE        := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.5.4-69cf4031
+DOCKER_VLLM_IMAGE        := gcr.io/vorvan/h2oai/h2ogpte-vllm:0.6.3.post1-38ed4ff2
 
 
 .PHONY: venv dist test publish docker_build docker_push build_info.txt

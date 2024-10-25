@@ -720,7 +720,7 @@ def go_gradio(**kwargs):
     if kwargs['model_lock']:
         have_vision_models = any(
             [is_vision_model(x.get('base_model', '')) or
-             x.get('display_name', kwargs['base_model']) in kwargs['is_vision_models'] for x in kwargs['model_lock']])
+             x.get('display_name', x.get('base_model')) in kwargs['is_vision_models'] for x in kwargs['model_lock']])
     else:
         have_vision_models = is_vision_model(kwargs['base_model']) or kwargs.get('display_name',
                                                                                  kwargs['base_model']) in kwargs[
@@ -1565,6 +1565,7 @@ def go_gradio(**kwargs):
                                                                          info="prompt to remind LLM to use json code when no schema",
                                                                          value=kwargs[
                                                                              'json_code2_post_prompt_reminder'])
+                            client_metadata = gr.Textbox(value='', visible=False)
 
                             def show_llava(x):
                                 return x
@@ -5841,11 +5842,6 @@ def go_gradio(**kwargs):
                 json_vllm = model_state3.get('json_vllm', False)
                 model_state3['strict_json_schema'] = get_supports_schema(inference_server, base_model,
                                                                          json_vllm=json_vllm, just_test=True)
-                if 'Pixtral' in base_model:
-                    # https://github.com/vllm-project/vllm/issues/8429
-                    model_state3['guided_vllm'] = False
-                    model_state3['strict_json_schema'] = False
-                    model_state3['json_vllm'] = False
             key_list = ['display_name', 'base_model', 'inference_server_type',
                         'strict_json_schema',
                         'prompt_type', 'prompt_dict', 'chat_template'] + list(

@@ -193,7 +193,8 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
                                   system_message_parts,
-                                  autogen_code_restrictions_level, autogen_silent_exchange):
+                                  autogen_code_restrictions_level, autogen_silent_exchange,
+                                  client_metadata=''):
     # DEBUG
     if agent_verbose:
         print("chat_result:", chat_result_planning)
@@ -210,13 +211,19 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     # ensure files are sorted by creation time so newest are last in list
     file_list.sort(key=lambda x: os.path.getctime(x), reverse=True)
 
+    # 10MB limit to avoid long conversions
+    file_size_bytes_limit = int(os.getenv('H2OGPT_AGENT_FILE_SIZE_LIMIT', 10 * 1024 * 1024))
+    file_list = [
+        f for f in file_list if os.path.getsize(f) <= file_size_bytes_limit
+    ]
+
     # Filter the list to include only files
     file_list = [f for f in file_list if os.path.isfile(f)]
     internal_file_names_norm_paths = [os.path.normpath(f) for f in internal_file_names]
     # filter out internal files for RAG case
     file_list = [f for f in file_list if os.path.normpath(f) not in internal_file_names_norm_paths]
-    if agent_verbose:
-        print("file_list:", file_list)
+    if agent_verbose or client_metadata:
+        print(f"FILE LIST: client_metadata: {client_metadata} file_list: {file_list}", flush=True)
 
     image_files, non_image_files = identify_image_files(file_list)
     # keep no more than 10 image files among latest files created
@@ -232,12 +239,15 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         os.makedirs(user_dir, exist_ok=True)
     file_ids = []
     for file in file_list:
+        file_stat = os.stat(file)
+        created_at_orig = int(file_stat.st_ctime)
+
         new_path = os.path.join(user_dir, os.path.basename(file))
         shutil.copy(file, new_path)
         with open(new_path, "rb") as f:
             content = f.read()
         purpose = 'assistants'
-        response_dict = run_upload_api(content, new_path, purpose, authorization)
+        response_dict = run_upload_api(content, new_path, purpose, authorization, created_at_orig=created_at_orig)
         file_id = response_dict['id']
         file_ids.append(file_id)
 
@@ -248,12 +258,16 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         if agent_verbose:
             print(f"Executor Stop time taken: {time.time() - t0:.2f} seconds.")
 
+    def cleanup_response(x):
+        return x.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '').strip()
+
     ret_dict = {}
     if file_list:
         ret_dict.update(dict(files=file_list))
     if file_ids:
         ret_dict.update(dict(file_ids=file_ids))
     if chat_result and hasattr(chat_result, 'chat_history'):
+        print(f"CHAT HISTORY: client_metadata: {client_metadata}: chat history: {len(chat_result.chat_history)}", flush=True)
         ret_dict.update(dict(chat_history=chat_result.chat_history))
     if chat_result and hasattr(chat_result, 'cost'):
         if hasattr(chat_result_planning, 'cost'):
@@ -265,27 +279,33 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
         ret_dict.update(dict(cost=chat_result.cost))
     if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
         print("Existing summary: %s" % chat_result.summary, file=sys.stderr)
-    else:
-        if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
-            summary = chat_result.chat_history[-1]['content']
-            if not summary and len(chat_result.chat_history) >= 2:
-                summary = chat_result.chat_history[-2]['content']
-            if summary:
-                print("Made summary from chat history: %s" % summary, file=sys.stderr)
-                chat_result.summary = summary
-            else:
-                print("Did NOT make and could not make summary", file=sys.stderr)
-                chat_result.summary = 'No summary or chat history available'
-        else:
-            print("Did NOT make any summary", file=sys.stderr)
-            chat_result.summary = 'No summary available'
-    if chat_result and hasattr(chat_result, 'summary') and chat_result.summary:
+
         if '<constrained_output>' in chat_result.summary and '</constrained_output>' in chat_result.summary:
             extracted_summary = extract_xml_tags(chat_result.summary, tags=['constrained_output'])['constrained_output']
             if extracted_summary:
                 chat_result.summary = extracted_summary
-        chat_result.summary = chat_result.summary.replace('ENDOFTURN', '').replace('<FINISHED_ALL_TASKS>', '')
+        chat_result.summary = cleanup_response(chat_result.summary)
+        # above may lead to no summary, we'll fix that below
+    elif chat_result:
+        chat_result.summary = ''
 
+    if chat_result and not chat_result.summary:
+        # construct alternative summary if none found or no-op one
+        if hasattr(chat_result, 'chat_history') and chat_result.chat_history:
+            summary = cleanup_response(chat_result.chat_history[-1]['content'])
+            if not summary and len(chat_result.chat_history) >= 3:
+                summary = cleanup_response(chat_result.chat_history[-3]['content'])
+            if summary:
+                print(f"Made summary from chat history: {summary} : {client_metadata}", file=sys.stderr)
+                chat_result.summary = summary
+            else:
+                print(f"Did NOT make and could not make summary {client_metadata}", file=sys.stderr)
+                chat_result.summary = 'No summary or chat history available'
+        else:
+            print(f"Did NOT make any summary {client_metadata}", file=sys.stderr)
+            chat_result.summary = 'No summary available'
+
+    if chat_result:
         if '![image](' not in chat_result.summary:
             latest_image_file = image_files[-1] if image_files else None
             if latest_image_file:
@@ -295,7 +315,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                 chat_result.summary = fix_markdown_image_paths(chat_result.summary)
             except:
                 print("Failed to fix markdown image paths", file=sys.stderr)
-
+    if chat_result:
         ret_dict.update(dict(summary=chat_result.summary))
     if agent_venv_dir is not None:
         ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
@@ -358,3 +378,23 @@ def is_binary_file(file_path, sample_size=1024):
 
     text_characters = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
     return bool(sample.translate(None, text_characters))
+
+
+def extract_agent_tool(input_string):
+    """
+    Extracts and returns the agent_tool filename from the input string.
+    Can be used to detect the agent_tool usages in chat history.
+    """
+    # FIXME: This missing if agent_tool is imported into python code, but usually that fails to work by LLM
+    # Regular expression pattern to match Python file paths
+    pattern = r'openai_server/agent_tools/([a-zA-Z_]+\.py)'
+
+    # Search for the pattern in the input string
+    match = re.search(pattern, input_string)
+
+    if match:
+        # Return the filename if found
+        return match.group(1)
+    else:
+        # Return None if no match is found
+        return None

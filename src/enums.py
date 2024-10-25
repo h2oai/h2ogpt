@@ -193,6 +193,9 @@ gpt_token_mapping = {
     "gpt-4o-2024-05-13": 128000,  # 4096 output
     "gpt-4o-2024-08-06": 128000,  # 4096 output
     "gpt-4o-mini": 128000,  # 16384 output
+    # leave room for reasoning tokens
+    "o1-preview": 128000,  # 4096 output
+    "o1-mini": 128000,  # 4096 output
 }
 model_token_mapping = gpt_token_mapping.copy()
 model_token_mapping.update({
@@ -218,6 +221,8 @@ anthropic_mapping = {
     "claude-instant-1.2": 100000,
     "claude-3-opus-20240229": 200000,
     "claude-3-sonnet-20240229": 200000,
+    "claude-3-5-sonnet-20241022": 200000,
+    "claude-3-5-sonnet-latest": 200000,
     "claude-3-5-sonnet-20240620": 200000,
     "claude-3-haiku-20240307": 200000,
 }
@@ -230,10 +235,14 @@ anthropic_mapping_outputs = {
     "claude-3-opus-20240229": 4096,
     "claude-3-sonnet-20240229": 4096,
     "claude-3-5-sonnet-20240620": 8192,
+    "claude-3-5-sonnet-20241022": 8192,
+    "claude-3-5-sonnet-latest": 8192,
     "claude-3-haiku-20240307": 4096,
 }
 
 anthropic_prompt_caching = ["claude-3-opus-20240229",
+                            "claude-3-5-sonnet-20241022",
+                            "claude-3-5-sonnet-latest",
                             "claude-3-5-sonnet-20240620",
                             "claude-3-haiku-20240307",
                             ]
@@ -293,6 +302,8 @@ images_num_max_dict = {'gpt-4-vision-preview': gpt4image_num_max,
                        'claude-3-opus-20240229': claude3image_num_max,
                        'claude-3-sonnet-20240229': claude3image_num_max,
                        'claude-3-5-sonnet-20240620': claude3image_num_max,
+                       'claude-3-5-sonnet-20241022': claude3image_num_max,
+                       'claude-3-5-sonnet-latest': claude3image_num_max,
                        'claude-3-haiku-20240307': claude3_haiku_image_num_max,
                        'liuhaotian/llava-v1.6-34b': 1,  # for lmdeploy
                        'liuhaotian/llava-v1.6-vicuna-13b': 1,  # for lmdeploy
@@ -390,6 +401,9 @@ model_token_mapping_outputs.update({"gpt-4-1106-preview": 4096,
                                     "gpt-4o-2024-08-06": 4096,
                                     "gpt-4o-mini": 16384,
                                     "gpt-4o-mini-2024-07-18": 16384,
+                                    # deduces expected reasoning tokens
+                                    "o1-preview": 32768 - 25000,
+                                    "o1-mini": 65536 - 25000,
                                     }
                                    )
 

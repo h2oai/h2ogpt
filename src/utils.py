@@ -1,10 +1,9 @@
 import ast
 import asyncio
-import base64
+import selectors
 import contextlib
 import functools
 import gc
-import getpass
 import hashlib
 import inspect
 import io
@@ -35,6 +34,7 @@ import filelock
 import fire
 import numpy as np
 import pandas as pd
+import psutil
 import requests
 import uuid
 import re
@@ -893,7 +893,7 @@ def get_url(x, from_str=False, short_name=False, font_size=2):
         return """<font size="%s"><a href="%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
             font_size, source, source_name)
     elif '<a href=' not in source:
-        return """<font size="%s"><a href="file/%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
+        return """<font size="%s"><a href="file:///%s" target="_blank"  rel="noopener noreferrer">%s</a></font>""" % (
             font_size, source, source_name)
     else:
         # already filled
@@ -1798,7 +1798,7 @@ def get_model_name(model_name, openai_client):
             print("Too few or too many models in list so do not know which to chose: given: %s list: %s" % (
                 model_name, model_names))
     except Exception as e:
-        print("Failed to get model name from OpenAI client, using default", e)
+        print(f"Failed to get model name from OpenAI client, using default {model_name}: {str(e)}")
     return model_name
 
 
@@ -2057,8 +2057,8 @@ def start_process(cmd):
 
 def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeout=None, capture_output=True,
                        text=True, print_tags=False, print_literal=True, print_func=print,
-                       guard_func=None,
-                       max_stream_length=4096):
+                       guard_func=None, sleep=0.05,
+                       max_stream_length=4096, max_memory_usage=16*1024**3):
     if script_content is None and cmd is None:
         raise ValueError("Either script_content or cmd must be provided")
 
@@ -2077,67 +2077,107 @@ def execute_cmd_stream(cmd=None, script_content=None, cwd=None, env=None, timeou
         popen_kwargs = {
             'cwd': cwd,
             'env': env,
+            'bufsize': 1,  # Line-buffered
+            'stdout': subprocess.PIPE,
+            'stderr': subprocess.PIPE,
+            'universal_newlines': text,
         }
 
-        if capture_output:
-            popen_kwargs['stdout'] = subprocess.PIPE
-            popen_kwargs['stderr'] = subprocess.PIPE
-
-        if text:
-            popen_kwargs['text'] = True
-            popen_kwargs['encoding'] = 'utf-8'
-        else:
-            popen_kwargs['text'] = False
-
         with subprocess.Popen(cmd, **popen_kwargs) as p:
-            start_time = time.time()
+            # Start psutil process to monitor memory usage
+            psutil_process = psutil.Process(p.pid)
+
+            sel = selectors.DefaultSelector()
+            sel.register(p.stdout, selectors.EVENT_READ)
+            sel.register(p.stderr, selectors.EVENT_READ)
+
             stdout_data = []
             stderr_data = []
 
-            if capture_output:
-                for out_line, err_line in read_popen_pipes(p):
-                    if out_line:
-                        # line-by-line code output check since streaming
-                        out_line = guard_func(out_line) if guard_func else out_line
-                        stdout_data.append(out_line)
-                        if length + len(out_line) <= max_stream_length:
-                            if print_tags:
-                                if out_line.strip():  # Only print if there's non-whitespace content
-                                    print_func(f"STDOUT: {out_line.strip()}")
-                            elif print_literal:
-                                print_func(out_line, end='')
-                            else:
-                                print_func(out_line)
-                        length += len(out_line)
-                    if err_line:
-                        # line-by-line code output check since streaming
-                        err_line = guard_func(err_line) if guard_func else err_line
-                        stderr_data.append(err_line)
-                        if length + len(err_line) <= max_stream_length:
-                            if print_tags:
-                                if err_line.strip():  # Only print if there's non-whitespace content
-                                    print_func(f"STDERR: {err_line.strip()}")
-                            elif print_literal:
-                                print_func(err_line, end='')
-                            else:
-                                print_func(err_line)
-                        length += len(err_line)
+            start_time = time.time()
 
-                    # Check for timeout
-                    if timeout and time.time() - start_time > timeout:
-                        p.terminate()
-                        raise subprocess.TimeoutExpired(cmd, timeout)
-            else:
-                p.wait(timeout=timeout)
+            while True:
+                if timeout and time.time() - start_time > timeout:
+                    p.terminate()
+                    raise subprocess.TimeoutExpired(cmd, timeout)
 
-            p.poll()
+                # Monitor memory usage for the main process and all its children
+                if max_memory_usage:
+                    measure_t0 = time.time()
+                    try:
+                        # Get memory usage of the main process and its children
+                        mem_info = psutil_process.memory_info().rss
+                        children = psutil_process.children(recursive=True)
+                        for child in children:
+                            mem_info += child.memory_info().rss
+                    except psutil.NoSuchProcess:
+                        mem_info = 0
+
+                    # Check if the total memory usage exceeds the limit
+                    if mem_info > max_memory_usage:
+                        try:
+                            p.terminate()
+                        except Exception as e:
+                            print(f"Error terminating process: {e}")
+                        try:
+                            p.kill()
+                        except Exception as e:
+                            print(f"Error killing process: {e}")
+                        error = f"Process and its children used memory {mem_info} that exceeded memory limit of {max_memory_usage} bytes detected in {time.time() - measure_t0}."
+                        stderr_data.append(error)
+                        print(f"OOM on cmd:\n\n{cmd}\n\n", flush=True, file=sys.stderr)
+
+                events = sel.select(timeout=1)
+                if not events and p.poll() is not None:
+                    break  # No more events and the process has exited
+
+                for key, _ in events:
+                    data = key.fileobj.readline()
+                    if not data:  # EOF
+                        sel.unregister(key.fileobj)
+                        continue
+
+                    if guard_func:
+                        data = guard_func(data)
+
+                    if key.fileobj is p.stdout:
+                        stdout_data.append(data)
+                        if length + len(data) <= max_stream_length:
+                            if print_tags:
+                                if data.strip():
+                                    print_func(f"STDOUT: {data.strip()}")
+                            elif print_literal:
+                                print_func(data, end='')
+                            else:
+                                print_func(data)
+                        length += len(data)
+                    elif key.fileobj is p.stderr:
+                        stderr_data.append(data)
+                        if length + len(data) <= max_stream_length:
+                            if print_tags:
+                                if data.strip():
+                                    print_func(f"STDERR: {data.strip()}")
+                            elif print_literal:
+                                print_func(data, end='')
+                            else:
+                                print_func(data)
+                        length += len(data)
+
+                if p.poll() is not None and not sel.get_map():
+                    break  # Process has exited and no more data to read
+
+                # sleep shouldn't be too long or else will get chunky streaming and not detect memory usage rapidly enough
+                # sleep shouldn't be too short or else will constantly be doing psutil stuff
+                time.sleep(sleep)
+
+            p.wait(timeout=timeout)
 
         # Prepare return object similar to subprocess.CompletedProcess
         return subprocess.CompletedProcess(
             args=cmd,
             returncode=p.returncode,
-            stdout=''.join(stdout_data) if text else b''.join(stdout_data) if capture_output else None,
-            stderr=''.join(stderr_data) if text else b''.join(stderr_data) if capture_output else None
+            stdout=''.join(stdout_data) if capture_output else None,
+            stderr=''.join(stderr_data) if capture_output else None
         )
 
     finally:

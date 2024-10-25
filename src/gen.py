@@ -541,6 +541,7 @@ def main(
 
         enable_heap_analytics: bool = True,
         heap_app_id: str = "1680123994",
+        client_metadata: str = '',
 
         cert_lookup_directory: str = "/etc/ssl/more-certs",
 ):
@@ -2019,6 +2020,7 @@ def main(
                             guided_choice,
                             guided_grammar,
                             guided_whitespace_pattern,
+                            client_metadata,
 
                             verbose,
                             )
@@ -2573,6 +2575,7 @@ def evaluate(
         guided_whitespace_pattern,
 
         model_lock,  # not really used by evaluate, just pure API
+        client_metadata,
 
         # END NOTE: Examples must have same order of parameters
         captions_model=None,
@@ -2675,6 +2678,8 @@ def evaluate(
 
         stream_map=None,
 ):
+    if client_metadata:
+        print(f"evaluate start client_metadata: {client_metadata}", flush=True)
     # ensure passed these
     assert concurrency_count is not None
     assert memory_restriction_level is not None
@@ -2778,6 +2783,8 @@ def evaluate(
         yield dict(response=response, sources=[], save_dict=save_dict, llm_answers=dict(response_raw=''),
                    response_no_refs="Generated image for %s" % instruction,
                    sources_str="", prompt_raw=instruction)
+        if client_metadata:
+            print(f"evaluate finish image client_metadata: {client_metadata}", flush=True)
         return
 
     no_model_msg = "Please choose a base model with --base_model (CLI) or load in Models Tab (gradio).\n" \
@@ -2908,6 +2915,7 @@ def evaluate(
     # Note: Could do below, but for now gradio way can control do_sample directly
     # elif temperature >= 0.01:
     #     do_sample = True
+
     max_input_tokens = int(max_input_tokens) if max_input_tokens is not None else -1
     max_total_input_tokens = int(max_total_input_tokens) if max_total_input_tokens is not None else -1
     # FIXME: https://github.com/h2oai/h2ogpt/issues/106
@@ -2971,6 +2979,10 @@ def evaluate(
     stream_output0 = stream_output
     if force_streaming_on_to_handle_timeouts:
         stream_output = gradio and num_beams == 1
+
+    # https://platform.openai.com/docs/guides/reasoning/beta-limitations
+    if base_model in ['o1-mini', 'o1-preview'] and os.getenv('O1STREAM', '0') == '0':
+        stream_output = False
 
     from gradio_utils.grclient import GradioClient
     from gradio_client import Client
@@ -3270,6 +3282,7 @@ def evaluate(
         prompt_basic = prompter.generate_prompt(data_point, context_from_history=False, image_file=image_file)
         prompt = prompt_basic
         num_prompt_tokens = 0
+        ntokens = None
         llm_answers = {}
         for r in run_qa_db(
                 inference_server=inference_server,
@@ -3416,6 +3429,7 @@ def evaluate(
                 guided_choice=guided_choice,
                 guided_grammar=guided_grammar,
                 guided_whitespace_pattern=guided_whitespace_pattern,
+                client_metadata=client_metadata,
 
                 json_vllm=json_vllm,
 
@@ -3432,6 +3446,7 @@ def evaluate(
                 response = get_json(response, json_schema_type=json_schema_type)
             sources = r['sources']
             num_prompt_tokens = r['num_prompt_tokens']
+            ntokens = r.get('ntokens')
             llm_answers = r['llm_answers']
             llm_answers['response_raw'] = response_raw
             response_no_refs = r['response_no_refs']
@@ -3445,6 +3460,7 @@ def evaluate(
                                # tokens_persecond computed in save_generate_output
                                sources_str=sources_str,
                                sources=sources,
+                               ntokens=ntokens,
                                ))
         save_dict.update(dict(prompt=prompt, output=response, where_from="run_qa_db", extra_dict=extra_dict))
         yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=llm_answers,
@@ -3459,8 +3475,12 @@ def evaluate(
             # so nothing to give to LLM), then slip through and ask LLM
             # Or if llama/gptj, then just return since they had no response and can't go down below code path
             # don't clear torch cache here, delays multi-generation, and bot(), all_bot(), and evaluate_nochat() do it
+            if client_metadata:
+                print(f"evaluate finish run_qa_db client_metadata: {client_metadata}", flush=True)
             return
 
+    if client_metadata:
+        print(f"evaluate middle non-langchain client_metadata: {client_metadata}", flush=True)
     # NOT LANGCHAIN PATH, raw LLM
     # restrict instruction + , typically what has large input
     prompt, \
@@ -3534,9 +3554,18 @@ def evaluate(
                                      n=num_return_sequences,
                                      presence_penalty=(repetition_penalty - 1.0) * 2.0 + 0.0,  # so good default
                                      )
+            if base_model in ['o1-mini', 'o1-preview']:
+                gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+                max_reasoning_tokens = int(os.getenv("MAX_REASONING_TOKENS", 25000))
+                gen_server_kwargs['max_completion_tokens'] = max_reasoning_tokens + max(100, gen_server_kwargs['max_completion_tokens'])
+                gen_server_kwargs['temperature'] = 1.0
+                gen_server_kwargs.pop('presence_penalty', None)
+                gen_server_kwargs.pop('n', None)
+                gen_server_kwargs.pop('frequency_penalty', None)
+                gen_server_kwargs.pop('top_p', None)
             try:
                 if inf_type in ['vllm', 'vllm_chat'] and chosen_model_state['json_vllm']:
-                    response_format_real = response_format if guided_json and response_format == 'json_object' else 'text'
+                    response_format_real = response_format if not (guided_json or guided_regex or guided_choice or guided_grammar) else 'text'
                     vllm_extra_dict = get_vllm_extra_dict(tokenizer, stop_sequences=stop_sequences,
                                                           response_format=response_format_real,
                                                           guided_json=guided_json,
@@ -3566,6 +3595,8 @@ def evaluate(
                     response_raw = ''
                     if not stream_output:
                         text = responses.choices[0].text
+                        if hasattr(responses, 'usage'):
+                            print(f"Usage by {base_model}: {responses.usage}")
                         response = prompter.get_response(prompt + text, prompt=prompt,
                                                          sanitize_bot_response=sanitize_bot_response)
                         if response_format in ['json_object', 'json_code']:
@@ -3929,6 +3960,7 @@ def evaluate(
                                          guided_whitespace_pattern=guided_whitespace_pattern,
 
                                          model_lock=None,  # already set
+                                         client_metadata=client_metadata,
                                          )
                     assert len(set(list(client_kwargs.keys())).symmetric_difference(eval_func_param_names)) == 0
                     api_name = '/submit_nochat_api'  # NOTE: like submit_nochat but stable API for string dict passing
@@ -4047,10 +4079,11 @@ def evaluate(
 
         # only return yield with save_dict and prompt_raw here to keep streaming light
         extra_dict.update(gen_server_kwargs)
+        ntokens = extra_dict.get('ntokens', None)
         extra_dict.update(dict(inference_server=inference_server,  # changes in some cases
                                num_prompt_tokens=num_prompt_tokens,
                                t_generate=time.time() - t_generate,
-                               ntokens=None,
+                               ntokens=ntokens,
                                prompt_type=prompt_type,
                                tokens_persecond=None,
                                ))
@@ -4058,6 +4091,8 @@ def evaluate(
         # if not streaming, only place yield should be done
         yield dict(response=response, sources=sources, save_dict=save_dict, llm_answers=dict(response_raw=response_raw),
                    response_no_refs=response, sources_str='', prompt_raw=prompt)
+        if client_metadata:
+            print(f"evaluate finish inference server client_metadata: {client_metadata}", flush=True)
         return
     else:
         assert not inference_server, "inference_server=%s not supported" % inference_server
@@ -4294,6 +4329,8 @@ def evaluate(
             if verbose:
                 print('Post-Generate: %s decoded_output: %s' % (
                     str(datetime.now()), len(decoded_output) if decoded_output else -1), flush=True)
+    if client_metadata:
+        print(f"evaluate HF finish client_metadata: {client_metadata}", flush=True)
 
 
 inputs_list_names = list(inspect.signature(evaluate).parameters)
@@ -4514,6 +4551,7 @@ def get_generate_params(model_lower,
                         guided_choice,
                         guided_grammar,
                         guided_whitespace_pattern,
+                        client_metadata,
 
                         verbose,
                         ):
@@ -4764,8 +4802,8 @@ y = np.random.randint(0, 1, 100)
                     guided_choice,
                     guided_grammar,
                     guided_whitespace_pattern,
-
                     None,  # model_lock, only client, don't need default value
+                    client_metadata,
                     ]
         # adjust examples if non-chat mode
         if not chat:

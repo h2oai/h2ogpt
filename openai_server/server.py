@@ -31,7 +31,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 sys.path.append('openai_server')
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s: %(message)s')
 
 # https://github.com/h2oai/h2ogpt/issues/1132
 # https://github.com/jquesnelle/transformers-openai-api
@@ -147,6 +147,7 @@ class H2oGPTParams(BaseModel):
     video_file: Union[str, list] | None = None
 
     model_lock: dict | None = None
+    client_metadata: str | None = ''
 
     response_format: Optional[ResponseFormat] = Field(
         default=None,
@@ -193,6 +194,7 @@ class AgentParams(BaseModel):
     autogen_code_restrictions_level: int = 2
     autogen_silent_exchange: bool = True
     agent_type: str | None = 'auto'
+    agent_accuracy: str | None = 'normal'
 
 
 class Params(H2oGPTParams, AgentParams):
@@ -604,7 +606,10 @@ async def openai_chat_completions(request: Request,
     request_data_dict['authorization'] = authorization
 
     str_uuid = str(uuid.uuid4())
-    logging.info(f"Chat Completions request {str_uuid}: {len(request_data_dict)} items")
+    if 'client_metadata' in request_data_dict:
+        logging.info(f"Chat Completions request {str_uuid}: {len(request_data_dict)} items client_metadata: {request_data_dict['client_metadata']}")
+    else:
+        logging.info(f"Chat Completions request {str_uuid}: {len(request_data_dict)} items")
 
     # don't allow tool use with guided_json for now
     if request_data_dict['guided_json'] and request_data_dict.get('tools'):
@@ -650,9 +655,13 @@ async def openai_chat_completions(request: Request,
             try:
                 async for resp1 in astream_chat_completions(request_data_dict, stream_output=True):
                     if await request.is_disconnected():
+                        if 'client_metadata' in request_data_dict:
+                            logging.info(f"Chat Completions disconnected {str_uuid}: client_metadata: {request_data_dict['client_metadata']}")
                         return
 
                     yield {"data": json.dumps(resp1)}
+                if 'client_metadata' in request_data_dict:
+                    logging.info(f"Chat Completions streaming finished {str_uuid}: client_metadata: {request_data_dict['client_metadata']}")
             except Exception as e1:
                 print(traceback.format_exc())
                 # Instead of raising an HTTPException, we'll yield a special error message
@@ -665,6 +674,8 @@ async def openai_chat_completions(request: Request,
                     }
                 }
                 print(error_response)
+                if 'client_metadata' in request_data_dict:
+                    logging.info(f"Chat Completions error {str_uuid}: client_metadata: {request_data_dict['client_metadata']}: {error_response}")
                 yield {"data": json.dumps(error_response)}
                 # After yielding the error, we'll close the connection
                 return
@@ -680,6 +691,8 @@ async def openai_chat_completions(request: Request,
                 if await request.is_disconnected():
                     return
                 response = resp
+            if 'client_metadata' in request_data_dict:
+                logging.info(f"Chat Completions non-streaming finished {str_uuid}: client_metadata: {request_data_dict['client_metadata']}")
             return JSONResponse(response)
         except Exception as e:
             traceback.print_exc()
@@ -1097,8 +1110,8 @@ async def list_files(request: Request, authorization: str = Header(None)):
                 FileData(
                     id=file_id,
                     object="file",
-                    bytes=file_stat.st_size,
-                    created_at=int(file_stat.st_ctime),
+                    bytes=meta.get('bytes', file_stat.st_size),
+                    created_at=meta.get('created_at', int(file_stat.st_ctime)),
                     filename=meta.get('filename', file_id),
                     purpose=meta.get('purpose', "unknown"),
                 )
@@ -1126,14 +1139,21 @@ async def retrieve_file(request: Request, file_id: str, authorization: str = Hea
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
 
+    file_path_meta = os.path.join(user_dir, file_id + meta_ext)
+    if os.path.isfile(file_path_meta):
+        with open(file_path_meta, "rt") as f:
+            meta = json.loads(f.read())
+    else:
+        meta = {}
+
     file_stat = os.stat(file_path)
     response = RetrieveFileResponse(
         id=file_id,
         object="file",
-        bytes=file_stat.st_size,
-        created_at=int(file_stat.st_ctime),
-        filename=file_id,  # Assuming the file_id is the filename, adjust if necessary
-        purpose="unknown"  # Adjust if you have the actual purpose stored somewhere
+        bytes=meta.get('bytes', file_stat.st_size),
+        created_at=meta.get('created_at', int(file_stat.st_ctime)),
+        filename=meta.get('filename', file_id),
+        purpose=meta.get('purpose', "unknown"),
     )
 
     return response

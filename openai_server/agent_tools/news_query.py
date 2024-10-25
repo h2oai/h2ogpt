@@ -137,6 +137,8 @@ def main():
     except requests.RequestException as e:
         print(f"An error occurred while fetching news: {e}")
 
+    print("""Remember to not only use these news snippets, but also use ask_question_about_documents.py to ask questions about URLs or documents, ask_question_about_image.py to ask questions about images, or download_web_video.py to download videos, etc.""")
+
 
 if __name__ == "__main__":
     main()

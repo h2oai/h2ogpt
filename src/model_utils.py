@@ -413,7 +413,7 @@ def get_client_from_inference_server(inference_server, base_model=None,
         print("HF Client End: %s %s : %s" % (inference_server, base_model, res))
     if validate_clients and fail_if_invalid_client:
         assert hf_client is not None or gr_client is not None, "Failed to create Gradio or HF client for %s %s" % (
-        inference_server, base_model)
+            inference_server, base_model)
     return inference_server, gr_client, hf_client
 
 
@@ -783,6 +783,15 @@ def get_model(
             model = dict(client=client, async_client=async_client, inf_type=inf_type, deployment_type=deployment_type,
                          base_url=base_url, api_version=api_version, api_key=api_key)
         if validate_clients:
+            gen_server_kwargs = dict(temperature=0.0,
+                                     max_tokens=10
+                                     )
+            if base_model in ['o1-mini', 'o1-preview']:
+                gen_server_kwargs['max_completion_tokens'] = gen_server_kwargs.pop('max_tokens')
+                max_reasoning_tokens = int(os.getenv("MAX_REASONING_TOKENS", 25000))
+                gen_server_kwargs['max_completion_tokens'] = max_reasoning_tokens + max(100, gen_server_kwargs['max_completion_tokens'])
+                gen_server_kwargs['temperature'] = 1.0
+
             if inf_type in ['vllm_chat', 'openai_chat', 'openai_azure_chat']:
                 model_name = get_model_name(base_model, client)
                 messages = [
@@ -791,14 +800,16 @@ def get_model(
                         "content": "Who are you?"
                     }
                 ]
+
                 try:
                     responses = client.chat.completions.create(
                         model=model_name,
                         messages=messages,
-                        temperature=0.0,
-                        max_tokens=10,
+                        **gen_server_kwargs,
                         timeout=20,
                     )
+                    if hasattr(responses, 'usage'):
+                        print(f"Usage by {model_name}: {responses.usage}")
                     has_response = len(responses.choices[0].message.content) > 0
                 except Exception as e:
                     print("Failed to get %s response: %s" % (model_name, str(e)))
@@ -815,8 +826,7 @@ def get_model(
                     responses = client.completions.create(
                         model=model_name,
                         prompt="Who are you?",
-                        temperature=0.0,
-                        max_tokens=10,
+                        **gen_server_kwargs,
                         timeout=20,
                     )
                     has_response = len(responses.choices[0].text) > 0
@@ -964,6 +974,9 @@ def get_model(
                 if max_seq_len is None:
                     max_seq_len = model_token_mapping[base_model]
             else:
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                        base_model, inference_server)
                 print("Using unknown (or proxy) OpenAI model: %s for inference_server=%s" % (
                     base_model, inference_server))
             if base_model in model_token_mapping_outputs:
@@ -972,7 +985,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
-                else:
+                if max_output_seq_len is None:
                     max_output_seq_len = 8192  # estimate
                 max_output_len = max_output_seq_len
         if inference_server.startswith('anthropic') or base_model in anthropic_gpts:
@@ -984,7 +997,12 @@ def get_model(
                 if max_seq_len is None:
                     max_seq_len = anthropic_mapping[base_model]
             else:
-                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                        base_model, inference_server)
+                if max_seq_len is None:
+                    print("Estimating max_seq_len=200000")
+                    max_seq_len = 200000
             if base_model in anthropic_mapping_outputs:
                 if max_output_len is None:
                     max_output_len = anthropic_mapping_outputs[base_model]
@@ -1003,14 +1021,19 @@ def get_model(
                 if max_seq_len is None:
                     max_seq_len = google_mapping[base_model]
             else:
-                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                        base_model, inference_server)
+                if max_seq_len is None:
+                    print("Estimating max_seq_len=1000000")
+                    max_seq_len = 1000000
             if base_model in google_mapping_outputs:
                 if max_output_len is None:
                     max_output_len = google_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
-                else:
+                if max_output_seq_len is None:
                     max_output_seq_len = 8192  # estimate
                 max_output_len = max_output_seq_len
 
@@ -1028,14 +1051,19 @@ def get_model(
                 if max_seq_len is None:
                     max_seq_len = mistralai_mapping[base_model]
             else:
-                raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
+                if os.getenv('HARD_ASSERTS'):
+                    assert max_seq_len is not None, "Must set max_seq_len for invalid base_model=%s for inference_server=%s" % (
+                        base_model, inference_server)
+                if max_seq_len is None:
+                    print("Estimating max_seq_len=1000000")
+                    max_seq_len = 32768
             if base_model in mistralai_mapping_outputs:
                 if max_output_len is None:
                     max_output_len = mistralai_mapping_outputs[base_model]
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
-                else:
+                if max_output_seq_len is None:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
@@ -1072,7 +1100,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     raise ValueError("Invalid base_model=%s for inference_server=%s" % (base_model, inference_server))
-                elif max_seq_len is None:
+                if max_seq_len is None:
                     max_seq_len = 8192  # estimate
             if base_model in groq_mapping_outputs:
                 if max_output_len is None:
@@ -1080,7 +1108,7 @@ def get_model(
             else:
                 if os.getenv('HARD_ASSERTS'):
                     assert max_output_seq_len is not None, "Must set max_output_seq_len"
-                elif max_output_seq_len is None:
+                if max_output_seq_len is None:
                     max_output_seq_len = 31768  # estimate
                 max_output_len = max_output_seq_len
 
@@ -1783,6 +1811,11 @@ def __model_lock_to_state(model_dict1, **kwargs):
     model_state_trial['guided_vllm'] = model_state_trial['json_vllm']
     if model_state_trial['is_actually_vision_model'] is None:
         model_state_trial['is_actually_vision_model'] = is_vision_model(model_state_trial['base_model'])
+
+    if 'Pixtral' in model_state_trial['base_model']:
+        # https://github.com/vllm-project/vllm/issues/8429
+        model_state_trial['guided_vllm'] = False
+        model_state_trial['json_vllm'] = False
 
     # get which visible vision model for this base model
     model_visible_vision_models = model_state_trial.get('visible_vision_models')
