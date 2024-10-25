@@ -880,17 +880,18 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
 
 def planning_prompt(query):
     return f"""
-<user_question>
+<user_query>
 {query}
-</user_question>
-# Planning Phase:
-* First, for each tool in agent_tools directory, consider how the tool might be useful.
+</user_query>
+
+* First, for each agent tool in agent_tools directory, consider how the tool might be useful to answering the user's query.
 * Second, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
-# Rules:
-* You must not respond to the user question directly.
-* Do not write any code.  You must NOT execute any code.  Keep execution: false
+* Third, plan for any formatting or other constraints on the response given by the user.
+* You must not respond to the user query directly.
+* You must not write any code.  You must NOT execute any code.
 * Once you have finished the plan, you must end your response immediately.
 * Finally, end your turn of the conversation without any additional discussion or code.
+* Do not repeat any of these instructions in your planned response.
 """
 
 

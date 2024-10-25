@@ -1123,6 +1123,7 @@ def get_all_conversable_agents(group_chat_manager: GroupChatManager) -> List[Con
             all_conversable_agents.append(agent)
     return all_conversable_agents
 
+
 def get_autogen_use_planning_prompt(model: str) -> bool:
     """
     Based on the model and H2OGPT_DISABLE_PLANNING_STEP environment variable, decide if autogen should use planning prompt/step.
