@@ -68,3 +68,28 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Configs for agents server
+*/}}
+
+{{- define "agents.overrideConfig" -}}
+agent_server: True
+agent_port: "5004"
+{{- end }}
+
+{{/*
+Configs for agents with h2ogpt
+*/}}
+
+{{- define "h2ogpt.overrideConfig" -}}
+{{- if .Values.h2ogpt.agents.enabled }}
+agent_server: True
+agent_port: "5004"
+multiple_workers_gunicorn: True
+agent_workers: {{ .Values.h2ogpt.agents.agent_workers}}
+{{- else }}
+agents_server: False
+{{- end }}
+
+{{- end }}

@@ -1,47 +1,47 @@
-{{- if .Values.h2ogpt.enabled }}
+{{- if .Values.agents.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}
+  name: {{ include "h2ogpt.fullname" . }}-agents
   namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
-    app: {{ include "h2ogpt.fullname" . }}
+    app: {{ include "h2ogpt.fullname" . }}-agents
 spec:
-  {{- if not .Values.h2ogpt.autoscaling.enabled }}
-  replicas: {{ .Values.h2ogpt.replicaCount }}
+  {{- if not .Values.agents.autoscaling.enabled }}
+  replicas: {{ .Values.agents.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      app: {{ include "h2ogpt.fullname" . }}
-  {{- if .Values.h2ogpt.updateStrategy }}
-  strategy: {{- toYaml .Values.h2ogpt.updateStrategy | nindent 4 }}
+      app: {{ include "h2ogpt.fullname" . }}-agents
+  {{- if .Values.agents.updateStrategy }}
+  strategy: {{- toYaml .Values.agents.updateStrategy | nindent 4 }}
   {{- end }}
   template:
     metadata:
-      {{- with .Values.h2ogpt.podAnnotations }}
+      {{- with .Values.agents.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ include "h2ogpt.fullname" . }}
-        {{- with .Values.h2ogpt.podLabels }}
+        app: {{ include "h2ogpt.fullname" . }}-agents
+        {{- with .Values.agents.podLabels }}
         {{ toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- with .Values.h2ogpt.nodeSelector }}
+      {{- with .Values.agents.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.h2ogpt.tolerations }}
+      {{- with .Values.agents.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        {{- toYaml .Values.h2ogpt.podSecurityContext | nindent 8 }}
+        {{- toYaml .Values.agents.podSecurityContext | nindent 8 }}
       affinity:
-        {{- if .Values.h2ogpt.podAffinity }}
+        {{- if .Values.agents.podAffinity }}
         podAntiAffinity:
-          {{- if .Values.h2ogpt.podAffinity.hostname }}
+          {{- if .Values.agents.podAffinity.hostname }}
           requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
                 matchExpressions:
@@ -51,7 +51,7 @@ spec:
                       - {{ include "h2ogpt.fullname" . }}
               topologyKey: kubernetes.io/hostname
           {{- end }}
-          {{- if .Values.h2ogpt.podAffinity.zone }}
+          {{- if .Values.agents.podAffinity.zone }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
@@ -64,15 +64,15 @@ spec:
                 topologyKey: failure-domain.beta.kubernetes.io/zone
           {{- end }}
         {{- end }}
-      {{- with .Values.h2ogpt.extraAffinity }}
+      {{- with .Values.agents.extraAffinity }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.h2ogpt.imagePullSecrets }}
+      {{- with .Values.agents.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        {{- if .Values.h2ogpt.stack.enabled }}
+        {{- if .Values.agents.stack.enabled }}
         - name: {{ include "h2ogpt.fullname" . }}-vllm-inference
           securityContext:
             {{- toYaml .Values.vllm.securityContext | nindent 12 }}
@@ -131,13 +131,13 @@ spec:
               mountPath: /dev/shm
               subPath: shm
           {{- end }}
-        - name: {{ include "h2ogpt.fullname" . }}
+        - name: {{ include "h2ogpt.fullname" . }}-agents
           securityContext:
-            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
-          image: "{{ .Values.h2ogpt.image.repository }}:{{ .Values.h2ogpt.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.h2ogpt.image.pullPolicy }}
+            {{- toYaml .Values.agents.securityContext | nindent 12 }}
+          image: "{{ .Values.agents.image.repository }}:{{ .Values.agents.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.agents.image.pullPolicy }}
           command: ["/bin/bash", "-c"]
-          {{- if .Values.h2ogpt.stack.enabled }}
+          {{- if .Values.agents.stack.enabled }}
           args:
             - >
               while [[ "$(curl --insecure -s -o /dev/null -w ''%{http_code}''
@@ -148,7 +148,7 @@ spec:
 
               python3 /workspace/generate.py
           {{- end }}
-          {{- if not .Values.h2ogpt.stack.enabled }}
+          {{- if not .Values.agents.stack.enabled }}
           {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.modelLock) }}
           args:
             - >
@@ -182,67 +182,55 @@ spec:
 
               python3 /workspace/generate.py
           {{- end }}
-          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled .Values.lmdeploy.enabled)) }}
+          {{- if and .Values.agents.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled .Values.lmdeploy.enabled)) }}
           args:
             - >
               python3 /workspace/generate.py
           {{- end }}
           {{- end }}
           ports:
-            - name: http
-              containerPort: 7860
-              protocol: TCP
-            - name: gpt
-              containerPort: 8888
-              protocol: TCP
-            - name: openai
-              containerPort: 5000
-              protocol: TCP
-            - name: function
-              containerPort: 5002
-              protocol: TCP
             - name: agent
               containerPort: 5004
               protocol: TCP
-          {{- if .Values.h2ogpt.livenessProbe }}
+          {{- if .Values.agents.livenessProbe }}
           livenessProbe:
             httpGet:
               path:  /
               scheme: HTTP
               port: http
-            {{- toYaml .Values.h2ogpt.livenessProbe | nindent 12 }}
+            {{- toYaml .Values.agents.livenessProbe | nindent 12 }}
           {{- end }}
-          {{- if .Values.h2ogpt.readinessProbe }}
+          {{- if .Values.agents.readinessProbe }}
           readinessProbe:
             httpGet:
               path:  /
               scheme: HTTP
               port: http
-            {{- toYaml .Values.h2ogpt.readinessProbe | nindent 12 }}
+            {{- toYaml .Values.agents.readinessProbe | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml .Values.h2ogpt.resources | nindent 12 }}
+            {{- toYaml .Values.agents.resources | nindent 12 }}
           envFrom:
             - configMapRef:
-                name: {{ include "h2ogpt.fullname" . }}-config
+                name: {{ include "h2ogpt.fullname" . }}-agents-config
           env:
-          {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+          {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.enabled) (not .Values.agents.stack.enabled ) }}
             - name: h2ogpt_inference_server
               value: "http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}"
           {{- end }}
-          {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+          {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.enabled) (not .Values.agents.stack.enabled ) }}
             - name: h2ogpt_inference_server
               value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
           {{- end }}
-          {{- if and .Values.lmdeploy.enabled (not .Values.global.externalLLM.enabled) (not .Values.h2ogpt.stack.enabled ) }}
+          {{- if and .Values.lmdeploy.enabled (not .Values.global.externalLLM.enabled) (not .Values.agents.stack.enabled ) }}
             - name: h2ogpt_inference_server
               value: "http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}"
           {{- end }}
-          {{- if and .Values.h2ogpt.stack.enabled (not .Values.global.externalLLM.enabled)  }}
+          {{- if and .Values.agents.stack.enabled (not .Values.global.externalLLM.enabled)  }}
             - name: h2ogpt_inference_server
               value: "vllm:localhost:5000"
           {{- end }}
-          {{- range $key, $value := .Values.h2ogpt.env }}
+          {{- range $key, $value := .Values.agents.env }}
             - name: "{{ $key }}"
               value: "{{ $value }}"
           {{- end }}
@@ -285,7 +273,7 @@ spec:
               value: {{ .Values.global.visionModels.rotateAlignResizeImage | quote }}
           {{- end }}
           volumeMounts:
-            - name: {{ include "h2ogpt.fullname" . }}-volume
+            - name: {{ include "h2ogpt.fullname" . }}-agents-volume
               mountPath: /workspace/.cache
               subPath: cache
             - name: {{ include "h2ogpt.fullname" . }}-volume
@@ -296,12 +284,12 @@ spec:
               mountPath: /etc/ssl/certs/root-ca-bundle.crt
               subPath: root-ca-bundle.crt
             {{- end }}
-            {{ with .Values.h2ogpt.extraVolumeMounts }}
+            {{ with .Values.agents.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
       volumes:
-        - name: {{ include "h2ogpt.fullname" . }}-volume
-          {{- if not .Values.h2ogpt.storage.useEphemeral }}
+        - name: {{ include "h2ogpt.fullname" . }}-agents-volume
+          {{- if not .Values.agents.storage.useEphemeral }}
           persistentVolumeClaim:
             claimName:  {{ include "h2ogpt.fullname" . }}-volume
           {{- else}}
@@ -312,10 +300,10 @@ spec:
                   - ReadWriteOnce
                 resources:
                   requests:
-                    storage: {{ .Values.h2ogpt.storage.size | quote }}
-                storageClassName: {{ .Values.h2ogpt.storage.class }}
+                    storage: {{ .Values.agents.storage.size | quote }}
+                storageClassName: {{ .Values.agents.storage.class }}
           {{- end }}
-        {{- if .Values.h2ogpt.stack.enabled }}
+        {{- if .Values.agents.stack.enabled }}
         - name: {{ include "h2ogpt.fullname" . }}-vllm-inference-volume
           {{- if not .Values.vllm.storage.useEphemeral }}
           persistentVolumeClaim:
@@ -337,22 +325,22 @@ spec:
           configMap:
             name: {{ include "h2ogpt.fullname" . }}-ca-certificates
         {{- end }}
-        {{- with .Values.h2ogpt.extraVolumes }}
+        {{- with .Values.agents.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
 {{- end }}
 ---
-{{- if and (.Values.h2ogpt.enabled) (not .Values.h2ogpt.storage.useEphemeral) }}
+{{- if and (.Values.agents.enabled) (not .Values.agents.storage.useEphemeral) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}-volume
+  name: {{ include "h2ogpt.fullname" . }}-agents-volume
   namespace: {{ include "h2ogpt.namespace" . | quote }}
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: {{ .Values.h2ogpt.storage.class }}
+  storageClassName: {{ .Values.agents.storage.class }}
   resources:
     requests:
-      storage: {{ .Values.h2ogpt.storage.size | quote }}
+      storage: {{ .Values.agents.storage.size | quote }}
 {{- end }}

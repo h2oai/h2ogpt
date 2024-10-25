@@ -1,16 +1,16 @@
-{{- if .Values.h2ogpt.enabled }}
+{{- if .Values.agents.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "h2ogpt.fullname" . }}-config
+  name: {{ include "h2ogpt.fullname" . }}-agents-config
   namespace: {{ include "h2ogpt.namespace" . | quote }}
   labels:
     {{- include "h2ogpt.labels" . | nindent 4 }}
 data:
-{{- range $key, $value := ( include "h2ogpt.overrideConfig" . | fromYaml ) }}
+{{- range $key, $value := ( include "agents.overrideConfig" . | fromYaml ) }}
   {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
 {{- end }}
-{{- range $key, $value := .Values.h2ogpt.overrideConfig }}
+{{- range $key, $value := .Values.agents.overrideConfig }}
   {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
 {{- end }}
 {{- end }}

@@ -12,3 +12,6 @@
     {{- fail "If h2oGPT stack is enabled, both vLLM and h2oGPT should be enabled" }}
   {{- end }}
 {{- end }}
+{{- if and ( and .Values.h2ogpt.enabled .Values.h2ogpt.agents.enabled) .Values.agents.enabled }}
+  {{- fail "Agents in both h2oGPT and agents cannot be enabled." }}
+{{- end }}
