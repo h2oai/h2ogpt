@@ -79,6 +79,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         self.agent_tools_usage = {}
         self.max_stream_length = max_stream_length
         self.max_memory_usage = max_memory_usage
+        self.turns = 0  # for tracking
 
         self.filename_patterns: List[re.Pattern] = [
             re.compile(r"^<!--\s*filename:\s*([\w.-/]+)\s*-->$"),
@@ -356,6 +357,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 break
 
         code_file = str(file_names[0]) if len(file_names) > 0 else None
+        self.turns += 1
         return CommandLineCodeResult(exit_code=exitcode, output=logs_all, code_file=code_file)
 
     @staticmethod
@@ -459,6 +461,7 @@ os.environ['TERM'] = 'dumb'
                     self.agent_tools_usage[agent_tool] = 1
                 else:
                     self.agent_tools_usage[agent_tool] += 1
+        print(f"Step {self.turns} has agent tool usage: {self.agent_tools_usage}")
 
     @staticmethod
     def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
