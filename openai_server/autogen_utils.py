@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import typing
@@ -69,7 +70,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             agent_tools_usage_hard_limits: Dict[str, int] = {},
             agent_tools_usage_soft_limits: Dict[str, int] = {},
             max_stream_length: int = 4096,
-            max_memory_usage: Optional[int] = 16*1024**3,  # 16GB
+            max_memory_usage: Optional[int] = 16 * 1024 ** 3,  # 16GB
     ):
         super().__init__(timeout, virtual_env_context, work_dir, functions, functions_module, execution_policies)
         self.autogen_code_restrictions_level = autogen_code_restrictions_level
@@ -294,6 +295,21 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             try:
                 # Check if there is a filename comment
                 filename = self._get_file_name_from_content(code, self._work_dir)
+                # override filename and lang if tool use is detected
+                cwd = os.path.abspath(os.getcwd())
+                if code_block.execute and \
+                        f'python {cwd}/openai_server/agent_tools/' in code and \
+                        filename.endswith('.py'):
+                    # switch back to shell if was wrongly .py extension
+                    lang = 'shell'
+                    new_filename = filename.replace('.py', '.sh')
+                    shutil.move(filename, new_filename)
+                    filename = new_filename
+                # override lang if filename is detected, less error-prone than using code block lang
+                elif filename.endswith('.sh'):
+                    lang = 'shell'
+                elif filename.endswith('.py'):
+                    lang = 'python'
             except ValueError:
                 return CommandLineCodeResult(exit_code=1, output="Filename is not in the workspace")
 
@@ -444,7 +460,7 @@ os.environ['TERM'] = 'dumb'
                 ret = CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise
-        
+
         # Truncate output if it is too long
         ret = self.truncate_output(ret)
         # Add executed code note if needed
@@ -468,7 +484,8 @@ os.environ['TERM'] = 'dumb'
             print(f"Step {self.turns} has agent tool usage: {self.agent_tools_usage}")
 
     @staticmethod
-    def executed_code_note(ret: CommandLineCodeResult, multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
+    def executed_code_note(ret: CommandLineCodeResult,
+                           multiple_executable_code_detected: bool = False) -> CommandLineCodeResult:
         if ret.exit_code == 0:
             if multiple_executable_code_detected:
                 executable_code_limitation_warning = """
@@ -577,7 +594,7 @@ Warning: You have used the agent tool "{k}" more than {v} times in this conversa
 
                         # Use the compiled regex to replace all api_key_values at once
                         line = regex.sub('', line)
-                        #for api_key_value in api_key_values:
+                        # for api_key_value in api_key_values:
                         #    line = line.replace(api_key_value, '')
                         lines.append(line)
                     else:
@@ -896,9 +913,9 @@ class H2OConversableAgent(ConversableAgent):
             code_blocks = self._code_executor.code_extractor.extract_code_blocks(message["content"])
             stop_on_termination = False
             if (
-                len(code_blocks) == 0 or
+                    len(code_blocks) == 0 or
                     (stop_on_termination and "<FINISHED_ALL_TASKS>" in message["content"])
-                ):
+            ):
                 if self._confidence_level == 0:
                     self._confidence_level = 1
                     return True, self.confidence_level_guidelines()
@@ -945,6 +962,7 @@ class H2OConversableAgent(ConversableAgent):
 * If you have a very high confidence in the response and constrained output, then say so and stop the conversation.
 * However, if you do not have a very high confidence in the constrained output but do have high confidence in your response otherwise, fix the constrained output and stop the conversation.
 * However, if you do not have a very high confidence in the response to the user's original query, then you must provide an executable code that would help improve your response until you have very high confidence.
+* For any constrained output, be sure to follow the original user query for any formatting or content constraints.
 * Place a final confidence level brief summary inside <confidence> </confidence> XML tags.
 
 </confidence_guidelines>
@@ -1034,7 +1052,7 @@ def get_code_executor(
         agent_tools_usage_soft_limits={},
         max_stream_length=4096,
         # max memory per code execution process
-        max_memory_usage=16*1024**3,  # 16GB
+        max_memory_usage=16 * 1024 ** 3,  # 16GB
 ):
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
@@ -1122,3 +1140,18 @@ def get_all_conversable_agents(group_chat_manager: GroupChatManager) -> List[Con
         else:
             all_conversable_agents.append(agent)
     return all_conversable_agents
+
+
+def get_autogen_use_planning_prompt(model: str) -> bool:
+    """
+    Based on the model and H2OGPT_DISABLE_PLANNING_STEP environment variable, decide if autogen should use planning prompt/step.
+    """
+    import os
+    planning_models = ['claude-3-opus', 'claude-3-5-sonnet', 'gpt-4o', 'o1-preview', 'o1-mini']
+    # any pattern matching
+    if any(x in model for x in planning_models):
+        # sonnet35 doesn't seem to benefit
+        autogen_use_planning_prompt = False
+    else:
+        autogen_use_planning_prompt = True if os.getenv('H2OGPT_DISABLE_PLANNING_STEP') is None else False
+    return autogen_use_planning_prompt

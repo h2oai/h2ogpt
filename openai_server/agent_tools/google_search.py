@@ -12,10 +12,10 @@ SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY")
 
 # Dictionary to translate user-friendly service names to tbm values
 GOOGLE_SERVICES = {
-    "regular": "",
-    "images": "isch",
+    "web": "",
+    "image": "isch",
     "local": "lcl",
-    "videos": "vid",
+    "video": "vid",
     "news": "nws",
     "shopping": "shop",
     "patents": "pts",
@@ -89,7 +89,7 @@ def setup_argparse():
                         choices=['google', 'bing', 'baidu', 'yandex', 'yahoo', 'ebay', 'homedepot', 'youtube',
                                  'scholar', 'walmart', 'appstore', 'naver'], default='google',
                         help="Search engine to use")
-    parser.add_argument("-n", "--num", type=int, default=5, help="Number of results to return")
+    parser.add_argument("-l", "--limit", type=int, default=5, help="Number of results to return")
     parser.add_argument("--google_domain", type=str, default="google.com", help="Google domain to use")
     parser.add_argument("--gl", type=str, default="us",
                         help="Country of the search (default: us). Top 10 common countries:\n" +
@@ -100,12 +100,12 @@ def setup_argparse():
                              "\n".join(f"  {code}: {name}" for code, name in TOP_10_LANGUAGES) +
                              "\nFor a full list of supported languages, see the documentation.")
     parser.add_argument("--location", type=str, help="Location for the search (optional)")
-    parser.add_argument("--google_service", type=str, default="regular",
+    parser.add_argument("--type", type=str, default="web",
                         help="Type of Google search to perform. Options:\n"
-                             "  regular: Regular Google Search (default)\n"
-                             "  images: Google Images\n"
+                             "  web: Regular Google Search (default)\n"
+                             "  image: Google Images\n"
                              "  local: Google Local\n"
-                             "  videos: Google Videos\n"
+                             "  video: Google Videos\n"
                              "  news: Google News\n"
                              "  shopping: Google Shopping\n"
                              "  patents: Google Patents\n")
@@ -138,15 +138,15 @@ def perform_search(args) -> Dict[str, Any]:
     params = {
         "q": args.query,
         "api_key": SERPAPI_API_KEY,
-        "num": max(2, args.num),
+        "num": max(2, args.limit),
         "device": args.device,
     }
 
     if args.engine == "google":
         # Translate service to tbm
-        tbm = GOOGLE_SERVICES.get(args.google_service.lower(), "")
+        tbm = GOOGLE_SERVICES.get(args.type.lower(), "")
         if tbm == 'pts':
-            params['num'] = args.num = min(max(args.num, 10), 100)
+            params['num'] = args.limit = min(max(args.limit, 10), 100)
         params.update({
             "google_domain": args.google_domain,
             "gl": validate_country(args.gl),
@@ -205,7 +205,7 @@ def print_results(results: Dict[str, Any], args):
     Print the keys of the search results and a couple of entries for primary results.
     """
     if args.keys:
-        print(f"Requested keys for query '{args.query}' using {args.engine} ({args.google_service} service):")
+        print(f"Requested keys for query '{args.query}' using {args.engine} ({args.type} service):")
         for key in args.keys:
             if key in results:
                 print(f"\n{key}:")
@@ -214,7 +214,7 @@ def print_results(results: Dict[str, Any], args):
                 print(f"\n{key}: Not found in results")
     else:
         print(f"""To extract specific keys, you can repeat the same command and chose the keys you want by using the CLI optional arg: [--keys KEYS [KEYS ...]]
-Keys available in the search results for query '{args.query}' using {args.engine} ({args.google_service} service):
+Keys available in the search results for query '{args.query}' using {args.engine} ({args.type} service):
 """)
 
         for key in results.keys():
@@ -227,7 +227,7 @@ Keys available in the search results for query '{args.query}' using {args.engine
         for key in primary_keys:
             if key in results and isinstance(results[key], list) and len(results[key]) > 0:
                 print(f"\n{key.replace('_', ' ').title()}:")
-                for i, result in enumerate(results[key][:args.num], 1):  # Print first args.num results
+                for i, result in enumerate(results[key][:args.limit], 1):  # Print first args.limit results
                     if 'title' in result:
                         print(f"  {i}. {result.get('title', '')}:")
                     if 'link' in result:
@@ -260,7 +260,7 @@ def google_search():
     results = perform_search(args)
 
     # Save full results to a file
-    save_results_to_file(results, f"{args.engine}_{args.google_service}_search_results.json")
+    save_results_to_file(results, f"{args.engine}_{args.type}_search_results.json")
 
     # Print results
     print_results(results, args)
@@ -279,12 +279,12 @@ python openai_server/agent_tools/google_search.py -q "data science" -e yahoo
 python openai_server/agent_tools/google_search.py -q "data science" -e scholar
 
 # Test different Google services
-python openai_server/agent_tools/google_search.py -q "AI images" -e google --google_service images
-python openai_server/agent_tools/google_search.py -q "AI startups near me" -e google --google_service local
-python openai_server/agent_tools/google_search.py -q "AI tutorials" -e google --google_service videos
-python openai_server/agent_tools/google_search.py -q "AI breakthroughs" -e google --google_service news
-python openai_server/agent_tools/google_search.py -q "AI products" -e google --google_service shopping
-python openai_server/agent_tools/google_search.py -q "AI patents" -e google --google_service patents
+python openai_server/agent_tools/google_search.py -q "AI images" -e google --type image
+python openai_server/agent_tools/google_search.py -q "AI startups near me" -e google --type local
+python openai_server/agent_tools/google_search.py -q "AI tutorials" -e google --type video
+python openai_server/agent_tools/google_search.py -q "AI breakthroughs" -e google --type news
+python openai_server/agent_tools/google_search.py -q "AI products" -e google --type shopping
+python openai_server/agent_tools/google_search.py -q "AI patents" -e google --type patents
 
 # Test with specific keys
 python openai_server/agent_tools/google_search.py -q "Python programming" -e google --keys organic_results search_information

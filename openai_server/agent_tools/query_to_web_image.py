@@ -61,7 +61,7 @@ def main():
     assert os.getenv("SERPAPI_API_KEY"), "Please set the SERPAPI_API_KEY environment variable"
 
     parser = argparse.ArgumentParser(description="Download one image from the web based on a search text")
-    parser.add_argument("--text", type=str, required=True, help="The text to search for")
+    parser.add_argument("--text", "--prompt", "--query", type=str, required=True, help="The text to search for")
     parser.add_argument("--output", "--file", type=str, help="The file name to save the image to")
     args = parser.parse_args()
     download_image(text=args.text, file=args.output)
