@@ -223,13 +223,13 @@ def ask_question_about_documents():
     is_small = len(text_context_list) < 4 * 8192
 
     if args.csv or is_small:
-        prompt_csv = "Extract all information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Ensure your CSV output is inside a code block with triple backticks with the csv language tag."
+        prompt_csv = "Extract all information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Try to make a single CSV if possible.  Ensure each CSV block of output is inside a code block with triple backticks with the csv language tag."
         csv_answer = get_rag_answer(prompt_csv, tag='', simple=True, **rag_kwargs)
         matches = re.findall(r'```(?:[a-zA-Z]*)\n(.*?)```', csv_answer, re.DOTALL)
-        if matches:
+        for match in matches:
             csv_filename = f"output_{str(uuid.uuid4())[:6]}.csv"
             with open(csv_filename, "wt") as f:
-                f.write(matches[0])
+                f.write(match)
             print(f"CSV output written to {csv_filename}. You can use this with code generation in order to answer the user's question or obtain some intermediate step using pandas etc.  Remember, you are not good at solving puzzles, math, or doing question-answer on tabular data, so use these results in python code in order to solve such tasks.\n")
 
     if args.json or is_small:
