@@ -651,7 +651,7 @@ def get_serp_helper():
 # execution: true
 python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
 ```
-* usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--num NUM] [--google_service {{regular,images,local,videos,news,shopping,patents}}]
+* usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--limit LIMIT] [--google_service {{web,image,local,video,news,shopping,patents}}]
 * This tool should be used instead of generic searches using packages googlesearch, requests, and bs4.
 * The tool saves full search results to a JSON file in the current directory.
 * For non-english queries, do python {cwd}/openai_server/agent_tools/google_search.py -h to see options for other languages and locations.

@@ -89,7 +89,7 @@ def setup_argparse():
                         choices=['google', 'bing', 'baidu', 'yandex', 'yahoo', 'ebay', 'homedepot', 'youtube',
                                  'scholar', 'walmart', 'appstore', 'naver'], default='google',
                         help="Search engine to use")
-    parser.add_argument("-n", "--num", type=int, default=5, help="Number of results to return")
+    parser.add_argument("-l", "--limit", type=int, default=5, help="Number of results to return")
     parser.add_argument("--google_domain", type=str, default="google.com", help="Google domain to use")
     parser.add_argument("--gl", type=str, default="us",
                         help="Country of the search (default: us). Top 10 common countries:\n" +
@@ -116,7 +116,6 @@ def setup_argparse():
                         help="Device to emulate")
     parser.add_argument("-j", "--json", action="store_true", help="Output results as JSON")
     parser.add_argument("--keys", nargs='+', help="Specific keys to display in the results")
-    parser.add_argument("--limit", type=int, help="Used only for symmetry to ease LLM use, not used")
     return parser.parse_args()
 
 
