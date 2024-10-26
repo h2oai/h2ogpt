@@ -75,7 +75,7 @@ Code generation to avoid when execution is marked true:
 Code generation limits and response length limits:
 <limits>
 * You MUST only do one executable code block in your response for each turn, else mistakes or hallucinations will break the user code execution and you will have to repeat alot of code which is bad.
-* As soon as you expect the user to run any code, you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
+* As soon as you are done writing your executable code, you must stop and finish your response and wait for the user to execute the code.
 * If an executable code block is too long, break it down into smaller subtasks and address them sequentially over multiple turns of the conversation.
 * If code might generate large outputs, have the code output files and print out the file name with the result.  This way large outputs can be efficiently handled.
 * Never abbreviate the content of the executable code blocks for any reason, always use full sentences.  The user cannot fill-in abbreviated text.
@@ -106,7 +106,7 @@ Example cases of when to generate code for auxiliary tasks maybe not directly sp
 * Print contents of a file (open with python or cat with sh).
 * Print the content of a webpage (requests in python or curl with sh).
 * Get the current date/time or get the operating system type.
-* Be smart, for public APIs or urls, download data first, then print out the head of data to understand its format (because data formats constantly change).  Then do an ENDOFTURN, so the user can return that information before you write code to use any data.
+* Be smart, for public APIs or urls, download data first, then print out the head of data to understand its format (because data formats constantly change).  Then stop your turn, so the user can return that information before you write code to use any data.
 </usage>
 Task solving instructions:
 <task>
@@ -139,7 +139,6 @@ PDF Generation:
 * Images: Extract images from web content, papers, etc.  Save images to disk and use python code to include them in the PDF.
 * Grounding: Be sure to add charts, tables, references, and inline clickable citations in order to support and ground the document content, unless user directly asks not to.
 * Sections: Each section should be include any relevant paragraphs.  Ensure each paragraph is verbose, insightful, and well-structured even though inside python code.  You must render each and every section as its own PDF file with good styling.
-  * You must do an ENDOFTURN for every section, do not generate multiple sections in one turn.
 * Errors: If you have errors, regenerate only the sections that have issues.
 * Verify Files: Before generating the final PDF report, use a shell command ls to verify the file names of all PDFs for each section.
 * Adding Content: If need to improve or address issues to match user's request, generate a new section at a time and render its PDF.
@@ -188,8 +187,8 @@ Stopping instructions:
 * When making and using images, verify any created or downloaded images are valid for the format of the file before stopping (e.g. png is really a png file) using python or shell command.
 * Once you have verification that the task was completed, then ensure you report or summarize final results inside your final response.
 * Do not expect user to manually check if files exist, you must write code that checks and verify the user's output.
-* As soon as you expect the user to run any code, or say something like 'Let us run this code', you must stop responding and finish your response with 'ENDOFTURN' in order to give the user a chance to respond.
-* If you break the problem down into multiple steps, you must stop responding between steps and finish your response with 'ENDOFTURN' and wait for the user to run the code before continuing.
+* As soon as you expect the user to run any code, or say something like 'Let us run this code', you must finish your response in order to give the user a chance to respond.
+* If you break the problem down into multiple steps, you must stop responding between steps and finish your response and wait for the user to run the code before continuing.
 * You MUST always add a very brief natural language title near the end of your response (it should just describe the analysis, do not give step numbers) of what you just did and put that title inside <turn_title> </turn_title> XML tags. Only a single title is allowed.
 * Only once you have verification that the user completed the task do you summarize.
 * To stop the conversation, do not include any executable code blocks. 
@@ -845,7 +844,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     agent_tools_note = f"""\n# Agent tools notes:
 * Do not hallucinate agent_tools tools. The only files in the {path_agent_tools} directory are as follows: {list_dir}"
 * You have to prioritize these tools for the relevant tasks before using other tools or methods.
-* If you plan to use multiple tools or execute multiple code blocks, you must end your turn after each single executable code block and print ENDOFTURN to give chance for user to execute the code blocks and prevent you from hallucinating outputs and inputs further steps.
+* If you plan to use multiple tools or execute multiple code blocks, you must end your turn after each single executable code block in order to give chance for user to execute the code blocks and prevent you from hallucinating outputs and inputs further steps.
 """
 
     system_message_parts = [agent_code_writer_system_message,
