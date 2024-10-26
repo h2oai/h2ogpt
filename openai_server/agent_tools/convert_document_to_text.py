@@ -39,8 +39,23 @@ def get_num_pages(file):
         return None
 
 
+def convert_to_csv(file):
+    import pandas as pd
+
+    # read the xls or xlsx file
+    if file.lower().endswith('.xls') or file.lower().endswith('.xlsx'):
+        df = pd.read_excel(file)
+        new_file = file.replace('.xls', '.csv').replace('.xlsx', '.csv')
+        try:
+            df.to_csv(new_file, index=False)
+            print(f"Converted {file} to CSV for data analysis as {new_file}")
+        except Exception as e:
+            pass
+
+
 def process_files(files, urls):
     text_context_list = []
+    succeeded = []
 
     textual_types = ('.txt', '.csv', '.toml', '.py', '.rst', '.rtf', '.md', '.html', '.htm', '.xml', '.json', '.yaml',
                      '.yml', '.ini', '.log', '.tex', '.sql', '.sh', '.bat', '.js', '.css', '.php', '.jsp', '.pl', '.r',
@@ -63,10 +78,11 @@ def process_files(files, urls):
     files = files_new
     urls = urls_new
 
+    from openai_server.agent_tools.common.utils import download_simple
+
     for filename in files + urls:
         if filename.lower().endswith('.pdf'):
             if filename in urls:
-                from openai_server.agent_tools.common.utils import download_simple
                 newfile = download_simple(filename)
                 num_pages = get_num_pages(newfile)
                 has_images = pdf_has_images(newfile)
@@ -90,6 +106,13 @@ def process_files(files, urls):
             enable_pdf_doctr = 'off'
             use_pymupdf = 'on'
             use_pypdf = 'off'
+
+        if filename.lower().endswith('.xls') or filename.lower().endswith('.xlsx'):
+            if filename in urls:
+                xls_file = download_simple(filename)
+            else:
+                xls_file = filename
+            convert_to_csv(xls_file)
 
         sources1, known_type = get_data_h2ogpt(filename,
                                                is_url=filename in urls,
@@ -138,18 +161,23 @@ def process_files(files, urls):
                 sources1 = sources2
 
         if not sources1:
+            succeeded.append(False)
             print(f"Unable to handle file type for {filename}")
         else:
+            succeeded.append(True)
             text_context_list.extend([x.page_content for x in sources1])
 
-    return text_context_list
+    return text_context_list, any(succeeded)
 
 
 def get_text(files, urls):
-    text_context_list = process_files(files, urls)
+    text_context_list, any_succeeded = process_files(files, urls)
 
     # Join the text_context_list into a single string
-    output_text = "\n\n".join(text_context_list)
+    if any_succeeded:
+        output_text = "\n\n".join(text_context_list)
+    else:
+        output_text = None
 
     return output_text
 
@@ -170,20 +198,23 @@ def main():
     output_text = get_text(files, urls)
 
     # Write the output to the specified file
-    with open(args.output, "w") as f:
-        f.write(output_text)
+    if output_text is not None:
+        with open(args.output, "w") as f:
+            f.write(output_text)
 
-    print(f"{files + urls} have been converted to text and written to {args.output}")
-    print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
-    print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
+        print(f"{files + urls} have been converted to text and written to {args.output}")
+        print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
+        print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
 
-    max_tokens = 1024
-    max_chars = max_tokens * 4
-    if len(output_text) > max_chars:
-        print("Head of the output:")
-        print(output_text[:max_chars])
+        max_tokens = 1024
+        max_chars = max_tokens * 4
+        if len(output_text) > max_chars:
+            print("Head of the output:")
+            print(output_text[:max_chars])
+        else:
+            print(output_text)
     else:
-        print(output_text)
+        print("Failed to convert files or URLs to text")
 
     return output_text
 
