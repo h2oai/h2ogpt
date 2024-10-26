@@ -1,8 +1,10 @@
 import json
 import os
 import argparse
+import re
 import sys
 import time
+import uuid
 
 if 'src' not in sys.path:
     sys.path.append('src')
@@ -17,12 +19,16 @@ def has_gpu():
         return False
 
 
-def get_rag_answer(prompt, text_context_list=None, image_files=None, chat_conversation=None,
+def get_rag_answer(prompt,
+                   tag='rag_answer',
+                   text_context_list=None, image_files=None, chat_conversation=None,
                    model=None,
-                   system_prompt=None,
+                   system_prompt='auto',
                    max_tokens=1024,
                    temperature=0,
                    stream_output=True,
+                   guided_json=None,
+                   response_format='text',
                    max_time=120):
     base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
     assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
@@ -31,12 +37,26 @@ def get_rag_answer(prompt, text_context_list=None, image_files=None, chat_conver
     from openai import OpenAI
     client = OpenAI(base_url=base_url, api_key=server_api_key, timeout=max_time)
 
+    if response_format == 'json_object':
+        prompt_summary = prompt
+        prompt = None
+    else:
+        prompt_summary = None
+
     from openai_server.backend_utils import structure_to_messages
     messages = structure_to_messages(prompt, system_prompt, chat_conversation, image_files)
 
     extra_body = {}
     if text_context_list:
         extra_body['text_context_list'] = text_context_list
+    extra_body['guided_json'] = guided_json
+    extra_body['response_format'] = dict(type=response_format)
+    if response_format == 'json_object':
+        extra_body['langchain_mode'] = "MyData"
+        # extra_body['langchain_action'] = "Extract"
+        extra_body['langchain_action'] = "Summarize"
+        extra_body['prompt_summary'] = prompt_summary
+        extra_body['pre_prompt_summary'] = ''
 
     responses = client.chat.completions.create(
         messages=messages,
@@ -49,20 +69,26 @@ def get_rag_answer(prompt, text_context_list=None, image_files=None, chat_conver
     text = ''
     tgen0 = time.time()
     verbose = True
-    print("\nENDOFTURN\n")
-    print("\n\n#### Begin RAG Answer\n\n")
-    for chunk in responses:
-        delta = chunk.choices[0].delta.content if chunk.choices else None
-        if delta:
-            text += delta
-            print(delta, end='', flush=True)
-        if time.time() - tgen0 > max_time:
-            if verbose:
-                print("\nTook too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
-                      flush=True)
-            break
-    print("\n\n#### End RAG Answer")
-    print("\nENDOFTURN\n")
+    print(f'ENDOFTURN\n')
+    if tag:
+        print(f'<{tag}>\n')
+    if stream_output:
+        for chunk in responses:
+            delta = chunk.choices[0].delta.content if chunk.choices else None
+            if delta:
+                text += delta
+                print(delta, end='', flush=True)
+            if time.time() - tgen0 > max_time:
+                if verbose:
+                    print("\nTook too long for OpenAI or VLLM Chat: %s" % (time.time() - tgen0),
+                          flush=True)
+                break
+    else:
+        text = responses.choices[0].message.content
+        print(text, end='\n', flush=True)
+    if tag:
+        print(f'\n</{tag}>')
+    print(f'\nENDOFTURN\n')
     return text
 
 
@@ -90,7 +116,7 @@ def ask_question_about_documents():
         with open(system_prompt_file, "rt") as f:
             system_prompt = f.read()
     else:
-        system_prompt = ''
+        system_prompt = 'auto'
     image_files = []
     if b2imgs_file:
         with open(b2imgs_file, "rt") as f:
@@ -101,6 +127,8 @@ def ask_question_about_documents():
 
     parser = argparse.ArgumentParser(description="RAG Tool")
     parser.add_argument("-p", "--prompt", "--query", type=str, required=True, help="User prompt or query")
+    parser.add_argument("-j", "--json", action="store_true", default=False, help="Output results as JSON")
+    parser.add_argument("-c", "--csv", action="store_true", default=False, help="Output results as CSV")
     parser.add_argument("-b", "--baseline", required=False, action='store_true',
                         help="Whether to get baseline from user docs")
     parser.add_argument("--files", nargs="+", required=False,
@@ -184,26 +212,56 @@ def ask_question_about_documents():
                       image_files=image_files,
                       chat_conversation=chat_conversation,
                       model=args.model,
-                      system_prompt=args.system_prompt, max_time=args.max_time)
+                      system_prompt=args.system_prompt,
+                      max_time=args.max_time,
+                      )
 
-    # Get the RAG answer
-    print("<simple_rag_answer>")
-    rag_answer = get_rag_answer(args.prompt, **rag_kwargs)
-    print("</simple_rag_answer>")
-    if rag_answer and args.baseline:
-        print(
-            "The above simple_rag_answer answer may be correct, but the answer probably requires validation via checking the documents for similar text or search and news APIs if involves recent events.  Note that the LLM answering above has no coding capability or internet access so disregard its concerns about that if it mentions it.")
+    is_small = len(text_context_list) < 4 * 8192
+
+    if args.csv or is_small:
+        prompt_csv = "Extract all information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Ensure your CSV output is inside a code block with triple backticks with the csv language tag."
+        csv_answer = get_rag_answer(prompt_csv, tag='', **rag_kwargs)
+        matches = re.findall(r'```(?:[a-zA-Z]*)\n(.*?)```', csv_answer, re.DOTALL)
+        if matches:
+            csv_filename = f"output_{str(uuid.uuid4())[:6]}.csv"
+            with open(csv_filename, "wt") as f:
+                f.write(matches[0])
+            print(f"CSV output written to {csv_filename}. You can use this with code generation in order to answer the user's question or obtain some intermediate step using pandas etc..\n")
+
+    if args.json or is_small:
+        json_kwargs = rag_kwargs.copy()
+        json_kwargs['guided_json'] = None
+        json_kwargs['response_format'] = 'json_object'
+        args.prompt = "Extract information in a well-organized form."
+        # so json outputted normally
+        json_kwargs['stream_output'] = False
+        json_tag = 'json_answer'
+        json_answer = get_rag_answer(args.prompt, tag=json_tag, **json_kwargs)
+        json_filename = f"output_{str(uuid.uuid4())[:6]}.json"
+        with open(json_filename, "wt") as f:
+            f.write(json_answer)
+        print(f"JSON output written to {json_filename}. You can use this with code generation in order to answer the user's question or obtain some intermediate step.\n")
+
+    if args.baseline:
+        tag = 'simple_rag_answer'
+    else:
+        tag = 'rag_answer'
+    if not args.json:
+        rag_answer = get_rag_answer(args.prompt, tag=tag, **rag_kwargs)
+
+        if rag_answer and args.baseline:
+            print(
+                "The above simple_rag_answer answer may be correct, but the answer probably requires validation via checking the documents for similar text or search and news APIs if involves recent events.  Note that the LLM answering above has no coding capability or internet access so disregard its concerns about that if it mentions it.")
 
 
 if __name__ == "__main__":
     ask_question_about_documents()
 
-
 """
 Examples:
 
 wget https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf
-H2OGPT_AGENT_OPENAI_MODEL=claude-3-sonnet-20240229 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Extract AI-related data for Singapore, Israel, Qatar, UAE, Denmark, and Finland from the HAI_2024_AI-Index-Report.pdf. Focus on metrics related to AI implementation, investment, and innovation. Provide a summary of the data in a format suitable for creating a plot." --files HAI_2024_AI-Index-Report.pdf
-H2OGPT_AGENT_OPENAI_MODEL=claude-3-sonnet-20240229 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Give bullet list of top 10 stories." --urls www.cnn.com
-H2OGPT_AGENT_OPENAI_MODEL=claude-3-sonnet-20240229 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Extract AI-related data for Singapore, Israel, Qatar, UAE, Denmark, and Finland from the HAI_2024_AI-Index-Report.pdf. Focus on metrics related to AI implementation, investment, and innovation. Provide a summary of the data in a format suitable for creating a plot." --urls https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf
+H2OGPT_AGENT_OPENAI_MODEL=claude-3-5-sonnet-20240620 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Extract AI-related data for Singapore, Israel, Qatar, UAE, Denmark, and Finland from the HAI_2024_AI-Index-Report.pdf. Focus on metrics related to AI implementation, investment, and innovation. Provide a summary of the data in a format suitable for creating a plot." --files HAI_2024_AI-Index-Report.pdf
+H2OGPT_AGENT_OPENAI_MODEL=claude-3-5-sonnet-20240620 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Give bullet list of top 10 stories." --urls www.cnn.com
+H2OGPT_AGENT_OPENAI_MODEL=claude-3-5-sonnet-20240620 H2OGPT_OPENAI_BASE_URL=http://0.0.0.0:5000/v1 H2OGPT_OPENAI_API_KEY=EMPTY python /home/jon/h2ogpt/openai_server/agent_tools/ask_question_about_documents.py --prompt "Extract AI-related data for Singapore, Israel, Qatar, UAE, Denmark, and Finland from the HAI_2024_AI-Index-Report.pdf. Focus on metrics related to AI implementation, investment, and innovation. Provide a summary of the data in a format suitable for creating a plot." --urls https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf
 """
