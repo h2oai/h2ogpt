@@ -4893,7 +4893,7 @@ def file_to_doc(file,
                 makedirs(tmpdir, exist_ok=True)
                 text = docx2txt.process(file, tmpdir)
                 images = os.listdir(tmpdir)
-                docs1 = path_to_docs_func([os.path.join(tmpdir, x) for x in images])
+                docs1.extend(path_to_docs_func([os.path.join(tmpdir, x) for x in images]))
             except Exception as e:
                 print("docx images failure: %s" % str(e))
 
