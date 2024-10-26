@@ -41,6 +41,7 @@ def get_num_pages(file):
 
 def process_files(files, urls):
     text_context_list = []
+    succeeded = []
 
     textual_types = ('.txt', '.csv', '.toml', '.py', '.rst', '.rtf', '.md', '.html', '.htm', '.xml', '.json', '.yaml',
                      '.yml', '.ini', '.log', '.tex', '.sql', '.sh', '.bat', '.js', '.css', '.php', '.jsp', '.pl', '.r',
@@ -138,18 +139,23 @@ def process_files(files, urls):
                 sources1 = sources2
 
         if not sources1:
+            succeeded.append(False)
             print(f"Unable to handle file type for {filename}")
         else:
+            succeeded.append(True)
             text_context_list.extend([x.page_content for x in sources1])
 
-    return text_context_list
+    return text_context_list, any(succeeded)
 
 
 def get_text(files, urls):
-    text_context_list = process_files(files, urls)
+    text_context_list, any_succeeded = process_files(files, urls)
 
     # Join the text_context_list into a single string
-    output_text = "\n\n".join(text_context_list)
+    if any_succeeded:
+        output_text = "\n\n".join(text_context_list)
+    else:
+        output_text = None
 
     return output_text
 
@@ -170,20 +176,23 @@ def main():
     output_text = get_text(files, urls)
 
     # Write the output to the specified file
-    with open(args.output, "w") as f:
-        f.write(output_text)
+    if output_text is not None:
+        with open(args.output, "w") as f:
+            f.write(output_text)
 
-    print(f"{files + urls} have been converted to text and written to {args.output}")
-    print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
-    print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
+        print(f"{files + urls} have been converted to text and written to {args.output}")
+        print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
+        print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
 
-    max_tokens = 1024
-    max_chars = max_tokens * 4
-    if len(output_text) > max_chars:
-        print("Head of the output:")
-        print(output_text[:max_chars])
+        max_tokens = 1024
+        max_chars = max_tokens * 4
+        if len(output_text) > max_chars:
+            print("Head of the output:")
+            print(output_text[:max_chars])
+        else:
+            print(output_text)
     else:
-        print(output_text)
+        print("Failed to convert files or URLs to text")
 
     return output_text
 
