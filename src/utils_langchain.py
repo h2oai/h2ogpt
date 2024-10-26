@@ -130,10 +130,11 @@ class H2OCharacterTextSplitter(RecursiveCharacterTextSplitter):
 
 
 def select_docs_with_score(docs_with_score, top_k_docs, one_doc_size):
-    if top_k_docs > 0:
+    if one_doc_size is not None and len(docs_with_score) > 0:
+        doc1 = Document(page_content=docs_with_score[0][0].page_content[:one_doc_size], metadata=docs_with_score[0][0].metadata)
+        docs_with_score = [(doc1, docs_with_score[0][1])]
+    elif top_k_docs > 0:
         docs_with_score = docs_with_score[:top_k_docs]
-    elif one_doc_size is not None:
-        docs_with_score = [(docs_with_score[0][:one_doc_size], docs_with_score[0][1])]
     else:
         # do nothing
         pass
