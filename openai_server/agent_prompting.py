@@ -585,6 +585,7 @@ def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list,
 python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --query "QUERY" [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
 ```
 * usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --query "QUERY" [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
+* Do not include any file names in your QUERY, just query the document content.
 * ask_question_about_documents.py --files can be any local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx)
 * ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.).
 * Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
