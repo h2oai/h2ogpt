@@ -12,10 +12,10 @@ SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY")
 
 # Dictionary to translate user-friendly service names to tbm values
 GOOGLE_SERVICES = {
-    "regular": "",
-    "images": "isch",
+    "web": "",
+    "image": "isch",
     "local": "lcl",
-    "videos": "vid",
+    "video": "vid",
     "news": "nws",
     "shopping": "shop",
     "patents": "pts",
@@ -103,9 +103,9 @@ def setup_argparse():
     parser.add_argument("--type", type=str, default="web",
                         help="Type of Google search to perform. Options:\n"
                              "  web: Regular Google Search (default)\n"
-                             "  images: Google Images\n"
+                             "  image: Google Images\n"
                              "  local: Google Local\n"
-                             "  videos: Google Videos\n"
+                             "  video: Google Videos\n"
                              "  news: Google News\n"
                              "  shopping: Google Shopping\n"
                              "  patents: Google Patents\n")
@@ -145,8 +145,6 @@ def perform_search(args) -> Dict[str, Any]:
 
     if args.engine == "google":
         # Translate service to tbm
-        if args.type.lower() == 'web':
-            args.type = 'regular'
         tbm = GOOGLE_SERVICES.get(args.type.lower(), "")
         if tbm == 'pts':
             params['num'] = args.num = min(max(args.num, 10), 100)
@@ -282,9 +280,9 @@ python openai_server/agent_tools/google_search.py -q "data science" -e yahoo
 python openai_server/agent_tools/google_search.py -q "data science" -e scholar
 
 # Test different Google services
-python openai_server/agent_tools/google_search.py -q "AI images" -e google --type images
+python openai_server/agent_tools/google_search.py -q "AI images" -e google --type image
 python openai_server/agent_tools/google_search.py -q "AI startups near me" -e google --type local
-python openai_server/agent_tools/google_search.py -q "AI tutorials" -e google --type videos
+python openai_server/agent_tools/google_search.py -q "AI tutorials" -e google --type video
 python openai_server/agent_tools/google_search.py -q "AI breakthroughs" -e google --type news
 python openai_server/agent_tools/google_search.py -q "AI products" -e google --type shopping
 python openai_server/agent_tools/google_search.py -q "AI patents" -e google --type patents
