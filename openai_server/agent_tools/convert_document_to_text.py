@@ -39,6 +39,20 @@ def get_num_pages(file):
         return None
 
 
+def convert_to_csv(file):
+    import pandas as pd
+
+    # read the xls or xlsx file
+    if file.lower().endswith('.xls') or file.lower().endswith('.xlsx'):
+        df = pd.read_excel(file)
+        new_file = file.replace('.xls', '.csv').replace('.xlsx', '.csv')
+        try:
+            df.to_csv(new_file, index=False)
+            print(f"Converted {file} to CSV for data analysis as {new_file}")
+        except Exception as e:
+            pass
+
+
 def process_files(files, urls):
     text_context_list = []
     succeeded = []
@@ -64,10 +78,11 @@ def process_files(files, urls):
     files = files_new
     urls = urls_new
 
+    from openai_server.agent_tools.common.utils import download_simple
+
     for filename in files + urls:
         if filename.lower().endswith('.pdf'):
             if filename in urls:
-                from openai_server.agent_tools.common.utils import download_simple
                 newfile = download_simple(filename)
                 num_pages = get_num_pages(newfile)
                 has_images = pdf_has_images(newfile)
@@ -91,6 +106,13 @@ def process_files(files, urls):
             enable_pdf_doctr = 'off'
             use_pymupdf = 'on'
             use_pypdf = 'off'
+
+        if filename.lower().endswith('.xls') or filename.lower().endswith('.xlsx'):
+            if filename in urls:
+                xls_file = download_simple(filename)
+            else:
+                xls_file = filename
+            convert_to_csv(xls_file)
 
         sources1, known_type = get_data_h2ogpt(filename,
                                                is_url=filename in urls,

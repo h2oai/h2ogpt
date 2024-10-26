@@ -611,7 +611,7 @@ python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILE
 * The convert_document_to_text.py tool is not to be used for images.
 * However, use convert_document_to_text.py if just want to directly ask a question about a non-image document or URL.
 * However, use ask_question_about_image.py if just want to directly ask a question about an image.
-* If want to do structured analysis on xlsx or xls files, better to use pandas to directly read via pd.read_excel().
+* For data analysis on xlsx or xls files, you must use non-text ways like pd.read_excel().
 * You must not assume anything about the structure or content of the text, as the conversion can be complex and imperfect.
 * Use ask_question_about_documents.py to verify any questions you might try to ask by using a python scripts on the text conversion.
 """
