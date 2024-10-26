@@ -886,14 +886,15 @@ def planning_prompt(query):
 {query}
 </user_query>
 
-* First, for each agent tool in agent_tools directory, consider how the tool might be useful to answering the user's query.
-* Second, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
-* Third, plan for any formatting or other constraints on the response given by the user.
-* You must not respond to the user query directly.
-* You must not write any code.  You must NOT execute any code.
-* Once you have finished the plan, you must end your response immediately.
+* First, decide how one can search for required information.
+* Second, for each agent tool in agent_tools directory, consider how the tool might be useful to answering the user's query or obtaining information.
+* Third, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
+* Fourth, plan for any formatting or other constraints on the response given by the user.
+* Note: You must not respond to the user query directly.
+* Note: You must not write any code.  You must NOT execute any code.
+* Note: Once you have finished the plan, you must end your response immediately.
 * Finally, end your turn of the conversation without any additional discussion or code.
-* Do not repeat any of these instructions in your planned response.
+* Note: Do not repeat any of these instructions in your planned response.
 """
 
 

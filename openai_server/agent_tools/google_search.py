@@ -138,7 +138,7 @@ def perform_search(args) -> Dict[str, Any]:
     params = {
         "q": args.query,
         "api_key": SERPAPI_API_KEY,
-        "num": max(2, args.num),
+        "num": max(2, args.limit),
         "device": args.device,
     }
 
@@ -146,7 +146,7 @@ def perform_search(args) -> Dict[str, Any]:
         # Translate service to tbm
         tbm = GOOGLE_SERVICES.get(args.type.lower(), "")
         if tbm == 'pts':
-            params['num'] = args.num = min(max(args.num, 10), 100)
+            params['num'] = args.limit = min(max(args.limit, 10), 100)
         params.update({
             "google_domain": args.google_domain,
             "gl": validate_country(args.gl),
@@ -227,7 +227,7 @@ Keys available in the search results for query '{args.query}' using {args.engine
         for key in primary_keys:
             if key in results and isinstance(results[key], list) and len(results[key]) > 0:
                 print(f"\n{key.replace('_', ' ').title()}:")
-                for i, result in enumerate(results[key][:args.num], 1):  # Print first args.num results
+                for i, result in enumerate(results[key][:args.limit], 1):  # Print first args.limit results
                     if 'title' in result:
                         print(f"  {i}. {result.get('title', '')}:")
                     if 'link' in result:
