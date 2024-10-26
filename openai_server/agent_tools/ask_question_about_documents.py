@@ -100,7 +100,7 @@ def ask_question_about_documents():
         image_files = []
 
     parser = argparse.ArgumentParser(description="RAG Tool")
-    parser.add_argument("-p", "--prompt", type=str, required=True, help="User prompt")
+    parser.add_argument("-p", "--prompt", "--query", type=str, required=True, help="User prompt or query")
     parser.add_argument("-b", "--baseline", required=False, action='store_true',
                         help="Whether to get baseline from user docs")
     parser.add_argument("--files", nargs="+", required=False,

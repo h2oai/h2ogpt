@@ -8,7 +8,7 @@ import uuid
 
 def main():
     parser = argparse.ArgumentParser(description="Generate images from text prompts")
-    parser.add_argument("--prompt", type=str, required=True, help="User prompt")
+    parser.add_argument("--prompt", "--query", type=str, required=True, help="User prompt or query")
     parser.add_argument("--model", type=str, required=False, help="Model name")
     parser.add_argument("--output", "--file", type=str, required=False, default="",
                         help="Name (unique) of the output file")

@@ -37,7 +37,7 @@ def main():
     parser.add_argument("--model", type=str, help="Model to use for coding assistance")
     parser.add_argument("--files", nargs="+", required=False, help="Files to work on")
     parser.add_argument("--output_dir", type=str, default="aider_output", help="Directory for output files")
-    parser.add_argument("--prompt", type=str, required=True, help="Prompt for the coding task")
+    parser.add_argument("--prompt", "--query", type=str, required=True, help="Prompt or query for the coding task")
     parser.add_argument("--max_time", type=int, default=default_max_time, help="Maximum time in seconds for API calls")
     parser.add_argument("--verbose", action="store_true", help="Show verbose output")
     args = parser.parse_args()

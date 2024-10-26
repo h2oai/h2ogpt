@@ -394,9 +394,9 @@ def get_ask_question_about_image_helper(base_url, api_key, model):
 ```sh
 # filename: my_image_response.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/ask_question_about_image.py --prompt "PROMPT" --file "LOCAL FILE NAME"
+python {cwd}/openai_server/agent_tools/ask_question_about_image.py --query "QUERY" --file "LOCAL FILE NAME"
 ```
-* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --prompt PROMPT [--url URL] [--file FILE]
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --query "QUERY" [--url URL] [--file FILE]
 * ask_question_about_image gives a text response for either a URL or local file
 * ask_question_about_image can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
 * ask_question_about_image accepts most image files allowed by PIL (Pillow) except svg.
@@ -478,17 +478,17 @@ def get_image_generation_helper():
             helper_style = """"""
             helper_guidance = """[--guidance_scale GUIDANCE_SCALE] [--num_inference_steps NUM_INFERENCE_STEPS]"""
 
-        image_generation = f"""\n* Image generation using python. Use for generating images from prompt.
+        image_generation = f"""\n* Image generation using python. Use for generating images from query.
 * For image generation, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_image_generation.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/image_generation.py --prompt "PROMPT"
+python {cwd}/openai_server/agent_tools/image_generation.py --query "QUERY"
 ```
-* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --prompt PROMPT [--output OUTPUT_FILE_NAME] [--model MODEL] {quality_string} {helper_style} {helper_guidance}
+* usage: python {cwd}/openai_server/agent_tools/image_generation.py [-h] --query "QUERY" [--output OUTPUT_FILE_NAME] [--model MODEL] {quality_string} {helper_style} {helper_guidance}
 * Available models: {models}
 * Quality options: {quality_options}{size_info}{style_options}{guidance_steps_string}
-* As a helpful assistant, you will convert the user's requested image generation prompt into an excellent prompt, unless the user directly requests a specific prompt be used for image generation.
+* As a helpful assistant, you will convert the user's requested image generation query into an excellent prompt for QUERY, unless the user directly requests a specific prompt be used for image generation.
 * Image generation takes about 10-20s per image, so do not automatically generate too many images at once.
 * However, if the user directly requests many images or anything related to images, then you MUST follow their instructions no matter what.
 * Do not do an ask_question_about_image on the image generated, unless user directly asks for an analysis of the image generated or the user directly asks for automatic improvement of the image generated.
@@ -531,9 +531,9 @@ def get_query_to_web_image_helper():
 ```sh
 # filename: my_image_download.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/query_to_web_image.py --text "Text to search for" --output "file_name.jpg"
+python {cwd}/openai_server/agent_tools/query_to_web_image.py --query "QUERY" --output "file_name.jpg"
 ```
-* usage: python {cwd}/openai_server/agent_tools/query_to_web_image.py [-h] --text "TEXT TO SEARCH FOR" --output "FILE_NAME"
+* usage: python {cwd}/openai_server/agent_tools/query_to_web_image.py [-h] --query "QUERY" --output "FILE_NAME"
 * If already have an image URL (e.g. from google or bing search), you MUST NOT use this tool, instead directly download the image URL via wget or curl -L or requests.
 """
     return image_download
@@ -556,9 +556,9 @@ def get_aider_coder_helper(base_url, api_key, model, autogen_timeout, debug=Fals
 ```sh
 # filename: my_aider_coder.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/aider_code_generation.py --prompt "PROMPT" [--files FILES [FILES ...]]
+python {cwd}/openai_server/agent_tools/aider_code_generation.py --query "QUERY" [--files FILES [FILES ...]]
 ```
-* usage: {cwd}/openai_server/agent_tools/aider_code_generation.py [-h] --prompt PROMPT [--files FILES [FILES ...]]
+* usage: {cwd}/openai_server/agent_tools/aider_code_generation.py [-h] --query "QUERY" [--files FILES [FILES ...]]
 * aider_code_generation outputs code diffs and applies changes to input files.
 * Absolutely only use aider_code_generation if multiple existing files require changing at once, else do the code changes yoruself.
 """
@@ -577,14 +577,14 @@ def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list,
     os.environ['H2OGPT_AGENT_OPENAI_TIMEOUT'] = str(autogen_timeout)
 
     cwd = os.path.abspath(os.getcwd())
-    rag_helper = f"""\n# Get response to prompt with RAG (Retrieve Augmented Generation) using documents:
+    rag_helper = f"""\n# Get response to query with RAG (Retrieve Augmented Generation) using documents:
 * If you need to to query many (or large) document text-based files, use the following sh code:
 ```sh
 # filename: my_question_about_documents.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --prompt "PROMPT" [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
+python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --query "QUERY" [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
 ```
-* usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --prompt PROMPT [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --query "QUERY" [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
 * ask_question_about_documents.py --files can be any local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx)
 * ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.).
 * Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
@@ -649,10 +649,11 @@ def get_serp_helper():
 ```sh
 # filename: my_google_search.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
+python {cwd}/openai_server/agent_tools/google_search.py --query "QUERY"
 ```
-* usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query QUERY [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--limit LIMIT] [--google_service {{web,image,local,video,news,shopping,patents}}]
+* usage: {cwd}/openai_server/agent_tools/google_search.py [-h] --query "QUERY" [--engine {{google,bing,baidu,yandex,yahoo,ebay,homedepot,youtube,scholar,walmart,appstore,naver}}] [--limit LIMIT] [--type {{web,image,local,video,news,shopping,patents}}]
 * This tool should be used instead of generic searches using packages googlesearch, requests, and bs4.
+* --type applies only to google engine.
 * The tool saves full search results to a JSON file in the current directory.
 * For non-english queries, do python {cwd}/openai_server/agent_tools/google_search.py -h to see options for other languages and locations.
 * To download the video returned from this google_search.py tool:
@@ -681,7 +682,7 @@ def get_semantic_scholar_helper():
 ```sh
 # filename: my_paper_search.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
+python {cwd}/openai_server/agent_tools/papers_query.py --query "QUERY"
 ```
 usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
 * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDFs.
@@ -703,7 +704,7 @@ def get_wolfram_alpha_helper():
 ```sh
 # filename: my_wolfram_response.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY GOES HERE"
+python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY"
 ```
 * usage: python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --query "QUERY GOES HERE"
 * For wolfram alpha tool, query must be *very* terse and specific, e.g., "integral of x^2" or "mass of the sun" and is not to be used for general web searches.
@@ -727,7 +728,7 @@ def get_news_api_helper():
 # execution: true
 python {cwd}/openai_server/agent_tools/news_query.py --query "QUERY"
 ```
-* usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query QUERY] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
+* usage: {cwd}/openai_server/agent_tools/news_query.py [-h] [--mode {{everything, top-headlines}}] [--sources SOURCES]  [--num_articles NUM_ARTICLES] [--query "QUERY"] [--sort_by {{relevancy, popularity, publishedAt}}] [--language LANGUAGE] [--country COUNTRY] [--category {{business, entertainment, general, health, science, sports, technology}}]
 * news_query is not to be used for general web searches, but only for topical news searches.
 * news_query prints text results with title, author, description, and URL for (by default) 10 articles.
 * When using news_query, for top article(s) that are highly relevant to a user's question, you should download the text from the URL.
@@ -746,9 +747,9 @@ def get_bing_search_helper():
 ```sh
 # filename: my_bing_search.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/bing_search.py --query "QUERY" --type web --limit 5
+python {cwd}/openai_server/agent_tools/bing_search.py --query "QUERY"
 ```
-usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query QUERY [--type {{web,image,news,video}}] [--limit LIMIT] [--market MARKET] [--freshness {{Day,Week,Month}}]
+usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query "QUERY" [--type {{web,image,news,video}}] [--limit LIMIT] [--market MARKET] [--freshness {{Day,Week,Month}}]
 * This Bing is highly preferred over the Google Image search query
 * Available search types (--type):
   - web: General web search to find web content
