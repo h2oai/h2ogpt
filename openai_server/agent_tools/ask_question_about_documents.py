@@ -230,7 +230,7 @@ def ask_question_about_documents():
             csv_filename = f"output_{str(uuid.uuid4())[:6]}.csv"
             with open(csv_filename, "wt") as f:
                 f.write(matches[0])
-            print(f"CSV output written to {csv_filename}. You can use this with code generation in order to answer the user's question or obtain some intermediate step using pandas etc..\n")
+            print(f"CSV output written to {csv_filename}. You can use this with code generation in order to answer the user's question or obtain some intermediate step using pandas etc.  Remember, you are not good at solving puzzles, math, or doing question-answer on tabular data, so use these results in python code in order to solve such tasks.\n")
 
     if args.json or is_small:
         json_kwargs = rag_kwargs.copy()
