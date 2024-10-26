@@ -626,7 +626,7 @@ def get_download_web_video_helper():
     youtube_helper = f"""\n# Download Web-hosted Videos using the following Python script:
 * To download a video from YouTube or other supported platforms, use the following command:
 ```sh
-# filename: my_download_video.py
+# filename: my_download_video.sh
 # execution: true
 python {cwd}/download_web_video.py --video_url "VIDEO_URL" --base_url "https://www.youtube.com"
 ```
@@ -647,7 +647,7 @@ def get_serp_helper():
         serp = f"""# Perform Google Searches using the following Python script:
 * To perform a search using various search engines and Google services, use the following command:
 ```sh
-# filename: my_google_search.py
+# filename: my_google_search.sh
 # execution: true
 python {cwd}/openai_server/agent_tools/google_search.py --query "SEARCH_QUERY"
 ```
@@ -679,6 +679,7 @@ def get_semantic_scholar_helper():
         papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find scientific papers (not news or financial information).
 * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
 ```sh
+# filename: my_paper_search.sh
 # execution: true
 python {cwd}/openai_server/agent_tools/papers_query.py --limit 10 --query "QUERY GOES HERE"
 ```
@@ -743,6 +744,7 @@ def get_bing_search_helper():
         bing_search = f"""\n* Search web using Bing API (using azure-core, user has BING_API_KEY already in ENV) for web, image, news, or video search.
 * In most cases, just use the existing general pre-built Python code to query Bing Search, E.g.:
 ```sh
+# filename: my_bing_search.sh
 # execution: true
 python {cwd}/openai_server/agent_tools/bing_search.py --query "QUERY" --type web --limit 5
 ```
