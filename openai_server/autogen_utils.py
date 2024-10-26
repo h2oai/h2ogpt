@@ -294,6 +294,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
             try:
                 # Check if there is a filename comment
                 filename = self._get_file_name_from_content(code, self._work_dir)
+                # override lang if filename is detected, less error-prone than using code block lang
+                if filename.endswith('.sh'):
+                    lang = 'shell'
+                elif filename.endswith('.py'):
+                    lang = 'python'
             except ValueError:
                 return CommandLineCodeResult(exit_code=1, output="Filename is not in the workspace")
 
