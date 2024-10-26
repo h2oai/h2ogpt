@@ -21,6 +21,7 @@ def has_gpu():
 
 def get_rag_answer(prompt,
                    tag='rag_answer',
+                   simple=False,
                    text_context_list=None, image_files=None, chat_conversation=None,
                    model=None,
                    system_prompt='auto',
@@ -57,6 +58,9 @@ def get_rag_answer(prompt,
         extra_body['langchain_action'] = "Summarize"
         extra_body['prompt_summary'] = prompt_summary
         extra_body['pre_prompt_summary'] = ''
+    if simple:
+        extra_body['pre_prompt_query'] = ''
+        extra_body['prompt_query'] = ''
 
     responses = client.chat.completions.create(
         messages=messages,
@@ -220,7 +224,7 @@ def ask_question_about_documents():
 
     if args.csv or is_small:
         prompt_csv = "Extract all information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Ensure your CSV output is inside a code block with triple backticks with the csv language tag."
-        csv_answer = get_rag_answer(prompt_csv, tag='', **rag_kwargs)
+        csv_answer = get_rag_answer(prompt_csv, tag='', simple=True, **rag_kwargs)
         matches = re.findall(r'```(?:[a-zA-Z]*)\n(.*?)```', csv_answer, re.DOTALL)
         if matches:
             csv_filename = f"output_{str(uuid.uuid4())[:6]}.csv"
