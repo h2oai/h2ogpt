@@ -1821,7 +1821,7 @@ def __model_lock_to_state(model_dict1, **kwargs):
     model_visible_vision_models = model_state_trial.get('visible_vision_models')
     if model_visible_vision_models is None:
         model_visible_vision_models = kwargs['visible_vision_models']
-        if isinstance(model_visible_vision_models, list):
+        if isinstance(model_visible_vision_models, list) and model_visible_vision_models:
             model_visible_vision_models = model_visible_vision_models[0]
     if model_state_trial['is_actually_vision_model']:
         model_visible_vision_models = model_state_trial['base_model']
