@@ -611,7 +611,7 @@ python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILE
 * Use convert_document_to_text.py with --files with a document (pdf, docx, doc, epub, pptx, ppt, xls, xlsx, zip) to convert to text for other tools.
 * Zip files will be extracted and each file inside will be converted to text.
 * Use convert_document_to_text.py can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.) to convert to text for other tools.
-* The convert_document_to_text.py tool is not to be used for images.
+* The convert_document_to_text.py tool cannot be used for images or videos.
 * However, use convert_document_to_text.py if just want to directly ask a question about a non-image document or URL.
 * However, use ask_question_about_image.py if just want to directly ask a question about an image.
 * For data analysis on xlsx or xls files, you must use non-text ways like pd.read_excel().
@@ -632,15 +632,14 @@ def get_download_web_video_helper():
 ```sh
 # filename: my_download_video.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/download_web_video.py --video_url "VIDEO_URL" --base_url "https://www.youtube.com"
+python {cwd}/openai_server/agent_tools/download_web_video.py --video_url "YOUTUBE_URL"
 ```
 * usage: {cwd}/openai_server/agent_tools/download_web_video.py [-h] --video_url VIDEO_URL --base_url BASE_URL
-* The video_url is the URL of the video you want to download.
-* The base_url is the URL of the website where the video is hosted, defaults to "https://www.youtube.com".
 * download_web_video.py downloads a video from the given URL.
-* The tool uses yt-dlp and can download videos from various platforms, not just YouTube.
-* List of other supported sites where videos can be downloaded is here: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
+* The video_url is the URL of the video you want to download.
+* The --base_url is the URL of the website where the video is hosted, defaults to "https://www.youtube.com" but can be any other website that hosts videos.
 """
+# * List of other supported sites where videos can be downloaded is here: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
     return youtube_helper
 
 
