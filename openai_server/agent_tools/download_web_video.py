@@ -15,6 +15,24 @@ def selenium(base_url, video_url):
     options.add_argument("start-maximized")
     driver = webdriver.Chrome(options=options)
 
+    google_username = os.getenv('GOOGLE_USERNAME')
+    google_password = os.getenv('GOOGLE_PASSWORD')
+    if google_username and google_password:
+        # Go to Google login page
+        driver.get("https://accounts.google.com/signin")
+
+        # Enter email
+        email_field = driver.find_element(By.ID, "identifierId")
+        email_field.send_keys(google_username)
+        email_field.send_keys(Keys.RETURN)
+        time.sleep(2)
+
+        # Enter password
+        password_field = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+        password_field.send_keys(google_password)
+        password_field.send_keys(Keys.RETURN)
+        time.sleep(2)
+
     # Visit site
     driver.get(base_url)
 
@@ -52,6 +70,11 @@ def download_web_video(video_url, base_url="https://www.youtube.com", output_dir
         'outtmpl': os.path.join(output_dir, '%(title)s.%(ext)s'),
         'restrictfilenames': True,
     }
+    oauth_refresh_token = os.getenv('OAUTH_REFRESH_TOKEN', '')
+    if oauth_refresh_token:
+        ydl_opts.update({'username': 'oauth',
+                         'password': os.getenv('OAUTH_REFRESH_TOKEN', ''),
+                         })
 
     import yt_dlp
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
