@@ -49,20 +49,20 @@ def main():
     default_max_time = int(os.getenv('H2OGPT_AGENT_OPENAI_TIMEOUT', "120"))
 
     parser = argparse.ArgumentParser(description="OpenAI Vision API Script")
-    parser.add_argument("-t", "--timeout", type=int, default=60, help="Timeout for API calls")
-    parser.add_argument("-s", "--system_prompt", type=str,
+    parser.add_argument("--timeout", type=int, default=60, help="Timeout for API calls")
+    parser.add_argument("--system_prompt", type=str,
                         default="""You are a highly capable AI assistant with advanced vision capabilities.
 * Analyze the provided image thoroughly and provide detailed, accurate descriptions or answers based on what you see.
 * Consider various aspects such as objects, people, actions, text, colors, composition, and any other relevant details.
 * If asked a specific question about the image, focus your response on addressing that question directly.
 * Ensure you add a critique of the image, if anything seems wrong, or if anything requires improvement.""",
                         help="System prompt")
-    parser.add_argument("-p", "--prompt", type=str, required=True, help="User prompt")
-    parser.add_argument("-u", "--url", type=str, help="URL of the image")
-    parser.add_argument("-f", "--file", type=str,
+    parser.add_argument("--prompt", "--query", type=str, required=True, help="User prompt")
+    parser.add_argument("--url", type=str, help="URL of the image")
+    parser.add_argument("--file", type=str,
                         help="Path to the image file. Accepts standard image formats (e.g., PNG, JPEG, JPG), SVG, and PDF files.")
-    parser.add_argument("-m", "--model", type=str, help="OpenAI or Open Source model to use")
-    parser.add_argument("-T", "--temperature", type=float, default=0.0, help="Temperature for the model")
+    parser.add_argument("--model", type=str, help="OpenAI or Open Source model to use")
+    parser.add_argument("--temperature", type=float, default=0.0, help="Temperature for the model")
     parser.add_argument("--max_tokens", type=int, default=1024, help="Maximum tokens for the model")
     parser.add_argument("--stream_output", help="Whether to stream output", default=True, action='store_true')
     parser.add_argument("--max_time", type=float, default=default_max_time, help="Maximum time to wait for response")
