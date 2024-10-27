@@ -196,7 +196,6 @@ def save_results_to_file(results: Dict[str, Any], filename: str) -> None:
     print(
         f"""\n# Full search results available in this JSON file: {filename}
 * One can write python code to extract the keys one wants from the JSON file.
-* If need broad information or extraction of complex information, it is highly recommend passing entire JSON into ask_question_about_documents.py to get an answer to a question about the search results.
 """)
 
 
