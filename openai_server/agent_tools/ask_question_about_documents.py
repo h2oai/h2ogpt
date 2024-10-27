@@ -130,17 +130,17 @@ def ask_question_about_documents():
         image_files = []
 
     parser = argparse.ArgumentParser(description="RAG Tool")
-    parser.add_argument("-p", "--prompt", "--query", type=str, required=True, help="User prompt or query")
-    parser.add_argument("-j", "--json", action="store_true", default=False, help="Output results as JSON")
-    parser.add_argument("-c", "--csv", action="store_true", default=False, help="Output results as CSV")
-    parser.add_argument("-b", "--baseline", required=False, action='store_true',
+    parser.add_argument("--prompt", "--query", type=str, required=True, help="User prompt or query")
+    parser.add_argument("--json", action="store_true", default=False, help="Output results as JSON")
+    parser.add_argument("--csv", action="store_true", default=False, help="Output results as CSV")
+    parser.add_argument("--baseline", required=False, action='store_true',
                         help="Whether to get baseline from user docs")
     parser.add_argument("--files", nargs="+", required=False,
                         help="Files of documents with optionally additional images to ask question about.")
     parser.add_argument("--urls", nargs="+", required=False,
                         help="URLs to ask question about")
     parser.add_argument("-m", "--model", type=str, required=False, help="OpenAI or Open Source model to use")
-    parser.add_argument("--max_time", type=float, required=False, default=default_max_time,
+    parser.add_argument("--timeout", type=float, required=False, default=default_max_time,
                         help="Maximum time to wait for response")
     parser.add_argument("--system_prompt", type=str, required=False, default=system_prompt, help="System prompt")
     parser.add_argument("--chat_conversation_file", type=str, required=False,
@@ -217,13 +217,16 @@ def ask_question_about_documents():
                       chat_conversation=chat_conversation,
                       model=args.model,
                       system_prompt=args.system_prompt,
-                      max_time=args.max_time,
+                      max_time=args.timeout,
                       )
 
-    is_small = len(text_context_list) < 4 * 8192
+    is_small = len(text_context_list) < 4 * 1024
 
     if args.csv or is_small:
-        prompt_csv = "Extract all information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Try to make a single CSV if possible.  Ensure each CSV block of output is inside a code block with triple backticks with the csv language tag."
+        if not args.prompt:
+            prompt_csv = "Extract all information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Try to make a single CSV if possible.  Ensure each CSV block of output is inside a code block with triple backticks with the csv language tag."
+        else:
+            prompt_csv = "Extract requested information in a well-organized form as a CSV so it can be used for data analysis or plotting.  Try to make a single CSV if possible.  Ensure each CSV block of output is inside a code block with triple backticks with the csv language tag.\n\nRequested information: " + args.prompt
         csv_answer = get_rag_answer(prompt_csv, tag='', simple=True, **rag_kwargs)
         matches = re.findall(r'```(?:[a-zA-Z]*)\n(.*?)```', csv_answer, re.DOTALL)
         for match in matches:
@@ -232,7 +235,7 @@ def ask_question_about_documents():
                 f.write(match)
             print(f"CSV output written to {csv_filename}. You can use this with code generation in order to answer the user's question or obtain some intermediate step using pandas etc.  Remember, you are not good at solving puzzles, math, or doing question-answer on tabular data, so use these results in python code in order to solve such tasks.\n")
 
-    if args.json or is_small:
+    if args.json:
         json_kwargs = rag_kwargs.copy()
         json_kwargs['guided_json'] = None
         json_kwargs['response_format'] = 'json_object'

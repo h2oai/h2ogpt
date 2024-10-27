@@ -397,7 +397,7 @@ def get_ask_question_about_image_helper(base_url, api_key, model):
 # execution: true
 python {cwd}/openai_server/agent_tools/ask_question_about_image.py --query "QUERY" --file "LOCAL FILE NAME"
 ```
-* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] [--timeout TIMEOUT] [--system_prompt SYSTEM_PROMPT] --query "QUERY" [--url URL] [--file FILE]
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_image.py [-h] --query "QUERY" [--url URL] [--file FILE] [--system_prompt SYSTEM_PROMPT]
 * ask_question_about_image gives a text response for either a URL or local file
 * ask_question_about_image can be used to critique any image, e.g. a plot, a photo, a screenshot, etc. either made by code generation or among provided files or among URLs.
 * ask_question_about_image accepts most image files allowed by PIL (Pillow) except svg.
@@ -583,13 +583,14 @@ def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list,
 ```sh
 # filename: my_question_about_documents.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --query "QUERY" [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
+python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --query "QUERY" [--files FILES [FILES ...]] [--urls URLS [URLS ...]] [--csv]
 ```
 * usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --query "QUERY" [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
 * Do not include any file names in your QUERY, just query the document content.
 * ask_question_about_documents.py --files can be any local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx)
 * ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.).
 * Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
+* If need structured output for data analysis, use --csv
 """
     if text_context_list or image_file:
         rag_helper += "* Absolutely you should always run ask_question_about_documents once with -b to get a baseline answer if the user has provided documents.\n"

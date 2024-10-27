@@ -7,4 +7,4 @@ yt-dlp>=2024.8.6
 # moviepy>=0.5.1
 
 # for fiftyone with patches
-pytubefix==6.15.4
+pytubefix==8.1.1
