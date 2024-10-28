@@ -6,7 +6,7 @@ global:
   externalLLM:
     enabled: false
     # -- list of secrets for h2ogpt and agents env
-    secret:
+    secret: {}
 #      OPENAI_AZURE_KEY: "value"
 #      OPENAI_AZURE_API_BASE: "value"
 #      OPENAI_API_KEY: "value"
