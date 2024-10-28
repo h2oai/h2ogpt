@@ -118,7 +118,7 @@ spec:
             - name: http
               containerPort: 7860
               protocol: TCP
-          {{- if .Values.global.externalLLM.openAI.enabled }}
+          {{- if .Values.h2ogpt.overrideConfig.openai_server }}
             - name: openai
               containerPort: 5000
               protocol: TCP

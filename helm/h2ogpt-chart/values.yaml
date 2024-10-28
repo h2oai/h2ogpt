@@ -14,15 +14,6 @@ global:
 
     modelLock:
 
-    openAIAzure:
-      enabled: false
-
-    openAI:
-      enabled: false
-
-    replicate:
-      enabled: false
-
   visionModels:
     # -- Enable vision models
     enabled: false
@@ -112,7 +103,6 @@ h2ogpt:
     openaiPort: 5000
     functionPort: 5002
     agentsPort: 5004
-    gptPort: 8888
     webServiceAnnotations: {}
 
   updateStrategy:
