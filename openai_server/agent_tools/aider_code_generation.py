@@ -29,7 +29,6 @@ def main():
     from aider.coders import Coder
     from aider.models import Model
     from aider.io import InputOutput
-    from openai import OpenAI
 
     default_max_time = int(os.getenv('H2OGPT_AGENT_OPENAI_TIMEOUT', "120"))
 
@@ -49,7 +48,7 @@ def main():
     base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
     assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
     server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
-
+    from openai import OpenAI
     client = OpenAI(base_url=base_url, api_key=server_api_key, timeout=args.max_time)
 
     # Set environment variables for Aider

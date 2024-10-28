@@ -23,6 +23,8 @@ def run_autogen_multi_agent(query=None,
                             # autogen/agent specific parameters
                             agent_type=None,
                             agent_accuracy=None,
+                            agent_chat_history=None,
+                            agent_files=None,
                             autogen_stop_docker_executor=None,
                             autogen_run_code_in_docker=None,
                             autogen_max_consecutive_auto_reply=None,
@@ -71,7 +73,7 @@ def run_autogen_multi_agent(query=None,
 
     base_url = os.environ['H2OGPT_OPENAI_BASE_URL']  # must exist
     api_key = os.environ['H2OGPT_OPENAI_API_KEY']  # must exist
-    temp_dir = tempfile.mkdtemp()
+    agent_work_dir = tempfile.mkdtemp()
     from openai_server.autogen_utils import get_code_executor
     from openai_server.autogen_agents import (
         get_human_proxy_agent,
@@ -82,12 +84,12 @@ def run_autogen_multi_agent(query=None,
 
     # Create a code executor.
     executor = get_code_executor(
-        temp_dir=temp_dir,
-        agent_system_site_packages=agent_system_site_packages,
-        agent_venv_dir=agent_venv_dir,
         autogen_run_code_in_docker=autogen_run_code_in_docker,
         autogen_timeout=autogen_timeout,
+        agent_system_site_packages=agent_system_site_packages,
         autogen_code_restrictions_level=autogen_code_restrictions_level,
+        agent_work_dir=agent_work_dir,
+        agent_venv_dir=agent_venv_dir,
     )
 
     # Prepare the system message for the code writer agent.
@@ -96,7 +98,7 @@ def run_autogen_multi_agent(query=None,
                                agent_system_site_packages, system_prompt,
                                base_url,
                                api_key, model, text_context_list, image_file,
-                               temp_dir, query, autogen_timeout)
+                               agent_work_dir, query, autogen_timeout)
     # Prepare the LLM config for the agents
     extra_body = {
         "agent_type": agent_type,  # autogen_multi_agent
@@ -197,7 +199,7 @@ def run_autogen_multi_agent(query=None,
     ret_dict = get_ret_dict_and_handle_files(chat_result,
                                              None,
                                              model,
-                                             temp_dir, agent_verbose, internal_file_names, authorization,
+                                             agent_work_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,

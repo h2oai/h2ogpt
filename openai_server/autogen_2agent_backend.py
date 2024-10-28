@@ -1,8 +1,9 @@
 import os
 import tempfile
+import uuid
 
 from openai_server.backend_utils import structure_to_messages
-from openai_server.agent_utils import get_ret_dict_and_handle_files
+from openai_server.agent_utils import get_ret_dict_and_handle_files, get_openai_client
 from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt, \
     get_agent_tools
 
@@ -21,6 +22,9 @@ def run_autogen_2agent(query=None,
                        # autogen/agent specific parameters
                        agent_type=None,
                        agent_accuracy=None,
+                       agent_chat_history=None,
+                       agent_files=None,
+                       agent_work_dir=None,
                        max_stream_length=None,
                        max_memory_usage=None,
                        autogen_use_planning_prompt=None,
@@ -73,14 +77,25 @@ def run_autogen_2agent(query=None,
     if max_memory_usage is None:
         # per-execution process maximum memory usage
         max_memory_usage = 16 * 1024**3  # 16 GB
+    if agent_chat_history is None:
+        agent_chat_history = []
+    if agent_files is None:
+        agent_files = []
     if agent_verbose is None:
         agent_verbose = False
     if agent_verbose:
         print("AutoGen using model=%s." % model, flush=True)
 
-    # Create a temporary directory to store the code files.
-    # temp_dir = tempfile.TemporaryDirectory().name
-    temp_dir = tempfile.mkdtemp()
+    if agent_work_dir is None:
+        # Create a temporary directory to store the code files.
+        # temp_dir = tempfile.TemporaryDirectory().name
+        agent_work_dir = tempfile.mkdtemp()
+
+    if agent_files:
+        client = get_openai_client(max_time=autogen_timeout)
+        # assume list of file_ids for use with File API
+        from openai_server.openai_client import get_files_from_ids
+        get_files_from_ids(usage=None, client=client, file_ids=agent_files, work_dir=agent_work_dir)
 
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")
@@ -120,17 +135,25 @@ def run_autogen_2agent(query=None,
     else:
         raise ValueError("Invalid agent_accuracy: %s" % agent_accuracy)
 
+    # assume by default that if have agent history, continuing with task, not starting new one
+    if agent_chat_history:
+        autogen_use_planning_prompt = False
+
     if extra_user_prompt:
         query = f"""<extra_query_conditions>\n{extra_user_prompt}\n</extra_query_conditions>\n\n""" + query
 
     from openai_server.autogen_utils import get_code_executor
+    if agent_venv_dir is None:
+        username = str(uuid.uuid4())
+        agent_venv_dir = ".venv_%s" % username
+
     executor = get_code_executor(
-        autogen_run_code_in_docker,
-        autogen_timeout,
-        agent_system_site_packages,
-        autogen_code_restrictions_level,
-        agent_venv_dir,
-        temp_dir,
+        autogen_run_code_in_docker=autogen_run_code_in_docker,
+        autogen_timeout=autogen_timeout,
+        agent_system_site_packages=agent_system_site_packages,
+        autogen_code_restrictions_level=autogen_code_restrictions_level,
+        agent_work_dir=agent_work_dir,
+        agent_venv_dir=agent_venv_dir,
         agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
         agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,
         max_stream_length=max_stream_length,
@@ -167,7 +190,7 @@ def run_autogen_2agent(query=None,
                                agent_system_site_packages, system_prompt,
                                base_url,
                                api_key, model, text_context_list, image_file,
-                               temp_dir, query, autogen_timeout)
+                               agent_work_dir, query, autogen_timeout)
 
     enable_caching = True
 
@@ -237,9 +260,21 @@ def run_autogen_2agent(query=None,
                     message['content'] = planning_final_prompt(query)
 
     # apply chat history
-    if chat_conversation or planning_messages:
-        chat_messages = structure_to_messages(None, None, chat_conversation, None)
+    if chat_conversation or planning_messages or agent_chat_history:
+        chat_messages = []
+
+        # some high-level chat history
+        if chat_conversation:
+            chat_messages.extend(structure_to_messages(None, None, chat_conversation, None))
+
+        # pre-append planning
         chat_messages.extend(planning_messages)
+
+        # actual internal agent chat history
+        if agent_chat_history:
+            chat_messages.extend(agent_chat_history)
+
+        # apply
         for message in chat_messages:
             if message['role'] == 'user':
                 code_writer_agent.send(message['content'], code_executor_agent, request_reply=False, silent=True)
@@ -270,7 +305,7 @@ def run_autogen_2agent(query=None,
     ret_dict = get_ret_dict_and_handle_files(chat_result,
                                              chat_result_planning,
                                              model,
-                                             temp_dir, agent_verbose, internal_file_names, authorization,
+                                             agent_work_dir, agent_verbose, internal_file_names, authorization,
                                              autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,

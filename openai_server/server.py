@@ -195,6 +195,9 @@ class AgentParams(BaseModel):
     autogen_silent_exchange: bool = True
     agent_type: str | None = 'auto'
     agent_accuracy: str | None = 'standard'
+    agent_work_dir: str | None = None
+    agent_chat_history: list | None = []
+    agent_files: list | None = []
 
 
 class Params(H2oGPTParams, AgentParams):
