@@ -1,6 +1,6 @@
 # h2ogpt
 
-![Version: 0.1.0-288](https://img.shields.io/badge/Version-0.1.0--288-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0-288](https://img.shields.io/badge/AppVersion-0.1.0--288-informational?style=flat-square)
+![Version: 0.2.1-1254](https://img.shields.io/badge/Version-0.2.1--1254-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.2.1-1254](https://img.shields.io/badge/AppVersion-0.2.1--1254-informational?style=flat-square)
 
 A Helm chart for h2oGPT
 
@@ -70,10 +70,7 @@ A Helm chart for h2oGPT
 | fullnameOverride | string | `""` |  |
 | global.externalLLM.enabled | bool | `false` |  |
 | global.externalLLM.modelLock | string | `nil` |  |
-| global.externalLLM.openAI.enabled | bool | `false` |  |
-| global.externalLLM.openAIAzure.enabled | bool | `false` |  |
-| global.externalLLM.replicate.enabled | bool | `false` |  |
-| global.externalLLM.secret | string | `nil` | list of secrets for h2ogpt and agents env |
+| global.externalLLM.secret | object | `{}` | list of secrets for h2ogpt and agents env |
 | global.visionModels.enabled | bool | `false` | Enable vision models |
 | global.visionModels.rotateAlignResizeImage | bool | `false` |  |
 | global.visionModels.visibleModels | list | `[]` | Visible vision models, the vision model itslef needs to be set via modeLock or base_model. Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5'] |
@@ -127,7 +124,6 @@ A Helm chart for h2oGPT
 | h2ogpt.securityContext.seccompProfile.type | string | `"RuntimeDefault"` |  |
 | h2ogpt.service.agentsPort | int | `5004` |  |
 | h2ogpt.service.functionPort | int | `5002` |  |
-| h2ogpt.service.gptPort | int | `8888` |  |
 | h2ogpt.service.openaiPort | int | `5000` |  |
 | h2ogpt.service.type | string | `"NodePort"` |  |
 | h2ogpt.service.webPort | int | `80` |  |
