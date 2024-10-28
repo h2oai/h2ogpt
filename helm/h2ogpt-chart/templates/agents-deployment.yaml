@@ -129,7 +129,7 @@ spec:
             - name: {{ include "h2ogpt.fullname" . }}-agents-volume
               mountPath: /workspace/.cache
               subPath: cache
-            - name: {{ include "h2ogpt.fullname" . }}-volume
+            - name: {{ include "h2ogpt.fullname" . }}-agents-volume
               mountPath: /workspace/save
               subPath: save
             {{- if .Values.caCertificates }}
@@ -144,7 +144,7 @@ spec:
         - name: {{ include "h2ogpt.fullname" . }}-agents-volume
           {{- if not .Values.agents.storage.useEphemeral }}
           persistentVolumeClaim:
-            claimName:  {{ include "h2ogpt.fullname" . }}-volume
+            claimName:  {{ include "h2ogpt.fullname" . }}-agents-volume
           {{- else}}
           ephemeral:
             volumeClaimTemplate:
