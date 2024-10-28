@@ -189,7 +189,7 @@ def fix_markdown_image_paths(text):
 
 def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                                   model,
-                                  temp_dir, agent_verbose, internal_file_names, authorization,
+                                  agent_work_dir, agent_verbose, internal_file_names, authorization,
                                   autogen_run_code_in_docker, autogen_stop_docker_executor, executor,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
                                   system_message_parts,
@@ -199,13 +199,13 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     if agent_verbose:
         print("chat_result:", chat_result_planning)
         print("chat_result:", chat_result)
-        print("list_dir:", os.listdir(temp_dir))
+        print("list_dir:", os.listdir(agent_work_dir))
 
     # Get all files in the temp_dir and one level deep subdirectories
     file_list = []
-    for root, dirs, files in os.walk(temp_dir):
+    for root, dirs, files in os.walk(agent_work_dir):
         # Exclude deeper directories by checking the depth
-        if root == temp_dir or os.path.dirname(root) == temp_dir:
+        if root == agent_work_dir or os.path.dirname(root) == agent_work_dir:
             file_list.extend([os.path.join(root, f) for f in files])
 
     # ensure files are sorted by creation time so newest are last in list
@@ -317,8 +317,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                 print("Failed to fix markdown image paths", file=sys.stderr)
     if chat_result:
         ret_dict.update(dict(summary=chat_result.summary))
-    if agent_venv_dir is not None:
-        ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
+    ret_dict.update(dict(agent_venv_dir=agent_venv_dir))
     if agent_code_writer_system_message is not None:
         ret_dict.update(dict(agent_code_writer_system_message=agent_code_writer_system_message))
     if agent_system_site_packages is not None:
@@ -329,7 +328,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
     ret_dict.update(dict(autogen_silent_exchange=autogen_silent_exchange))
     # can re-use for chat continuation to avoid sending files over
     # FIXME: Maybe just delete files and force send back to agent
-    ret_dict.update(dict(temp_dir=temp_dir))
+    ret_dict.update(dict(agent_work_dir=agent_work_dir))
 
     return ret_dict
 
@@ -398,3 +397,13 @@ def extract_agent_tool(input_string):
     else:
         # Return None if no match is found
         return None
+
+
+def get_openai_client(max_time=120):
+    # Set up OpenAI-like client
+    base_url = os.getenv('H2OGPT_OPENAI_BASE_URL')
+    assert base_url is not None, "H2OGPT_OPENAI_BASE_URL environment variable is not set"
+    server_api_key = os.getenv('H2OGPT_OPENAI_API_KEY', 'EMPTY')
+    from openai import OpenAI
+    client = OpenAI(base_url=base_url, api_key=server_api_key, timeout=max_time)
+    return client

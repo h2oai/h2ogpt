@@ -2,8 +2,6 @@ import os
 import argparse
 import uuid
 
-from openai import OpenAI
-
 
 def check_valid_extension(file):
     """

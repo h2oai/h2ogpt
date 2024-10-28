@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import typing
 import warnings
 from collections import defaultdict
@@ -1042,25 +1043,28 @@ async def get_autogen_response(func=None, use_process=False, **kwargs):
 
 
 def get_code_executor(
-        autogen_run_code_in_docker,
-        autogen_timeout,
-        agent_system_site_packages,
-        autogen_code_restrictions_level,
-        agent_venv_dir,
-        temp_dir,
+        autogen_run_code_in_docker=False,
+        autogen_timeout=120,
+        agent_system_site_packages=None,
+        autogen_code_restrictions_level=0,
+        agent_work_dir=None,
+        agent_venv_dir=None,
         agent_tools_usage_hard_limits={},
         agent_tools_usage_soft_limits={},
         max_stream_length=4096,
         # max memory per code execution process
         max_memory_usage=16 * 1024 ** 3,  # 16GB
 ):
+    if agent_work_dir is None:
+        agent_work_dir = tempfile.mkdtemp()
+
     if autogen_run_code_in_docker:
         from autogen.coding import DockerCommandLineCodeExecutor
         # Create a Docker command line code executor.
         executor = DockerCommandLineCodeExecutor(
             image="python:3.10-slim-bullseye",
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
-            work_dir=temp_dir,  # Use the temporary directory to store the code files.
+            work_dir=agent_work_dir,  # Use the temporary directory to store the code files.
         )
     else:
         set_python_path()
@@ -1083,7 +1087,7 @@ def get_code_executor(
         executor = H2OLocalCommandLineCodeExecutor(
             timeout=autogen_timeout,  # Timeout for each code execution in seconds.
             virtual_env_context=virtual_env_context,
-            work_dir=temp_dir,  # Use the temporary directory to store the code files.
+            work_dir=agent_work_dir,  # Use the temporary directory to store the code files.
             autogen_code_restrictions_level=autogen_code_restrictions_level,
             agent_tools_usage_hard_limits=agent_tools_usage_hard_limits,
             agent_tools_usage_soft_limits=agent_tools_usage_soft_limits,

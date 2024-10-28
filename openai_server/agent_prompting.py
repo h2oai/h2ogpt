@@ -206,14 +206,14 @@ Stopping instructions:
 # So maybe do as actual final step outside of agent, just passing in history, then separately storing any LLM response.
 
 
-def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversation=None, system_prompt=None,
+def get_chat_doc_context(text_context_list, image_file, agent_work_dir, chat_conversation=None, system_prompt=None,
                          prompt=None, model=None):
     """
     Construct the chat query to be sent to the agent.
     :param text_context_list:
     :param image_file:
     :param chat_conversation:
-    :param temp_dir:
+    :param agent_work_dir:
     :return:
     """
     if text_context_list is None:
@@ -294,7 +294,7 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         document_context_file_name = "document_context.txt"
         internal_file_names.append(document_context_file_name)
         internal_file_names.extend(file_names)
-        with open(os.path.join(temp_dir, document_context_file_name), "w") as f:
+        with open(os.path.join(agent_work_dir, document_context_file_name), "w") as f:
             f.write("\n".join(text_context_list))
         have_internet = get_have_internet()
         if have_internet:
@@ -331,7 +331,7 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
         for i, file_name in enumerate(file_names):
             text = text_context_list[i]
             meta_data = str(meta_datas[i]).strip()
-            with open(os.path.join(temp_dir, file_name), "w") as f:
+            with open(os.path.join(agent_work_dir, file_name), "w") as f:
                 f.write(text)
             if model and 'claude' in model:
                 document_context += f"""<doc>\n<document_part>{i}</document_part>\n{meta_data}\n<local_file_name>\n{file_name}\n</local_file_name>\n</doc>\n"""
@@ -368,7 +368,7 @@ def get_chat_doc_context(text_context_list, image_file, temp_dir, chat_conversat
     chat_doc_query = f"""{chat_history_context}{document_context}"""
 
     # convert to full name
-    internal_file_names = [os.path.join(temp_dir, x) for x in internal_file_names]
+    internal_file_names = [os.path.join(agent_work_dir, x) for x in internal_file_names]
 
     return chat_doc_query, internal_file_names
 
@@ -813,7 +813,7 @@ def get_agent_tools():
 
 
 def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_packages, system_prompt, base_url,
-                           api_key, model, text_context_list, image_file, temp_dir, query, autogen_timeout):
+                           api_key, model, text_context_list, image_file, agent_work_dir, query, autogen_timeout):
     agent_code_writer_system_message = agent_system_prompt(agent_code_writer_system_message,
                                                            agent_system_site_packages)
 
@@ -838,7 +838,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     api_helper = get_api_helper()
 
     chat_doc_query, internal_file_names = get_chat_doc_context(text_context_list, image_file,
-                                                               temp_dir,
+                                                               agent_work_dir,
                                                                # avoid text version of chat conversation, confuses LLM
                                                                chat_conversation=None,
                                                                system_prompt=system_prompt,
