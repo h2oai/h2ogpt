@@ -17,8 +17,12 @@ def selenium(base_url, video_url):
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    # options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
     driver = webdriver.Chrome(options=options)
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
     google_username = os.getenv('GOOGLE_USERNAME')
     google_password = os.getenv('GOOGLE_PASSWORD')
@@ -30,13 +34,13 @@ def selenium(base_url, video_url):
         email_field = driver.find_element(By.ID, "identifierId")
         email_field.send_keys(google_username)
         email_field.send_keys(Keys.RETURN)
-        time.sleep(2)
+        time.sleep(random.uniform(2, 5))
 
         # Enter password
         password_field = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
         password_field.send_keys(google_password)
         password_field.send_keys(Keys.RETURN)
-        time.sleep(2)
+        time.sleep(random.uniform(2, 5))
 
     # Visit site
     driver.get(base_url)
@@ -47,15 +51,15 @@ def selenium(base_url, video_url):
     search_bar.send_keys(Keys.RETURN)
 
     # Wait for the page to load
-    time.sleep(3)
+    time.sleep(random.uniform(3, 6))
 
     # Click on the first video result
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight/3);")
     first_video = driver.find_element(By.CSS_SELECTOR, "a#video-title")
     first_video.click()
 
     # Let the video play for a few seconds (mimic human behavior)
-    tsleep = random.randint(5, 15)
-    time.sleep(tsleep)
+    time.sleep(random.randint(5, 15))
 
     # Get video URL
     video_url_new = driver.current_url
