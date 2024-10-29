@@ -379,7 +379,7 @@ def run_download_api(file_id, authorization):
         content = f.read()
 
     with open(file_path_meta, "rt") as f:
-        response_dict = json.dumps(f.read())
+        response_dict = json.loads(f.read())
     assert isinstance(response_dict, dict), "response_dict should be a dict"
     return response_dict, content
 
