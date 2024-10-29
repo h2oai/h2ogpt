@@ -366,6 +366,33 @@ def run_upload_api(content, filename, purpose, authorization, created_at_orig=No
     return response_dict
 
 
+def run_download_api(file_id, authorization):
+    user_dir = get_user_dir(authorization)
+
+    if not os.path.exists(user_dir):
+        os.makedirs(user_dir)
+
+    file_path = os.path.join(user_dir, file_id)
+    file_path_meta = os.path.join(user_dir, file_id + meta_ext)
+
+    with open(file_path, "rb") as f:
+        content = f.read()
+
+    with open(file_path_meta, "rt") as f:
+        response_dict = json.dumps(f.read())
+    assert isinstance(response_dict, dict), "response_dict should be a dict"
+    return response_dict, content
+
+
+def run_download_api_all(agent_files, authorization, agent_work_dir):
+    for file_id in agent_files:
+        response_dict, content = run_download_api(file_id, authorization)
+        filename = response_dict['filename']
+        new_file = os.path.join(agent_work_dir, filename)
+        with open(new_file, "wb") as f:
+            f.write(content)
+
+
 def extract_xml_tags(full_text, tags=['name', 'page']):
     results_dict = {k: None for k in tags}
     for tag in tags:
