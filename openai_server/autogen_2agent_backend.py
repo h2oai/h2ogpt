@@ -3,7 +3,7 @@ import tempfile
 import uuid
 
 from openai_server.backend_utils import structure_to_messages, run_download_api_all
-from openai_server.agent_utils import get_ret_dict_and_handle_files, get_openai_client
+from openai_server.agent_utils import get_ret_dict_and_handle_files
 from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt, \
     get_agent_tools
 

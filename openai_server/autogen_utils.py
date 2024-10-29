@@ -255,10 +255,14 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     # Construct the path
                     path = Path(filename)
 
+                    # Convert workspace_path to an absolute path at the start
+                    workspace_path = workspace_path.resolve()
+
                     # Ensure the path doesn't try to go outside the workspace
                     try:
-                        resolved_path = (workspace_path / path).resolve().relative_to(workspace_path)
-                        return str(resolved_path)
+                        resolved_path = workspace_path.joinpath(path).resolve()
+                        if resolved_path.is_relative_to(workspace_path):
+                            return str(resolved_path)
                     except ValueError:
                         # Path would be outside the workspace, skip it
                         continue
