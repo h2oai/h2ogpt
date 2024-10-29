@@ -2,7 +2,7 @@ import os
 import tempfile
 import uuid
 
-from openai_server.backend_utils import structure_to_messages
+from openai_server.backend_utils import structure_to_messages, run_download_api_all
 from openai_server.agent_utils import get_ret_dict_and_handle_files, get_openai_client
 from openai_server.agent_prompting import get_full_system_prompt, planning_prompt, planning_final_prompt, \
     get_agent_tools
@@ -92,10 +92,8 @@ def run_autogen_2agent(query=None,
         agent_work_dir = tempfile.mkdtemp()
 
     if agent_files:
-        client = get_openai_client(max_time=autogen_timeout)
         # assume list of file_ids for use with File API
-        from openai_server.openai_client import get_files_from_ids
-        get_files_from_ids(usage=None, client=client, file_ids=agent_files, work_dir=agent_work_dir)
+        run_download_api_all(agent_files, authorization, agent_work_dir)
 
     # iostream = IOStream.get_default()
     # iostream.print("\033[32m", end="")

@@ -1140,7 +1140,7 @@ async def retrieve_file(request: Request, file_id: str, authorization: str = Hea
     file_path = os.path.join(user_dir, file_id)
 
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail=f"retrieve_file: {file_id}: File not found")
 
     file_path_meta = os.path.join(user_dir, file_id + meta_ext)
     if os.path.isfile(file_path_meta):
@@ -1176,7 +1176,7 @@ async def delete_file(request: Request, file_id: str, authorization: str = Heade
     file_path = os.path.join(user_dir, file_id)
 
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail=f"delete_file {file_id}: File not found")
 
     try:
         os.remove(file_path)
@@ -1202,7 +1202,7 @@ async def retrieve_file_content(request: Request, file_id: str, stream: bool = Q
     file_path = os.path.join(user_dir, file_id)
 
     if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail=f"retrieve_file_content: {file_id}: File not found")
 
     if stream:
         def iter_file():
