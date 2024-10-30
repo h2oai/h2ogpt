@@ -195,8 +195,8 @@ def save_results_to_file(results: Dict[str, Any], filename: str) -> None:
     with open(filename, 'w') as f:
         json.dump(results, f, indent=2)
     print(
-        f"""\n# Full search results available in this JSON file: {filename}
-* One can write python code to extract the keys one wants from the JSON file.
+        f"""\n# Search results for specific the keys are in this JSON file: {filename}
+* One can write python code to extract certain keys from the JSON file, but this file does not contain specific or detailed information for the query, you use should pass specific URLs to ask_question_about_documents.py for specific or detailed information.
 """)
 
 
@@ -264,11 +264,11 @@ def google_search():
 
     results = perform_search(args)
 
-    # Save full results to a file
-    save_results_to_file(results, f"{args.engine}_{args.type}_search_results.json")
-
     # Print results
     print_results(results, args)
+
+    # Save full results to a file
+    save_results_to_file(results, f"{args.engine}_{args.type}_search_results.json")
 
 
 if __name__ == "__main__":

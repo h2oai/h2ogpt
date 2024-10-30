@@ -128,9 +128,9 @@ def print_info(info, args):
         if args.output:
             with open(args.output, 'wt') as f:
                 json.dump(info, f, indent=2, default=str)
-            print(f"\nFull JSON output saved to: {args.output}")
+            print(f"\nJSON output saved to: {args.output}")
         else:
-            print("\nFull JSON output:")
+            print("\nJSON output:")
             print(json.dumps(info, indent=2, default=str))
     else:
         for key, value in info.items():
