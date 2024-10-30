@@ -351,48 +351,5 @@ vllm:
   podLabels: {}
 
 
-lmdeploy:
-  # -- Enable lmdeploy
-  enabled: false
-  replicaCount: 1
-
-  image:
-    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy
-    tag:
-    pullPolicy: IfNotPresent
-  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
-  podAffinity:
-    # hostname:
-    # zone:
-
-  storage:
-    size: 512Gi
-    class:
-    useEphemeral: true
-
-  overrideConfig:
-  hfSecret:
-  containerArgs:
-    - "OpenGVLab/InternVL-Chat-V1-5"
-
-  service:
-    type: ClusterIP
-    port: 23333
-
-  updateStrategy:
-    type: RollingUpdate
-
-  podSecurityContext:
-  securityContext:
-
-  resources:
-  nodeSelector:
-  tolerations:
-
-  env: {}
-
-  podAnnotations: {}
-  podLabels: {}
-
 # -- CA certs
 caCertificates: ""

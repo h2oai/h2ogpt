@@ -133,29 +133,6 @@ A Helm chart for h2oGPT
 | h2ogpt.storage.useEphemeral | bool | `true` |  |
 | h2ogpt.tolerations | string | `nil` |  |
 | h2ogpt.updateStrategy.type | string | `"RollingUpdate"` |  |
-| lmdeploy.containerArgs[0] | string | `"OpenGVLab/InternVL-Chat-V1-5"` |  |
-| lmdeploy.enabled | bool | `false` | Enable lmdeploy |
-| lmdeploy.env | object | `{}` |  |
-| lmdeploy.hfSecret | string | `nil` |  |
-| lmdeploy.image.pullPolicy | string | `"IfNotPresent"` |  |
-| lmdeploy.image.repository | string | `"gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy"` |  |
-| lmdeploy.image.tag | string | `nil` |  |
-| lmdeploy.nodeSelector | string | `nil` |  |
-| lmdeploy.overrideConfig | string | `nil` |  |
-| lmdeploy.podAffinity | string | `nil` | Set hostname and zone to true for pod affinity rules based on hostname and zone. |
-| lmdeploy.podAnnotations | object | `{}` |  |
-| lmdeploy.podLabels | object | `{}` |  |
-| lmdeploy.podSecurityContext | string | `nil` |  |
-| lmdeploy.replicaCount | int | `1` |  |
-| lmdeploy.resources | string | `nil` |  |
-| lmdeploy.securityContext | string | `nil` |  |
-| lmdeploy.service.port | int | `23333` |  |
-| lmdeploy.service.type | string | `"ClusterIP"` |  |
-| lmdeploy.storage.class | string | `nil` |  |
-| lmdeploy.storage.size | string | `"512Gi"` |  |
-| lmdeploy.storage.useEphemeral | bool | `true` |  |
-| lmdeploy.tolerations | string | `nil` |  |
-| lmdeploy.updateStrategy.type | string | `"RollingUpdate"` |  |
 | nameOverride | string | `""` |  |
 | namespaceOverride | string | `""` |  |
 | tgi.containerArgs | string | `nil` |  |

@@ -98,18 +98,7 @@ spec:
 
               python3 /workspace/generate.py
           {{- end }}
-          {{- if and .Values.lmdeploy.enabled (not .Values.global.externalLLM.modelLock) }}
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}/ >/dev/null 2>&1;
-                do
-                  echo "Waiting for inference service to become ready...";
-                  sleep 5;
-                done
-
-              python3 /workspace/generate.py
-          {{- end }}
-          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled .Values.lmdeploy.enabled)) }}
+          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled )) }}
           args:
             - >
               python3 /workspace/generate.py
@@ -164,10 +153,6 @@ spec:
           {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.enabled) }}
             - name: h2ogpt_inference_server
               value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
-          {{- end }}
-          {{- if and .Values.lmdeploy.enabled (not .Values.global.externalLLM.enabled) }}
-            - name: h2ogpt_inference_server
-              value: "http://{{ include "h2ogpt.fullname" . }}-lmdeploy-inference:{{ .Values.lmdeploy.service.port }}"
           {{- end }}
           {{- range $key, $value := .Values.h2ogpt.env }}
             - name: "{{ $key }}"
