@@ -276,27 +276,11 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
         exitcode = -2
         for code_block in code_blocks:
             lang, code = code_block.language, code_block.code
+
+            # DETERMINE LANGUAGE
             lang = lang.lower()
 
-            if self.autogen_code_restrictions_level >= 2:
-                self.sanitize_command(lang, code)
-            elif self.autogen_code_restrictions_level == 1:
-                LocalCommandLineCodeExecutor.sanitize_command(lang, code)
-            code = silence_pip(code, lang)
-
-            if lang in PYTHON_VARIANTS:
-                lang = "python"
-
-            if WIN32 and lang in ["sh", "shell"]:
-                lang = "ps1"
-
-            if lang not in self.SUPPORTED_LANGUAGES:
-                # In case the language is not supported, we return an error message.
-                exitcode = 1
-                logs_all += "\n" + f"unknown language {lang}"
-                break
-
-            execute_code = self.execution_policies.get(lang, False)
+            # GET FILENAME and adjust LANGUAGE
             try:
                 # Check if there is a filename comment
                 filename = self._get_file_name_from_content(code, self._work_dir)
@@ -317,6 +301,26 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     lang = 'python'
             except ValueError:
                 return CommandLineCodeResult(exit_code=1, output="Filename is not in the workspace")
+
+            if self.autogen_code_restrictions_level >= 2:
+                self.sanitize_command(lang, code)
+            elif self.autogen_code_restrictions_level == 1:
+                LocalCommandLineCodeExecutor.sanitize_command(lang, code)
+            code = silence_pip(code, lang)
+
+            if lang in PYTHON_VARIANTS:
+                lang = "python"
+
+            if WIN32 and lang in ["sh", "shell"]:
+                lang = "ps1"
+
+            if lang not in self.SUPPORTED_LANGUAGES:
+                # In case the language is not supported, we return an error message.
+                exitcode = 1
+                logs_all += "\n" + f"unknown language {lang}"
+                break
+
+            execute_code = self.execution_policies.get(lang, False)
 
             if filename is None:
                 # create a file with an automatically generated name
