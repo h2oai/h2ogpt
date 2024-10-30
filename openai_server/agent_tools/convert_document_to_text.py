@@ -54,6 +54,7 @@ def convert_to_csv(file):
 
 
 def sources_to_text(sources1):
+    each_content1 = []
     all_content1 = ''
     for source in sources1:
         meta_str = ''
@@ -66,8 +67,10 @@ def sources_to_text(sources1):
             meta_str += f"Title: {meta['title']}\n"
         if 'page' in meta:
             meta_str += f"Page: {meta['page']}\n"
-        all_content1 += f"""\n<document>\n{meta_str}\n<text>\n{source.page_content}\n</text>\n</document>\n"""
-    return all_content1
+        content1 = f"""\n<document>\n{meta_str}\n<text>\n{source.page_content}\n</text>\n</document>\n"""
+        each_content1.append(content1)
+        all_content1 += content1
+    return all_content1, each_content1
 
 
 def process_files(files, urls):
@@ -149,7 +152,7 @@ def process_files(files, urls):
                                                chunk=False,
                                                enable_transcriptions=enable_transcriptions,
                                                )
-        all_content1 = sources_to_text(sources1)
+        all_content1, each_content1 = sources_to_text(sources1)
 
         if filename.lower().endswith('.pdf') and enable_pdf_doctr == 'off':
             if use_pymupdf == 'on':
@@ -173,17 +176,17 @@ def process_files(files, urls):
                                                    enable_transcriptions=False,
                                                    )
 
-            all_content2 = sources_to_text(sources2)
+            all_content2, each_content2 = sources_to_text(sources2)
             # choose one with more content in case pymupdf fails to find info
             if len(all_content2) > len(all_content1):
-                sources1 = sources2
+                each_content1 = each_content2
 
         if not sources1:
             succeeded.append(False)
             print(f"Unable to handle file type for {filename}")
         else:
             succeeded.append(True)
-            text_context_list.extend([x.page_content for x in sources1])
+            text_context_list.extend(each_content1)
 
     return text_context_list, any(succeeded)
 
