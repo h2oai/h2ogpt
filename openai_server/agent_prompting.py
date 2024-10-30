@@ -892,8 +892,10 @@ def planning_prompt(query):
 
 * First, decide how one can search for required information.
 * Second, for each agent tool in agent_tools directory, consider how the tool might be useful to answering the user's query or obtaining information.
-* Third, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
-* Fourth, plan for any formatting or other constraints on the response given by the user.
+* Third, for any relevant python packages, consider how they might be useful to answering the user's query or obtaining information.
+* Forth, consider what coding algorithms might be useful to answering the user's query or obtaining information.
+* Fifth, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
+* Sixth, plan for any formatting or other constraints on the response given by the user.
 * Note: You must not respond to the user query directly.
 * Note: You must not write any code.  You must NOT execute any code.
 * Note: Once you have finished the plan, you must end your response immediately.
