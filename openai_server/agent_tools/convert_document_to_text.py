@@ -231,7 +231,7 @@ def main():
         max_tokens = 1024
         max_chars = max_tokens * 4
         if len(output_text) > max_chars:
-            print("Head of the output:")
+            print(f"Head of the text (MUST use file {args.output} for full text):")
             print(output_text[:max_chars])
         else:
             print(output_text)
