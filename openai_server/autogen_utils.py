@@ -971,6 +971,7 @@ class H2OConversableAgent(ConversableAgent):
 * If you have a very high confidence in the response and constrained output, then say so and stop the conversation.
 * However, if you do not have a very high confidence in the constrained output but do have high confidence in your response otherwise, fix the constrained output and stop the conversation.
 * However, if you do not have a very high confidence in the response to the user's original query, then you must provide an executable code that would help improve your response until you have very high confidence.
+* If you end up not being able to verify your response with very high confidence, but you already came up with an unverified response, give the user the unverified response (with any unverified constrained output) and provide insights and recommendations.
 * For any constrained output, be sure to follow the original user query for any formatting or content constraints.
 * Place a final confidence level brief summary inside <confidence> </confidence> XML tags.
 
