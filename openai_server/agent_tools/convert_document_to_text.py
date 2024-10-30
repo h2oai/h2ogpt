@@ -53,6 +53,23 @@ def convert_to_csv(file):
             pass
 
 
+def sources_to_text(sources1):
+    all_content1 = ''
+    for source in sources1:
+        meta_str = ''
+        meta = source.metadata
+        if 'source' in meta:
+            meta_str += f"Source: {meta['source']}\n"
+        if 'parser' in meta:
+            meta_str += f"Parser: {meta['parser']}\n"
+        if 'title' in meta:
+            meta_str += f"Title: {meta['title']}\n"
+        if 'page' in meta:
+            meta_str += f"Page: {meta['page']}\n"
+        all_content1 += f"""\n<document>\n{meta_str}\n<text>\n{source.page_content}\n</text>\n</document>\n"""
+    return all_content1
+
+
 def process_files(files, urls):
     text_context_list = []
     succeeded = []
@@ -132,8 +149,7 @@ def process_files(files, urls):
                                                chunk=False,
                                                enable_transcriptions=enable_transcriptions,
                                                )
-        pages1 = [x.page_content for x in sources1]
-        all_content1 = "\n\n".join(pages1)
+        all_content1 = sources_to_text(sources1)
 
         if filename.lower().endswith('.pdf') and enable_pdf_doctr == 'off':
             if use_pymupdf == 'on':
@@ -157,9 +173,7 @@ def process_files(files, urls):
                                                    enable_transcriptions=False,
                                                    )
 
-            pages2 = [x.page_content for x in sources1]
-            all_content2 = "\n\n".join(pages2)
-
+            all_content2 = sources_to_text(sources2)
             # choose one with more content in case pymupdf fails to find info
             if len(all_content2) > len(all_content1):
                 sources1 = sources2
