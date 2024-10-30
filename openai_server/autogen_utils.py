@@ -968,6 +968,7 @@ class H2OConversableAgent(ConversableAgent):
 <confidence_guidelines>
 
 * Give a step-by-step critique your entire response given the user's original query and any formatting constraints for constrained output.
+* Consider if you used agent_tools that would have been useful, if python packages could have been used that would be useful, algorithms or code that could have been useful, etc.
 * If you have a very high confidence in the response and constrained output, then say so and stop the conversation.
 * However, if you do not have a very high confidence in the constrained output but do have high confidence in your response otherwise, fix the constrained output and stop the conversation.
 * However, if you do not have a very high confidence in the response to the user's original query, then you must provide an executable code that would help improve your response until you have very high confidence.
