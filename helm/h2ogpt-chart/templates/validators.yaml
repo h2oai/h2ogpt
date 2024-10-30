@@ -1,6 +1,3 @@
-{{- if and .Values.vllm.enabled .Values.tgi.enabled }}
-  {{- fail "Both TGI and vLLM cannot be enabled at the same time. Enable only one and try again" }}
-{{- end }}
 {{- if and ( and .Values.h2ogpt.enabled .Values.h2ogpt.agents.enabled) .Values.agents.enabled }}
   {{- fail " Both agents in both h2ogpt.agents cannot be enabled. Enably only one and try again" }}
 {{- end }}

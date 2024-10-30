@@ -140,7 +140,7 @@ agents:
   # -- Enable agents, this must be `false` if `h2ogpt.agents.enabled` is `true`
   enabled: false
   autoscaling:
-    # Enable autoscaling for agents
+    # Enable autoscaling (HPA) for agents
     enabled: false
     minReplicas: 1
     maxReplicas: 2
@@ -231,48 +231,6 @@ agents:
       memory: 32Gi
     limits:
       memory: 64Gi
-  nodeSelector:
-  tolerations:
-
-  env: {}
-
-  podAnnotations: {}
-  podLabels: {}
-
-tgi:
-  # -- Enable tgi
-  enabled: false
-  replicaCount: 1
-
-  image:
-    repository: ghcr.io/huggingface/text-generation-inference
-    tag: 0.9.3
-    pullPolicy: IfNotPresent
-  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
-  podAffinity:
-    # hostname:
-    # zone:
-
-  storage:
-    size: 512Gi
-    class: 
-    useEphemeral: true
-  
-  overrideConfig:
-  hfSecret:
-  containerArgs:
-
-  service:
-    type: ClusterIP
-    port: 8080
-
-  updateStrategy:
-    type: RollingUpdate
-
-  podSecurityContext:
-  securityContext:
-
-  resources:
   nodeSelector:
   tolerations:
 

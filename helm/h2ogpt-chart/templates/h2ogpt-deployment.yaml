@@ -87,18 +87,7 @@ spec:
 
               python3 /workspace/generate.py
           {{- end }}
-          {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.modelLock) }}
-          args:
-            - >
-              until wget -O- http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}/ >/dev/null 2>&1;
-                do
-                  echo "Waiting for inference service to become ready...";
-                  sleep 5;
-                done
-
-              python3 /workspace/generate.py
-          {{- end }}
-          {{- if and .Values.h2ogpt.enabled (not (or .Values.vllm.enabled .Values.tgi.enabled )) }}
+          {{- if and .Values.h2ogpt.enabled (not .Values.vllm.enabled ) }}
           args:
             - >
               python3 /workspace/generate.py
@@ -146,10 +135,6 @@ spec:
                 name: {{ include "h2ogpt.fullname" . }}-external-llm-secret
           {{- end }}
           env:
-          {{- if and .Values.tgi.enabled (not .Values.global.externalLLM.enabled) }}
-            - name: h2ogpt_inference_server
-              value: "http://{{ include "h2ogpt.fullname" . }}-tgi-inference:{{ .Values.tgi.service.port }}"
-          {{- end }}
           {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.enabled) }}
             - name: h2ogpt_inference_server
               value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"

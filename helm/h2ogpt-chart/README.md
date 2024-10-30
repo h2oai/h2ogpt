@@ -135,29 +135,6 @@ A Helm chart for h2oGPT
 | h2ogpt.updateStrategy.type | string | `"RollingUpdate"` |  |
 | nameOverride | string | `""` |  |
 | namespaceOverride | string | `""` |  |
-| tgi.containerArgs | string | `nil` |  |
-| tgi.enabled | bool | `false` | Enable tgi |
-| tgi.env | object | `{}` |  |
-| tgi.hfSecret | string | `nil` |  |
-| tgi.image.pullPolicy | string | `"IfNotPresent"` |  |
-| tgi.image.repository | string | `"ghcr.io/huggingface/text-generation-inference"` |  |
-| tgi.image.tag | string | `"0.9.3"` |  |
-| tgi.nodeSelector | string | `nil` |  |
-| tgi.overrideConfig | string | `nil` |  |
-| tgi.podAffinity | string | `nil` | Set hostname and zone to true for pod affinity rules based on hostname and zone. |
-| tgi.podAnnotations | object | `{}` |  |
-| tgi.podLabels | object | `{}` |  |
-| tgi.podSecurityContext | string | `nil` |  |
-| tgi.replicaCount | int | `1` |  |
-| tgi.resources | string | `nil` |  |
-| tgi.securityContext | string | `nil` |  |
-| tgi.service.port | int | `8080` |  |
-| tgi.service.type | string | `"ClusterIP"` |  |
-| tgi.storage.class | string | `nil` |  |
-| tgi.storage.size | string | `"512Gi"` |  |
-| tgi.storage.useEphemeral | bool | `true` |  |
-| tgi.tolerations | string | `nil` |  |
-| tgi.updateStrategy.type | string | `"RollingUpdate"` |  |
 | vllm.containerArgs[0] | string | `"--model"` |  |
 | vllm.containerArgs[1] | string | `"h2oai/h2ogpt-4096-llama2-7b-chat"` |  |
 | vllm.containerArgs[2] | string | `"--tokenizer"` |  |
