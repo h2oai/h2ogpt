@@ -247,7 +247,7 @@ Keys available in the search results for query '{args.query}' using {args.engine
         print("\nFull JSON output:")
         print(json.dumps(results, indent=2))
 
-    print("""\n\nRemember to use more than just web snippets, also use ask_question_about_documents.py on URLs or documents, ask_question_about_image.py for images, or download_web_video.py for videos, etc.""")
+    print("""\n\nRemember web snippets are short and often non-specific.  For specific information, you must use ask_question_about_documents.py on URLs or documents, ask_question_about_image.py for images, or download_web_video.py for videos, etc.""")
 
 
 def google_search():

@@ -165,7 +165,7 @@ def bing_search():
     for result in results[:args.limit]:
         print_func(result, args)
 
-    print("""\n\nRemember to use more than just web snippets, also use ask_question_about_documents.py on URLs or documents, ask_question_about_image.py for images, or download_web_video.py for videos, etc.""")
+    print("""\n\nRemember web snippets are short and often non-specific.  For specific information, you must use ask_question_about_documents.py on URLs or documents, ask_question_about_image.py for images, or download_web_video.py for videos, etc.""")
 
 
 if __name__ == "__main__":
