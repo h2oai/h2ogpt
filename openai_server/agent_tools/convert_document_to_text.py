@@ -81,6 +81,8 @@ def process_files(files, urls):
     from openai_server.agent_tools.common.utils import download_simple
 
     for filename in files + urls:
+        enable_transcriptions = False
+        enable_llava = False
         if filename.lower().endswith('.pdf'):
             if filename in urls:
                 newfile = download_simple(filename)
@@ -102,10 +104,12 @@ def process_files(files, urls):
                 use_pymupdf = 'on'
                 use_pypdf = 'off'
         else:
-            # pymupdf faster for many pages
-            enable_pdf_doctr = 'off'
+            # non-pdf, allow docTR in case, e.g. video
+            enable_pdf_doctr = 'on'
             use_pymupdf = 'on'
             use_pypdf = 'off'
+            enable_transcriptions = True
+            enable_llava = True
 
         if filename.lower().endswith('.xls') or filename.lower().endswith('.xlsx'):
             if filename in urls:
@@ -123,10 +127,10 @@ def process_files(files, urls):
                                                enable_pdf_ocr='off',
                                                enable_pdf_doctr=enable_pdf_doctr,
                                                try_pdf_as_html='off',
-                                               enable_captions=False,
-                                               enable_llava=False,
+                                               enable_captions=False,  # no need if llava used
+                                               enable_llava=enable_llava,
                                                chunk=False,
-                                               enable_transcriptions=False,
+                                               enable_transcriptions=enable_transcriptions,
                                                )
         pages1 = [x.page_content for x in sources1]
         all_content1 = "\n\n".join(pages1)
@@ -139,19 +143,19 @@ def process_files(files, urls):
                 use_pymupdf = 'on'
                 use_pypdf = 'off'
             sources2, known_type = get_data_h2ogpt(filename,
-                                               is_url=filename in urls,
-                                               verbose=False,
-                                               use_pymupdf=use_pymupdf,
-                                               use_pypdf=use_pypdf,
-                                               use_unstructured_pdf='off',
-                                               enable_pdf_ocr='off',
-                                               enable_pdf_doctr=enable_pdf_doctr,
-                                               try_pdf_as_html='off',
-                                               enable_captions=False,
-                                               enable_llava=False,
-                                               chunk=False,
-                                               enable_transcriptions=False,
-                                               )
+                                                   is_url=filename in urls,
+                                                   verbose=False,
+                                                   use_pymupdf=use_pymupdf,
+                                                   use_pypdf=use_pypdf,
+                                                   use_unstructured_pdf='off',
+                                                   enable_pdf_ocr='off',
+                                                   enable_pdf_doctr=enable_pdf_doctr,
+                                                   try_pdf_as_html='off',
+                                                   enable_captions=False,
+                                                   enable_llava=False,
+                                                   chunk=False,
+                                                   enable_transcriptions=False,
+                                                   )
 
             pages2 = [x.page_content for x in sources1]
             all_content2 = "\n\n".join(pages2)
@@ -203,7 +207,8 @@ def main():
             f.write(output_text)
 
         print(f"{files + urls} have been converted to text and written to {args.output}")
-        print("The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
+        print(
+            "The output may be complex for input of PDFs or URLs etc., so do not assume the structure of the output file and instead check it directly.")
         print("Probably a verify any use of convert_document_to_text.py with ask_question_about_documents.py")
 
         max_tokens = 1024
@@ -221,7 +226,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 """
 Examples:
