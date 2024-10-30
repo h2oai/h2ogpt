@@ -514,6 +514,7 @@ def get_audio_transcription_helper():
     ```
     * usage: python {cwd}/openai_server/agent_tools/audio_transcription.py [-h] --input "AUDIO_FILE_PATH"
     * Can transcribe audio audio and some video formats: mp3, mp4, mpeg, mpga, m4a, wav, webm, and more.
+    * Once get transcript, useful to use ask_question_about_documents.py to ask questions about the transcript.
     """
     else:
         audio_transcription = ''

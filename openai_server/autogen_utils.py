@@ -290,15 +290,15 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                         f'python {cwd}/openai_server/agent_tools/' in code and \
                         filename.endswith('.py'):
                     # switch back to shell if was wrongly .py extension
-                    lang = 'shell'
+                    code_block.language = lang = 'shell'
                     new_filename = filename.replace('.py', '.sh')
                     shutil.move(filename, new_filename)
                     filename = new_filename
                 # override lang if filename is detected, less error-prone than using code block lang
                 elif filename.endswith('.sh'):
-                    lang = 'shell'
+                    code_block.language = lang = 'shell'
                 elif filename.endswith('.py'):
-                    lang = 'python'
+                    code_block.language = lang = 'python'
             except ValueError:
                 return CommandLineCodeResult(exit_code=1, output="Filename is not in the workspace")
 
@@ -971,6 +971,7 @@ class H2OConversableAgent(ConversableAgent):
 * If you have a very high confidence in the response and constrained output, then say so and stop the conversation.
 * However, if you do not have a very high confidence in the constrained output but do have high confidence in your response otherwise, fix the constrained output and stop the conversation.
 * However, if you do not have a very high confidence in the response to the user's original query, then you must provide an executable code that would help improve your response until you have very high confidence.
+* If you end up not being able to verify your response with very high confidence, but you already came up with an unverified response, give the user the unverified response (with any unverified constrained output) and provide insights and recommendations.
 * For any constrained output, be sure to follow the original user query for any formatting or content constraints.
 * Place a final confidence level brief summary inside <confidence> </confidence> XML tags.
 

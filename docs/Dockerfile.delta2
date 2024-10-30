@@ -1,4 +1,4 @@
-FROM gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1286
+FROM gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1290
 USER root
 #
 COPY src/enums.py /workspace/src/enums.py
@@ -20,6 +20,13 @@ COPY openai_server/agent_tools/download_web_video.py /workspace/openai_server/ag
 COPY openai_server/agent_tools/convert_document_to_text.py /workspace/openai_server/agent_tools/convert_document_to_text.py
 COPY openai_server/agent_tools/ask_question_about_documents.py /workspace/openai_server/agent_tools/ask_question_about_documents.py
 
+COPY openai_server/agent_prompting.py /workspace/openai_server/agent_prompting.py
+COPY openai_server/agent_tools/bing_search.py /workspace/openai_server/agent_tools/bing_search.py
+COPY openai_server/agent_tools/convert_document_to_text.py /workspace/openai_server/agent_tools/convert_document_to_text.py
+COPY openai_server/agent_tools/download_youtube_video.py /workspace/openai_server/agent_tools/download_youtube_video.py
+COPY openai_server/agent_tools/google_search.py /workspace/openai_server/agent_tools/google_search.py
+COPY openai_server/autogen_utils.py /workspace/openai_server/autogen_utils.py
+
 RUN chmod a+rwx /workspace/src/*.py
 RUN chmod a+rwx /workspace/openai_server/*.py
 RUN chmod a+rwx /workspace/openai_server/agent_tools/*.py
@@ -28,5 +35,5 @@ RUN chmod a+rwx /workspace/.cache
 
 USER h2ogpt
 
-# docker build -f docs/Dockerfile.delta2 -t gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1288-patch1 .
-# docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1288-patch1
+# docker build -f docs/Dockerfile.delta2 -t gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1290-patch1 .
+# docker push gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime:0.2.1-1290-patch1
