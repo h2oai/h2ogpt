@@ -583,12 +583,13 @@ def get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list,
 ```sh
 # filename: my_question_about_documents.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --query "QUERY" [--files FILES [FILES ...]] [--urls URLS [URLS ...]] [--csv]
+python {cwd}/openai_server/agent_tools/ask_question_about_documents.py --query "QUERY" [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
 ```
-* usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --query "QUERY" [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]]
+* usage: {cwd}/openai_server/agent_tools/ask_question_about_documents.py [-h] --query "QUERY" [-b BASELINE] [--system_prompt SYSTEM_PROMPT] [--files FILES [FILES ...]] [--urls URLS [URLS ...]] [--csv]
 * Do not include any file names in your QUERY, just query the document content.
-* ask_question_about_documents.py --files can be any local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx)
-* ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.).
+* ask_question_about_documents.py --files can be any local image(s) (png, jpg, etc.), local textual file(s) (txt, json, python, xml, md, html, rtf, rst, etc.), or local document(s) (pdf, docx, doc, epub, pptx, ppt, xls, xlsx) or videos (mp4, etc.).
+* For videos, note that 10 frames will be selected as representative.  If those do not have the information you need, you should download the video using download_web_video.py, extract all frames, then try to bisect your way towards the right frame by each step of bisection using ask_question_about_image.py on each frame.
+* ask_question_about_documents.py --urls can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, youtube videos, etc.).
 * Do not use ask_question_about_documents.py just to query individual images, use ask_question_about_image.py for that.
 * If need structured output for data analysis, use --csv
 """
@@ -608,9 +609,9 @@ def get_convert_to_text_helper():
 python {cwd}/openai_server/agent_tools/convert_document_to_text.py [--files FILES [FILES ...]] [--urls URLS [URLS ...]]
 ```
 * usage: {cwd}/openai_server/agent_tools/convert_document_to_text.py [-h] [--files FILES [FILES ...]]
-* Use convert_document_to_text.py with --files with a document (pdf, docx, doc, epub, pptx, ppt, xls, xlsx, zip) to convert to text for other tools.
+* Use convert_document_to_text.py with --files with a document (pdf, docx, doc, epub, pptx, ppt, xls, xlsx, zip, mp4, etc.) to convert to text for other tools.
 * Zip files will be extracted and each file inside will be converted to text.
-* Use convert_document_to_text.py can be any url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, etc.) to convert to text for other tools.
+* The convert_document_to_text.py tool can be many url(s) (http://www.cnn.com, https://aiindex.stanford.edu/wp-content/uploads/2024/04/HAI_2024_AI-Index-Report.pdf, youtube videos, etc.) to convert to text for other tools.
 * The convert_document_to_text.py tool cannot be used for images or videos.
 * However, use convert_document_to_text.py if just want to directly ask a question about a non-image document or URL.
 * However, use ask_question_about_image.py if just want to directly ask a question about an image.

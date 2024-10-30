@@ -115,6 +115,7 @@ def setup_argparse():
     parser.add_argument("--device", choices=['desktop', 'tablet', 'mobile'], default='desktop',
                         help="Device to emulate")
     parser.add_argument("-j", "--json", action="store_true", help="Output results as JSON")
+    parser.add_argument("--output", type=str, default='', help="Name of file to output JSON result to if set")
     parser.add_argument("--keys", nargs='+', help="Specific keys to display in the results")
     return parser.parse_args()
 
@@ -244,8 +245,13 @@ Keys available in the search results for query '{args.query}' using {args.engine
                 break  # Only show sample for the first available primary key
 
     if args.json:
-        print("\nFull JSON output:")
-        print(json.dumps(results, indent=2))
+        if args.output:
+            with open(args.output, 'wt') as f:
+                json.dump(results, f, indent=2)
+            print(f"\nFull JSON output saved to: {args.output}")
+        else:
+            print("\nFull JSON output:")
+            print(json.dumps(results, indent=2))
 
     print("""\n\nRemember web snippets are short and often non-specific.  For specific information, you must use ask_question_about_documents.py on URLs or documents, ask_question_about_image.py for images, or download_web_video.py for videos, etc.""")
 
