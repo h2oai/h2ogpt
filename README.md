@@ -146,7 +146,7 @@ Docker is recommended for Linux, Windows, and MAC for full capabilities.  Linux 
    * [Fine-Tuning](docs/FINETUNE.md)
    * [Triton](docs/TRITON.md)
    * [Commercial viability](docs/FAQ.md#commercial-viability)
-* [Acknowledgements](#acknowledgements)
+* [Acknowledgments](#Acknowledgments)
 * [Why H2O.ai?](#why-h2oai)
 * [Disclaimer](#disclaimer)
 
@@ -166,7 +166,7 @@ Docker is recommended for Linux, Windows, and MAC for full capabilities.  Linux 
     ```
   or tweak/run `tests/test4gpus.sh` to run tests in parallel.
 
-### Acknowledgements
+### Acknowledgments
 
 * Some training code was based upon March 24 version of [Alpaca-LoRA](https://github.com/tloen/alpaca-lora/).
 * Used high-quality created data by [OpenAssistant](https://open-assistant.io/).
