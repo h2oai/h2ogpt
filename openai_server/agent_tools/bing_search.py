@@ -32,6 +32,7 @@ def setup_argparse():
                         help="Safe search setting")
     parser.add_argument("-v", "--verbose", action="store_true", default=True, help="Print full descriptions/content")
     parser.add_argument("-j", "--json", action="store_true", default=True, help="Output results as JSON")
+    parser.add_argument("--output", type=str, default='', help="Name of file to output JSON result to if set")
     return parser.parse_args()
 
 
@@ -124,7 +125,13 @@ def print_video_result(result, args):
 
 def print_info(info, args):
     if args.json:
-        print(json.dumps(info, indent=2, default=str))
+        if args.output:
+            with open(args.output, 'wt') as f:
+                json.dump(info, f, indent=2, default=str)
+            print(f"\nFull JSON output saved to: {args.output}")
+        else:
+            print("\nFull JSON output:")
+            print(json.dumps(info, indent=2, default=str))
     else:
         for key, value in info.items():
             print(f"   {key.capitalize()}: {value}")

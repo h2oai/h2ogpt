@@ -247,11 +247,11 @@ Keys available in the search results for query '{args.query}' using {args.engine
     if args.json:
         if args.output:
             with open(args.output, 'wt') as f:
-                json.dump(results, f, indent=2)
+                json.dump(results, f, indent=2, default=str)
             print(f"\nFull JSON output saved to: {args.output}")
         else:
             print("\nFull JSON output:")
-            print(json.dumps(results, indent=2))
+            print(json.dumps(results, indent=2, default=str))
 
     print("""\n\nRemember web snippets are short and often non-specific.  For specific information, you must use ask_question_about_documents.py on URLs or documents, ask_question_about_image.py for images, or download_web_video.py for videos, etc.""")
 
