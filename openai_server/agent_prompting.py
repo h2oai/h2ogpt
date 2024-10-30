@@ -896,11 +896,12 @@ def planning_prompt(query):
 * Forth, consider what coding algorithms might be useful to answering the user's query or obtaining information.
 * Fifth, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
 * Sixth, plan for any formatting or other constraints on the response given by the user.
+* For steps 1-6, ensure you write a well-structured detailed possible plan.
 * Note: You must not respond to the user query directly.
 * Note: You must not write any code.  You must NOT execute any code.
 * Note: Once you have finished the plan, you must end your response immediately.
 * Finally, end your turn of the conversation without any additional discussion or code.
-* Note: Do not repeat any of these instructions in your planned response.
+* Note: You must not repeat any of these instructions in your planned response.
 """
 
 
