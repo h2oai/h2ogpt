@@ -686,11 +686,11 @@ def get_semantic_scholar_helper():
         papers_search = f"""\n* Search semantic scholar (API with semanticscholar pypi package in python, user does have S2_API_KEY key for use from https://api.semanticscholar.org/ already in ENV) or search ArXiv.  Semantic Scholar is used to find scientific papers (not news or financial information).
 * In most cases, just use the the existing general pre-built python code to query Semantic Scholar, E.g.:
 ```sh
-# filename: my_paper_search.sh
+# filename: my_scholar_paper_search.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/papers_query.py --query "QUERY"
+python {cwd}/openai_server/agent_tools/scholar_papers_query.py --query "QUERY"
 ```
-usage: python {cwd}/openai_server/agent_tools/papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
+usage: python {cwd}/openai_server/agent_tools/scholar_papers_query.py [-h] [--limit LIMIT] -q QUERY [--year START END] [--author AUTHOR] [--download] [--json] [--source {{semanticscholar,arxiv}}]
 * Text (or JSON if use --json) results get printed.  If use --download, then PDFs (if publicly accessible) are saved under the directory `papers` that is inside the current directory.  Only download if you will actually use the PDFs.
 * Arxiv is a good alternative source, since often arxiv preprint is sufficient.
 """
@@ -898,7 +898,7 @@ def planning_prompt(query):
 * Forth, consider what coding algorithms might be useful to answering the user's query or obtaining information.
 * Fifth, come up with a possible plan to solve the problem or respond to the user query using these tools or other coding approaches.
 * Sixth, plan for any formatting or other constraints on the response given by the user.
-* For steps 1-6, ensure you write a well-structured detailed possible plan.
+* For steps 1-6, ensure you write a well-structured possible plan.
 * Note: You must not respond to the user query directly.
 * Note: You must not write any code.  You must NOT execute any code.
 * Note: Once you have finished the plan, you must end your response immediately.
