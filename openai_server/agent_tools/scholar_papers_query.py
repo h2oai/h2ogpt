@@ -171,7 +171,7 @@ def main():
         if i == args.limit:
             break
 
-    print("""Remember to not only use these paper listings, but also use ask_question_about_documents.py to ask questions about URLs or PDF documents, ask_question_about_image.py to ask questions about images, or download_web_video.py to download videos, etc.""")
+    print("""\n\nRemember to not only use these scientific scholar paper listings, but also use ask_question_about_documents.py to ask questions about URLs or PDF documents, ask_question_about_image.py to ask questions about images, or download_web_video.py to download videos, etc.""")
 
 if __name__ == "__main__":
     main()
