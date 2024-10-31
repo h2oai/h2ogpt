@@ -111,25 +111,6 @@ class Sibyl:
         self.browser = SimpleTextBrowser(**browser_config)
         self.llm_callback_handler = LLMCallbackHandler()
 
-        agent1 = autogen.ConversableAgent(
-            name="Actor",
-            system_message='''You are a helpful assistant.  When answering a question, you must explain your thought process step by step before answering the question. When others make suggestions about your answers, think carefully about whether or not to adopt the opinions of others.
-If provided, you have to mention websites or sources that you used to find the answer.
-If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided. Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.''',
-            llm_config={"config_list": [{"model": MODEL, "temperature": 0.1, "api_key": API_KEY, "base_url": API_BASE}]},
-            is_termination_msg=lambda x: x.get("content", "").find("TERMINATE") >= 0,
-            human_input_mode="NEVER",
-        )
-        self.actor_agent = agent1
-
-        agent2 = autogen.ConversableAgent(
-            name="Critic",
-            system_message='''You are a helpful assistant.You want to help others spot logical or intellectual errors. When and only when you can't find a logical flaw in the other person's reasoning, you should say "TERMINATE" to end the conversation.''',
-            llm_config={"config_list": [{"model": MODEL, "temperature": 0, "api_key": API_KEY, "base_url": API_BASE}]},
-            human_input_mode="NEVER",
-        )
-        self.critic_agent = agent2
-
         final_answer_agent = autogen.ConversableAgent(
             name="Final Answer",
             system_message='''
@@ -313,10 +294,9 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
         # TODO: Include cost calculations from these agent interactions. (Or remove this part and let our agents take care of web results?)
         steps_prompt = '\n'.join(steps)
         if not steps_prompt:
-            answer = self.critic_agent.initiate_chat(
-                self.actor_agent, 
-                message=f"""{question}\nIf you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
-Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.""").summary
+            message=f"""{question}\nIf you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
+Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+"""
         else:
             message = f"""
 {question}\nTo answer the above question, I did the following:
@@ -329,7 +309,7 @@ If you think the provided web search steps or findings are not enough to answer 
 you should let the user know that the current web search results are not enough to answer the question. 
 DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
 """
-            answer = self.final_answer_agent.generate_reply(messages=[{"content": message, "role": "user"}])
+        answer = self.final_answer_agent.generate_reply(messages=[{"content": message, "role": "user"}])
         # formatted_answer = self.format_answer_chain.invoke({'question': question, 'answer': answer})#.answer
         return answer
 
