@@ -205,7 +205,8 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             return header.strip() + "\n=======================\nThe search string was not found on this page."
         else:
             return header.strip() + "\n=======================\n" + content
-        
+    
+    # TODO: Disable computer_terminal not to allow execution here. Because executer agents takes care of this.
     def computer_terminal(self, code: str) -> str:
         status_code, stdout, _ = execute_code(code, work_dir='coding', use_docker=False, timeout=20)
         return {
@@ -216,7 +217,7 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
     def ask(self, raw_question: str, attachment_file_path: str = None) -> str:
         steps = []
 
-        # TODO: make sure that attachment_file_path works
+        # TODO: make sure that attachment_file_path works ?
         if attachment_file_path is not None and attachment_file_path.strip() != "":
             question = f"{raw_question}\nAttachment file path: {attachment_file_path}"
         else:
@@ -291,25 +292,31 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
             steps.append(f"Step:{len(steps)+1}\nTool: {tool}, Args: {args}\n{step_note}\n\n")
 
-        # TODO: Include cost calculations from these agent interactions. (Or remove this part and let our agents take care of web results?)
         steps_prompt = '\n'.join(steps)
-        if not steps_prompt:
-            message=f"""{question}\nIf you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
-Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
-"""
-        else:
-            message = f"""
-{question}\nTo answer the above question, I did the following:
+        answer = f"""
+{question}\nTo answer the above question, I followed the steps below:
 {steps_prompt}
 
-Referring to the information I have obtained (which may not be accurate), what do you think is the answer to the question?
-If provided, also mention websites or sources that you used to find the answer. Sharing sources is a mandatory step to ensure that the answer is reliable.
-If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
-If you think the provided web search steps or findings are not enough to answer the question, 
-you should let the user know that the current web search results are not enough to answer the question. 
-DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+Referring to the steps I followed and information I have obtained (which may not be accurate), you may find the answer to the web search query in the steps above.
 """
-        answer = self.final_answer_agent.generate_reply(messages=[{"content": message, "role": "user"}])
+# TODO: If below agents used, include cost calculations from these agent interactions too (Or automatically added?)
+#     if not steps_prompt:
+#         message=f"""{question}\nIf you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
+# Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+# """
+#     else:
+#         message = f"""
+# {question}\nTo answer the above question, I did the following:
+# {steps_prompt}
+
+# Referring to the information I have obtained (which may not be accurate), what do you think is the answer to the question?
+# If provided, also mention websites or sources that you used to find the answer. Sharing sources is a mandatory step to ensure that the answer is reliable.
+# If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
+# If you think the provided web search steps or findings are not enough to answer the question, 
+# you should let the user know that the current web search results are not enough to answer the question. 
+# DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+# """
+#     answer = self.final_answer_agent.generate_reply(messages=[{"content": message, "role": "user"}])
         # formatted_answer = self.format_answer_chain.invoke({'question': question, 'answer': answer})#.answer
         return answer
 
