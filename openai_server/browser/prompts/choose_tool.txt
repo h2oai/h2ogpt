@@ -34,12 +34,9 @@ When the page is very long, content truncation may occur due to the limited disp
 - find_next() -> str:
     Scroll the viewport to the next occurrence of the search string.
 
-## Computer Terminal
-- computer_terminal(code: str) -> str
-    You can use this function to run Python code. Use print() to output the result.
-
 Based on the question and the step history, tell me which function you would use to solve the problem in next step. 
 If you don't need any function or the question is very easy to answer, function "None" is also an option. 
+If you tried everything and no more option is left, return function as "None".
 Do not change the format and precision of the results (including rounding), as a dedicated person will handle the final formatting of the results.
 Use JSON format to answer.
 {format_instructions}

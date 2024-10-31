@@ -31,9 +31,7 @@ from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_core.callbacks import BaseCallbackHandler
 
-from autogen.code_utils import execute_code
 import autogen
-from autogen.agentchat.contrib.society_of_mind_agent import SocietyOfMindAgent
 
 from openai_server.browser.utils import SimpleTextBrowser
 
@@ -197,14 +195,6 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             return header.strip() + "\n=======================\nThe search string was not found on this page."
         else:
             return header.strip() + "\n=======================\n" + content
-    
-    # TODO: Disable computer_terminal not to allow execution here. Because executer agents takes care of this.
-    def computer_terminal(self, code: str) -> str:
-        status_code, stdout, _ = execute_code(code, work_dir='coding', use_docker=False, timeout=20)
-        return {
-            "status_code": status_code,
-            "stdout": stdout,
-        }
 
     def ask(self, raw_question: str, attachment_file_path: str = None) -> str:
         steps = []
