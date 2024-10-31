@@ -38,8 +38,8 @@ from autogen.agentchat.contrib.society_of_mind_agent import SocietyOfMindAgent
 from openai_server.browser.utils import SimpleTextBrowser
 
 MODEL=os.getenv('WEB_TOOL_MODEL')
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-OPENAI_API_BASE = None # os.getenv('OPENAI_API_BASE')
+API_KEY = os.getenv('H2OGPT_API_KEY')
+API_BASE = os.getenv('H2OGPT_OPENAI_BASE_URL')
 BING_API_KEY = os.getenv('BING_API_KEY')
 
 
@@ -79,7 +79,7 @@ with open(f"{cwd}/openai_server/browser/prompts/improve_code.txt") as f:
 
 class Sibyl:
     def __init__(self):
-        self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=OPENAI_API_KEY, base_url=OPENAI_API_BASE)
+        self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=API_KEY, base_url=API_BASE)
         self.format_answer_chain = FORMAT_ANSWER_PROMPT | self.llm | StrOutputParser()
 
         self.tool_choice_output_parser = JsonOutputParser(pydantic_object=ToolChoice)
@@ -116,35 +116,36 @@ class Sibyl:
             system_message='''You are a helpful assistant.  When answering a question, you must explain your thought process step by step before answering the question. When others make suggestions about your answers, think carefully about whether or not to adopt the opinions of others.
 If provided, you have to mention websites or sources that you used to find the answer.
 If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided. Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.''',
-            llm_config={"config_list": [{"model": MODEL, "temperature": 0.1, "api_key": OPENAI_API_KEY, "base_url": OPENAI_API_BASE}]},
+            llm_config={"config_list": [{"model": MODEL, "temperature": 0.1, "api_key": API_KEY, "base_url": API_BASE}]},
             is_termination_msg=lambda x: x.get("content", "").find("TERMINATE") >= 0,
+            human_input_mode="NEVER",
         )
+        self.actor_agent = agent1
 
         agent2 = autogen.ConversableAgent(
             name="Critic",
             system_message='''You are a helpful assistant.You want to help others spot logical or intellectual errors. When and only when you can't find a logical flaw in the other person's reasoning, you should say "TERMINATE" to end the conversation.''',
-            llm_config={"config_list": [{"model": MODEL, "temperature": 0, "api_key": OPENAI_API_KEY, "base_url": OPENAI_API_BASE}]},
+            llm_config={"config_list": [{"model": MODEL, "temperature": 0, "api_key": API_KEY, "base_url": API_BASE}]},
+            human_input_mode="NEVER",
         )
+        self.critic_agent = agent2
 
-        groupchat = autogen.GroupChat(
-            agents=[agent1, agent2],
-            messages=[],
-            speaker_selection_method="round_robin",
-            allow_repeat_speaker=False,
-            max_round=8,
-        )
-
-        manager = autogen.GroupChatManager(
-            groupchat=groupchat,
+        final_answer_agent = autogen.ConversableAgent(
+            name="Final Answer",
+            system_message='''
+You are a helpful assistant. When answering a question, you must explain your thought process step by step before answering the question. 
+When others make suggestions about your answers, think carefully about whether or not to adopt the opinions of others. 
+If provided, you have to mention websites or sources that you used to find the answer. 
+If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided. 
+If you think the provided web search steps  or findings are not enough to answer the question, 
+you should let the user know that the current web search results are not enough to answer the question. 
+DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+''',
+            llm_config={"config_list": [{"model": MODEL, "temperature": 0.1, "api_key": API_KEY, "base_url": API_BASE}]},
             is_termination_msg=lambda x: x.get("content", "").find("TERMINATE") >= 0,
-            llm_config={"config_list": [{"model": MODEL, "temperature": 0.0, "api_key": OPENAI_API_KEY, "base_url": OPENAI_API_BASE}]},
+            human_input_mode="NEVER",
         )
-
-        self.society_of_mind_agent = SocietyOfMindAgent(
-            "society_of_mind",
-            chat_manager=manager,
-            llm_config={"config_list": [{"model": MODEL, "temperature": 0.0, "api_key": OPENAI_API_KEY, "base_url": OPENAI_API_BASE}]}
-        )
+        self.final_answer_agent = final_answer_agent
 
         self.user_proxy = autogen.UserProxyAgent(
             "user_proxy",
@@ -239,13 +240,19 @@ If you are unable to solve the question, make a well-informed EDUCATED GUESS bas
             question = f"{raw_question}\nAttachment file path: {attachment_file_path}"
         else:
             question = raw_question
-        pp(f"Question: {question}")
+        # pp(f"Question: {question}")
 
         for _ in range(20):
             has_error = False
             for _ in range(10):
                 try:
                     tool_choice = self.choose_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps)})
+                    # h2ogpt models may return with 'properties' key
+                    if 'properties' in tool_choice:
+                        tool_choice = tool_choice['properties']
+                    if 'tool' not in tool_choice or 'tool_args' not in tool_choice:
+                        has_error = True
+                        break
                     if tool_choice['tool'] == 'computer_terminal' and tool_choice['tool_args'].get('code', '') == '':
                         has_error = True
                         continue
@@ -301,25 +308,28 @@ If you are unable to solve the question, make a well-informed EDUCATED GUESS bas
                 break
 
             step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
-            print(f"Step note: \n{step_note}")
             steps.append(f"Step:{len(steps)+1}\nTool: {tool}, Args: {args}\n{step_note}\n\n")
 
-        if len(steps) == 0:
-            answer = self.user_proxy.initiate_chat(
-                self.society_of_mind_agent, 
+        # TODO: Include cost calculations from these agent interactions. (Or remove this part and let our agents take care of web results?)
+        steps_prompt = '\n'.join(steps)
+        if not steps_prompt:
+            answer = self.critic_agent.initiate_chat(
+                self.actor_agent, 
                 message=f"""{question}\nIf you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
 Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.""").summary
         else:
-            steps_prompt = '\n'.join(steps)
-            answer = self.user_proxy.initiate_chat(
-                self.society_of_mind_agent, 
-                message=f"""{question}\nTo answer the above question, I did the following:
+            message = f"""
+{question}\nTo answer the above question, I did the following:
 {steps_prompt}
 
 Referring to the information I have obtained (which may not be accurate), what do you think is the answer to the question?
 If provided, also mention websites or sources that you used to find the answer. Sharing sources is a mandatory step to ensure that the answer is reliable.
 If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
-Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.""").summary
+If you think the provided web search steps or findings are not enough to answer the question, 
+you should let the user know that the current web search results are not enough to answer the question. 
+DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+"""
+            answer = self.final_answer_agent.generate_reply(messages=[{"content": message, "role": "user"}])
         # formatted_answer = self.format_answer_chain.invoke({'question': question, 'answer': answer})#.answer
         return answer
 
