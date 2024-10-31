@@ -286,7 +286,8 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                 filename = self._get_file_name_from_content(code, self._work_dir)
                 # override filename and lang if tool use is detected
                 cwd = os.path.abspath(os.getcwd())
-                if code_block.execute and \
+                if filename and \
+                        code_block.execute and \
                         f'python {cwd}/openai_server/agent_tools/' in code and \
                         filename.endswith('.py'):
                     # switch back to shell if was wrongly .py extension
@@ -295,9 +296,9 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                     shutil.move(filename, new_filename)
                     filename = new_filename
                 # override lang if filename is detected, less error-prone than using code block lang
-                elif filename.endswith('.sh'):
+                elif filename and filename.endswith('.sh'):
                     code_block.language = lang = 'shell'
-                elif filename.endswith('.py'):
+                elif filename and filename.endswith('.py'):
                     code_block.language = lang = 'python'
             except ValueError:
                 return CommandLineCodeResult(exit_code=1, output="Filename is not in the workspace")

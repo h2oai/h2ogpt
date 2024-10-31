@@ -102,6 +102,9 @@ def run_autogen_2agent(query=None,
 
     if agent_accuracy is None:
         agent_accuracy = 'standard'
+    agent_accuracy_enum = ['quick', 'basic', 'standard', 'maximum']
+    assert agent_accuracy in agent_accuracy_enum, "Invalid agent_accuracy: %s" % agent_accuracy
+
     if agent_accuracy == 'quick':
         agent_tools_usage_hard_limits = {k: 1 for k in list_dir}
         agent_tools_usage_soft_limits = {k: 1 for k in list_dir}
