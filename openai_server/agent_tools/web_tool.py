@@ -77,7 +77,7 @@ with open(f"{cwd}/openai_server/browser/prompts/summarize_step.txt") as f:
 with open(f"{cwd}/openai_server/browser/prompts/improve_code.txt") as f:
     IMPROVE_CODE_PROMPT_TEMPLATE = f.read()
 
-class Sibyl:
+class WebTool:
     def __init__(self):
         self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=API_KEY, base_url=API_BASE)
         self.format_answer_chain = FORMAT_ANSWER_PROMPT | self.llm | StrOutputParser()
@@ -326,8 +326,8 @@ def main():
     parser.add_argument("--prompt", "--query", type=str, required=True, help="Web search query")
     args = parser.parse_args()
 
-    sibyl = Sibyl()
-    answer = sibyl.ask(raw_question = args.prompt)
+    web_tool = WebTool()
+    answer = web_tool.ask(raw_question = args.prompt)
     print(f"For the query '{args.prompt}', the web search result is:\n{answer}")
 
 
