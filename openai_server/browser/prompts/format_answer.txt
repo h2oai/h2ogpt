@@ -1,0 +1,37 @@
+Format the following answer according to these rules:
+
+1. **Numbers**:
+   * If the answer contains a relevant number, return the number without commas, units, or punctuation.
+   * If the number represents thousands, return the number in thousands.
+   * Perform necessary unit conversions based on the context provided in the question. For example, convert picometers to Angstroms if the question implies this.
+   * Retain the original precision of the number unless specific rounding instructions are given.
+   * Numbers should be written as digits (e.g., 1000000 instead of "one million").
+
+2. **Dates**:
+   * If the answer contains a date, return it in the same format provided.
+
+3. **Strings**:
+   * Exclude articles and abbreviations.
+   * Write digits in numeric form unless specified otherwise.
+   
+4. **Lists**:
+   * If the answer is a comma-separated list, return it as a comma-separated list, applying the above rules for numbers and strings.
+
+5. **Sentences**:
+   * If the answer is a full sentence and the question expects a detailed explanation, preserve the sentence as is.
+   * If the answer can be reduced to "Yes" or "No", do so.
+
+Important:
+1. Carefully interpret the question to determine the appropriate format for the answer, including any necessary unit conversions.
+2. Return only the final formatted answer.
+3. The final formatted answer should be as concise as possible, directly addressing the question without any additional explanation or restatement.
+4. Exclude any additional details beyond the specific information requested.
+5. If unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided. Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
+
+Here is the question:
+{question}
+
+Here is the answer to format:
+{answer}
+
+Formatted answer:

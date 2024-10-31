@@ -1,0 +1,69 @@
+Your ultimate goal is to find the answer to the question below.
+```text
+{question}
+```
+
+# Tools
+
+## Browser
+The functions of the browser will share the same session, that means the viewport will persist between calls
+Every function will return the text of the current viewport after the action is performed. For long pages(longer than 1 viewport), you can use the page_up() and page_down() functions to scroll the viewport.
+Since the page has been converted from HTML to Markdown, you cannot submit information using a form, nor can you enter information in any text boxes. If you want to use the form inside the page, try using the computer_terminal below to read the html content.
+When the page is very long, content truncation may occur due to the limited display capacity of the viewport. You need to carefully consider whether additional page down is needed to ensure that you have obtained the complete information.
+- informational_web_search(query: str) -> str:
+    Perform an INFORMATIONAL web search query and return the search results.
+- navigational_web_search(query: str) -> str:
+    Perform a NAVIGATIONAL web search query and immediately navigate to the top result. Useful, for example, to navigate to a particular Wikipedia article or other known destination. Equivalent to Google's "I'm Feeling Lucky" button.
+- visit_page(url: str) -> str:
+    Visit a webpage at a given URL and return its text.
+- page_up() -> str:
+    Scroll the viewport UP one page-length in the current webpage and return the new viewport content.
+- page_down() -> str:
+    Scroll the viewport DOWN one page-length in the current webpage and return the new viewport content.
+- download_file(url: str) -> str:
+    Download a file at a given URL and, if possible, return its text. File types that will returned as text: .pdf, .docx, .xlsx, .pptx, .wav, .mp3, .jpg, .jpeg, .png(You can read the text content of the file with these extensions).
+- find_on_page_ctrl_f(search_string: str) -> str:
+    When the page is too long to be fully displayed in one viewport, you can use this function to scroll the viewport to the first occurrence of the search string. If the viewport has already displayed the entire page(Showing page 1 of 1.), there is no need to use this function. This is equivalent to Ctrl+F. This search string supports wildcards like '*'
+- find_next() -> str:
+    Scroll the viewport to the next occurrence of the search string.
+
+## Computer Terminal
+- computer_terminal(code: str) -> str
+    You can use this tool to run Python code. Use print() to output the result.
+
+# Step History
+```text
+{steps}
+```
+
+# Current Step Tool Result
+Tool: {tool}
+Args: {args}
+```
+{tool_result}
+```
+
+# Instructions
+1. Analyze the given tool result to extract relevant information directly contributing to answering the question.
+2. Verify the information against the original question to ensure accuracy.
+3. Record new facts only if they provide unique information not already found in the step history.
+4. If the current tool result directly answers the question, record the answer and explain why no further steps are necessary.
+5. If the current tool result is insufficient, plan a follow-up step to gather more data.
+6. Choose the next tool and query that efficiently leads to the ultimate goal.
+7. Minimize unnecessary steps by focusing on direct and efficient methods to gather required information.
+8. Explain why you chose the next step and how it contributes to answering the question.
+9. Do not change the format and precision of the results, as a dedicated person will handle the final formatting.
+10. Your reply will be sent to the next agent for further action, so it is necessary to record all the information needed by the next agent in the plan (such as the complete URL of the link that needs to be clicked).
+
+Response Format:
+```text
+Facts:
+  1. Address: xxxx, Title: xxxx, Viewport position: xxxx
+    xxxxx
+  2. Address: xxxx, Title: xxxx, Viewport position: xxxx
+    xxxxx
+Explanation:
+  xxxx 
+Plan:
+  xxxx 
+```

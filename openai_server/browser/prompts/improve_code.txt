@@ -1,0 +1,19 @@
+Your ultimate goal is to find the answer to the question below.
+```text
+{question}
+```
+
+# Step History
+```text
+{steps}
+```
+
+The next step is running the following code:
+```python
+{code}
+```
+
+Check this code and help me improve it.
+
+Response in JSON format:
+{format_instructions}

@@ -108,3 +108,11 @@ packaging>=23.1
 
 jsonschema>=4.23.0
 spacy==3.7.5
+
+# for browser tool
+pathvalidate==3.2.0
+puremagic==1.23
+mammoth==1.7.1
+easyocr==1.7.1
+youtube_transcript_api==0.6.2
+openai_whisper==20231117
