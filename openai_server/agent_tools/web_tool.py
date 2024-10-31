@@ -77,7 +77,9 @@ with open(f"{cwd}/openai_server/browser/prompts/improve_code.txt") as f:
 
 class WebTool:
     def __init__(self):
-        self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=API_KEY, base_url=API_BASE)
+        # TODO: is max_tokens ok?
+        # TODO: is streaming ok?
+        self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=API_KEY, base_url=API_BASE, max_tokens=2048)
         self.format_answer_chain = FORMAT_ANSWER_PROMPT | self.llm | StrOutputParser()
 
         self.tool_choice_output_parser = JsonOutputParser(pydantic_object=ToolChoice)
@@ -109,6 +111,7 @@ class WebTool:
         self.browser = SimpleTextBrowser(**browser_config)
         self.llm_callback_handler = LLMCallbackHandler()
 
+        # TODO: use H2OConversableAgent instead?
         final_answer_agent = autogen.ConversableAgent(
             name="Final Answer",
             system_message='''
@@ -217,10 +220,7 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                     if 'tool' not in tool_choice or 'tool_args' not in tool_choice:
                         has_error = True
                         break
-                    if tool_choice['tool'] == 'computer_terminal' and tool_choice['tool_args'].get('code', '') == '':
-                        has_error = True
-                        continue
-                    elif tool_choice['tool'] not in ['informational_web_search', 'navigational_web_search', 'visit_page', 'page_up', 'page_down', 'download_file', 'find_on_page_ctrl_f', 'find_next', 'computer_terminal', 'None']:
+                    elif tool_choice['tool'] not in ['informational_web_search', 'navigational_web_search', 'visit_page', 'page_up', 'page_down', 'download_file', 'find_on_page_ctrl_f', 'find_next', 'None']:
                         has_error = True
                         continue
                     else:
@@ -248,19 +248,6 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                 tool_result = self.find_on_page_ctrl_f(**args)
             elif tool == "find_next":
                 tool_result = self.find_next()
-            elif tool == 'computer_terminal':
-                improve_error = False
-                for _ in range(10):
-                    try:
-                        origin_code = args['code']
-                        if improve_error:
-                            improved_code = self.improve_code_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'code': origin_code})['improved_code']
-                        tool_result = self.computer_terminal(improved_code)
-                        break
-                    except Exception as e:
-                        print(f"Error: {e}")
-                        improve_error = True
-                        continue
             elif tool == 'None':
                 tool_result = None
             else:

@@ -27,10 +27,6 @@ When the page is very long, content truncation may occur due to the limited disp
 - find_next() -> str:
     Scroll the viewport to the next occurrence of the search string.
 
-## Computer Terminal
-- computer_terminal(code: str) -> str
-    You can use this tool to run Python code. Use print() to output the result.
-
 # Step History
 ```text
 {steps}
@@ -44,16 +40,19 @@ Args: {args}
 ```
 
 # Instructions
-1. Analyze the given tool result to extract relevant information directly contributing to answering the question.
+0. Analyze the given tool result to extract relevant information directly contributing to answering the question.
+1. If the desired answers for the question exist in the Current Step Tool Result, you have to put all of them in your response under the 'Facts' section.
 2. Verify the information against the original question to ensure accuracy.
 3. Record new facts only if they provide unique information not already found in the step history.
-4. If the current tool result directly answers the question, record the answer and explain why no further steps are necessary.
+4. If the current tool result directly answers the question, return the answer and explain why no further steps are necessary.
 5. If the current tool result is insufficient, plan a follow-up step to gather more data.
 6. Choose the next tool and query that efficiently leads to the ultimate goal.
 7. Minimize unnecessary steps by focusing on direct and efficient methods to gather required information.
 8. Explain why you chose the next step and how it contributes to answering the question.
 9. Do not change the format and precision of the results, as a dedicated person will handle the final formatting.
-10. Your reply will be sent to the next agent for further action, so it is necessary to record all the information needed by the next agent in the plan (such as the complete URL of the link that needs to be clicked).
+10. Your reply will be sent to the next agent for further action, so it is necessary to record all the information needed by the next agent in the plan (such as the complete URL of the link that needs to be clicked, or complete list of things to be able to answer the main question).
+
+Your response have to follow the format below. Make sure to include full list of findings from Current Tool Results so that next agent can answer the question.
 
 Response Format:
 ```text

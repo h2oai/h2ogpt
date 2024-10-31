@@ -34,6 +34,11 @@ When the page is very long, content truncation may occur due to the limited disp
 - find_next() -> str:
     Scroll the viewport to the next occurrence of the search string.
 
+
+# Web Search Tips
+- Always start with visiting the most relevant website. Sometimes the desired answer is hidden under some buttons, tabs, or scrollable lists in the website. If it's the case, you should be able to click those buttons to unhide the answers.
+- If you need to search through large number of pages of a forum, or large number of history pages of a website, and you need to visit each of them to check some facts, use binary search to visit pages. E.g. always find the middle page first and visit it, if not find the desired answer then keep searching with the right half of the search space and find midle page of the right half space. If not, do the same for left half space, until you reach your desired answer.
+
 Based on the question and the step history, tell me which function you would use to solve the problem in next step. 
 If you don't need any function or the question is very easy to answer, function "None" is also an option. 
 If you tried everything and no more option is left, return function as "None".
