@@ -231,7 +231,7 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                     continue
             tool = tool_choice['tool']
             args = tool_choice['tool_args']
-            pp(f"Tool: {tool}, Args: {args}")
+            pp(f"\n * Tool: {tool}, Args: {args}")
             if tool == "informational_web_search":
                 tool_result = self.informational_web_search(**args)
             elif tool == "navigational_web_search":
@@ -257,7 +257,8 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             if tool == 'None':
                 print(f"No tool chosen, break")
                 break
-
+            if tool_result:
+                print(f"Current tool result: {tool_result}")
             step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
             steps.append(f"Step:{len(steps)+1}\nTool: {tool}, Args: {args}\n{step_note}\n\n")
 
@@ -296,6 +297,7 @@ def main():
     args = parser.parse_args()
 
     web_tool = WebTool()
+    # TODO: what about attachment_file_path? Will native agents handle them or should we pass them to the tool?
     answer = web_tool.ask(raw_question = args.prompt)
     print(f"For the query '{args.prompt}', the web search result is:\n{answer}")
 

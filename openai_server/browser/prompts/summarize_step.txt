@@ -51,6 +51,7 @@ Args: {args}
 8. Explain why you chose the next step and how it contributes to answering the question.
 9. Do not change the format and precision of the results, as a dedicated person will handle the final formatting.
 10. Your reply will be sent to the next agent for further action, so it is necessary to record all the information needed by the next agent in the plan (such as the complete URL of the link that needs to be clicked, or complete list of things to be able to answer the main question).
+11. If there are files, or images that need to be downloaded, try to download them in your next step. If not, make sure to always provide their URLs so that other agents can take care of downloading them.
 
 Your response have to follow the format below. Make sure to include full list of findings from Current Tool Results so that next agent can answer the question.
 
