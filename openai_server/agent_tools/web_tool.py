@@ -128,14 +128,6 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
         )
         self.final_answer_agent = final_answer_agent
 
-        self.user_proxy = autogen.UserProxyAgent(
-            "user_proxy",
-            human_input_mode="NEVER",
-            code_execution_config=False,
-            default_auto_reply="",
-            is_termination_msg=lambda x: True,
-        )
-
     def browser_state(self) -> Tuple[str, str]:
         header = f"Address: {self.browser.address}\n"
         if self.browser.page_title is not None:
