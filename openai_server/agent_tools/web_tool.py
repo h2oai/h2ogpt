@@ -37,11 +37,11 @@ from autogen.agentchat.contrib.society_of_mind_agent import SocietyOfMindAgent
 
 from openai_server.browser.utils import SimpleTextBrowser
 
-print("Setting up the agent")
-MODEL='gpt-4o'
+MODEL=os.getenv('WEB_TOOL_MODEL')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_API_BASE = None # os.getenv('OPENAI_API_BASE')
 BING_API_KEY = os.getenv('BING_API_KEY')
+
 
 class LLMCallbackHandler(BaseCallbackHandler):
 

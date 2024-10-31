@@ -779,10 +779,11 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query "QUERY
         bing_search = ""
     return bing_search
 
-def get_web_search_helper():
+def get_web_search_helper(model):
     cwd = os.path.abspath(os.getcwd())
     have_internet = get_have_internet()
     if have_internet:
+        os.environ['WEB_TOOL_MODEL'] = model
         web_search = f"""\n* Search web with this tool. You have to prioritize this web search tool for the relevant tasks before using other tools or methods.
 * For a web search query, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
@@ -854,7 +855,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     wolfram_alpha_helper = get_wolfram_alpha_helper()
     news_helper = get_news_api_helper()
     bing_search_helper = get_bing_search_helper()
-    web_search_helper = get_web_search_helper()
+    web_search_helper = get_web_search_helper(model)
 
     # general API notes:
     api_helper = get_api_helper()
