@@ -4815,14 +4815,18 @@ def file_to_doc(file,
                 docs1.extend(docs1a)
             if len(docs1) == 0 and have_playwright or do_playwright:
                 # then something went wrong, try another loader:
-                from langchain_community.document_loaders import PlaywrightURLLoader
-                docs1a = asyncio.run(PlaywrightURLLoader(urls=final_urls).aload())
-                # docs1 = PlaywrightURLLoader(urls=[file]).load()
-                docs1a = [x for x in docs1a if
-                          x.page_content and x.page_content != '403 Forbidden' and not x.page_content.startswith(
-                              'Access Denied')]
-                add_parser(docs1a, 'PlaywrightURLLoader')
-                docs1.extend(docs1a)
+                try:
+                    from langchain_community.document_loaders import PlaywrightURLLoader
+                    docs1a = asyncio.run(PlaywrightURLLoader(urls=final_urls).aload())
+                    # docs1 = PlaywrightURLLoader(urls=[file]).load()
+                    docs1a = [x for x in docs1a if
+                              x.page_content and x.page_content != '403 Forbidden' and not x.page_content.startswith(
+                                  'Access Denied')]
+                    add_parser(docs1a, 'PlaywrightURLLoader')
+                    docs1.extend(docs1a)
+                except Exception as e0:
+                    traceback.print_exc()
+                    print("playwright failed: %s: %s" % (str(e0), traceback.print_exception(e0)), flush=True)
             if len(docs1) == 0 and have_selenium or do_selenium:
                 # then something went wrong, try another loader:
                 # but requires Chrome binary, else get: selenium.common.exceptions.WebDriverException:
