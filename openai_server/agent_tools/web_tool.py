@@ -4,9 +4,21 @@ import argparse
 import sys
 import os
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+cwd = os.path.abspath(os.getcwd())
+# Find the 'h2ogpt' root directory
+while True:
+    if os.path.basename(cwd) == "h2ogpt":
+        project_root = cwd
+        break
+    # Move one directory up
+    cwd = os.path.dirname(cwd)
+    # Safety check if we reach the top of the directory tree without finding 'h2ogpt'
+    if cwd == "/":
+        raise FileNotFoundError("Could not find 'h2ogpt' directory in the path.")
+    
+
 # Below is needed to be able to import from openai_server
-sys.path.append(f'{project_root}/h2ogpt')
+sys.path.append(cwd)
 
 from langchain_core.outputs import LLMResult
 
@@ -53,16 +65,16 @@ class ImproveCode(BaseModel):
     reason: str = Field(description="Step by step reasoning on how to improve the code")
     improved_code: str = Field(description="The improved code")
 
-with open("openai_server/browser/prompts/format_answer.txt") as f:
+with open(f"{cwd}/openai_server/browser/prompts/format_answer.txt") as f:
     FORMAT_ANSWER_PROMPT = ChatPromptTemplate.from_template(f.read())
 
-with open('openai_server/browser/prompts/choose_tool.txt') as f:
+with open(f"{cwd}/openai_server/browser/prompts/choose_tool.txt") as f:
     CHOOSE_TOOL_PROMPT_TEMPLATE = f.read()
 
-with open('openai_server/browser/prompts/summarize_step.txt') as f:
+with open(f"{cwd}/openai_server/browser/prompts/summarize_step.txt") as f:
     SUMMARIZE_STEP_PROMPT_TEMPLATE = ChatPromptTemplate.from_template(f.read())
 
-with open('openai_server/browser/prompts/improve_code.txt') as f:
+with open(f"{cwd}/openai_server/browser/prompts/improve_code.txt") as f:
     IMPROVE_CODE_PROMPT_TEMPLATE = f.read()
 
 class Sibyl:
@@ -305,6 +317,7 @@ Your EDUCATED GUESS should be a number OR as few words as possible OR a comma se
 {steps_prompt}
 
 Referring to the information I have obtained (which may not be accurate), what do you think is the answer to the question?
+If provided, also mention websites or sources that you used to find the answer. Sharing sources is a mandatory step to ensure that the answer is reliable.
 If you are unable to solve the question, make a well-informed EDUCATED GUESS based on the information we have provided.
 Your EDUCATED GUESS should be a number OR as few words as possible OR a comma separated list of numbers and/or strings. DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.""").summary
         # formatted_answer = self.format_answer_chain.invoke({'question': question, 'answer': answer})#.answer

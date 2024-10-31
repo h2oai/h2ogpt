@@ -779,6 +779,24 @@ usage: python {cwd}/openai_server/agent_tools/bing_search.py [-h] --query "QUERY
         bing_search = ""
     return bing_search
 
+def get_web_search_helper():
+    cwd = os.path.abspath(os.getcwd())
+    have_internet = get_have_internet()
+    if have_internet:
+        web_search = f"""\n* Search web with this tool. You have to prioritize this web search tool for the relevant tasks before using other tools or methods.
+* For a web search query, you are recommended to use the existing pre-built python code, E.g.:
+```sh
+# filename: my_bing_search.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/web_tool.py --query "QUERY"
+```
+* usage: {cwd}/openai_server/agent_tools/web_tool.py [-h] --query "QUERY"
+* This web search tool is a general web search tool that can be used for web, image, news, or video search.
+* This web search tool is capable of doing complex search queries from multiple sources and combining the results.
+"""
+    else:
+        web_search = ""
+    return web_search
 
 def get_api_helper():
     if os.getenv('SERPAPI_API_KEY') or os.getenv('BING_API_KEY'):
@@ -836,6 +854,7 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     wolfram_alpha_helper = get_wolfram_alpha_helper()
     news_helper = get_news_api_helper()
     bing_search_helper = get_bing_search_helper()
+    web_search_helper = get_web_search_helper()
 
     # general API notes:
     api_helper = get_api_helper()
@@ -869,11 +888,12 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                             youtube_helper,
                             convert_helper,
                             # search
-                            serp_helper,
+                            web_search_helper,
+                            # serp_helper,
                             semantic_scholar_helper,
                             wolfram_alpha_helper,
                             news_helper,
-                            bing_search_helper,
+                            # bing_search_helper,
                             query_to_web_image_helper,
                             # overall
                             api_helper,
