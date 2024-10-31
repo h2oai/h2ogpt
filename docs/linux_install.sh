@@ -259,6 +259,7 @@ npm install -g puppeteer-core
 # https://github.com/voxel51/fiftyone/issues/3975
 wget https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2204-7.0.4.tgz
 tar xvzf mongodb-linux-x86_64-ubuntu2204-7.0.4.tgz
+mkdir -p /usr/lib/python3.10/site-packages/fiftyone/db/
 cp -r mongodb-linux-x86_64-ubuntu2204-7.0.4/bin /usr/lib/python3.10/site-packages/fiftyone/db/
 chmod -R a+rwx /usr/lib/python3.10/site-packages/fiftyone/db
 
