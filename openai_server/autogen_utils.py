@@ -976,6 +976,7 @@ class H2OConversableAgent(ConversableAgent):
 * If you end up not being able to verify your response with very high confidence, but you already came up with an unverified response, give the user the unverified response (with any unverified constrained output) and provide insights and recommendations.
 * For any constrained output, be sure to follow the original user query for any formatting or content constraints.
 * Place a final confidence level brief summary inside <confidence> </confidence> XML tags.
+* If you have already given a critique in response to these guidelines in our overall conversation, then you do not need to repeat the critique in your response.
 
 </confidence_guidelines>
 
