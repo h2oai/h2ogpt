@@ -175,6 +175,7 @@ def main():
 but also use ask_question_about_documents.py to ask questions about URLs or PDF documents,
 ask_question_about_image.py to ask questions about images,
 or download_web_video.py to download videos, etc.
+A general google or bing search might be advisable if no good results are present here or PDFs of interest are not available.
 If you have not found a good response to the user's original query, continue to write executable code to do so.
 """)
 
