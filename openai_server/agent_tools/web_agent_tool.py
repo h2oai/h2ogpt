@@ -210,6 +210,7 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
         # pp(f"Question: {question}")
 
         for _ in range(20):
+            # TODO: pass has_error info to the choose_tool_chain
             has_error = False
             for _ in range(10):
                 try:
