@@ -168,7 +168,7 @@ Data science or machine learning modeling and predicting best practices:
 Web scraping or web search best practices:
 <web_search>
 * For web search, prioritize using agent_tools provided.
-* Always prioritize using the web_tool for web-related tasks because it's the most comprehensive web tool.
+* Always prioritize using the web_agent_tool for web-related tasks because it's the most comprehensive web tool.
 </web_search>
 <inline_images>
 Inline image files in response:
@@ -778,17 +778,18 @@ def get_web_search_helper(model):
     have_internet = get_have_internet()
     if have_internet:
         os.environ['WEB_TOOL_MODEL'] = model
-        web_search = f"""\n* Search web with web_tool. 
-* For a web search query, you are recommended to use the existing pre-built python code, E.g.:
+        web_search = f"""\n* Search web with web_agent_tool. 
+* For a web related task, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_bing_search.sh
 # execution: true
-python {cwd}/openai_server/agent_tools/web_tool.py --query "QUERY"
+python {cwd}/openai_server/agent_tools/web_agent_tool.py --task "WEB_TASK_FOR_THE_AGENT"
 ```
-* usage: {cwd}/openai_server/agent_tools/web_tool.py [-h] --query "QUERY"
-* This web_tool is a general web search tool that can be used for web, image, news, or video search.
-* This web_tool is capable of doing complex search queries from multiple sources and combining the results.
-* This web_tool is the most comprehensive search tool available to you, so you always start with this tool when web-related queries are involved.
+* usage: {cwd}/openai_server/agent_tools/web_agent_tool.py [-h] --task "WEB_TASK_FOR_THE_AGENT"
+* You have to provide a well defined web task for the agent to perform. E.g. instead of "Weather in New York", you should define task as "Get the current weather in New York".
+* This web_agent_tool is a general web agent tool that can be used for any web related task including web search, web scraping, finding information, etc.
+* This web_agent_tool is capable of doing complex search queries from multiple sources and combining the results.
+* This web_agent_tool is the most comprehensive search agent tool available to you, so you always start with this tool when web-related tasks are involved.
 """
     else:
         web_search = ""

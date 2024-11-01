@@ -75,7 +75,7 @@ with open(f"{cwd}/openai_server/browser/prompts/summarize_step.txt") as f:
 with open(f"{cwd}/openai_server/browser/prompts/improve_code.txt") as f:
     IMPROVE_CODE_PROMPT_TEMPLATE = f.read()
 
-class WebTool:
+class WebAgent:
     def __init__(self):
         # TODO: is max_tokens ok?
         # TODO: is streaming ok?
@@ -293,13 +293,13 @@ Referring to the steps I followed and information I have obtained (which may not
 
 def main():
     parser = argparse.ArgumentParser(description="Do web search")
-    parser.add_argument("--prompt", "--query", type=str, required=True, help="Web search query")
+    parser.add_argument("--task", type=str, required=True, help="Web-related task to perform for the WebAgent")
     args = parser.parse_args()
 
-    web_tool = WebTool()
+    web_agent = WebAgent()
     # TODO: what about attachment_file_path? Will native agents handle them or should we pass them to the tool?
-    answer = web_tool.ask(raw_question = args.prompt)
-    print(f"For the query '{args.prompt}', the web search result is:\n{answer}")
+    answer = web_agent.ask(raw_question = args.task)
+    print(f"For the task '{args.task}', the WebAgent result is:\n{answer}")
 
 
 if __name__ == "__main__":
