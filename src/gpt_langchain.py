@@ -3349,7 +3349,7 @@ def get_llm(use_openai_model=False,
                     else:
                         # for vllm 0.6.3+
                         kwargs_extra.update(dict(response_format=dict(type='text')))
-                async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
+                # async_output = False  # https://github.com/h2oai/h2ogpt/issues/928
                 # async_sem = asyncio.Semaphore(num_async) if async_output else NullContext()
                 kwargs_extra.update(dict(openai_api_key=api_key,
                                          # batch_size=1,
@@ -3409,7 +3409,7 @@ def get_llm(use_openai_model=False,
                                          user_prompt_for_fake_system_prompt=user_prompt_for_fake_system_prompt,
                                          openai_api_base=base_url,
                                          openai_api_key=api_key,
-                                         batch_size=1,  # https://github.com/h2oai/h2ogpt/issues/928
+                                         batch_size=num_async if async_output else 1,
                                          client=openai_client_completions,
                                          async_client=openai_async_client_completions,
                                          async_sem=async_sem,
