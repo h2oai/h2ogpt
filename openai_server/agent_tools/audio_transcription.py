@@ -87,7 +87,7 @@ def main():
     if len(trans) < 1024:
         print(f"Audio file successfully transcribed as follows:\n\n{trans}")
 
-    print("""\n\nRemember, use ask_question_about_documents.py to ask questions about the transcription.""")
+    print("""\n\nRemember, use ask_question_about_documents.py to ask questions about the transcription.  This is usually preferred over trying to extract information blindly using python regexp etc.""")
 
 
 if __name__ == "__main__":

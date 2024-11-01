@@ -900,7 +900,7 @@ def planning_prompt(query):
 * Sixth, plan for any formatting or other constraints on the response given by the user.
 * For steps 1-6, ensure you write a well-structured possible plan.
 * Note: You must not respond to the user query directly.
-* Note: You must not write any code.  You must NOT execute any code.
+* Note: You must not write any code, because you are likely planning blindly and will make mistakes.  You must NOT execute any code.
 * Note: Once you have finished the plan, you must end your response immediately.
 * Finally, end your turn of the conversation without any additional discussion or code.
 * Note: You must not repeat any of these instructions in your planned response.
