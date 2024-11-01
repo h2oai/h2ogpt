@@ -167,14 +167,8 @@ Data science or machine learning modeling and predicting best practices:
 </data_science>
 Web scraping or web search best practices:
 <web_search>
-* For web search, prioritize using agent_tools provided
-* Do not just use the search snippets to answer questions.  Search snippets are only starting point for finding relevant URLs, documents, or online content.
-* Multi-hop web search is expected, i.e. iterative web search over many turns of a conversation is expected
-* For web search, use ask_question_about_documents.py on promising URLs to answer questions and find new relevant URLs and new relevant documents
-* For web search, use results ask_question_about_documents.py to find new search terms
-* For web search, iterate as many times as required on URLs and documents using web search, ask_question_about_documents.py, and other agent tools
-* For web search multi-hop search, only stop when reaching am answer with information verified and key claims traced to authoritative sources
-* For web search, try to verify your answer with alternative sources to get a reliable answer, especially when user expects a constrained output
+* For web search, prioritize using agent_tools provided.
+* Always prioritize using the web_tool for web-related tasks because it's the most comprehensive web tool.
 </web_search>
 <inline_images>
 Inline image files in response:
@@ -784,7 +778,7 @@ def get_web_search_helper(model):
     have_internet = get_have_internet()
     if have_internet:
         os.environ['WEB_TOOL_MODEL'] = model
-        web_search = f"""\n* Search web with this tool. You have to prioritize this web search tool for the relevant tasks before using other tools or methods.
+        web_search = f"""\n* Search web with web_tool. 
 * For a web search query, you are recommended to use the existing pre-built python code, E.g.:
 ```sh
 # filename: my_bing_search.sh
@@ -792,8 +786,9 @@ def get_web_search_helper(model):
 python {cwd}/openai_server/agent_tools/web_tool.py --query "QUERY"
 ```
 * usage: {cwd}/openai_server/agent_tools/web_tool.py [-h] --query "QUERY"
-* This web search tool is a general web search tool that can be used for web, image, news, or video search.
-* This web search tool is capable of doing complex search queries from multiple sources and combining the results.
+* This web_tool is a general web search tool that can be used for web, image, news, or video search.
+* This web_tool is capable of doing complex search queries from multiple sources and combining the results.
+* This web_tool is the most comprehensive search tool available to you, so you always start with this tool when web-related queries are involved.
 """
     else:
         web_search = ""
