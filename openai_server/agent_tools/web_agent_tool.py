@@ -258,7 +258,7 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                 print(f"No tool chosen, break")
                 break
             if tool_result:
-                print(f"Current tool result: {tool_result}")
+                print(f"\n * Current tool result: {tool_result}")
             step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
             steps.append(f"Step:{len(steps)+1}\nTool: {tool}, Args: {args}\n{step_note}\n\n")
 
