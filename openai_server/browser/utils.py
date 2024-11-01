@@ -26,6 +26,7 @@ class SimpleTextBrowser:
         downloads_folder: Optional[Union[str, None]] = None,
         bing_api_key: Optional[Union[str, None]] = None,
         request_kwargs: Optional[Union[Dict[str, Any], None]] = None,
+        bing_cache = dc.Cache(f".cache/bing"),
     ):
         self.start_page: str = start_page if start_page else "about:blank"
         self.viewport_size = viewport_size  # Applies only to the standard uri types
@@ -43,7 +44,7 @@ class SimpleTextBrowser:
         self._find_on_page_query: Union[str, None] = None
         self._find_on_page_last_result: Union[int, None] = None  # Location of the last result
 
-        self.bing_cache = dc.Cache(f".cache/bing")
+        self.bing_cache = bing_cache
 
     @property
     def address(self) -> str:

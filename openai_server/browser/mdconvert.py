@@ -114,7 +114,7 @@ class HtmlConverter(DocumentConverter):
         for script in soup(["script", "style"]):
             script.extract()
 
-        # Print only the main content
+        # Print only the main content # TODO: Only main content may not involve tabs, buttons, etc. So agent won't know what to click.
         body_elm = soup.find("body")
         webpage_text = ""
         if body_elm:
@@ -150,7 +150,7 @@ class WikipediaConverter(DocumentConverter):
             script.extract()
 
         # Print only the main content
-        body_elm = soup.find("div", {"id": "mw-content-text"})
+        body_elm = soup # Right part doesnt contain tabs or buttons. .find("div", {"id": "mw-content-text"})
         title_elm = soup.find("span", {"class": "mw-page-title-main"})
 
         webpage_text = ""
