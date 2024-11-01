@@ -240,6 +240,10 @@ class YouTubeConverter(DocumentConverter):
         if description:
             webpage_text += f"\n### Description\n{description}\n"
 
+        # TODO: Warning, YouTube blocks get_transcript requests coming from non-static IPs like from cloud servers, docker containers, etc.
+        # That is, this part works only if the server is running on a static IP, e.g. local development.
+        # For more: https://github.com/jdepoix/youtube-transcript-api/issues/303
+        # This issue needs to be fixed, otherwise, transcripts won't be available during YouTube video interactions, hence, impossible to answer YouTube video questions.
         if IS_YOUTUBE_TRANSCRIPT_CAPABLE:
             transcript_text = ""
             parsed_url = urlparse(url)
@@ -253,7 +257,8 @@ class YouTubeConverter(DocumentConverter):
                     # Alternative formatting:
                     # formatter = TextFormatter()
                     # formatter.format_transcript(transcript)
-                except:
+                except Exception as e:
+                    print(f"Error getting transcript for YouTube video with the id '{video_id}' : {e}")
                     pass
             if transcript_text:
                 webpage_text += f"\n### Transcript\n{transcript_text}\n"
