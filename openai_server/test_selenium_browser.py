@@ -40,33 +40,27 @@ class ResearchAgent:
         self.search_attempts: List[str] = []
         self.found_info: Dict[str, Any] = {}
 
-        # Enhanced system prompt to encourage more human-like browsing
+        # Enhanced system prompt for better search strategy
         self.conversation_history: List[Dict[str, str]] = [
-            {"role": "system", "content": """You are a research agent that finds academic papers and information by browsing the web like a human would.
+            {"role": "system", "content": """You are a research agent that finds academic papers using a systematic approach.
 
-Research Strategy:
-1. Start with general web searches to understand what's available
-2. When a specific website keeps appearing in results (like arxiv.org):
-   - Visit the site directly
-   - Look for and explore its search interface
-   - Check for "Advanced Search" options
-   - Learn what search features are available
-3. Use a site's native search tools rather than external search engines when possible
-4. Pay attention to:
-   - Search boxes and their options
-   - Advanced search links
-   - Date filters
-   - Category filters
-5. If a search approach isn't working:
-   - Look for alternative search methods on the site
-   - Try the site's built-in navigation
-   - Only fall back to external search if site search is inadequate
-
-Think like a human researcher:
-- "This site keeps coming up, let me check it directly"
-- "Oh, there's an advanced search option here"
-- "I see they have date filters I can use"
-- "Maybe I should try browsing by category instead"
+Research Strategy Rules:
+1. Break down complex queries into simpler sub-queries
+2. Start with broad searches and progressively narrow down
+3. Focus on definitive identifiers first (dates, authors, exact titles)
+4. Only mention specific details (like figures) when examining full papers
+5. Never include figure details in initial searches
+6. Verify paper dates exactly - don't settle for "close enough"
+7. For arXiv papers:
+   - Initial search should focus on submission date and broad topic
+   - Use arXiv ID patterns (YYMM.NNNNN) when found
+   - Remember abstracts won't contain figure details
+8. When examining papers:
+   - Check submission date first
+   - Only proceed to detailed analysis if date matches
+   - Look for sections likely to contain figures (Results, Discussion)
+9. Track what's been confirmed vs what still needs verification
+10. Don't combine separate search criteria in one query unless necessary
 
 Your response must be valid JSON matching the schema provided."""}
         ]
@@ -80,26 +74,26 @@ Your response must be valid JSON matching the schema provided."""}
                         "task_phase": {
                             "type": "string",
                             "enum": [
-                                "general_search",         # Initial web search to get oriented
-                                "explore_site",           # Visiting and exploring a specific site
-                                "use_site_search",        # Using the site's native search
-                                "browse_categories",      # Using the site's category browsing
-                                "extract_info",           # Getting info from found content
-                                "analyze_results"         # Analyzing what we've found
-                            ],
-                            "description": "Current phase of the research task"
+                                "initial_search",          # Broad search with key identifiers
+                                "date_verification",       # Verify exact dates of papers
+                                "paper_identification",    # Find specific papers
+                                "detailed_analysis",       # Analyze full paper content
+                                "figure_analysis",         # Analyze specific figures
+                                "cross_reference",         # Compare information between papers
+                                "final_verification"       # Verify all requirements are met
+                            ]
                         },
-                        "analysis": {
+                        "confirmed_facts": {
+                            "type": "object",
+                            "description": "Facts that have been verified"
+                        },
+                        "pending_verification": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Analysis of current state and needs"
-                        },
-                        "found_info": {
-                            "type": "object",
-                            "description": "Information found so far, including discovered site features"
+                            "description": "Facts that still need verification"
                         }
                     },
-                    "required": ["task_phase", "analysis", "found_info"]
+                    "required": ["task_phase", "confirmed_facts", "pending_verification"]
                 },
                 "action": {
                     "type": "string",
@@ -121,26 +115,19 @@ Your response must be valid JSON matching the schema provided."""}
         }
 
     def get_next_action(self, task: str, current_page_content: str) -> BrowserAction:
-        """Get the next browser action with more human-like browsing behavior"""
+        """Get next action with improved search strategy"""
         try:
-            # Include current URL in context if available
-            current_url = ""
-            if len(self.browsing_history) > 0:
-                current_url = f"\nCurrent URL: {self.browsing_history[-1]}"
+            # Break down the task into components
+            task_analysis = f"""Task Components:
+{task}
 
-            context = f"""Task: {task}
-
-Current Page Content:
-{current_page_content}{current_url}
-
-Search History:
-{json.dumps(self.search_attempts, indent=2)}
-
-Found Information:
-{json.dumps(self.found_info, indent=2)}
+Current State:
+- Page Content: {current_page_content[:500]}...
+- Current URL: {self.browsing_history[-1] if self.browsing_history else 'None'}
+- Search History: {json.dumps(self.search_attempts[-3:], indent=2)}  # Show last 3 searches
+- Confirmed Facts: {json.dumps(self.found_info, indent=2)}
 """
-
-            self.conversation_history.append({"role": "user", "content": context})
+            self.conversation_history.append({"role": "user", "content": task_analysis})
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -154,44 +141,41 @@ Found Information:
                 )
             )
 
-            action_json = response.choices[0].message.content
-            self.conversation_history.append({"role": "assistant", "content": action_json})
+            action_json = json.loads(response.choices[0].message.content)
+            self.conversation_history.append({"role": "assistant", "content": json.dumps(action_json)})
 
-            if isinstance(action_json, str):
-                action_dict = json.loads(action_json)
-            else:
-                action_dict = action_json
+            # Print reasoning process
+            print("\nPhase:", action_json["reasoning"]["task_phase"])
+            print("\nConfirmed Facts:")
+            for fact, value in action_json["reasoning"]["confirmed_facts"].items():
+                print(f"- {fact}: {value}")
+            print("\nPending Verification:")
+            for item in action_json["reasoning"]["pending_verification"]:
+                print(f"- {item}")
 
-            # Print the reasoning process
-            print("\nPhase:", action_dict["reasoning"]["task_phase"])
-            print("\nAnalysis:")
-            for step in action_dict["reasoning"]["analysis"]:
-                print(f"- {step}")
+            # Update confirmed facts
+            if action_json["reasoning"]["confirmed_facts"]:
+                self.found_info.update(action_json["reasoning"]["confirmed_facts"])
 
-            # Update found information
-            if action_dict["reasoning"]["found_info"]:
-                self.found_info.update(action_dict["reasoning"]["found_info"])
-
-            if action_dict["action"] == "search":
-                # Simplify and clean up search query
-                query = action_dict["params"]["query"]
-                if "site:arxiv.org" not in query:
+            # Clean up search queries
+            if action_json["action"] == "search":
+                query = action_json["params"]["query"]
+                if "arxiv.org" not in query and not query.startswith("site:"):
                     query = f"site:arxiv.org {query}"
-                action_dict["params"]["query"] = query
+                action_json["params"]["query"] = query
 
-            return BrowserAction.parse_obj(action_dict)
+            return BrowserAction(
+                action=action_json["action"],
+                reason=action_json["reason"],
+                params=action_json["params"]
+            )
 
         except Exception as e:
             traceback.print_exc()
-            print(f"Error getting next action: {str(e)}")
             return BrowserAction(
                 action="finish",
-                reason="Error occurred in LLM response",
-                params={
-                    "key_findings": ["Research incomplete due to error"],
-                    "sources": self.browsing_history,
-                    "next_steps": ["Retry with simplified search strategy"]
-                }
+                reason=f"Error occurred: {str(e)}",
+                params={"error": str(e)}
             )
 
     def execute_action(self, action: BrowserAction) -> str:
