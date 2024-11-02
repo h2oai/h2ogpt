@@ -2870,7 +2870,7 @@ class H2OChatAnthropic3(ChatAGenerateStreamFirst, GenerateStream, ExtraChat, Cha
                 "type": "text",
                 "text": system,
                 "cache_control": {"type": "ephemeral"}
-            }] if system else None
+            }] if system else ''
 
             # Process user and assistant messages
             messages_cached = self.process_messages(messages)

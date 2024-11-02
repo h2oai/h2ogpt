@@ -15,18 +15,19 @@ import diskcache as dc
 from typing import Optional, Union, Dict, Any, List, Tuple
 from .mdconvert import MarkdownConverter
 
+
 class SeleniumBrowser:
     """A Selenium-based web browser that implements all SimpleTextBrowser functionality plus human-like interactions."""
 
     def __init__(
-        self,
-        start_page: Optional[str] = None,
-        viewport_size: Optional[int] = 1024 * 8,
-        downloads_folder: Optional[Union[str, None]] = None,
-        bing_api_key: Optional[Union[str, None]] = None,
-        request_kwargs: Optional[Union[Dict[str, Any], None]] = None,
-        headless: bool = True,
-        timeout: int = 10
+            self,
+            start_page: Optional[str] = None,
+            viewport_size: Optional[int] = 1024 * 8,
+            downloads_folder: Optional[Union[str, None]] = None,
+            bing_api_key: Optional[Union[str, None]] = None,
+            request_kwargs: Optional[Union[Dict[str, Any], None]] = None,
+            headless: bool = True,
+            timeout: int = 10
     ):
         self.start_page = start_page if start_page else "about:blank"
         self.viewport_size = viewport_size
