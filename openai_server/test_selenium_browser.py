@@ -38,25 +38,35 @@ class ResearchAgent:
         )
         self.browsing_history: List[str] = []
         self.search_attempts: List[str] = []
-        self.found_info: Dict[str, Any] = {}  # Store intermediate findings
+        self.found_info: Dict[str, Any] = {}
 
-        # Enhanced system prompt to encourage discovery-based searching
+        # Enhanced system prompt to encourage more human-like browsing
         self.conversation_history: List[Dict[str, str]] = [
-            {"role": "system", "content": """You are a research agent that specializes in finding academic papers and specific information within them.
+            {"role": "system", "content": """You are a research agent that finds academic papers and information by browsing the web like a human would.
 
 Research Strategy:
-1. Start with basic searches, but be observant of search features and options on websites
-2. If specific dates or criteria are given, look for advanced search options on the current website
-3. Learn and use site-specific features as you discover them
-4. Think like a human researcher - if a basic search isn't working, look for better search tools
-5. Remember useful features you find for future searches
-6. Don't be afraid to modify your search strategy based on what you learn
+1. Start with general web searches to understand what's available
+2. When a specific website keeps appearing in results (like arxiv.org):
+   - Visit the site directly
+   - Look for and explore its search interface
+   - Check for "Advanced Search" options
+   - Learn what search features are available
+3. Use a site's native search tools rather than external search engines when possible
+4. Pay attention to:
+   - Search boxes and their options
+   - Advanced search links
+   - Date filters
+   - Category filters
+5. If a search approach isn't working:
+   - Look for alternative search methods on the site
+   - Try the site's built-in navigation
+   - Only fall back to external search if site search is inadequate
 
-When searching:
-- Notice and use advanced search links/options
-- Look for date filters and sorting options
-- Pay attention to URL patterns and search parameters
-- Learn from search result pages and modify approach accordingly
+Think like a human researcher:
+- "This site keeps coming up, let me check it directly"
+- "Oh, there's an advanced search option here"
+- "I see they have date filters I can use"
+- "Maybe I should try browsing by category instead"
 
 Your response must be valid JSON matching the schema provided."""}
         ]
@@ -69,7 +79,14 @@ Your response must be valid JSON matching the schema provided."""}
                     "properties": {
                         "task_phase": {
                             "type": "string",
-                            "enum": ["initial_search", "explore_search_options", "refine_search", "extract_info", "analyze_results"],
+                            "enum": [
+                                "general_search",         # Initial web search to get oriented
+                                "explore_site",           # Visiting and exploring a specific site
+                                "use_site_search",        # Using the site's native search
+                                "browse_categories",      # Using the site's category browsing
+                                "extract_info",           # Getting info from found content
+                                "analyze_results"         # Analyzing what we've found
+                            ],
                             "description": "Current phase of the research task"
                         },
                         "analysis": {
@@ -79,7 +96,7 @@ Your response must be valid JSON matching the schema provided."""}
                         },
                         "found_info": {
                             "type": "object",
-                            "description": "Information found so far, including discovered search features"
+                            "description": "Information found so far, including discovered site features"
                         }
                     },
                     "required": ["task_phase", "analysis", "found_info"]
@@ -103,43 +120,18 @@ Your response must be valid JSON matching the schema provided."""}
             "required": ["reasoning", "action", "reason", "params"]
         }
 
-        self.conversation_history: List[Dict[str, str]] = [
-            {"role": "system", "content": """You are a research agent that specializes in finding academic papers and specific information within them.
-
-Research Strategy:
-1. Break complex tasks into sequential phases
-2. Complete each phase before moving to the next
-3. Store and use intermediate findings
-4. Use simple, effective search queries
-
-For arXiv searches:
-- Use direct arXiv URLs when possible (e.g., arxiv.org/list/physics.soc-ph/16)
-- Start with broad site:arxiv.org searches
-- Use CTRL-F (find_text) to locate specific information
-- Look for paper IDs and use direct arxiv.org/abs/ID links
-
-Search Construction:
-1. Start with simple queries (e.g., "site:arxiv.org AI regulation 2022")
-2. Use find_text to locate specific dates or terms
-3. When found, visit specific paper pages
-4. Use find_text again to locate figures/information
-
-Common arXiv URL patterns:
-- Paper listings: arxiv.org/list/[category]/[YYMM]
-- Specific papers: arxiv.org/abs/[paper_id]
-- Search: arxiv.org/search/?query=[terms]&searchtype=all
-
-Your response must be valid JSON matching the schema provided."""}
-        ]
-
     def get_next_action(self, task: str, current_page_content: str) -> BrowserAction:
-        """Get the next browser action with improved search strategy"""
+        """Get the next browser action with more human-like browsing behavior"""
         try:
-            # Include found information and current state in the prompt
+            # Include current URL in context if available
+            current_url = ""
+            if len(self.browsing_history) > 0:
+                current_url = f"\nCurrent URL: {self.browsing_history[-1]}"
+
             context = f"""Task: {task}
 
 Current Page Content:
-{current_page_content}
+{current_page_content}{current_url}
 
 Search History:
 {json.dumps(self.search_attempts, indent=2)}
@@ -264,6 +256,7 @@ Found Information:
 
                 action = self.get_next_action(task, current_content)
                 print(f"Action: {action.action}")
+                print(f"Params: {action.params}")
                 print(f"Reason: {action.reason}")
 
                 if action.action == "finish":
