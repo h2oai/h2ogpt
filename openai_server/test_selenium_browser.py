@@ -40,7 +40,27 @@ class ResearchAgent:
         self.search_attempts: List[str] = []
         self.found_info: Dict[str, Any] = {}  # Store intermediate findings
 
-        # Enhanced JSON schema with structured search guidance
+        # Enhanced system prompt to encourage discovery-based searching
+        self.conversation_history: List[Dict[str, str]] = [
+            {"role": "system", "content": """You are a research agent that specializes in finding academic papers and specific information within them.
+
+Research Strategy:
+1. Start with basic searches, but be observant of search features and options on websites
+2. If specific dates or criteria are given, look for advanced search options on the current website
+3. Learn and use site-specific features as you discover them
+4. Think like a human researcher - if a basic search isn't working, look for better search tools
+5. Remember useful features you find for future searches
+6. Don't be afraid to modify your search strategy based on what you learn
+
+When searching:
+- Notice and use advanced search links/options
+- Look for date filters and sorting options
+- Pay attention to URL patterns and search parameters
+- Learn from search result pages and modify approach accordingly
+
+Your response must be valid JSON matching the schema provided."""}
+        ]
+
         self.action_schema = {
             "type": "object",
             "properties": {
@@ -49,7 +69,7 @@ class ResearchAgent:
                     "properties": {
                         "task_phase": {
                             "type": "string",
-                            "enum": ["find_first_paper", "extract_info", "find_second_paper", "analyze_connection"],
+                            "enum": ["initial_search", "explore_search_options", "refine_search", "extract_info", "analyze_results"],
                             "description": "Current phase of the research task"
                         },
                         "analysis": {
@@ -59,7 +79,7 @@ class ResearchAgent:
                         },
                         "found_info": {
                             "type": "object",
-                            "description": "Information found so far"
+                            "description": "Information found so far, including discovered search features"
                         }
                     },
                     "required": ["task_phase", "analysis", "found_info"]

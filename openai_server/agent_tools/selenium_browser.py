@@ -22,7 +22,7 @@ class SeleniumBrowser:
     def __init__(
             self,
             start_page: Optional[str] = None,
-            viewport_size: Optional[int] = 1024 * 8,
+            viewport_size: Optional[int] = 1024 * 8 * 4,
             downloads_folder: Optional[Union[str, None]] = None,
             bing_api_key: Optional[Union[str, None]] = None,
             request_kwargs: Optional[Union[Dict[str, Any], None]] = None,
