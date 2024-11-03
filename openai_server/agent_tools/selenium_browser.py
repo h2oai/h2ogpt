@@ -1,16 +1,12 @@
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from urllib.parse import urljoin, urlparse, unquote
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementNotInteractableException
+from urllib.parse import urljoin
 import requests
 import time
-import random
 import os
-import re
-import json
 import diskcache as dc
 from typing import Optional, Union, Dict, Any, List, Tuple
 from .mdconvert import MarkdownConverter
@@ -74,6 +70,182 @@ class SeleniumBrowser:
 
         # Visit start page
         self.set_address(self.start_page)
+        # Add new attributes for handling UI interactions
+        self.wait = WebDriverWait(self.driver, timeout)
+        self.current_frame = None
+
+    def find_element_by_xpath(self, xpath: str, timeout: int = 5) -> Optional[Any]:
+        """Find an element using XPath with timeout and error handling."""
+        try:
+            element = WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_element_located((By.XPATH, xpath))
+            )
+            return element
+        except (TimeoutException, NoSuchElementException):
+            return None
+
+    def find_elements_by_xpath(self, xpath: str, timeout: int = 5) -> List[Any]:
+        """Find multiple elements using XPath with timeout and error handling."""
+        try:
+            elements = WebDriverWait(self.driver, timeout).until(
+                EC.presence_of_all_elements_located((By.XPATH, xpath))
+            )
+            return elements
+        except (TimeoutException, NoSuchElementException):
+            return []
+
+    def click(self, selector: str, timeout: int = 5) -> bool:
+        """Click an element using various selector strategies."""
+        try:
+            # Try different selector strategies
+            for by, value in [
+                (By.XPATH, selector),
+                (By.CSS_SELECTOR, selector),
+                (By.ID, selector),
+                (By.LINK_TEXT, selector)
+            ]:
+                try:
+                    element = WebDriverWait(self.driver, timeout).until(
+                        EC.element_to_be_clickable((by, value))
+                    )
+                    # Scroll element into view
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
+                    time.sleep(0.5)  # Allow time for scroll
+                    # Try direct click first
+                    try:
+                        element.click()
+                        return True
+                    except ElementNotInteractableException:
+                        # If direct click fails, try JavaScript click
+                        self.driver.execute_script("arguments[0].click();", element)
+                        return True
+                except:
+                    continue
+            return False
+        except Exception as e:
+            print(f"Click failed: {str(e)}")
+            return False
+
+    def fill_form(self, form_data: Dict[str, Any]) -> bool:
+        """Fill out a form using provided data."""
+        try:
+            for field_name, value in form_data.items():
+                # Try various selector strategies to find the form field
+                for selector in [
+                    f"//input[@name='{field_name}']",
+                    f"//input[@id='{field_name}']",
+                    f"//textarea[@name='{field_name}']",
+                    f"//select[@name='{field_name}']",
+                    f"//*[contains(@class, '{field_name}')]"
+                ]:
+                    element = self.find_element_by_xpath(selector)
+                    if element:
+                        # Handle different input types
+                        input_type = element.get_attribute('type')
+                        if input_type == 'checkbox':
+                            if value and not element.is_selected():
+                                element.click()
+                            elif not value and element.is_selected():
+                                element.click()
+                        elif input_type == 'radio':
+                            if str(value).lower() == element.get_attribute('value').lower():
+                                element.click()
+                        else:
+                            # Clear and fill text inputs
+                            try:
+                                element.clear()
+                                element.send_keys(str(value))
+                            except ElementNotInteractableException:
+                                self.driver.execute_script(
+                                    f"arguments[0].value = '{str(value)}';",
+                                    element
+                                )
+                        break
+            return True
+        except Exception as e:
+            print(f"Form fill failed: {str(e)}")
+            return False
+
+    def handle_date_filter(self, filter_type: str, date_values: Dict[str, str]) -> bool:
+        """Handle different types of date filter interfaces."""
+        try:
+            if filter_type == 'form':
+                # Handle standard date input forms
+                return self.fill_form(date_values)
+
+            elif filter_type == 'dropdown':
+                # Handle dropdown date selectors
+                for field, value in date_values.items():
+                    selector = f"//select[contains(@name, '{field}') or contains(@id, '{field}')]"
+                    element = self.find_element_by_xpath(selector)
+                    if element:
+                        element.send_keys(value)
+                return True
+
+            elif filter_type == 'custom':
+                # Handle custom date pickers
+                date_button = self.find_element_by_xpath(
+                    "//button[contains(., 'Date') or contains(@class, 'date')]"
+                )
+                if date_button:
+                    date_button.click()
+                    time.sleep(1)  # Wait for picker to appear
+
+                    # Try to find date inputs in the picker
+                    for field, value in date_values.items():
+                        input_selector = f"//input[contains(@placeholder, '{field}') or contains(@aria-label, '{field}')]"
+                        input_element = self.find_element_by_xpath(input_selector)
+                        if input_element:
+                            input_element.send_keys(value)
+
+                    # Look for apply/done button
+                    apply_button = self.find_element_by_xpath(
+                        "//button[contains(., 'Apply') or contains(., 'Done')]"
+                    )
+                    if apply_button:
+                        apply_button.click()
+                    return True
+
+            return False
+
+        except Exception as e:
+            print(f"Date filter handling failed: {str(e)}")
+            return False
+
+    def handle_category_filter(self, category: str) -> bool:
+        """Handle category/subject filter interfaces."""
+        try:
+            # Try different category selection patterns
+            selectors = [
+                f"//input[@type='checkbox'][@value='{category}']",
+                f"//input[@type='radio'][@value='{category}']",
+                f"//select//option[text()='{category}']",
+                f"//a[text()='{category}']",
+                f"//button[text()='{category}']",
+                f"//*[contains(@class, 'category') and text()='{category}']"
+            ]
+
+            for selector in selectors:
+                element = self.find_element_by_xpath(selector)
+                if element:
+                    # Scroll element into view
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
+                    time.sleep(0.5)
+
+                    # Try to click the element
+                    try:
+                        element.click()
+                        return True
+                    except ElementNotInteractableException:
+                        # Try JavaScript click if direct click fails
+                        self.driver.execute_script("arguments[0].click();", element)
+                        return True
+
+            return False
+
+        except Exception as e:
+            print(f"Category filter handling failed: {str(e)}")
+            return False
 
     @property
     def address(self) -> str:
