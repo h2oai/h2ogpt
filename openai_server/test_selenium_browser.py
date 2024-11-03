@@ -572,6 +572,7 @@ class BrowserAction(BaseModel):
                         description="The browser action to take: 'search', 'visit', 'click', 'fill_form', "
                                     "'scroll_down', 'scroll_up', 'find_text', 'find_next', 'finish'")
     reason: str = Field(..., description="Reasoning for taking this action")
+    plan: Optional[List[str]] = Field(None, description="High-level plan steps.")
     params: Dict[str, Any] = Field(default_factory=dict,
                                    description="Parameters for the action")
 
@@ -611,8 +612,7 @@ class ResearchAgent:
         self.conversation_history: List[Dict[str, str]] = [
             {
                 "role": "system",
-                "content": """
-You are a research agent that intelligently discovers and uses advanced search capabilities.
+                "content": """You are a research agent that intelligently discovers and uses advanced search capabilities.
 
 **Important Guidelines**:
 
@@ -631,8 +631,7 @@ You are a research agent that intelligently discovers and uses advanced search c
   - Narrow down to specifics after identifying potential sources.
   - Document each step and reason for your actions.
 
-**Your response must be valid JSON matching the provided schema. Do not include any extra information or commentary outside the JSON response.**
-"""
+**Your response must be valid JSON matching the provided schema. Do not include any extra information or commentary outside the JSON response.**"""
             }
         ]
 
@@ -642,6 +641,11 @@ You are a research agent that intelligently discovers and uses advanced search c
                 "reasoning": {
                     "type": "string",
                     "description": "Detailed reasoning about the action."
+                },
+                "plan": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "High-level plan steps."
                 },
                 "action": {
                     "type": "string",
@@ -659,7 +663,7 @@ You are a research agent that intelligently discovers and uses advanced search c
                 },
                 "params": {"type": "object"}
             },
-            "required": ["reasoning", "action", "params"]
+            "required": ["reasoning", "plan", "action", "params"]
         }
 
     def discover_search_interface(self, domain: str) -> SearchInterface:
@@ -788,6 +792,7 @@ Provide the information in the following JSON format:"""
                 "task": task,
                 "current_content": current_page_content,
                 "current_url": current_url,
+                "browsing_history": self.browsing_history,
                 "search_interfaces": {
                     domain: {
                         'advanced_search_url': self.search_interfaces[domain].advanced_search_url,
@@ -799,7 +804,29 @@ Provide the information in the following JSON format:"""
                 }
             }
 
+            # Prepare the planning prompt
+            planning_prompt = f"""
+Given the task: "{task}", and the current context, break down the task into high-level subtasks before deciding on the next action.
+
+Current URL: {current_url}
+Browsing History: {self.browsing_history}
+
+Provide a JSON object with the following format:
+{{
+  "reasoning": "Your reasoning here",
+  "plan": ["First subtask", "Second subtask", "..."],
+  "action": "next action to take",
+  "params": {{}}
+}}
+
+Remember to avoid using search operators specific to certain search engines on other sites.
+
+Your response must be valid JSON matching the schema provided.
+"""
+
+            # Update conversation history
             self.conversation_history.append({"role": "user", "content": json.dumps(context)})
+            self.conversation_history.append({"role": "user", "content": planning_prompt})
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -826,6 +853,7 @@ Provide the information in the following JSON format:"""
             return BrowserAction(
                 action=action_json["action"],
                 reason=action_json["reasoning"],
+                plan=action_json.get("plan", []),
                 params=action_json["params"]
             )
 
@@ -970,6 +998,9 @@ Provide the information in the following JSON format:"""
             print("No query provided for basic search.")
             return
 
+        # Sanitize the query to remove inappropriate search operators
+        query = self._sanitize_query(query)
+
         try:
             # Look for basic search input
             search_input = None
@@ -998,10 +1029,19 @@ Provide the information in the following JSON format:"""
             self.browser.visit_page(f"?q={quote(query)}")
             self.browsing_history.append(f"Searched for: {query}")
 
+    def _sanitize_query(self, query: str) -> str:
+        """Remove search operators that are not applicable to the current search engine"""
+        # For non-Google search engines, remove 'site:' operator and similar
+        disallowed_operators = ['site:', 'inurl:', 'intitle:', 'intext:']
+        for op in disallowed_operators:
+            query = query.replace(op, '')
+        return query.strip()
+
     def research(self, task: str, max_actions: int = 50) -> ResearchSummary:
         """Conduct research using discovered search interfaces"""
         print(f"\nStarting research on: {task}")
         current_content = "No content yet"
+        plan = []
 
         try:
             for i in range(max_actions):
@@ -1011,6 +1051,11 @@ Provide the information in the following JSON format:"""
                 print(f"Action: {action.action}")
                 print(f"Params: {action.params}")
                 print(f"Reason: {action.reason}")
+
+                # Update the plan if provided
+                if action.plan:
+                    plan = action.plan
+                    print(f"Updated Plan: {plan}")
 
                 if action.action == "finish":
                     return ResearchSummary(
