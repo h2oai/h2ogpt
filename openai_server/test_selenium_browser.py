@@ -824,9 +824,11 @@ Remember to avoid using search operators specific to certain search engines on o
 Your response must be valid JSON matching the schema provided.
 """
 
+            # Combine context and planning prompt into a single message
+            user_message_content = f"{json.dumps(context)}\n\n{planning_prompt}"
+
             # Update conversation history
-            self.conversation_history.append({"role": "user", "content": json.dumps(context)})
-            self.conversation_history.append({"role": "user", "content": planning_prompt})
+            self.conversation_history.append({"role": "user", "content": user_message_content})
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
