@@ -68,7 +68,7 @@ from image_utils import fix_image_file, get_image_types, get_image_file
 from output_parser import H2OPythonMRKLOutputParser
 from pandas_agent_langchain import create_csv_agent, create_pandas_dataframe_agent
 from src.h2oai_pipeline import H2OTextGenerationPipeline
-from src.langchain_openai import H2OBaseChatOpenAI, H2OBaseAzureChatOpenAI
+from src.langchain_openai_local import H2OBaseChatOpenAI, H2OBaseAzureChatOpenAI
 from stopping import update_terminate_responses
 from utils import wrapped_partial, EThread, import_matplotlib, sanitize_filename, makedirs, get_url, flatten_list, \
     get_device, ProgressParallel, remove, hash_file, clear_torch_cache, NullContext, get_hf_server, FakeTokenizer, \
