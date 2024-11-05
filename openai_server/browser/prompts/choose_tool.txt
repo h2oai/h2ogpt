@@ -17,7 +17,6 @@ I'll give you a question and a set of tools. Tell me which function you would us
 
 # Tools
 
-## Browser 
 The functions of the browser will share the same session, that means the viewport will persist between calls
 Every function will return the text of the current viewport after the action is performed. For long pages(longer than 1 viewport), you can use the page_up() and page_down() functions to scroll the viewport.
 Since the page has been converted from HTML to Markdown, you cannot submit information using a form, nor can you enter information in any text boxes. If you want to use the form inside the page, try using the computer_terminal below to read the html content.
