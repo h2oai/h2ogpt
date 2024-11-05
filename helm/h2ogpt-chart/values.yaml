@@ -55,7 +55,7 @@ h2ogpt:
     class:
     useEphemeral: true
 
-  # -- Defaults configs are set internally with recommended values. Set values if you really need to change. Make sure to quote boolean values ex: "True","true","false","False".
+  # -- Defaults configs are set internally with recommended values. Set values if you really need to change.
   # -- Supported configs are commented. If you don't pass any value, keep {}
   overrideConfig: {}
 #    verbose:
@@ -69,7 +69,6 @@ h2ogpt:
 #    h2ogpt_api_keys:
 #    use_auth_token:
 #    visible_models:
-#    visible_vision_models:
 #    top_k_docs_max_show:
 #    admin_pass:
 #    function_server:
@@ -170,9 +169,9 @@ agents:
     class:
     useEphemeral: true
 
-  # -- Defaults configs are set internally with recommended values. Set values if you really need to change. Make sure to quote boolean values ex: "True","true","false","False".
+  # -- Defaults configs are set internally with recommended values. Set values if you really need to change.
   # -- Supported configs are commented. If you don't pass any value, keep {}
-  overrideConfig: { }
+  overrideConfig: {}
 #    verbose:
 #    heap_app_id:
 #    num_async:
@@ -184,7 +183,6 @@ agents:
 #    h2ogpt_api_keys:
 #    use_auth_token:
 #    visible_models:
-#    visible_vision_models:
 #    top_k_docs_max_show:
 #    admin_pass:
 #    multiple_workers_gunicorn:
@@ -203,7 +201,7 @@ agents:
 #    embedding_gpu_id:
 
   # -- You can pass additional config here if overrideConfig does not have it.
-  additionalConfig: { }
+  additionalConfig: {}
 
   service:
     type: NodePort
