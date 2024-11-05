@@ -161,19 +161,36 @@ class SeleniumBrowser:
             for field_name, value in form_data.items():
                 found = False
                 # Find all input elements
-                inputs = self.driver.find_elements(By.TAG_NAME, 'input') + self.driver.find_elements(By.TAG_NAME,
-                                                                                                     'textarea') + self.driver.find_elements(
-                    By.TAG_NAME, 'select')
+                inputs = self.driver.find_elements(By.TAG_NAME, 'input') + \
+                         self.driver.find_elements(By.TAG_NAME, 'textarea') + \
+                         self.driver.find_elements(By.TAG_NAME, 'select')
                 for element in inputs:
                     name = element.get_attribute('name') or ''
                     id_attr = element.get_attribute('id') or ''
                     placeholder = element.get_attribute('placeholder') or ''
                     aria_label = element.get_attribute('aria-label') or ''
-                    if field_name.lower() in (name.lower(), id_attr.lower(), placeholder.lower(), aria_label.lower()):
+                    # Also consider labels
+                    label_text = ''
+                    try:
+                        label = self.driver.find_element(By.XPATH, f"//label[@for='{id_attr}']")
+                        label_text = label.text.strip()
+                    except NoSuchElementException:
+                        pass
+
+                    # Check if the field_name matches any of the attributes or label text
+                    if field_name.lower() in (name.lower(), id_attr.lower(), placeholder.lower(), aria_label.lower(), label_text.lower()):
                         found = True
                         # Handle different input types
-                        input_type = element.get_attribute('type')
-                        if input_type == 'checkbox':
+                        tag_name = element.tag_name.lower()
+                        input_type = element.get_attribute('type') or ''
+                        if tag_name == 'select':
+                            # Select the option
+                            options = element.find_elements(By.TAG_NAME, 'option')
+                            for option in options:
+                                if option.get_attribute('value') == value or option.text == value:
+                                    option.click()
+                                    break
+                        elif input_type == 'checkbox':
                             if value and not element.is_selected():
                                 element.click()
                             elif not value and element.is_selected():
@@ -565,6 +582,7 @@ class SearchInterface:
     search_fields: List[Dict[str, Any]] = field(default_factory=list)
 
 
+
 # Define the BrowserAction class
 class BrowserAction(BaseModel):
     """Model for browser actions the LLM can take"""
@@ -608,7 +626,11 @@ class ResearchAgent:
         self.search_attempts: List[str] = []
         self.found_info: Dict[str, Any] = {}
 
-        # Enhanced system prompt for search interface discovery
+        # Initialize the plan and current step index
+        self.plan: List[Dict[str, Any]] = []
+        self.current_step_index: int = 0
+
+        # Enhanced system prompt for search interface discovery and task breakdown
         self.conversation_history: List[Dict[str, str]] = [
             {
                 "role": "system",
@@ -617,21 +639,28 @@ class ResearchAgent:
 **Important Guidelines**:
 
 - **Search Strategy**:
-  - Use advanced search features of specific sites when appropriate.
-  - Avoid using search operators (like 'site:') that are specific to certain search engines unless you are using that search engine.
-  - Do not use Google-specific search operators on other websites.
-
-- **Task Decomposition**:
-  - Break down the main task into high-level subtasks.
-  - Plan your approach before executing actions.
-  - Only include specific details (like figure captions) when you have accessed the relevant documents.
+  - Break down the main task into hierarchical subtasks, from high-level to detailed.
+  - Start with broad searches and progressively narrow down.
+  - Avoid including overly specific details (like exact dates or figure descriptions) in initial search queries.
+  - Use advanced search features (like date ranges and filters) when appropriate.
 
 - **Action Planning**:
-  - Start with locating relevant resources broadly.
-  - Narrow down to specifics after identifying potential sources.
+  - Plan your approach before executing actions.
+  - Provide the plan in a structured JSON format.
+  - At each step, decide the next action based on the plan and previous results.
   - Document each step and reason for your actions.
 
-**Your response must be valid JSON matching the provided schema. Do not include any extra information or commentary outside the JSON response.**"""
+- **Search Query Formulation**:
+  - Use concise and relevant keywords for search queries.
+  - Exclude unnecessary details that cannot be processed by search engines.
+  - Utilize site-specific advanced search options when available.
+
+- **General Principles**:
+  - Keep the search tool general and adaptable to different websites.
+  - Do not optimize for a specific site or task.
+  - Avoid using search operators specific to certain search engines unless appropriate.
+
+**Your responses must be valid JSON matching the provided schemas. Do not include any extra information or commentary outside the JSON response.**"""
             }
         ]
 
@@ -641,11 +670,6 @@ class ResearchAgent:
                 "reasoning": {
                     "type": "string",
                     "description": "Detailed reasoning about the action."
-                },
-                "plan": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "High-level plan steps."
                 },
                 "action": {
                     "type": "string",
@@ -663,7 +687,26 @@ class ResearchAgent:
                 },
                 "params": {"type": "object"}
             },
-            "required": ["reasoning", "plan", "action", "params"]
+            "required": ["reasoning", "action", "params"]
+        }
+
+        self.plan_schema = {
+            "type": "object",
+            "properties": {
+                "plan": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "step_description": {"type": "string"},
+                            "search_query": {"type": "string"},
+                            "advanced_search_params": {"type": "object"}
+                        },
+                        "required": ["step_description"]
+                    }
+                }
+            },
+            "required": ["plan"]
         }
 
     def discover_search_interface(self, domain: str) -> SearchInterface:
@@ -673,18 +716,38 @@ class ResearchAgent:
 
         interface = SearchInterface(domain=domain)
 
-        # Extract elements from the page
-        page_elements = self._extract_page_elements()
+        # Try to find the advanced search URL
+        try:
+            # Look for links containing 'Advanced Search' or similar
+            links = self.browser.driver.find_elements(By.TAG_NAME, 'a')
+            for link in links:
+                link_text = link.text.lower()
+                if 'advanced search' in link_text or ('advanced' in link_text and 'search' in link_text):
+                    advanced_search_url = link.get_attribute('href')
+                    if advanced_search_url:
+                        interface.advanced_search_url = advanced_search_url
+                        break
+        except Exception as e:
+            print(f"Error finding advanced search URL: {e}")
 
-        # Use LLM to interpret elements
-        interpretation = self._interpret_page_elements(page_elements)
-
-        # Update interface based on interpretation
-        if interpretation:
-            interface.advanced_search_url = interpretation.get('advanced_search_url')
-            interface.date_filter_elements = interpretation.get('date_filter_elements', [])
-            interface.category_filter_elements = interpretation.get('category_filter_elements', [])
-            interface.search_fields = interpretation.get('search_fields', [])
+        # If advanced search URL found, try to extract form field names
+        if interface.advanced_search_url:
+            # Navigate to the advanced search page
+            self.browser.visit_page(interface.advanced_search_url)
+            # Extract form fields
+            form_elements = self.browser.driver.find_elements(By.XPATH, "//form//input | //form//select | //form//textarea")
+            date_fields = []
+            search_fields = []
+            for element in form_elements:
+                name = element.get_attribute('name') or ''
+                id_attr = element.get_attribute('id') or ''
+                input_type = element.get_attribute('type') or ''
+                if input_type == 'date' or 'date' in name.lower() or 'date' in id_attr.lower():
+                    date_fields.append({'name': name, 'id': id_attr})
+                else:
+                    search_fields.append({'name': name, 'id': id_attr})
+            interface.date_filter_elements = date_fields
+            interface.search_fields = search_fields
 
         self.search_interfaces[domain] = interface
         return interface
@@ -776,65 +839,129 @@ Provide the information in the following JSON format:"""
             print(f"Error interpreting page elements: {e}")
             return {}
 
-    def get_next_action(self, task: str, current_page_content: str) -> BrowserAction:
-        """Get next action with dynamic search interface discovery"""
+    def break_down_task(self, task: str) -> List[Dict[str, Any]]:
+        """Use the LLM to break down the task into a hierarchical plan."""
         try:
-            # Get current domain
-            current_url = self.browser.address
-            domain = urlparse(current_url).netloc if current_url else None
+            prompt = f"""
+You are tasked with breaking down the following research task into a hierarchical plan, from high-level steps to detailed actions. Represent this plan as a JSON array of steps.
 
-            # Update search interface knowledge
-            if domain and domain not in self.search_interfaces:
-                self.discover_search_interface(domain)
+Break-down the plan from general search-friendly queries down to those that are more specific like dates, specifics of figures or documents.
 
-            # Include search interface information in context
-            context = {
-                "task": task,
-                "current_content": current_page_content,
-                "current_url": current_url,
-                "browsing_history": self.browsing_history,
-                "search_interfaces": {
-                    domain: {
-                        'advanced_search_url': self.search_interfaces[domain].advanced_search_url,
-                        'date_filter_elements': self.search_interfaces[domain].date_filter_elements,
-                        'category_filter_elements': self.search_interfaces[domain].category_filter_elements,
-                        'search_fields': self.search_interfaces[domain].search_fields,
+The break-down should go from broad terms to more specific terms.  The break-down should go from broad concepts to specific ones.  Do not expect broad searches of specific things to work.
+
+A general query with broad dates is unlikely to work well since search engines will reject such searches and not find things or will give too broad a search based upon the general date terms.
+
+The site (source) being searched should not be in the search query itself.
+
+Task: "{task}"
+
+Each step should include:
+- "step_description": A brief description of the step.
+- "search_query": (Optional) A search query to use at this step.
+- "advanced_search_params": (Optional) Any advanced search parameters like date ranges or filters.
+
+Provide the plan in the following JSON format:
+{{
+  "plan": [
+    {{
+      "step_description": "First high-level step",
+      "search_query": "Optional search query",
+      "advanced_search_params": {{}}
+    }},
+    {{
+      "step_description": "Second high-level step",
+      "search_query": "Optional search query",
+      "advanced_search_params": {{}}
+    }},
+    ...
+  ]
+}}
+"""
+
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=1500,
+                extra_body=dict(
+                    guided_json=self.plan_schema,
+                    enable_caching=self.enable_caching,
+                    response_format=dict(type="json_object"),
+                )
+            )
+
+            plan_json = json.loads(response.choices[0].message.content.strip())
+            self.plan = plan_json["plan"]
+            self.current_step_index = 0
+            return self.plan
+
+        except Exception as e:
+            print(f"Error breaking down task: {e}")
+            traceback.print_exc()
+            return []
+
+    def get_next_action(self, task: str, current_page_content: str) -> BrowserAction:
+        """Get the next action based on the hierarchical plan."""
+        try:
+            # If no plan exists, create one
+            if not self.plan:
+                self.break_down_task(task)
+
+            # If all steps are completed, finish the task
+            if self.current_step_index >= len(self.plan):
+                return BrowserAction(
+                    action="finish",
+                    reason="All steps in the plan have been completed.",
+                    params={
+                        "key_findings": list(self.found_info.values()),
+                        "next_steps": []
                     }
-                    for domain in self.search_interfaces
-                }
+                )
+
+            # Get the current step
+            current_step = self.plan[self.current_step_index]
+
+            # Prepare context for the LLM
+            context = {
+                "current_step": current_step,
+                "current_step_index": self.current_step_index,
+                "plan": self.plan,
+                "current_content": current_page_content,
+                "browsing_history": self.browsing_history,
+                "search_attempts": self.search_attempts,
+                "found_information": self.found_info
             }
 
             # Prepare the planning prompt
             planning_prompt = f"""
-Given the task: "{task}", and the current context, break down the task into high-level subtasks before deciding on the next action.
+Based on the current step in the plan and the context, decide the next action to take.
 
-Current URL: {current_url}
-Browsing History: {self.browsing_history}
+Context:
+{json.dumps(context, indent=2)}
 
-Provide a JSON object with the following format:
+Remember:
+- Use concise and relevant keywords for search queries.
+- Use advanced search features when appropriate.
+- Exclude overly specific details that are unlikely to be helpful at this stage.
+
+Provide your response in the following JSON format:
 {{
   "reasoning": "Your reasoning here",
-  "plan": ["First subtask", "Second subtask", "..."],
   "action": "next action to take",
   "params": {{}}
 }}
 
-Remember to avoid using search operators specific to certain search engines on other sites.
-
 Your response must be valid JSON matching the schema provided.
 """
 
-            # Combine context and planning prompt into a single message
-            user_message_content = f"{json.dumps(context)}\n\n{planning_prompt}"
-
             # Update conversation history
-            self.conversation_history.append({"role": "user", "content": user_message_content})
+            self.conversation_history.append({"role": "user", "content": planning_prompt})
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=self.conversation_history,
-                temperature=0.0,
-                max_tokens=1500,
+                temperature=0.2,
+                max_tokens=1000,
                 extra_body=dict(
                     guided_json=self.action_schema,
                     enable_caching=self.enable_caching,
@@ -845,21 +972,15 @@ Your response must be valid JSON matching the schema provided.
             action_json = json.loads(response.choices[0].message.content.strip())
             self.conversation_history.append({"role": "assistant", "content": json.dumps(action_json)})
 
-            # Process the action before returning
-            if action_json["action"] == "search":
-                # Update search attempts tracking
-                query = action_json["params"].get("query", "")
-                if query and query not in self.search_attempts:
-                    self.search_attempts.append(query)
-
+            # Process the action
             return BrowserAction(
                 action=action_json["action"],
                 reason=action_json["reasoning"],
-                plan=action_json.get("plan", []),
                 params=action_json["params"]
             )
 
         except Exception as e:
+            print(f"Error in get_next_action: {e}")
             traceback.print_exc()
             return BrowserAction(
                 action="finish",
@@ -954,39 +1075,55 @@ Your response must be valid JSON matching the schema provided.
     def _configure_advanced_search(self, interface: SearchInterface, params: Dict[str, Any]):
         """Configure advanced search using discovered interface"""
         try:
+            # Fill out the advanced search form
+            form_data = {}
+
+            # Handle search query
+            if 'query' in params:
+                query = params['query']
+                # Use the appropriate search field name
+                if interface.search_fields:
+                    search_field = interface.search_fields[0]
+                    field_name = search_field['name'] or search_field['id']
+                    form_data[field_name] = query
+                else:
+                    form_data['query'] = query  # Fallback
+
             # Handle date parameters
             if 'date' in params:
                 date_param = params['date']
                 if isinstance(date_param, dict):
-                    self.browser.handle_date_filter(date_param)
+                    # Map 'from' and 'to' to form field names
+                    from_date = date_param.get('from')
+                    to_date = date_param.get('to')
+                    if from_date and interface.date_filter_elements:
+                        from_field = interface.date_filter_elements[0]
+                        field_name = from_field['name'] or from_field['id']
+                        form_data[field_name] = from_date
+                    if to_date and len(interface.date_filter_elements) > 1:
+                        to_field = interface.date_filter_elements[1]
+                        field_name = to_field['name'] or to_field['id']
+                        form_data[field_name] = to_date
 
             # Handle category/subject parameters
             if 'category' in params:
                 category = params['category']
-                self.browser.handle_category_filter(category)
+                form_data['category'] = category  # Assuming form field name is 'category'
 
-            # Handle search fields
-            if 'query' in params:
-                query = params['query']
-                self.browser.fill_form({'query': query})
+            # Fill out the form
+            self.browser.fill_form(form_data)
 
             # Submit the search
             # Try to find a submit button
             submit_button = None
-            buttons = self.browser.driver.find_elements(By.TAG_NAME, 'button')
-            for button in buttons:
-                if 'submit' in (button.get_attribute('type') or '').lower() or 'search' in (button.text or '').lower():
-                    submit_button = button
-                    break
-            if submit_button:
+            buttons = self.browser.driver.find_elements(By.XPATH, "//input[@type='submit'] | //button[@type='submit']")
+            if not buttons:
+                buttons = self.browser.driver.find_elements(By.XPATH, "//button[contains(text(), 'Search')]")
+            if buttons:
+                submit_button = buttons[0]
                 submit_button.click()
             else:
-                # Try to press Enter key in search input
-                search_input = self.browser.driver.find_element(By.TAG_NAME, 'input')
-                if search_input:
-                    search_input.send_keys(Keys.RETURN)
-                else:
-                    print("No submit mechanism found.")
+                print("No submit button found on advanced search page.")
 
         except Exception as e:
             print(f"Error configuring advanced search: {e}")
@@ -994,16 +1131,20 @@ Your response must be valid JSON matching the schema provided.
             self._execute_basic_search(params)
 
     def _execute_basic_search(self, params: Dict[str, Any]):
-        """Execute basic search when advanced interface unavailable"""
+        """Execute basic search using the search query from the current plan step."""
         query = params.get('query', '')
         if not query:
             print("No query provided for basic search.")
             return
 
-        # Sanitize the query to remove inappropriate search operators
-        query = self._sanitize_query(query)
-
         try:
+            # Use the search query from the current plan step
+            current_step = self.plan[self.current_step_index]
+            query = current_step.get('search_query', query)
+
+            # Use advanced search parameters if available
+            advanced_params = current_step.get('advanced_search_params', {})
+
             # Look for basic search input
             search_input = None
             inputs = self.browser.driver.find_elements(By.TAG_NAME, 'input')
@@ -1025,11 +1166,30 @@ Your response must be valid JSON matching the schema provided.
                 # Fall back to URL-based search if needed
                 self.browser.visit_page(f"?q={quote(query)}")
                 self.browsing_history.append(f"Searched for: {query}")
+
+            # Apply advanced search parameters if any
+            if advanced_params:
+                self._apply_advanced_search_params(advanced_params)
+
         except Exception as e:
             print(f"Error executing basic search: {e}")
             # Fall back to URL-based search if needed
             self.browser.visit_page(f"?q={quote(query)}")
             self.browsing_history.append(f"Searched for: {query}")
+
+    def _apply_advanced_search_params(self, params: Dict[str, Any]):
+        """Apply advanced search parameters like date ranges or filters."""
+        try:
+            # This is a placeholder implementation.
+            # You can expand this method to interact with advanced search forms.
+            if 'date_range' in params:
+                # Apply date range filters
+                self.browser.handle_date_filter(params['date_range'])
+            if 'category' in params:
+                # Apply category filters
+                self.browser.handle_category_filter(params['category'])
+        except Exception as e:
+            print(f"Error applying advanced search parameters: {e}")
 
     def _sanitize_query(self, query: str) -> str:
         """Remove search operators that are not applicable to the current search engine"""
@@ -1142,4 +1302,8 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
+
+
+def test_selenium_browser():
     main()
