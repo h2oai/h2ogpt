@@ -39,7 +39,7 @@ MODEL=os.getenv('WEB_TOOL_MODEL')
 API_KEY = os.getenv('H2OGPT_API_KEY')
 API_BASE = os.getenv('H2OGPT_OPENAI_BASE_URL')
 BING_API_KEY = os.getenv('BING_API_KEY')
-
+# print(f"MODEL: {MODEL}, API_KEY: {API_KEY}, API_BASE: {API_BASE}, BING_API_KEY: {BING_API_KEY}")
 
 class LLMCallbackHandler(BaseCallbackHandler):
 
@@ -75,6 +75,9 @@ with open(f"{cwd}/openai_server/browser/prompts/summarize_step.txt") as f:
 with open(f"{cwd}/openai_server/browser/prompts/improve_code.txt") as f:
     IMPROVE_CODE_PROMPT_TEMPLATE = f.read()
 
+with open(f"{cwd}/openai_server/browser/prompts/date_info.txt") as f:
+    DATE_INFO_PROMPT_TEMPLATE = f.read()
+
 class WebAgent:
     def __init__(self):
         # TODO: is max_tokens ok?
@@ -85,7 +88,7 @@ class WebAgent:
         self.tool_choice_output_parser = JsonOutputParser(pydantic_object=ToolChoice)
         choose_tool_prompt = PromptTemplate(
             template=CHOOSE_TOOL_PROMPT_TEMPLATE, 
-            input_variables=['steps', 'question'], 
+            input_variables=['steps', 'question', 'date_info'], 
             partial_variables={"format_instructions": self.tool_choice_output_parser.get_format_instructions()}
         )
         self.choose_tool_chain = choose_tool_prompt | self.llm | self.tool_choice_output_parser
@@ -210,12 +213,24 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             question = raw_question
         # pp(f"Question: {question}")
 
+        try:
+            date_info_prompt = PromptTemplate(
+                template=DATE_INFO_PROMPT_TEMPLATE, 
+                input_variables=['question'], 
+            )
+            date_info_fetcher = date_info_prompt | self.llm | StrOutputParser()
+            date_info = date_info_fetcher.invoke({'question': question})
+            print(f"Date Info: {date_info}")
+        except Exception as e:
+            print(f"Error: {e}")
+            date_info = None
+
         for _ in range(20):
             # TODO: pass has_error info to the choose_tool_chain
             has_error = False
             for _ in range(10):
                 try:
-                    tool_choice = self.choose_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps)})
+                    tool_choice = self.choose_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'date_info': date_info})
                     # h2ogpt models may return with 'properties' key
                     if 'properties' in tool_choice:
                         tool_choice = tool_choice['properties']
@@ -259,6 +274,7 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             if tool == 'None':
                 print(f"No tool chosen, break")
                 break
+            # TODO: Shouldnt populate agent history with the tool results?
             if tool_result:
                 print(f"\n * Current tool result: {tool_result}")
             step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})

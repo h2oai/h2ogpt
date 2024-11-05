@@ -1,0 +1,10 @@
+User question:
+```text
+{question}
+```
+
+* Based on the user question, do you think the user is interested in finding web information from or up to a specific date? If so, please provide the date that the information should be from or up to.
+* A specific date can be either very specific as hour/day/month/year level or a bit more vauge like just for certain year(s) or month(s).
+* Especially web sites like Wikipedia, news sites, and other informational sites may have information that can change over time.
+* So if the user is asking information from a specific time period, it is important to know that. 
+* If the user is not asking for information from a specific time period, you can type 'User is not interested in any date for the current web search, so it's safe to assume the user is interested in the most recent information.'.
