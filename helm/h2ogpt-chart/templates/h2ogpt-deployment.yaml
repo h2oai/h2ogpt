@@ -96,7 +96,7 @@ spec:
             - name: http
               containerPort: 7860
               protocol: TCP
-          {{- if .Values.h2ogpt.overrideConfig.openai_server }}
+          {{- if .Values.h2ogpt.openai.enabled }}
             - name: openai
               containerPort: 5000
               protocol: TCP

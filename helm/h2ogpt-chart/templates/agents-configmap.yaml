@@ -7,10 +7,20 @@ metadata:
   labels:
     {{- include "h2ogpt.labels" . | nindent 4 }}
 data:
-{{- range $key, $value := ( include "agents.overrideConfig" . | fromYaml ) }}
-  {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
+{{- range $key, $value := ( include "agents.config" . | fromYaml ) }}
+{{- /* convert boolean value to cli compatiblity */}}
+  {{- if or ( eq "true" ( $value | toString )) ( eq "false" ( $value | toString )) }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote | title }}
+  {{- else }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
+  {{- end }}
 {{- end }}
-{{- range $key, $value := .Values.agents.overrideConfig }}
-  {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
+{{- range $key, $value := ( .Values.agents.additionalConfig ) }}
+{{- /* convert boolean value to cli compatiblity */}}
+  {{- if or ( eq "true" ( $value | toString )) ( eq "false" ( $value | toString )) }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote | title }}
+  {{- else }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
+  {{- end }}
 {{- end }}
 {{- end }}

@@ -8,6 +8,8 @@ A Helm chart for h2oGPT
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| agents.additionalConfig | object | `{}` | You can pass additional config here if overrideConfig does not have it. |
+| agents.agent_workers | int | `5` |  |
 | agents.autoscaling.enabled | bool | `false` |  |
 | agents.autoscaling.maxReplicas | int | `2` |  |
 | agents.autoscaling.minReplicas | int | `1` |  |
@@ -24,26 +26,8 @@ A Helm chart for h2oGPT
 | agents.initImage.pullPolicy | string | `nil` |  |
 | agents.initImage.repository | string | `nil` |  |
 | agents.initImage.tag | string | `nil` |  |
-| agents.nodeSelector | string | `nil` |  |
-| agents.overrideConfig.agent_workers | int | `5` |  |
-| agents.overrideConfig.concurrency_count | int | `100` |  |
-| agents.overrideConfig.embedding_gpu_id | string | `"cpu"` |  |
-| agents.overrideConfig.enable_stt | bool | `false` |  |
-| agents.overrideConfig.enable_transcriptions | bool | `false` |  |
-| agents.overrideConfig.enable_tts | bool | `false` |  |
-| agents.overrideConfig.enforce_h2ogpt_api_key | bool | `true` |  |
-| agents.overrideConfig.enforce_h2ogpt_ui_key | bool | `false` |  |
-| agents.overrideConfig.hf_embedding_model | string | `"fake"` |  |
-| agents.overrideConfig.metadata_in_context | string | `""` |  |
-| agents.overrideConfig.num_async | int | `10` |  |
-| agents.overrideConfig.rotate_align_resize_image | bool | `false` |  |
-| agents.overrideConfig.score_model | string | `"None"` |  |
-| agents.overrideConfig.share | bool | `false` |  |
-| agents.overrideConfig.top_k_docs_max_show | int | `100` |  |
-| agents.overrideConfig.visible_hosts_tab | bool | `false` |  |
-| agents.overrideConfig.visible_login_tab | bool | `false` |  |
-| agents.overrideConfig.visible_models_tab | bool | `false` |  |
-| agents.overrideConfig.visible_system_tab | bool | `false` |  |
+| agents.nodeSelector | object | `{}` | Node selector for the agents pods. |
+| agents.overrideConfig | object | `{}` | Supported configs are commented. If you don't pass any value, keep {} |
 | agents.podAffinity | string | `nil` | Set hostname and zone to true for pod affinity rules based on hostname and zone. |
 | agents.podAnnotations | object | `{}` |  |
 | agents.podLabels | object | `{}` |  |
@@ -52,7 +36,9 @@ A Helm chart for h2oGPT
 | agents.podSecurityContext.runAsNonRoot | bool | `true` |  |
 | agents.podSecurityContext.runAsUser | string | `nil` |  |
 | agents.replicaCount | int | `1` |  |
+| agents.resources.limits."nvidia.com/gpu" | int | `1` |  |
 | agents.resources.limits.memory | string | `"64Gi"` |  |
+| agents.resources.requests."nvidia.com/gpu" | int | `1` |  |
 | agents.resources.requests.memory | string | `"32Gi"` |  |
 | agents.securityContext.allowPrivilegeEscalation | bool | `false` |  |
 | agents.securityContext.capabilities.drop[0] | string | `"ALL"` |  |
@@ -64,7 +50,7 @@ A Helm chart for h2oGPT
 | agents.storage.class | string | `nil` |  |
 | agents.storage.size | string | `"128Gi"` |  |
 | agents.storage.useEphemeral | bool | `true` |  |
-| agents.tolerations | string | `nil` |  |
+| agents.tolerations | list | `[]` | Node taints to tolerate by the agents pods. |
 | agents.updateStrategy.type | string | `"RollingUpdate"` |  |
 | caCertificates | string | `""` | CA certs |
 | fullnameOverride | string | `""` |  |
@@ -74,8 +60,9 @@ A Helm chart for h2oGPT
 | global.visionModels.enabled | bool | `false` | Enable vision models |
 | global.visionModels.rotateAlignResizeImage | bool | `false` |  |
 | global.visionModels.visibleModels | list | `[]` | Visible vision models, the vision model itslef needs to be set via modeLock or base_model. Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5'] |
-| h2ogpt.agents | object | `{"agent_workers":5,"enabled":false}` | Enable agents |
-| h2ogpt.agents.enabled | bool | `false` | Run agents with h2oGPT container |
+| h2ogpt.additionalConfig | object | `{}` | You can pass additional config here if overrideConfig does not have it. |
+| h2ogpt.agents | object | `{"agent_workers":5,"enabled":true}` | Enable agents |
+| h2ogpt.agents.enabled | bool | `true` | Run agents with h2oGPT container |
 | h2ogpt.enabled | bool | `true` | Enable h2oGPT |
 | h2ogpt.env | object | `{}` |  |
 | h2ogpt.extraVolumeMounts | list | `[]` | Extra volume mounts |
@@ -87,27 +74,10 @@ A Helm chart for h2oGPT
 | h2ogpt.initImage.pullPolicy | string | `nil` |  |
 | h2ogpt.initImage.repository | string | `nil` |  |
 | h2ogpt.initImage.tag | string | `nil` |  |
-| h2ogpt.nodeSelector | string | `nil` |  |
-| h2ogpt.overrideConfig.concurrency_count | int | `100` |  |
-| h2ogpt.overrideConfig.embedding_gpu_id | string | `"cpu"` |  |
-| h2ogpt.overrideConfig.enable_stt | bool | `false` |  |
-| h2ogpt.overrideConfig.enable_transcriptions | bool | `false` |  |
-| h2ogpt.overrideConfig.enable_tts | bool | `false` |  |
-| h2ogpt.overrideConfig.enforce_h2ogpt_api_key | bool | `true` |  |
-| h2ogpt.overrideConfig.enforce_h2ogpt_ui_key | bool | `false` |  |
-| h2ogpt.overrideConfig.hf_embedding_model | string | `"fake"` |  |
-| h2ogpt.overrideConfig.metadata_in_context | string | `""` |  |
-| h2ogpt.overrideConfig.num_async | int | `10` |  |
-| h2ogpt.overrideConfig.openai_server | bool | `true` |  |
-| h2ogpt.overrideConfig.openai_workers | int | `5` |  |
-| h2ogpt.overrideConfig.rotate_align_resize_image | bool | `false` |  |
-| h2ogpt.overrideConfig.score_model | string | `"None"` |  |
-| h2ogpt.overrideConfig.share | bool | `false` |  |
-| h2ogpt.overrideConfig.top_k_docs_max_show | int | `100` |  |
-| h2ogpt.overrideConfig.visible_hosts_tab | bool | `false` |  |
-| h2ogpt.overrideConfig.visible_login_tab | bool | `false` |  |
-| h2ogpt.overrideConfig.visible_models_tab | bool | `false` |  |
-| h2ogpt.overrideConfig.visible_system_tab | bool | `false` |  |
+| h2ogpt.nodeSelector | object | `{}` | Node selector for the h2ogpt pods. |
+| h2ogpt.openai.enabled | bool | `true` |  |
+| h2ogpt.openai.openai_workers | int | `5` |  |
+| h2ogpt.overrideConfig | object | `{}` | Supported configs are commented. If you don't pass any value, keep {} |
 | h2ogpt.podAffinity | string | `nil` | Set hostname and zone to true for pod affinity rules based on hostname and zone. |
 | h2ogpt.podAnnotations | object | `{}` |  |
 | h2ogpt.podLabels | object | `{}` |  |
@@ -116,7 +86,9 @@ A Helm chart for h2oGPT
 | h2ogpt.podSecurityContext.runAsNonRoot | bool | `true` |  |
 | h2ogpt.podSecurityContext.runAsUser | string | `nil` |  |
 | h2ogpt.replicaCount | int | `1` |  |
+| h2ogpt.resources.limits."nvidia.com/gpu" | int | `0` |  |
 | h2ogpt.resources.limits.memory | string | `"64Gi"` |  |
+| h2ogpt.resources.requests."nvidia.com/gpu" | int | `0` |  |
 | h2ogpt.resources.requests.memory | string | `"32Gi"` |  |
 | h2ogpt.securityContext.allowPrivilegeEscalation | bool | `false` |  |
 | h2ogpt.securityContext.capabilities.drop[0] | string | `"ALL"` |  |
@@ -131,7 +103,7 @@ A Helm chart for h2oGPT
 | h2ogpt.storage.class | string | `nil` |  |
 | h2ogpt.storage.size | string | `"128Gi"` |  |
 | h2ogpt.storage.useEphemeral | bool | `true` |  |
-| h2ogpt.tolerations | string | `nil` |  |
+| h2ogpt.tolerations | list | `[]` | Node taints to tolerate by the h2ogpt pods. |
 | h2ogpt.updateStrategy.type | string | `"RollingUpdate"` |  |
 | nameOverride | string | `""` |  |
 | namespaceOverride | string | `""` |  |

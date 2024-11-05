@@ -17,7 +17,7 @@ spec:
       protocol: TCP
       port: {{ .Values.h2ogpt.service.webPort }}
       targetPort: 7860
-  {{- if .Values.h2ogpt.overrideConfig.openai_server }}
+  {{- if .Values.h2ogpt.openai.enabled }}
     - name: openai
       protocol: TCP
       port: {{ .Values.h2ogpt.service.openaiPort }}
