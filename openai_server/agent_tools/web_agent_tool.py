@@ -39,7 +39,6 @@ MODEL=os.getenv('WEB_TOOL_MODEL')
 API_KEY = os.getenv('H2OGPT_API_KEY')
 API_BASE = os.getenv('H2OGPT_OPENAI_BASE_URL')
 BING_API_KEY = os.getenv('BING_API_KEY')
-# print(f"MODEL: {MODEL}, API_KEY: {API_KEY}, API_BASE: {API_BASE}, BING_API_KEY: {BING_API_KEY}")
 
 class LLMCallbackHandler(BaseCallbackHandler):
 
@@ -275,9 +274,8 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             if tool == 'None':
                 print(f"No tool chosen, break")
                 break
-            # TODO: Shouldnt populate agent history with the tool results?
-            if tool_result:
-                print(f"\n * Current tool result: {tool_result}")
+            # if tool_result:
+            #     print(f"\n * Current tool result: {tool_result}")
             try:
                 step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
             except Exception as e:
