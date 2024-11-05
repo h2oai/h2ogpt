@@ -202,7 +202,10 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                 + "' was not found on this page."
             )
         else:
-            return header.strip() + "\n=======================\n" + content
+            return (header.strip() + "\n=======================\n" 
+                    + content + "\n=======================\n"
+                    + f"Note: {search_string} found in the current viewport"
+                    )
 
     def find_next(self) -> str:
         find_result = self.browser.find_next()
