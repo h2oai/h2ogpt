@@ -71,7 +71,12 @@ Plan:
   xxxx 
 ```
 
-# Plan Tips:
+# Web Search Plan Tips
+- Always start with visiting the most relevant website. Sometimes the desired answer is hidden under some buttons, tabs, or scrollable lists in the website. If it's the case, you should be able to click those buttons to unhide the answers.
+- If there is no mentions of specific date for website view histories, then always go with the up-to-date page. However, if there are mentions of certain dates, then make sure to visit relevant history pages before fetching information from web pages. If this is the case, look for tabs like 'History', 'View history' to locate old pages via find_on_page_ctrl_f.
+- If you need to search through large number of pages of a forum, or large number of history pages of a website, and you need to visit each of them to check some facts, use binary search to visit pages. E.g. always find the middle page first and visit it, if not find the desired answer then keep searching with the right half of the search space and find midle page of the right half space. If not, do the same for left half space, until you reach your desired answer.
+- If you need to go through history of a Wikipedia page, you can use of the following example link: https://en.wikipedia.org/w/index.php?title=Turkey&action=history&date-range-to=2012-01-31&offset=&limit=50
+- With the example link above, if you pass a date as 'date-range-to=2012-01-31', you'll get history results up-to&including the date 2012-01-31 and you'll get results for the last '50' history results. Based on user's request, you can change these values.
 - Some web pages may have contents like the following [TEXT](https://some.url.com). This means that, you can click or see the content of 'TEXT' by visiting the mentioned URL next to that, which is https://some.url.com.
 
 Important: User is never able to see the current viewport, the user will always see your expected response. That's why, you always have to provide expected answers under 'Facts' section of your response.
