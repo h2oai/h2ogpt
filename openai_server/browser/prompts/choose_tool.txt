@@ -51,7 +51,7 @@ When the page is very long, content truncation may occur due to the limited disp
 
 Based on the question and the step history, tell me which function you would use to solve the problem in next step. 
 If you don't need any function or the question is very easy to answer, function "None" is also an option. 
-If you tried everything and no more option is left, return function as "None".
+If you run into an error, try to come up with alternative steps to reach the information first.
 Never try same function with the same parameters in a row. In case you are stuck, come up with alternative solutions.
 Do not change the format and precision of the results (including rounding), as a dedicated person will handle the final formatting of the results.
 Use JSON format to answer.

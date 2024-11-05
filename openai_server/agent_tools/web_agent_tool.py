@@ -82,7 +82,8 @@ class WebAgent:
     def __init__(self):
         # TODO: is max_tokens ok?
         # TODO: is streaming ok?
-        self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=API_KEY, base_url=API_BASE, max_tokens=2048)
+        # TODO: is request_timeout ok?
+        self.llm = ChatOpenAI(model=MODEL, temperature=0.1, streaming=False, max_retries=5, api_key=API_KEY, base_url=API_BASE, max_tokens=2048, request_timeout=60)
         self.format_answer_chain = FORMAT_ANSWER_PROMPT | self.llm | StrOutputParser()
 
         self.tool_choice_output_parser = JsonOutputParser(pydantic_object=ToolChoice)
@@ -220,26 +221,24 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             )
             date_info_fetcher = date_info_prompt | self.llm | StrOutputParser()
             date_info = date_info_fetcher.invoke({'question': question})
-            print(f"Date Info: {date_info}")
+            print(f"\n\n Web search date info: {date_info}")
         except Exception as e:
             print(f"Error: {e}")
             date_info = None
 
-        for _ in range(20):
+        for i in range(20):
             # TODO: pass has_error info to the choose_tool_chain
             has_error = False
-            for _ in range(10):
+            for _ in range(3):
                 try:
                     tool_choice = self.choose_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'date_info': date_info})
+                    print(f"\n\nWebAgent {i+1} tool_choice: {tool_choice}")
                     # h2ogpt models may return with 'properties' key
                     if 'properties' in tool_choice:
                         tool_choice = tool_choice['properties']
                     if 'tool' not in tool_choice or 'tool_args' not in tool_choice:
                         has_error = True
                         break
-                    elif tool_choice['tool'] not in ['informational_web_search', 'navigational_web_search', 'visit_page', 'page_up', 'page_down', 'download_file', 'find_on_page_ctrl_f', 'find_next', 'None']:
-                        has_error = True
-                        continue
                     else:
                         break
                 except Exception as e:
@@ -248,7 +247,8 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                     continue
             tool = tool_choice['tool']
             args = tool_choice['tool_args']
-            pp(f"\n * Tool: {tool}, Args: {args}")
+            reason = tool_choice.get('reason', '')
+            pp(f"\n\n * {i+1} - Tool: {tool}, Args: {args} Reason: {reason} ")
             if tool == "informational_web_search":
                 tool_result = self.informational_web_search(**args)
             elif tool == "navigational_web_search":
@@ -269,7 +269,8 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                 tool_result = None
             else:
                 print(f"Unknown tool: {tool}")
-                tool_result = None
+                tool_result = f"ERROR: You provided an unknown tool: {tool} with the args: {args}."
+                has_error = True
             
             if tool == 'None':
                 print(f"No tool chosen, break")
@@ -277,7 +278,11 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
             # TODO: Shouldnt populate agent history with the tool results?
             if tool_result:
                 print(f"\n * Current tool result: {tool_result}")
-            step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
+            try:
+                step_note = self.summarize_tool_chain.invoke({'question': question, 'steps': '\n\n'.join(steps), 'tool_result': tool_result, 'tool': tool, 'args': args})
+            except Exception as e:
+                print(f"Error: {e}")
+                step_note = e
             steps.append(f"Step:{len(steps)+1}\nTool: {tool}, Args: {args}\n{step_note}\n\n")
 
         steps_prompt = '\n'.join(steps)
