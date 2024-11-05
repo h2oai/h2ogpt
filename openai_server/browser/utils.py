@@ -100,6 +100,14 @@ class SimpleTextBrowser:
 
     def page_up(self) -> None:
         self.viewport_current_page = max(self.viewport_current_page - 1, 0)
+    
+    def bottom_of_page(self) -> None:
+        "Scroll the viewport to the bottom of the page. This can be useful for long pages when you want to quickly get to the bottom.  For example, sections like References, External Links, or See Also can be at the bottom of a page."
+        self.viewport_current_page = len(self.viewport_pages) - 1
+
+    def top_of_page(self) -> None:
+        "Scroll the viewport to the top of the page. This can be useful for long pages when you want to quickly get to the top. For example, the Table of Contents, Search Box, or Introduction can be at the top of a page."
+        self.viewport_current_page = 0
 
     def find_on_page(self, query: str) -> Union[str, None]:
         """Searches for the query from the current viewport forward, looping back to the start if necessary."""

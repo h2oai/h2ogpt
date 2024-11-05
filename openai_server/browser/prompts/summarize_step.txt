@@ -5,7 +5,6 @@ Your ultimate goal is to find the answer to the question below.
 
 # Tools
 
-## Browser
 The functions of the browser will share the same session, that means the viewport will persist between calls
 Every function will return the text of the current viewport after the action is performed. For long pages(longer than 1 viewport), you can use the page_up() and page_down() functions to scroll the viewport.
 Since the page has been converted from HTML to Markdown, you cannot submit information using a form, nor can you enter information in any text boxes. If you want to use the form inside the page, try using the computer_terminal below to read the html content.
@@ -20,6 +19,10 @@ When the page is very long, content truncation may occur due to the limited disp
     Scroll the viewport UP one page-length in the current webpage and return the new viewport content.
 - page_down() -> str:
     Scroll the viewport DOWN one page-length in the current webpage and return the new viewport content.
+- bottom_of_page() -> str:
+    Scroll the viewport to the BOTTOM of the page. This can be useful for long pages when you want to quickly get to the bottom of the current page.
+- top_of_page() -> str:
+    Scroll the viewport to the TOP of the page. This can be useful for long pages when you want to quickly get to the top of the current page.
 - download_file(url: str) -> str:
     Download a file at a given URL and, if possible, return its text. File types that will returned as text: .pdf, .docx, .xlsx, .pptx, .wav, .mp3, .jpg, .jpeg, .png(You can read the text content of the file with these extensions).
 - find_on_page_ctrl_f(search_string: str) -> str:
@@ -67,3 +70,9 @@ Explanation:
 Plan:
   xxxx 
 ```
+
+# Plan Tips:
+- Some web pages may have contents like the following [TEXT](https://some.url.com). This means that, you can click or see the content of 'TEXT' by visiting the mentioned URL next to that, which is https://some.url.com.
+
+Important: User is never able to see the current viewport, the user will always see your expected response. That's why, you always have to provide expected answers under 'Facts' section of your response.
+Don't assume that the user is able to see the current viewport as you do.

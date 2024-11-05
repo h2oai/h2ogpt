@@ -175,6 +175,16 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
         header, content = self.browser_state()
         return header.strip() + "\n=======================\n" + content
 
+    def top_of_page(self) -> str:
+        self.browser.top_of_page()
+        header, content = self.browser_state()
+        return header.strip() + "\n=======================\n" + content
+
+    def bottom_of_page(self) -> str:
+        self.browser.bottom_of_page()
+        header, content = self.browser_state()
+        return header.strip() + "\n=======================\n" + content
+
     def download_file(self, url: str) -> str:
         self.browser.visit_page(url)
         header, content = self.browser_state()
@@ -258,6 +268,10 @@ DO NOT OUTPUT 'I don't know', 'Unable to determine', etc.
                 tool_result = self.page_up()
             elif tool == "page_down":
                 tool_result = self.page_down()
+            elif tool == "top_of_page":
+                tool_result = self.top_of_page()
+            elif tool == "bottom_of_page":
+                tool_result = self.bottom_of_page()
             elif tool == "download_file":
                 tool_result = self.download_file(**args)
             elif tool == "find_on_page_ctrl_f":
