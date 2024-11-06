@@ -418,7 +418,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run Driverless AI experiments from command line.")
 
     # instance
-    parser.add_argument("--engine", "--dai_engine", default="daidemo",
+    parser.add_argument("--engine", "--dai_engine", default=os.getenv('DAI_ENGINE', "daidemo"),
                         help="Name of the DAI engine")
     parser.add_argument("--client_id", "--dai_client_id", default=os.getenv('DAI_CLIENT_ID', "hac-platform-public"),
                         help="Name of client_id")
@@ -448,7 +448,7 @@ def main():
                         help="Source type of the dataset (default: s3)")
 
     # Creating new experiment
-    parser.add_argument("--target-column",
+    parser.add_argument("--target-column", "--target",
                         default="Churn?",
                         required=False,
                         help="Name of the target column for prediction")
