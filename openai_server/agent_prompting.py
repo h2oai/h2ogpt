@@ -724,8 +724,6 @@ python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --que
 def get_dai_helper():
     cwd = os.path.abspath(os.getcwd())
     if os.getenv('ENABLE_DAI'):
-        # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
-        # https://products.wolframalpha.com/api/documentation
         dai = f"""\n* DriverlessAI is an advanced AutoML tool for data science model making and predictions.
 * If user specifically asks for a DAI model, then you should use the existing pre-built python code to query DriverlessAI, E.g.:
 ```sh
@@ -733,7 +731,7 @@ def get_dai_helper():
 # execution: true
 python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py
 ```
-* usage: python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py [--experiment_key EXPERIMENT_KEY] [--dataset_key DATASET_KEY] [--data-url DATA_URL] [--dataset-name DATASET_NAME] [--data-source DATA_SOURCE] [--target-column TARGET_COLUMN] [--task {{classification,regression,predict,shapley_original_features,shapley_transformed_features,transform,fit_and_transform,artifacts}}] [--scorer SCORER] [--experiment-name EXPERIMENT_NAME] [--accuracy {{1,2,3,4,5,6,7,8,9,10}}] [--time {{1,2,3,4,5,6,7,8,9,10}}] [--interpretability {{1,2,3,4,5,6,7,8,9,10}}] [--train-size TRAIN_SIZE] [--seed SEED] [--fast] [--force]
+* usage: python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py [--experiment_key EXPERIMENT_KEY] [--dataset_key DATASET_KEY] [--data-url DATA_URL] [--dataset-name DATASET_NAME] [--data-source DATA_SOURCE] [--target-column TARGET_COLUMN] [--task {{classification,regression,predict,shapley_original_features,shapley_transformed_features,transform,fit_and_transform,artifacts}}] [--scorer SCORER] [--experiment-name EXPERIMENT_NAME] [--accuracy {{1,2,3,4,5,6,7,8,9,10}}] [--time {{1,2,3,4,5,6,7,8,9,10}}] [--interpretability {{1,2,3,4,5,6,7,8,9,10}}] [--train-size TRAIN_SIZE] [--seed SEED] [--fast] [--force]
 * Typical case for creating experiment might be:
 python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py --dataset-name "my_dataset" --data-url "https://mydata.com/mydata.csv" --target-column "target" --task "classification" --scorer "auc" --experiment-name "my_experiment"
 * A typical re-use of the experiment_key and dataset_key for prediction (or shapley, transform, fit_and_transform) would be like:
