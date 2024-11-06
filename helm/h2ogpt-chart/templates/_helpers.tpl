@@ -102,10 +102,10 @@ openai_server: "True"
 openai_port: 5000
 openai_workers: {{ default 5 .openai.openai_workers }}
 {{- end }}
-{{- if .agents.enabled }}
+{{- if .agent.enabled }}
 agent_server: "True"
 agent_port: 5004
-agent_workers: {{ .agents.agent_workers }}
+agent_workers: {{ .agent.agent_workers }}
 {{- end }}
 function_server: {{ default "True" ( .overrideConfig.function_server | quote ) }}
 function_port: 5002
@@ -139,11 +139,11 @@ enable_doctr: {{ default "False" ( .overrideConfig.enable_doctr | quote ) }}
 {{- end }}
 
 {{/*
-Config for agents
+Config for agent
 */}}
 
-{{- define "agents.config" -}}
-{{- with .Values.agents }}
+{{- define "agent.config" -}}
+{{- with .Values.agent }}
 verbose: {{ default "True" ( .overrideConfig.verbose | quote ) }}
 {{- if .overrideConfig.heap_app_id }}
 heap_app_id: {{ .overrideConfig.heap_app_id }}

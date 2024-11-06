@@ -5,7 +5,7 @@ namespaceOverride: ""
 global:
   externalLLM:
     enabled: false
-    # -- list of secrets for h2ogpt and agents env
+    # -- list of secrets for h2ogpt and agent env
     secret: {}
 #      OPENAI_AZURE_KEY: "value"
 #      OPENAI_AZURE_API_BASE: "value"
@@ -24,10 +24,10 @@ global:
 h2ogpt:
   # -- Enable h2oGPT
   enabled: true
-  # -- Enable agents
-  agents:
-    # -- Run agents with h2oGPT container
-    enabled: true
+  # -- Enable agent
+  agent:
+    # -- Run agent with h2oGPT container
+    enabled: false
     agent_workers: 5
   openai:
     enabled: true
@@ -96,7 +96,7 @@ h2ogpt:
     webPort: 80
     openaiPort: 5000
     functionPort: 5002
-    agentsPort: 5004
+    agentPort: 5004
     webServiceAnnotations: {}
 
   updateStrategy:
@@ -134,12 +134,12 @@ h2ogpt:
   podAnnotations: {}
   podLabels: {}
 
-agents:
-  # -- Enable agents, this must be `false` if `h2ogpt.agents.enabled` is `true`
-  enabled: false
+agent:
+  # -- Enable agent, this must be `false` if `h2ogpt.agent.enabled` is `true`
+  enabled: true
   agent_workers: 5
   autoscaling:
-    # Enable autoscaling (HPA) for agents
+    # Enable autoscaling (HPA) for agent
     enabled: false
     minReplicas: 1
     maxReplicas: 2
@@ -205,7 +205,7 @@ agents:
 
   service:
     type: NodePort
-    agentsPort: 5004
+    agentPort: 5004
     annotations: {}
 
   updateStrategy:
@@ -233,9 +233,9 @@ agents:
     limits:
       memory: 64Gi
       nvidia.com/gpu: 1
-  # -- Node taints to tolerate by the agents pods.
+  # -- Node taints to tolerate by the agent pods.
   tolerations: []
-  # -- Node selector for the agents pods.
+  # -- Node selector for the agent pods.
   nodeSelector: {}
 
   env: {}

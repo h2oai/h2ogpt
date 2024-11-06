@@ -104,7 +104,7 @@ spec:
             - name: function
               containerPort: 5002
               protocol: TCP
-          {{- if .Values.h2ogpt.agents.enabled }}
+          {{- if .Values.h2ogpt.agent.enabled }}
             - name: agent
               containerPort: 5004
               protocol: TCP
