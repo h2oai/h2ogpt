@@ -721,6 +721,34 @@ python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py --que
     return wolframalpha
 
 
+def get_dai_helper():
+    cwd = os.path.abspath(os.getcwd())
+    if os.getenv('ENABLE_DAI'):
+        # https://wolframalpha.readthedocs.io/en/latest/?badge=latest
+        # https://products.wolframalpha.com/api/documentation
+        dai = f"""\n* DriverlessAI is an advanced AutoML tool for data science model making and predictions.
+* If user specifically asks for a DAI model, then you should use the existing pre-built python code to query DriverlessAI, E.g.:
+```sh
+# filename: my_dai_query.sh
+# execution: true
+python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py
+```
+* usage: python {cwd}/openai_server/agent_tools/wolfram_alpha_math_science_query.py [--experiment_key EXPERIMENT_KEY] [--dataset_key DATASET_KEY] [--data-url DATA_URL] [--dataset-name DATASET_NAME] [--data-source DATA_SOURCE] [--target-column TARGET_COLUMN] [--task {{classification,regression,predict,shapley_original_features,shapley_transformed_features,transform,fit_and_transform,artifacts}}] [--scorer SCORER] [--experiment-name EXPERIMENT_NAME] [--accuracy {{1,2,3,4,5,6,7,8,9,10}}] [--time {{1,2,3,4,5,6,7,8,9,10}}] [--interpretability {{1,2,3,4,5,6,7,8,9,10}}] [--train-size TRAIN_SIZE] [--seed SEED] [--fast] [--force]
+* Typical case for creating experiment might be:
+python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py --dataset-name "my_dataset" --data-url "https://mydata.com/mydata.csv" --target-column "target" --task "classification" --scorer "auc" --experiment-name "my_experiment"
+* A typical re-use of the experiment_key and dataset_key for prediction (or shapley, transform, fit_and_transform) would be like:
+python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py --experiment_key <experiment_key from experiment created before> --dataset_key <dataset_key from experiment> --task "prediction"
+* For predict, shapley, transform, fit_and_transform, one can also pass --data-url to use a fresh dataset on the given experiment, e.g.:
+python {cwd}/openai_server/agent_tools/driverless_ai_data_science.py --experiment_key <experiment_key from experiment created before> --data-url "https://mydata.com/mydata.csv" --task "prediction"
+"""
+        if os.getenv('DAI_TOKEN') is None:
+            dai += f"""* Additionally, you must pass --token <DAI_TOKEN> to the command line to use the DAI tool."""
+        dai += f"""You may also pass these additional options if user provides them: --engine DAI_ENGINE --client_id DAI_CLIENT_ID --token_endpoint_url DAI_TOKEN_ENDPOINT_URL --environment DAI_ENVIRONMENT --token DAI_TOKEN"""
+    else:
+        dai = ""
+    return dai
+
+
 def get_news_api_helper():
     cwd = os.path.abspath(os.getcwd())
     have_internet = get_have_internet()
@@ -824,7 +852,6 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     mermaid_renderer_helper = get_mermaid_renderer_helper()
     image_generation_helper = get_image_generation_helper()
     audio_transcription_helper = get_audio_transcription_helper()
-    query_to_web_image_helper = get_query_to_web_image_helper()
     aider_coder_helper = get_aider_coder_helper(base_url, api_key, model, autogen_timeout)
     rag_helper = get_rag_helper(base_url, api_key, model, autogen_timeout, text_context_list, image_file)
     convert_helper = get_convert_to_text_helper()
@@ -836,6 +863,10 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
     wolfram_alpha_helper = get_wolfram_alpha_helper()
     news_helper = get_news_api_helper()
     bing_search_helper = get_bing_search_helper()
+    query_to_web_image_helper = get_query_to_web_image_helper()
+
+    # data science
+    dai_helper = get_dai_helper()
 
     # general API notes:
     api_helper = get_api_helper()
@@ -875,6 +906,8 @@ def get_full_system_prompt(agent_code_writer_system_message, agent_system_site_p
                             news_helper,
                             bing_search_helper,
                             query_to_web_image_helper,
+                            # data science
+                            dai_helper,
                             # overall
                             api_helper,
                             agent_tools_note,

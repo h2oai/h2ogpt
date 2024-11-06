@@ -94,3 +94,7 @@ microsoft-bing-newssearch
 #microsoft-bing-autosuggest
 microsoft-bing-customimagesearch
 microsoft-bing-customwebsearch
+
+# DAI:
+h2o_engine_manager
+h2o_authn
