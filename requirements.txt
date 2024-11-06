@@ -16,7 +16,7 @@ gunicorn
 fastapi-utils
 sse_starlette>=1.8.2
 # consrained by tokenizers etc.:
-huggingface_hub>=0.23.3
+huggingface_hub==0.25.2
 appdirs>=1.4.4
 fire>=0.5.0
 docutils>=0.20.1
