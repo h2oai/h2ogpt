@@ -292,9 +292,7 @@ class H2OLocalCommandLineCodeExecutor(LocalCommandLineCodeExecutor):
                         filename.endswith('.py'):
                     # switch back to shell if was wrongly .py extension
                     code_block.language = lang = 'shell'
-                    new_filename = filename.replace('.py', '.sh')
-                    shutil.move(filename, new_filename)
-                    filename = new_filename
+                    filename = filename.replace('.py', '.sh')
                 # override lang if filename is detected, less error-prone than using code block lang
                 elif filename and filename.endswith('.sh'):
                     code_block.language = lang = 'shell'
