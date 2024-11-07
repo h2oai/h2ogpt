@@ -312,6 +312,7 @@ def run_autogen_2agent(query=None,
                                              agent_system_site_packages,
                                              system_message_parts,
                                              autogen_code_restrictions_level, autogen_silent_exchange,
+                                             agent_accuracy,
                                              client_metadata=client_metadata)
     if client_metadata:
         print("END FILES FOR 2AGENT: client_metadata: %s" % client_metadata, flush=True)

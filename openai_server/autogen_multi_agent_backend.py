@@ -204,6 +204,7 @@ def run_autogen_multi_agent(query=None,
                                              agent_venv_dir, agent_code_writer_system_message,
                                              agent_system_site_packages,
                                              system_message_parts,
-                                             autogen_code_restrictions_level, autogen_silent_exchange)
+                                             autogen_code_restrictions_level, autogen_silent_exchange,
+                                             agent_accuracy)
 
     return ret_dict
