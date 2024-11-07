@@ -144,9 +144,10 @@ def convert_messages_to_structure(
         assert content, "Missing content"
 
         if previous_role == role and role != "tool":
+            print(f"bad messages: {messages}")
             raise ValueError(
-                "Consecutive messages with the same role are not allowed: %s %s\n\n%s"
-                % (previous_role, role, messages)
+                "Consecutive messages with the same role are not allowed: %s %s"
+                % (previous_role, role)
             )
         previous_role = role
 

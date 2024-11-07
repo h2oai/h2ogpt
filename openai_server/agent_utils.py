@@ -194,6 +194,7 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
                                   agent_venv_dir, agent_code_writer_system_message, agent_system_site_packages,
                                   system_message_parts,
                                   autogen_code_restrictions_level, autogen_silent_exchange,
+                                  agent_accuracy,
                                   client_metadata=''):
     # DEBUG
     if agent_verbose:
@@ -227,7 +228,14 @@ def get_ret_dict_and_handle_files(chat_result, chat_result_planning,
 
     image_files, non_image_files = identify_image_files(file_list)
     # keep no more than 10 image files among latest files created
-    image_files = image_files[-10:]
+    if agent_accuracy == 'maximum':
+        pass
+    elif agent_accuracy == 'standard':
+        image_files = image_files[-20:]
+    elif agent_accuracy == 'basic':
+        image_files = image_files[-10:]
+    else:
+        image_files = image_files[-5:]
     file_list = image_files + non_image_files
 
     # guardrail artifacts even if LLM never saw them, shouldn't show user either
