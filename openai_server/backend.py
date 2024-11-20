@@ -262,6 +262,9 @@ async def get_response(chunk_response=True, **kwargs):
     import ast
 
     stream_output = kwargs.get('stream_output', True)
+    stream_output_orig = stream_output
+    # always force streaming to avoid blocking server
+    stream_output = True
     verbose = kwargs.get('verbose', False)
 
     kwargs = convert_gen_kwargs(kwargs)
@@ -285,11 +288,12 @@ async def get_response(chunk_response=True, **kwargs):
             for num in range(job_outputs_num_new):
                 chunk, response, res_dict = get_chunk(outputs_list, job_outputs_num, last_response, num,
                                                       verbose=verbose)
-                if chunk_response:
-                    if chunk:
-                        yield chunk
-                else:
-                    yield response
+                if stream_output_orig:
+                    if chunk_response:
+                        if chunk:
+                            yield chunk
+                    else:
+                        yield response
                 last_response = response
                 await asyncio.sleep(0.005)
             await asyncio.sleep(0.005)
@@ -299,14 +303,18 @@ async def get_response(chunk_response=True, **kwargs):
         job_outputs_num_new = len(outputs_list[job_outputs_num:])
         for num in range(job_outputs_num_new):
             chunk, response, res_dict = get_chunk(outputs_list, job_outputs_num, last_response, num, verbose=verbose)
-            if chunk_response:
-                if chunk:
-                    yield chunk
-            else:
-                yield response
+            if stream_output_orig:
+                if chunk_response:
+                    if chunk:
+                        yield chunk
+                else:
+                    yield response
             last_response = response
             await asyncio.sleep(0.005)
         job_outputs_num += job_outputs_num_new
+        if not stream_output_orig:
+            # behave as if not streaming
+            yield res_dict['response']
         if verbose:
             logger.info("total job_outputs_num=%d" % job_outputs_num)
     else:
