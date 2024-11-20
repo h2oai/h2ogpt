@@ -10,7 +10,7 @@ h2ogpt:
   replicaCount: 1
   imagePullSecrets: 
   image:
-    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-runtime
     tag: 
     pullPolicy: IfNotPresent
   initImage:
@@ -183,8 +183,10 @@ vllm:
   replicaCount: 1
 
   image:
-    repository: vllm/vllm-openai
-    tag: latest
+    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-vllm
+    tag:
+    #repository: vllm/vllm-openai
+    #tag: latest
     pullPolicy: IfNotPresent
 
   podAffinity:

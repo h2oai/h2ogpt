@@ -44,10 +44,9 @@ else
 fi
 # Optional: PyMuPDF/ArXiv:
 #   Note!! that pymupdf is AGPL, requiring any source code be made available, but it's like GPL and too strong a constraint for general commercial use.
-if [ "${GPLOK}" -eq "1" ]
-then
-    pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
-fi
+# h2oGPTe has license:
+pip install -r reqs_optional/requirements_optional_langchain.gpllike.txt -c reqs_optional/reqs_constraints.txt
+
 # Optional: FAISS
 pip install -r reqs_optional/requirements_optional_gpu_only.txt -c reqs_optional/reqs_constraints.txt
 # Optional: Selenium/PlayWright:
@@ -278,4 +277,9 @@ if [[ -z "${WOLFI_OS}" ]]; then
       sudo update-alternatives --config g++
       # pick version 11
   fi
+fi
+
+if [[ -n "${WOLFI_OS}" ]]; then
+ # mitigate CVE-2024-22195, CVE-2024-34064
+ pip install jinja2==3.1.4 --no-cache-dir -c reqs_optional/reqs_constraints.txt
 fi

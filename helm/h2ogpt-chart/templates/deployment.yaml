@@ -94,7 +94,7 @@ spec:
           image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
           command: ["python3"]
-          args: 
+          args:
             - "-m" 
             - "vllm.entrypoints.openai.api_server"
             - "--port"
@@ -631,7 +631,7 @@ spec:
           image: "{{ .Values.vllm.image.repository }}:{{ .Values.vllm.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.vllm.image.pullPolicy }}
           command: ["python3"]
-          args: 
+          args:
             - "-m" 
             - "vllm.entrypoints.openai.api_server"
             - "--port"
