@@ -1935,7 +1935,7 @@ def get_vllm_extra_dict(tokenizer, stop_sequences=[], repetition_penalty=None,
     if repetition_penalty is not None:
         vllm_extra_dict['extra_body'].update(repetition_penalty=repetition_penalty)
 
-    if response_format and response_format != 'text':
+    if response_format and response_format != 'text' and guided_json:
         vllm_extra_dict['extra_body'].update(dict(response_format={'type': response_format}))
     if guided_json:
         vllm_extra_dict['extra_body'].update(guided_json=guided_json)
