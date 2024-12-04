@@ -1,0 +1,14 @@
+{{- if and (.Values.agent.enabled) (not .Values.agent.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-agent-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.agent.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.agent.storage.size | quote }}
+{{- end }}

@@ -1,0 +1,14 @@
+{{- if and (.Values.h2ogpt.enabled) (not .Values.h2ogpt.storage.useEphemeral) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-volume
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.h2ogpt.storage.class }}
+  resources:
+    requests:
+      storage: {{ .Values.h2ogpt.storage.size | quote }}
+{{- end }}

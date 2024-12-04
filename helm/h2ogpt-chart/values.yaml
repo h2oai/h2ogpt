@@ -2,109 +2,101 @@ nameOverride: ""
 fullnameOverride: ""
 namespaceOverride: ""
 
+global:
+  externalLLM:
+    enabled: false
+    # -- list of secrets for h2ogpt and agent env
+    secret: {}
+#      OPENAI_AZURE_KEY: "value"
+#      OPENAI_AZURE_API_BASE: "value"
+#      OPENAI_API_KEY: "value"
+#      REPLICATE_API_TOKEN: "value"
+
+    modelLock:
+
+  visionModels:
+    # -- Enable vision models
+    enabled: false
+    # -- Visible vision models, the vision model itslef needs to be set via modeLock or base_model. Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5']
+    visibleModels: [ ]
+    rotateAlignResizeImage: false
+
 h2ogpt:
+  # -- Enable h2oGPT
   enabled: true
-  stack:
-    # -- Run h2oGPT and vLLM on same pod.
-    enabled: false 
+  # -- Enable agent
+  agent:
+    # -- Run agent with h2oGPT container
+    enabled: false
+    agent_workers: 5
+  openai:
+    enabled: true
+    openai_workers: 5
   replicaCount: 1
-  imagePullSecrets: 
+  imagePullSecrets:
   image:
     repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
-    tag: 
+    tag:
     pullPolicy: IfNotPresent
   initImage:
     repository:
     tag:
     pullPolicy:
-
-  # extra volumes, for more certs, mount under /etc/ssl/more-certs
+  # -- Extra volumes, for more certs, mount under /etc/ssl/more-certs
   extraVolumes: []
+  # -- Extra volume mounts
   extraVolumeMounts: []
-
-  podAffinity:
   # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+  podAffinity:
   # hostname:
   # zone:
-
   storage:
     size: 128Gi
-    class: 
+    class:
     useEphemeral: true
-  
-  externalLLM:
-    enabled: false
-    secret:
 
-    modelLock:
+  # -- Defaults configs are set internally with recommended values. Set values if you really need to change.
+  # -- Supported configs are commented. If you don't pass any value, keep {}
+  overrideConfig: {}
+#    verbose:
+#    heap_app_id:
+#    num_async:
+#    save_dir:
+#    score_model:
+#    share:
+#    enforce_h2ogpt_api_key:
+#    enforce_h2ogpt_ui_key:
+#    h2ogpt_api_keys:
+#    use_auth_token:
+#    visible_models:
+#    top_k_docs_max_show:
+#    admin_pass:
+#    function_server:
+#    function_server_workers:
+#    multiple_workers_gunicorn:
+#    llava_model:
+#    enable_llava:
+#    enable_tts:
+#    enable_stt:
+#    enable_transcriptions:
+#    asr_model:
+#    pre_load_embedding_model:
+#    pre_load_image_audio_models:
+#    cut_distance:
+#    hf_embedding_model:
+#    enable_captions:
+#    enable_doctr:
+#    embedding_gpu_id:
 
-    openAIAzure:
-      enabled: false
-
-    openAI:
-      enabled: False
-
-    replicate: 
-      enabled: false
-  
-  visionModels:
-    enabled: false
-    # -- Visible vision models, the vision model itslef needs to be set via modeLock or base_model
-    # -- Ex: visibleModels: ['OpenGVLab/InternVL-Chat-V1-5']
-    visibleModels: []
-    rotateAlignResizeImage: false
-
-# -- Example configs to use when not using Model Lock and External LLM
-  # overrideConfig:
-  #   base_model: h2oai/h2ogpt-4096-llama2-7b-chat
-  #   use_safetensors: True
-  #   prompt_type: llama2
-  #   save_dir: /workspace/save/
-  #   use_gpu_id: False
-  #   score_model: None
-  #   max_max_new_tokens: 2048
-  #   max_new_tokens: 1024
-
-  overrideConfig:
-    visible_login_tab: False
-    visible_system_tab: False
-    visible_models_tab: False
-    visible_hosts_tab: False
-    # change below to valid vision model or remove this entry
-    #visible_vision_models: "['OpenGVLab/InternVL-Chat-V1-5']"
-    rotate_align_resize_image: False
-    concurrency_count: 100
-    top_k_docs_max_show: 100
-    num_async: 10
-    # change below to valid directory or remove this entry
-    #save_dir: "/docker_logs"
-    score_model: "None"
-    enable_tts: False
-    enable_stt: False
-    enable_transcriptions: False
-    embedding_gpu_id: "cpu"
-    hf_embedding_model: "fake"
-    openai_server: True
-    share: False
-    enforce_h2ogpt_api_key: True
-    enforce_h2ogpt_ui_key: False
-    # change to something secure for ui access to backend
-    #h2ogpt_api_keys: "['api_key_change_me']"
-    metadata_in_context: ""
-    # change or remove if using model hub
-    #use_auth_token: "hf_xxxxx"
-    # change below to first visible model or remove this entry
-    #visible_models: "['mistralai/Mistral-7B-Instruct-v0.3']"
-    # change so ui or api cannot access without this password
-    #admin_pass: "admin_password_change_me"
+  # -- You can pass additional config here if overrideConfig does not have it.
+  additionalConfig: {}
 
   service:
     type: NodePort
     webPort: 80
     openaiPort: 5000
     functionPort: 5002
-    agentsPort: 5004
-    gptPort: 8888
+    agentPort: 5004
     webServiceAnnotations: {}
 
   updateStrategy:
@@ -112,9 +104,9 @@ h2ogpt:
 
   podSecurityContext:
     runAsNonRoot: true
-    runAsUser: 
-    runAsGroup: 
-    fsGroup: 
+    runAsUser:
+    runAsGroup:
+    fsGroup:
 
   securityContext:
     runAsNonRoot: true
@@ -126,59 +118,133 @@ h2ogpt:
       type: RuntimeDefault
 
   resources:
-  nodeSelector:
-  tolerations:
+    requests:
+      memory: 32Gi
+      nvidia.com/gpu: 0
+    limits:
+      memory: 64Gi
+      nvidia.com/gpu: 0
+  # -- Node taints to tolerate by the h2ogpt pods.
+  tolerations: []
+  # -- Node selector for the h2ogpt pods.
+  nodeSelector: {}
 
   env: {}
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
-tgi:
-  enabled: false
+agent:
+  # -- Enable agent, this must be `false` if `h2ogpt.agent.enabled` is `true`
+  enabled: true
+  agent_workers: 5
+  autoscaling:
+    # Enable autoscaling (HPA) for agent
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetMemory: 32Gi
+    targetCPU: 80
   replicaCount: 1
-
+  imagePullSecrets:
   image:
-    repository: ghcr.io/huggingface/text-generation-inference
-    tag: 0.9.3
+    repository: gcr.io/vorvan/h2oai/h2ogpt-runtime
+    tag:
     pullPolicy: IfNotPresent
-
+  initImage:
+    repository:
+    tag:
+    pullPolicy:
+  # -- Extra volumes, for more certs, mount under /etc/ssl/more-certs
+  extraVolumes: []
+  # -- Extra volume mounts
+  extraVolumeMounts: []
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
   podAffinity:
-    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
-    # hostname:
-    # zone:
+  # hostname:
+  # zone:
 
   storage:
-    size: 512Gi
-    class: 
+    size: 128Gi
+    class:
     useEphemeral: true
-  
-  overrideConfig:
-  hfSecret:
-  containerArgs:
+
+  # -- Defaults configs are set internally with recommended values. Set values if you really need to change.
+  # -- Supported configs are commented. If you don't pass any value, keep {}
+  overrideConfig: {}
+#    verbose:
+#    heap_app_id:
+#    num_async:
+#    save_dir:
+#    score_model:
+#    share:
+#    enforce_h2ogpt_api_key:
+#    enforce_h2ogpt_ui_key:
+#    h2ogpt_api_keys:
+#    use_auth_token:
+#    visible_models:
+#    top_k_docs_max_show:
+#    admin_pass:
+#    multiple_workers_gunicorn:
+#    llava_model:
+#    enable_llava:
+#    enable_tts:
+#    enable_stt:
+#    enable_transcriptions:
+#    asr_model:
+#    pre_load_embedding_model:
+#    pre_load_image_audio_models:
+#    cut_distance:
+#    hf_embedding_model:
+#    enable_captions:
+#    enable_doctr:
+#    embedding_gpu_id:
+
+  # -- You can pass additional config here if overrideConfig does not have it.
+  additionalConfig: {}
 
   service:
-    type: ClusterIP
-    port: 8080
+    type: NodePort
+    agentPort: 5004
+    annotations: {}
 
   updateStrategy:
     type: RollingUpdate
 
   podSecurityContext:
+    runAsNonRoot: true
+    runAsUser:
+    runAsGroup:
+    fsGroup:
+
   securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
 
   resources:
-  nodeSelector:
-  tolerations:
+    requests:
+      memory: 32Gi
+      nvidia.com/gpu: 1
+    limits:
+      memory: 64Gi
+      nvidia.com/gpu: 1
+  # -- Node taints to tolerate by the agent pods.
+  tolerations: []
+  # -- Node selector for the agent pods.
+  nodeSelector: {}
 
   env: {}
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
 vllm:
+  # -- Enable vllm
   enabled: false
   replicaCount: 1
 
@@ -186,9 +252,9 @@ vllm:
     repository: vllm/vllm-openai
     tag: latest
     pullPolicy: IfNotPresent
-
+  # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
   podAffinity:
-    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
+
     # hostname:
     # zone:
 
@@ -245,51 +311,7 @@ vllm:
 
   podAnnotations: {}
   podLabels: {}
-  autoscaling: {}
 
-lmdeploy:
-  enabled: false
-  replicaCount: 1
-
-  image:
-    repository: gcr.io/vorvan/h2oai/h2oai-h2ogpt-lmdeploy
-    tag:
-    pullPolicy: IfNotPresent
-
-  podAffinity:
-    # -- Set hostname and zone to true for pod affinity rules based on hostname and zone.
-    # hostname:
-    # zone:
-
-  storage:
-    size: 512Gi
-    class:
-    useEphemeral: true
-
-  overrideConfig:
-  hfSecret:
-  containerArgs:
-    - "OpenGVLab/InternVL-Chat-V1-5"
-
-  service:
-    type: ClusterIP
-    port: 23333
-
-  updateStrategy:
-    type: RollingUpdate
-
-  podSecurityContext:
-  securityContext:
-
-  resources:
-  nodeSelector:
-  tolerations:
-
-  env: {}
-
-  podAnnotations: {}
-  podLabels: {}
-  autoscaling: {}
 
 # -- CA certs
 caCertificates: ""

@@ -68,3 +68,131 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Config for h2oGPT
+*/}}
+
+{{- define "h2ogpt.config" -}}
+{{- with .Values.h2ogpt }}
+verbose: {{ default "True" ( .overrideConfig.verbose | quote ) }}
+{{- if .overrideConfig.heap_app_id }}
+heap_app_id: {{ .overrideConfig.heap_app_id }}
+{{- end }}
+num_async: {{ default 10 .overrideConfig.num_async }}
+save_dir: {{ default "/docker_logs" .overrideConfig.save_dir }}
+score_model: {{ default "None" .overrideConfig.score_model }}
+share: {{ default "False" (.overrideConfig.share | quote ) }}
+enforce_h2ogpt_api_key: {{ default "False" ( .overrideConfig.enforce_h2ogpt_api_key | quote ) }}
+enforce_h2ogpt_ui_key: {{ default "False" ( .overrideConfig.enforce_h2ogpt_ui_key | quote ) }}
+{{- if .overrideConfig.h2ogpt_api_keys }}
+h2ogpt_api_keys: {{ .overrideConfig.h2ogpt_api_keys }}
+{{- end }}
+{{- if .overrideConfig.use_auth_token }}
+use_auth_token: {{ .overrideConfig.use_auth_token }}
+{{- end }}
+visible_models: {{ default "['meta-llama/Meta-Llama-3.1-8B-Instruct']" .overrideConfig.visible_models }}
+{{/*visible_vision_models: {{ default "['mistralai/Pixtral-12B-2409']" .overrideConfig.visible_vision_models }}*/}}
+top_k_docs_max_show: {{ default 100 .overrideConfig.top_k_docs_max_show }}
+{{- if .overrideConfig.admin_pass }}
+admin_pass: {{ .overrideConfig.admin_pass }}
+{{- end }}
+{{- if .openai.enabled }}
+openai_server: "True"
+openai_port: 5000
+openai_workers: {{ default 5 .openai.openai_workers }}
+{{- end }}
+{{- if .agent.enabled }}
+agent_server: "True"
+agent_port: 5004
+agent_workers: {{ .agent.agent_workers }}
+{{- end }}
+function_server: {{ default "True" ( .overrideConfig.function_server | quote ) }}
+function_port: 5002
+function_server_workers: {{ default 1 .overrideConfig.function_server_workers }}
+multiple_workers_gunicorn: {{ default "True" ( .overrideConfig.multiple_workers_gunicorn | quote ) }}
+llava_model: {{ default "openai:mistralai/Pixtral-12B-2409" .overrideConfig.llava_model }}
+enable_llava: {{ default "True" ( .overrideConfig.enable_llava | quote ) }}
+{{- if ge (int (index .resources.requests "nvidia.com/gpu") ) (int 1) }}
+enable_tts: {{ default "False" ( .overrideConfig.enable_tts | quote ) }}
+enable_stt: {{ default "True" ( .overrideConfig.enable_stt | quote ) }}
+enable_transcriptions: {{ default "True" ( .overrideConfig.enable_transcriptions | quote ) }}
+asr_model: {{ default "distil-whisper/distil-large-v3" .overrideConfig.asr_model }}
+pre_load_embedding_model: {{ default "True" (.overrideConfig.pre_load_embedding_model | quote ) }}
+pre_load_image_audio_models: {{ default "True" ( .overrideConfig.pre_load_image_audio_models | quote ) }}
+cut_distance: {{ default 10000 .overrideConfig.cut_distance }}
+hf_embedding_model: {{ default "BAAI/bge-large-en-v1.5" .overrideConfig.hf_embedding_model }}
+enable_captions: {{ default "False" ( .overrideConfig.enable_captions | quote ) }}
+enable_doctr: {{ default "True" ( .overrideConfig.enable_doctr | quote ) }}
+{{- else }}
+enable_tts: {{ default "False" ( .overrideConfig.enable_tts | quote ) }}
+enable_stt: {{ default "False" ( .overrideConfig.enable_stt | quote ) }}
+enable_transcriptions: {{ default "False" ( .overrideConfig.enable_transcriptions | quote ) }}
+embedding_gpu_id: {{ default "cpu" .overrideConfig.embedding_gpu_id }}
+hf_embedding_model: {{ default "fake" .overrideConfig.hf_embedding_model }}
+pre_load_embedding_model: {{ default "False" ( .overrideConfig.pre_load_embedding_model | quote ) }}
+pre_load_image_audio_models:  {{ default "False" ( .overrideConfig.pre_load_image_audio_models | quote ) }}
+enable_captions: {{ default "False" ( .overrideConfig.enable_captions | quote ) }}
+enable_doctr: {{ default "False" ( .overrideConfig.enable_doctr | quote ) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Config for agent
+*/}}
+
+{{- define "agent.config" -}}
+{{- with .Values.agent }}
+verbose: {{ default "True" ( .overrideConfig.verbose | quote ) }}
+{{- if .overrideConfig.heap_app_id }}
+heap_app_id: {{ .overrideConfig.heap_app_id }}
+{{- end }}
+num_async: {{ default 10 .overrideConfig.num_async }}
+save_dir: {{ default "/docker_logs" .overrideConfig.save_dir }}
+score_model: {{ default "None" .overrideConfig.score_model }}
+share: {{ default "False" (.overrideConfig.share | quote ) }}
+enforce_h2ogpt_api_key: {{ default "False" ( .overrideConfig.enforce_h2ogpt_api_key | quote ) }}
+enforce_h2ogpt_ui_key: {{ default "False" ( .overrideConfig.enforce_h2ogpt_ui_key | quote ) }}
+{{- if .overrideConfig.h2ogpt_api_keys }}
+h2ogpt_api_keys: {{ .overrideConfig.h2ogpt_api_keys }}
+{{- end }}
+{{- if .overrideConfig.use_auth_token }}
+use_auth_token: {{ .overrideConfig.use_auth_token }}
+{{- end }}
+visible_models: {{ default "['meta-llama/Meta-Llama-3.1-8B-Instruct']" .overrideConfig.visible_models }}
+{{/*visible_vision_models: {{ default "['mistralai/Pixtral-12B-2409']" .overrideConfig.visible_vision_models }}*/}}
+top_k_docs_max_show: {{ default 100 .overrideConfig.top_k_docs_max_show }}
+{{- if .overrideConfig.admin_pass }}
+admin_pass: {{ .overrideConfig.admin_pass }}
+{{- end }}
+agent_server: "True"
+agent_port: 5004
+agent_workers: {{ default 5 .agent_workers }}
+multiple_workers_gunicorn: {{ default "True" ( .overrideConfig.multiple_workers_gunicorn | quote ) }}
+llava_model: {{ default "openai:mistralai/Pixtral-12B-2409" .overrideConfig.llava_model }}
+enable_llava: {{ default "True" ( .overrideConfig.enable_llava | quote ) }}
+{{- if ge (int (index .resources.requests "nvidia.com/gpu") ) (int 1) }}
+enable_tts: {{ default "False" ( .overrideConfig.enable_tts | quote ) }}
+enable_stt: {{ default "True" ( .overrideConfig.enable_stt | quote ) }}
+enable_transcriptions: {{ default "True" ( .overrideConfig.enable_transcriptions | quote ) }}
+asr_model: {{ default "distil-whisper/distil-large-v3" .overrideConfig.asr_model }}
+pre_load_embedding_model: {{ default "True" (.overrideConfig.pre_load_embedding_model | quote ) }}
+pre_load_image_audio_models: {{ default "True" ( .overrideConfig.pre_load_image_audio_models | quote ) }}
+cut_distance: {{ default 10000 .overrideConfig.cut_distance }}
+hf_embedding_model: {{ default "BAAI/bge-large-en-v1.5" .overrideConfig.hf_embedding_model }}
+enable_captions: {{ default "False" ( .overrideConfig.enable_captions | quote ) }}
+enable_doctr: {{ default "True" ( .overrideConfig.enable_doctr | quote ) }}
+{{- else }}
+enable_tts: {{ default "False" ( .overrideConfig.enable_tts | quote ) }}
+enable_stt: {{ default "False" ( .overrideConfig.enable_stt | quote ) }}
+enable_transcriptions: {{ default "False" ( .overrideConfig.enable_transcriptions | quote ) }}
+embedding_gpu_id: {{ default "cpu" .overrideConfig.embedding_gpu_id }}
+hf_embedding_model: {{ default "fake" .overrideConfig.hf_embedding_model }}
+pre_load_embedding_model: {{ default "False" ( .overrideConfig.pre_load_embedding_model | quote ) }}
+pre_load_image_audio_models:  {{ default "False" ( .overrideConfig.pre_load_image_audio_models | quote ) }}
+enable_captions: {{ default "False" ( .overrideConfig.enable_captions | quote ) }}
+enable_doctr: {{ default "False" ( .overrideConfig.enable_doctr | quote ) }}
+{{- end }}
+{{- end }}
+{{- end }}

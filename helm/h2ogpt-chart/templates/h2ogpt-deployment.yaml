@@ -1,0 +1,197 @@
+{{- if .Values.h2ogpt.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+  labels:
+    app: {{ include "h2ogpt.fullname" . }}
+spec:
+  replicas: {{ .Values.h2ogpt.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "h2ogpt.fullname" . }}
+  {{- if .Values.h2ogpt.updateStrategy }}
+  strategy: {{- toYaml .Values.h2ogpt.updateStrategy | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with .Values.h2ogpt.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "h2ogpt.fullname" . }}
+        {{- with .Values.h2ogpt.podLabels }}
+        {{ toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.h2ogpt.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.h2ogpt.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.h2ogpt.podSecurityContext | nindent 8 }}
+      affinity:
+        {{- if .Values.h2ogpt.podAffinity }}
+        podAntiAffinity:
+          {{- if .Values.h2ogpt.podAffinity.hostname }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - {{ include "h2ogpt.fullname" . }}
+              topologyKey: kubernetes.io/hostname
+          {{- end }}
+          {{- if .Values.h2ogpt.podAffinity.zone }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - {{ include "h2ogpt.fullname" . }}
+                topologyKey: failure-domain.beta.kubernetes.io/zone
+          {{- end }}
+        {{- end }}
+      {{- with .Values.h2ogpt.extraAffinity }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.h2ogpt.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "h2ogpt.fullname" . }}
+          securityContext:
+            {{- toYaml .Values.h2ogpt.securityContext | nindent 12 }}
+          image: "{{ .Values.h2ogpt.image.repository }}:{{ .Values.h2ogpt.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.h2ogpt.image.pullPolicy }}
+          command: ["/bin/bash", "-c"]
+          {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.modelLock) }}
+          args:
+            - >
+              until wget -O- http://{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}/v1/models >/dev/null 2>&1;
+                do
+                  echo "Waiting for inference service to become ready...";
+                  sleep 5;
+                done
+
+              python3 /workspace/generate.py
+          {{- end }}
+          {{- if and .Values.h2ogpt.enabled (not .Values.vllm.enabled ) }}
+          args:
+            - >
+              python3 /workspace/generate.py
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 7860
+              protocol: TCP
+          {{- if .Values.h2ogpt.openai.enabled }}
+            - name: openai
+              containerPort: 5000
+              protocol: TCP
+          {{- end }}
+            - name: function
+              containerPort: 5002
+              protocol: TCP
+          {{- if .Values.h2ogpt.agent.enabled }}
+            - name: agent
+              containerPort: 5004
+              protocol: TCP
+          {{- end }}
+          {{- if .Values.h2ogpt.livenessProbe }}
+          livenessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.h2ogpt.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.h2ogpt.readinessProbe }}
+          readinessProbe:
+            httpGet:
+              path:  /
+              scheme: HTTP
+              port: http
+            {{- toYaml .Values.h2ogpt.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.h2ogpt.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "h2ogpt.fullname" . }}-config
+          {{- if .Values.global.externalLLM.enabled }}
+            - secretRef:
+                name: {{ include "h2ogpt.fullname" . }}-external-llm-secret
+          {{- end }}
+          env:
+          {{- if and .Values.vllm.enabled (not .Values.global.externalLLM.enabled) }}
+            - name: h2ogpt_inference_server
+              value: "vllm:{{ include "h2ogpt.fullname" . }}-vllm-inference:{{ .Values.vllm.service.port }}"
+          {{- end }}
+          {{- range $key, $value := .Values.h2ogpt.env }}
+            - name: "{{ $key }}"
+              value: "{{ $value }}"
+          {{- end }}
+          {{- if .Values.global.externalLLM.enabled }}
+            - name: H2OGPT_MODEL_LOCK
+              value: {{ toJson .Values.global.externalLLM.modelLock | quote }}
+            - name: H2OGPT_SCORE_MODEL
+              value: None
+          {{- end }}
+          {{- if .Values.global.visionModels.enabled }}
+            - name: H2OGPT_VISIBLE_VISION_MODELS
+              value: {{ .Values.global.visionModels.visibleModels | quote }}
+            - name: H2OGPT_ROTATE_ALIGN_RESIZE_IMAGE
+              value: {{ .Values.global.visionModels.rotateAlignResizeImage | quote }}
+          {{- end }}
+          volumeMounts:
+            - name: {{ include "h2ogpt.fullname" . }}-volume
+              mountPath: /workspace/.cache
+              subPath: cache
+            - name: {{ include "h2ogpt.fullname" . }}-volume
+              mountPath: /workspace/save
+              subPath: save
+            {{- if .Values.caCertificates }}
+            - name: ca-certificates
+              mountPath: /etc/ssl/certs/root-ca-bundle.crt
+              subPath: root-ca-bundle.crt
+            {{- end }}
+            {{ with .Values.h2ogpt.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: {{ include "h2ogpt.fullname" . }}-volume
+          {{- if not .Values.h2ogpt.storage.useEphemeral }}
+          persistentVolumeClaim:
+            claimName:  {{ include "h2ogpt.fullname" . }}-volume
+          {{- else}}
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: {{ .Values.h2ogpt.storage.size | quote }}
+                storageClassName: {{ .Values.h2ogpt.storage.class }}
+          {{- end }}
+        {{- if .Values.caCertificates }}
+        - name: ca-certificates
+          configMap:
+            name: {{ include "h2ogpt.fullname" . }}-ca-certificates
+        {{- end }}
+        {{- with .Values.h2ogpt.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+{{- end }}

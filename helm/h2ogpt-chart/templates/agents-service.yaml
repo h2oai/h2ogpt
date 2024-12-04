@@ -1,0 +1,21 @@
+{{- if .Values.agent.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-agent
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+
+  {{- with .Values.agent.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}-agent
+  ports:
+    - name: agent
+      protocol: TCP
+      port: {{ .Values.agent.service.agentPort }}
+      targetPort: 5004
+  type: {{ .Values.agent.service.type }}
+{{- end }}
