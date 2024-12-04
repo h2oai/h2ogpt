@@ -2,3 +2,7 @@ python-doctr @ git+https://github.com/h2oai/doctr.git@aee9b1c369e37af9e182656609
 weasyprint>=60.1
 imutils>=0.5.4
 opencv-python-headless>=4.8.1.78
+fonttools>=4.43.0 # not directly required, pinned by Snyk to avoid a vulnerability
+numpy>=1.22.2 # not directly required, pinned by Snyk to avoid a vulnerability
+pillow>=10.3.0 # not directly required, pinned by Snyk to avoid a vulnerability
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
