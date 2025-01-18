@@ -10,16 +10,16 @@ sympy>=1.12
 
 
 # for AutoGen
-pyautogen==0.2.33
+autogen-agentchat~=0.2.0
 # 2.3.0 breaks older autogen with xgboost import
 flaml==2.2.0
-pyautogen[redis]
-#pyautogen[ipython]
-pyautogen[retrievechat]
-pyautogen[lmm]
-#pyautogen[mathchat]<0.2
-pyautogen[graph]
-pyautogen[long-context]
+autogen-agentchat[redis]
+#autogen-agentchat[ipython]
+autogen-agentcaht[retrievechat]
+autogen-agetnchat[lmm]
+#autogen-agentchat[mathchat]<0.2
+autogen-agentchat[graph]
+autogen-agentchat[long-context]
 
 # helpers for AutoGen (most are already installed)
 sympy
