@@ -15,8 +15,8 @@ autogen-agentchat~=0.2.0
 flaml==2.2.0
 autogen-agentchat[redis]
 #autogen-agentchat[ipython]
-autogen-agentcaht[retrievechat]
-autogen-agetnchat[lmm]
+autogen-agentchat[retrievechat]
+autogen-agentchat[lmm]
 #autogen-agentchat[mathchat]<0.2
 autogen-agentchat[graph]
 autogen-agentchat[long-context]
