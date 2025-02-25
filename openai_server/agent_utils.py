@@ -20,7 +20,7 @@ def get_have_internet():
             return True
         else:
             return False
-    except requests.ConnectionError:
+    except (requests.ConnectionError, requests.exceptions.ReadTimeout):
         return False
 
 
