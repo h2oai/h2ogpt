@@ -1,0 +1,15 @@
+{{- if .Values.vllm.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}-vllm-inference
+  ports:
+    - protocol: TCP
+      port: {{ .Values.vllm.service.port }}
+      targetPort: 5000
+  type: {{ .Values.vllm.service.type }}
+{{- end }}

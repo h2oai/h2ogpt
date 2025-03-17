@@ -1,0 +1,3 @@
+{{- if and ( and .Values.h2ogpt.enabled .Values.h2ogpt.agent.enabled) .Values.agent.enabled }}
+  {{- fail " Both agent and h2ogpt.agent cannot be enabled. Enably only one and try again" }}
+{{- end }}
