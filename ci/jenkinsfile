@@ -34,6 +34,8 @@ pipeline {
     parameters {
         booleanParam(name: 'skipTesting', defaultValue: false, description: 'Skip testing')
         text(name: "testTargets", defaultValue: "${ALL_TESTS.keySet().join('\n')}", description: "A select set of tests to run")
+        booleanParam(name: 'buildWheels', defaultValue: true, description: 'Build Python wheels')
+        booleanParam(name: 'buildAndPush', defaultValue: true, description: 'Build h2ogpt docker image & push if image does not exists in harbor')
         booleanParam(name: 'publish', defaultValue: false, description: 'Upload to HF')
     }
     options {
@@ -41,7 +43,7 @@ pipeline {
         timestamps()
     }
     stages {
-        stage('Build') {
+        stage('Init') {
             agent {
                 label "linux && docker"
             }
@@ -51,14 +53,45 @@ pipeline {
                     def commitMsg = sh(returnStdout: true, script: 'git log -1 --pretty=format:"[%an] %s"').trim()
                     currentBuild.displayName = "${env.BUILD_ID} - [${shortHash}]"
                     currentBuild.description = "${commitMsg}"
+                }
+            }
+        }
 
-                    sh "make docker_build"
+        stage('Build Wheels') {
+            when {
+                anyOf {
+                    expression { return params.buildWheels }
+                }
+                beforeAgent true
+            }
+            agent {
+                label "linux && docker"
+            }
+            steps {
+                script {
                     docker.image("harbor.h2o.ai/library/python:3.10").inside("--entrypoint='' --security-opt seccomp=unconfined -e USE_WHEEL=1 -e HOME=${WORKSPACE}") {
                         sh "make clean dist"
                     }
 
                     archiveArtifacts allowEmptyArchive: true, artifacts: "dist/h2ogpt-*.whl"
                     stash includes: "dist/h2ogpt-*.whl", name: "wheel_file"
+                }
+            }
+        }
+
+        stage('Build & Push Docker Image') {
+            when {
+                anyOf {
+                    expression { return params.buildAndPush }
+                }
+                beforeAgent true
+            }
+            agent {
+                label "linux && docker"
+            }
+            steps {
+                script {
+                    sh "make docker_build"
                 }
             }
         }
