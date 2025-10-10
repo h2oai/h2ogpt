@@ -1,0 +1,26 @@
+{{- if .Values.agent.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-agent-config
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+  labels:
+    {{- include "h2ogpt.labels" . | nindent 4 }}
+data:
+{{- range $key, $value := ( include "agent.config" . | fromYaml ) }}
+{{- /* convert boolean value to cli compatiblity */}}
+  {{- if or ( eq "true" ( $value | toString )) ( eq "false" ( $value | toString )) }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote | title }}
+  {{- else }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
+{{- range $key, $value := ( .Values.agent.additionalConfig ) }}
+{{- /* convert boolean value to cli compatiblity */}}
+  {{- if or ( eq "true" ( $value | toString )) ( eq "false" ( $value | toString )) }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote | title }}
+  {{- else }}
+    {{ printf "H2OGPT_%s" $key | upper }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

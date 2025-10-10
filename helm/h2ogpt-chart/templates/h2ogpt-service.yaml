@@ -1,0 +1,37 @@
+{{- if .Values.h2ogpt.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "h2ogpt.fullname" . }}-web
+  namespace: {{ include "h2ogpt.namespace" . | quote }}
+
+  {{- with .Values.h2ogpt.service.webServiceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    app: {{ include "h2ogpt.fullname" . }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.h2ogpt.service.webPort }}
+      targetPort: 7860
+  {{- if .Values.h2ogpt.openai.enabled }}
+    - name: openai
+      protocol: TCP
+      port: {{ .Values.h2ogpt.service.openaiPort }}
+      targetPort: 5000
+  {{- end }}
+    - name: function
+      protocol: TCP
+      port: {{ .Values.h2ogpt.service.functionPort }}
+      targetPort: 5002
+  {{- if .Values.h2ogpt.agent.enabled }}
+    - name: agent
+      protocol: TCP
+      port: {{ .Values.h2ogpt.service.agentPort }}
+      targetPort: 5004
+  {{- end }}
+  type: {{ .Values.h2ogpt.service.type }}
+{{- end }}
