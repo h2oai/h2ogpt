@@ -1,11 +1,11 @@
 # ensure constrained to requirements.txt version:
 torch==2.2.1; sys_platform != "darwin" and platform_machine != "arm64"
-torch==2.3.1; sys_platform == "darwin" and platform_machine == "arm64"
+torch==2.5.1; sys_platform == "darwin" and platform_machine == "arm64"
 
 # optional for chat with PDF
 langchain==0.2.6
 langchain_experimental==0.0.62
-langchain-community==0.2.6
+langchain-community==0.2.19
 langsmith==0.1.82
 langchain-core==0.2.23
 langchain-text-splitters==0.2.2
