@@ -455,7 +455,7 @@ os.environ['TERM'] = 'dumb'
         except Exception as e:
             if danger_mark in str(e):
                 print(f"Code Danger Error: {e}\n\n{code_blocks}", file=sys.stderr)
-                # dont' fail, just return the error so LLM can adjust
+                # don't fail, just return the error so LLM can adjust
                 ret = CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise
@@ -464,7 +464,7 @@ os.environ['TERM'] = 'dumb'
         except Exception as e:
             if bad_output_mark in str(e):
                 print(f"Code Output Danger Error: {e}\n\n{code_blocks}\n\n{ret}", file=sys.stderr)
-                # dont' fail, just return the error so LLM can adjust
+                # don't fail, just return the error so LLM can adjust
                 ret = CommandLineCodeResult(exit_code=1, output=str(e))
             else:
                 raise

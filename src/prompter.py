@@ -1834,7 +1834,7 @@ class Prompter(object):
                 # prefix with output counter
                 output = "\n=========== Output %d\n\n" % (1 + oi) + output
                 if oi > 0:
-                    # post fix outputs with seperator
+                    # post fix outputs with separator
                     output += '\n'
             output = self.fix_text(self.prompt_type, output)
             outputs[oi] = output
